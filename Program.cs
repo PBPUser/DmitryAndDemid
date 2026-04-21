@@ -1,2 +1,9 @@
-﻿// See https://aka.ms/new-console-template for more information
-Console.WriteLine("Hello, World!");
+﻿using DmitryAndDemid;
+
+if (Configuration.Config.AlwaysAsk)
+    new PreconfigWindow().Open();
+else
+{
+    Runtime.CurrentRuntime = new Runtime();
+    Runtime.CurrentRuntime.Start();
+}
