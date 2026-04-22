@@ -17,6 +17,7 @@ public class Runtime
 
     }
 
+    public double Time;
     public int Width;
     public int Height;
 
@@ -63,7 +64,8 @@ public class Runtime
         Scale = ((double)width) / 640d;
         InitWindow(width, height, "An AKOB Game 2: A story about Dmitry from Drochigin and Demid (Sergeevich)");
         SetTargetFPS(240);
-        double time = GetTime();
+        SetExitKey(KeyboardKey.Null);
+        Time = GetTime();
         double c = 0;
         ScreenLoading = new LoadingScreen();
         AddScreen(ScreenLoading);
@@ -71,9 +73,9 @@ public class Runtime
         while (!WindowShouldClose() || DisableClose)
         {
             c = GetTime();
-            PreRender(time - c);
+            PreRender(Time - c);
             Render();
-            time = c;
+            Time = c;
         }
         Raylib.CloseWindow();
     }
@@ -99,7 +101,13 @@ public class Runtime
             if (!ADPTriggered)
                 AddAction(() =>
                 {
-                    SwitchToMain();
+                    if (IsKeyDown(KeyboardKey.J))
+                    {
+                        ScreenLoading.SetADPText("User activated crash.", false);
+                        ADPTriggered = true;
+                    }
+                    else
+                        SwitchToMain();
                 });
         });
     }
@@ -114,7 +122,7 @@ public class Runtime
     void LoadTextures()
     {
         foreach (var x in Directory.GetFiles("Assets/Textures"))
-            Textures[x.Replace("\\", "/").Split("/").Last()] = LoadTexture(x);
+            Textures[Path.GetFileName(x)] = LoadTexture(x);
     }
 
     void LoadShaders()
@@ -170,7 +178,10 @@ public class Runtime
         if (ScreenRefreshRequired)
             RefreshScreens();
         foreach (var screen in Screens)
+        {
             screen.PreRender(delta);
+        }
+        Screens.Last().TopUpdate();
     }
 
     void RefreshScreens()
@@ -179,12 +190,18 @@ public class Runtime
         {
             x.Invoke();
         }
+        var lastScreen = Screens.LastOrDefault();
         Actions.Clear();
         Screens.AddRange(QueueToAdd);
         QueueToAdd.Clear();
         Screens.RemoveAll(x => QueueToRemove.Contains(x));
         QueueToRemove.Clear();
         ScreenRefreshRequired = false;
+        if (lastScreen != Screens.LastOrDefault())
+        {
+            lastScreen?.Deactivated();
+            Screens.LastOrDefault()?.Activated();
+        }
     }
 
     void Render()

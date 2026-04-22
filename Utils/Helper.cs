@@ -1,5 +1,6 @@
 using System.Numerics;
 using Raylib_cs;
+using static Raylib_cs.Raylib;
 
 namespace DmitryAndDemid.Utils;
 
@@ -93,6 +94,14 @@ public static class Helper
         Raylib.EndShaderMode();
     }
 
+    public static RenderTexture2D DrawDialog(string text)
+    {
+        var tx = DrawText(text, 16, 4, 4, GetFontDefault(), Color.Black);
+        var vx = RenderTextureInCloud(tx.Texture);
+        UnloadRenderTexture(tx);
+        return vx;
+    }
+
     static int LocationFlipScreenSize;
 
     public static Vector4 ColorToVector(Color color)
@@ -142,6 +151,18 @@ public static class Helper
         return timeAppear * timeDisappear;
     }
 
+    static float Clamp(float value, float min, float max)
+    {
+        return MathF.Max(MathF.Min(value, max), min);
+    }
+
+    public static float ComputeObjectTime(float time, float start, float appearLength, float end, float disappearLength)
+    {
+        float timeAppear = Clamp((time - start) / appearLength, 0, 1);
+        float timeDisappear = Clamp((end - time) / disappearLength, 0, 1);
+        return timeAppear * timeDisappear;
+    }
+
     public static double ComputeObjectTimeStart(double time, double start, double appearLength)
     {
         return Math.Clamp((time - start) / appearLength, 0, 1);
@@ -169,28 +190,45 @@ public static class Helper
         : (MathF.Pow(2, -20 * x + 10) * MathF.Sin((20 * x - 11.125f) * c5)) / 2 + 1;
     }
 
-    public static RenderTexture2D? DrawText(string s, int hPadding, int vPadding)
+    public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, Font font) => DrawText(s, fontSize, hPadding, vPadding, font, Color.White);
+
+    public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, Font font, Color color)
     {
-        int size = (int)(24 * Runtime.CurrentRuntime.Scale);
+        int size = (int)(fontSize * Runtime.CurrentRuntime.Scale);
         int width = size * s.Length + hPadding * 2;
         int height = size + vPadding * 2;
-        Console.WriteLine($"Size: {width}x{height}");
-        try
-        {
-            RenderTexture2D rt2d = Raylib.LoadRenderTexture(width, height);
-            return rt2d;
-
-        }
-        catch
-        {
-            return null;
-        }
-
+        RenderTexture2D rt2d = Raylib.LoadRenderTexture(width, height);
+        RenderTexture2D rt2d2 = Raylib.LoadRenderTexture(width, height);
         //Raylib.SetShaderValue(Runtime.CurrentRuntime.Shaders["flip"], LocationWaveScreenSize, new float[] { rt2d.Texture.Width, rt2d.Texture.Height }, ShaderUniformDataType.Vec2);
-        //Raylib.BeginTextureMode(rt2d);
+        Raylib.BeginTextureMode(rt2d);
         //Raylib.BeginShaderMode(Runtime.CurrentRuntime.Shaders["flip"]);
-        //Raylib.DrawText(s, hPadding, vPadding, size, Color.White);
+        Raylib.DrawTextEx(font, s, new Vector2(hPadding, vPadding), size, 4, color);
         //Raylib.EndShaderMode();
-        //Raylib.EndTextureMode();
+        Raylib.EndTextureMode();
+        Raylib.BeginTextureMode(rt2d2);
+        Raylib.DrawTexture(rt2d.Texture, 0, 0, Color.White);
+        Raylib.EndTextureMode();
+        Raylib.UnloadRenderTexture(rt2d);
+        return rt2d2;
+    }
+
+    public static Rectangle GetFullSource(Texture2D t) => new Rectangle(0, 0, t.Width, t.Height);
+
+    public static Rectangle GetFullscreenSource() => new Rectangle(0, 0, Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height);
+
+    public static Rectangle ScaleByHeight(float middle, float y, Vector2 size, float newHeight)
+    {
+        float mp = newHeight / size.Y;
+        return new Rectangle(middle, y, mp * size.X, newHeight);
+    }
+
+    public static Rectangle Scale(Rectangle rc, double scale)
+    {
+        return Scale(rc, (float)scale);
+    }
+
+    public static Rectangle Scale(Rectangle rc, float scale)
+    {
+        return new Rectangle(rc.Position * scale, rc.Size * scale);
     }
 }

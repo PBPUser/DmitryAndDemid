@@ -1,0 +1,58 @@
+{
+  "Chapters": [
+    {
+      "ChapterLength": 1000,
+      "Index": 0
+    },
+    {
+      "ChapterLength": 1000,
+      "Index": 1
+    },
+    {
+      "ChapterLength": 400,
+      "Index": 3
+    }
+  ],
+  "Dialogs": [
+    {
+      "Index": 2,
+      "Elements": [
+        {
+          "Text": "Text 1",
+          "Skipable": true,
+          "AntogonistSpeak": false,
+          "Art": "demid.png"
+        },
+        {
+          "Text": "Text 2",
+          "Skipable": true,
+          "AntogonistSpeak": true,
+          "Art": "dima.png"
+        },
+        {
+          "Text": "The Text 3",
+          "Skipable": true,
+          "AntogonistSpeak": false,
+          "Art": "dima.png"
+        },
+        {
+          "Text": "The Text 4",
+          "Skipable": true,
+          "AntogonistSpeak": false,
+          "Art": "demid.png"
+        }
+      ]
+    },
+    {
+      "Index": 4,
+      "Elements": [
+        {
+          "Text": "The Text 5",
+          "Skipable": true,
+          "AntogonistSpeak": false,
+          "Art": "demid.png"
+        }
+      ]
+    }
+  ]
+}
