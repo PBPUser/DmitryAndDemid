@@ -121,8 +121,10 @@ public class Runtime
 
     void LoadTextures()
     {
-        foreach (var x in Directory.GetFiles("Assets/Textures"))
+        foreach (var x in Directory.GetFiles("Assets/Textures", "*.png"))
             Textures[Path.GetFileName(x)] = LoadTexture(x);
+        Textures["MenuItemSelectionGradient1"] = Helper.RenderSelectionBackground(200, 200, 0);
+        Textures["MenuBackground"] = Helper.FillTextureWithColor(Color.Black with { A = 128 }, Width, Height).Texture;
     }
 
     void LoadShaders()
@@ -164,6 +166,7 @@ public class Runtime
     public void AddScreen(Screen screen)
     {
         ScreenRefreshRequired = true;
+        screen.Created();
         QueueToAdd.Add(screen);
     }
 

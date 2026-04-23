@@ -37,7 +37,7 @@ public class RuntimeDialogElement
         Skipable = dialogElement.Skipable;
         Art = Runtime.CurrentRuntime.Textures[dialogElement.Art];
         AntogonistSpeak = dialogElement.AntogonistSpeak;
-        DialogTexture = Helper.DrawDialog(dialogElement.Text);
+        DialogTexture = Helper.DrawDialog(dialogElement.Text, AntogonistSpeak ? 0.79f : 2.34f);
     }
 
     public void Unload()

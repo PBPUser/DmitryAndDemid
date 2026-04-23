@@ -1,16 +1,54 @@
 {
+  "StageBackgroundClass": "DrogichinBackground",
   "Chapters": [
     {
-      "ChapterLength": 1000,
-      "Index": 0
+      "ChapterLength": 120,
+      "Index": 0,
+      "BulletSpawnInfos": [{
+        "X": 20,
+        "Y": 20,
+        "BulletUpdateMethod": "MoveToPlayer",
+        "Speed": 1,
+        "BulletCreateMethod": "WriteDirectionToPlayer",
+        "BulletVisual": "Default",
+        "SpawnTick": 0
+      }]
     },
     {
       "ChapterLength": 1000,
-      "Index": 1
+      "Index": 1,
+      "BulletSpawnInfos": [{
+        "X": 20,
+        "Y": 20,
+        "Speed": 10,
+        "BulletUpdateMethod": "MoveToPlayer",
+        "BulletCreateMethod": "WriteDirectionToPlayer",
+        "BulletVisual": "Default",
+        "SpawnTick": 40
+      }, 
+        {
+        "X": 40,
+        "Y": 20,
+          "Speed": 10,
+        "BulletUpdateMethod": "MoveToPlayer",
+        "BulletCreateMethod": "WriteDirectionToPlayer",
+        "BulletVisual": "Default",
+        "SpawnTick": 45
+      },
+        {
+          "X": 60,
+          "Y": 20,
+          "Speed": 10,
+          "BulletUpdateMethod": "MoveToPlayer",
+          "BulletCreateMethod": "WriteDirectionToPlayer",
+          "BulletVisual": "Default",
+          "SpawnTick": 50
+        }]
     },
     {
       "ChapterLength": 400,
-      "Index": 3
+      "Index": 3,
+      "BulletSpawnInfos": []
     }
   ],
   "Dialogs": [

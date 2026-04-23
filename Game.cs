@@ -1,10 +1,15 @@
+using System.Diagnostics;
 using System.Numerics;
+using Atk;
+using DmitryAndDemid.Backgrounds;
+using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Screens;
 using DmitryAndDemid.Utils;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
+using Rectangle = Raylib_cs.Rectangle;
 
 namespace DmitryAndDemid;
 
@@ -18,30 +23,35 @@ public class Game : IDisposable
     public Game(ProtogonistData protogonistData, Stage stage, GameplayScreen screen)
     {
         Gameplay = LoadRenderTexture(384, 448);
+        Background = LoadRenderTexture(384, 448);
         Dialog = LoadRenderTexture(Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height);
         Player = new Player(this, protogonistData);
         Objects.Add(Player);
         StageInfo = stage;
-        CurrentStage = new RuntimeStage(stage);
+        CurrentStage = new RuntimeStage(stage, this);
+        StageBackground = CurrentStage.Background;
         Start();
         GameplayScreen = screen;
     }
 
-
+    
     public Stage StageInfo;
     RuntimeStage CurrentStage;
     public bool Playing = false;
     public RenderTexture2D Gameplay;
     public RenderTexture2D Dialog;
+    public RenderTexture2D Background;
+
+    public StageBackground StageBackground;
 
     public List<RuntimeObject> Objects = new();
 
-
+    private int ChapterBulletIndex = 0;
 
     double GameStartedTimestamp = 0;
     double PreviousTick = 0;
     double NextTickStamp = 0;
-    static double TickLength = 1 / TPS;
+    static double TickLength = 1d / TPS;
     double PauseTimestamp = 0;
     int CurrentTick = 0;
     int ChapterSwitchTick = int.MaxValue;
@@ -49,6 +59,8 @@ public class Game : IDisposable
     public void UpdateToNext()
     {
         CurrentTick++;
+        PreviousTick = NextTickStamp;
+        NextTickStamp = GameStartedTimestamp + (CurrentTick + 1) * TickLength;
         if (IsDialog)
         {
             if (NextDialogTick < CurrentTick)
@@ -57,24 +69,47 @@ public class Game : IDisposable
                 SetDialogElement(CurrentDialog.Elements[dialogIndex]);
             }
         }
-        else if (CurrentTick + ChapterDelay < ChapterSwitchTick)
+        else if (ChapterSwitchTick < CurrentTick + ChapterDelay)
         {
             ClearAll();
-            //CurrentChapter = null;
         }
+        else
+            while (ChapterBulletIndex < CurrentChapter.Bullets.Length)
+            {
+                Console.WriteLine("tick: " + CurrentChapter.Bullets[ChapterBulletIndex].SpawnTick);
+                if (CurrentChapter.Bullets[ChapterBulletIndex].SpawnTick <= CurrentTick - TickChapterStart)
+                {
+                    CurrentChapter.Bullets[ChapterBulletIndex].CreateScript?.Invoke(CurrentChapter.Bullets[ChapterBulletIndex]);
+                    Objects.Add(CurrentChapter.Bullets[ChapterBulletIndex]);
+                    ChapterBulletIndex++;
+                    continue;
+                }
+                break;
+            }
         if (CurrentTick == ChapterSwitchTick)
         {
             NextChapter();
         }
-        PreviousTick = NextTickStamp;
-        NextTickStamp = GameStartedTimestamp + ((CurrentTick + 1) * TickLength);
         foreach (var x in Objects)
         {
             x.Update();
             x.UpdateScript?.Invoke(x);
+            if (!Helper.IsInArea(x.PositionTo, AreaStart, AreaEnd)) 
+                ToRemove.Add(x);
+        }
+
+        foreach (var x in ToRemove)
+        {
+            Objects.Remove(x);
+            RemovedBullets.Add(new RemovedBullet(x.PositionTo, CurrentTick));
         }
     }
 
+    private List<RemovedBullet> RemovedBullets = new();
+    private List<RuntimeObject> ToRemove = new List<RuntimeObject>();
+    static Vector2 AreaStart = new Vector2(-100, -100);
+    static Vector2 AreaEnd = new Vector2(484, 548);
+    
     bool IsDialog = false;
     int NextDialogTick = 0;
     RuntimeDialog CurrentDialog;
@@ -87,14 +122,17 @@ public class Game : IDisposable
         DialogRectangleTargetInactiveProtogonist,
         DialogRectangleTargetInactiveAntogonist,
         DialogRectangleTargetActiveProtogonist,
-        DialogRectangleTargetActiveAntogonist;
+        DialogRectangleTargetActiveAntogonist,
+        DialogRectangleSource,
+        DialogRectangleTarget;
 
     Texture2D
         DialogProtogonistTexture,
-        DialogAntogonistTexture;
+        DialogAntogonistTexture,
+        DialogMessageTexture;
 
     private double
-        DialogAppearTime = double.MaxValue,
+        DialogAppearTime = double.MinValue,
         DialogDisappearTime = double.MaxValue,
         DialogCharatcterSwitchAppearTime = double.MaxValue,
         DialogCharatcterSwitchDisappearTime = double.MaxValue;
@@ -129,9 +167,10 @@ public class Game : IDisposable
         CurrentElement = null;
         dialogIndex = 0;
         CurrentDialog = r;
+        DialogAppearTime = GetTime();
+        DialogDisappearTime = double.MaxValue;
         SetDialogElement(r.Elements[0]);
         IsDialog = true;
-        DialogAppearTime = GetTime();
     }
 
     void SetDialogElement(RuntimeDialogElement element)
@@ -140,6 +179,7 @@ public class Game : IDisposable
         {
             ChapterSwitchTick = CurrentTick + DialogLength;
             NextDialogTick = int.MaxValue;
+            DialogDisappearTime = GetTime() + 0.5 + TickLength * DialogLength;
         }
         else
             NextDialogTick = CurrentTick + DialogLength;
@@ -175,8 +215,11 @@ public class Game : IDisposable
         {
             DialogAntogonistTexture = element.Art;
             DialogRectangleSourceAntogonist = Helper.GetFullSource(element.Art);
-            DialogRectangleTargetActiveAntogonist = Helper.Scale(Helper.ScaleByHeight(420, 120, DialogRectangleSourceAntogonist.Size, 360), Runtime.CurrentRuntime.Scale);
-            DialogRectangleTargetInactiveAntogonist = Helper.Scale(Helper.ScaleByHeight(428, 160, DialogRectangleSourceAntogonist.Size, 320), Runtime.CurrentRuntime.Scale);
+            DialogRectangleTargetActiveAntogonist = Helper.Scale(Helper.ScaleByHeight(320, 120, DialogRectangleSourceAntogonist.Size, 360), Runtime.CurrentRuntime.Scale);
+            DialogRectangleTargetInactiveAntogonist = Helper.Scale(Helper.ScaleByHeight(328, 160, DialogRectangleSourceAntogonist.Size, 320), Runtime.CurrentRuntime.Scale);
+            DialogRectangleSource = Helper.GetFullSourceRenderTexture(element.DialogTexture);
+            DialogMessageTexture = element.DialogTexture.Texture;
+            DialogRectangleTarget = Helper.Scale(Helper.ScaleByHeight(84, 320, DialogRectangleSource.Size / (float)Runtime.CurrentRuntime.Scale, (float)(-160 / Runtime.CurrentRuntime.Scale)),  Runtime.CurrentRuntime.Scale);
         }
         else
         {
@@ -184,15 +227,15 @@ public class Game : IDisposable
             DialogRectangleSourceProtogonist = Helper.GetFullSource(element.Art);
             DialogRectangleTargetActiveProtogonist = Helper.Scale(Helper.ScaleByHeight(24, 120, DialogRectangleSourceProtogonist.Size, 360), Runtime.CurrentRuntime.Scale);
             DialogRectangleTargetInactiveProtogonist = Helper.Scale(Helper.ScaleByHeight(16, 160, DialogRectangleSourceProtogonist.Size, 320), Runtime.CurrentRuntime.Scale);
+            DialogRectangleSource = Helper.GetFullSourceRenderTexture(element.DialogTexture);
+            DialogMessageTexture = element.DialogTexture.Texture;
+            DialogRectangleTarget = Helper.Scale(Helper.ScaleByHeight(84, 320, DialogRectangleSource.Size/ (float)Runtime.CurrentRuntime.Scale, (float)(-160 / Runtime.CurrentRuntime.Scale)),  Runtime.CurrentRuntime.Scale);
         }
     }
 
     void ClearAll()
     {
-        for (int i = 1; Objects.Count > 1; i++)
-        {
-            Objects.RemoveAt(i);
-        }
+        ToRemove.AddRange(Objects[0..^0]);
     }
 
     void StartChapter(Chapter chapter)
@@ -200,20 +243,22 @@ public class Game : IDisposable
         IsDialog = false;
         CurrentChapter = chapter;
         TickChapterStart = CurrentTick;
+        ChapterBulletIndex = 0;
         ChapterSwitchTick = CurrentTick + CurrentChapter.ChapterLength + ChapterDelay;
     }
     
     public void RenderGame()
     {
+        StageBackground.Draw(Background, CurrentTick);
+        
         float state = Helper.EaseInOutElasticF((float)((GetTime() - PreviousTick) / TickLength));
-
+    
         (Rectangle rc, float rotation) info;
         BeginTextureMode(Gameplay);
-        ClearBackground(Color.Black);
+        ClearBackground(Color.White with { A = 0 });
         foreach (var x in Objects)
         {
             info = x.GetRenderInfo(state);
-            DrawText("a", (int)x.PositionTo.X, (int)x.PositionTo.Y, 32, Color.White);
             DrawTexturePro(x.SourceTexture, x.SourceRect, info.rc, Vector2.Zero, info.rotation, Color.White);
         }
         EndTextureMode();
@@ -222,31 +267,50 @@ public class Game : IDisposable
         ClearBackground(Color.White with { A = 0 });
         if (IsDialog)
         {
-            float statement = (float)Helper.ComputeObjectTime(GetTime(), DialogCharatcterSwitchAppearTime, 0.5,
-                DialogCharatcterSwitchDisappearTime, 0.5);
-            DrawText("Appear: "+DialogCharatcterSwitchAppearTime, 20, 50, 32, Color.White);
-            DrawText("Disappear: "+DialogCharatcterSwitchDisappearTime, 20, 80, 32, Color.White);
+            float statement = Helper.Pow2F((float)Helper.ComputeObjectTime(GetTime(), DialogCharatcterSwitchAppearTime, 0.5,
+                DialogCharatcterSwitchDisappearTime, 0.5));
+            float statementDialogAppear =
+                Helper.Pow2F(
+                    (float)Helper.ComputeObjectTime(GetTime(), DialogAppearTime, 0.5, DialogDisappearTime, 0.5));
+            Color antoColor = Helper.Mix(Color.Black, Color.White, 0.5f + (statement * 0.5f));
+            Color protoColor = Helper.Mix(Color.Black, Color.White, 0.5f + ((1-statement) * 0.5f));
             Rectangle
                 antoRect = Helper.Mix(DialogRectangleTargetActiveAntogonist, DialogRectangleTargetInactiveAntogonist, 1-statement);
             Rectangle
                 protoRect = Helper.Mix(DialogRectangleTargetActiveProtogonist, DialogRectangleTargetInactiveProtogonist, statement);
+            antoRect.Y = Helper.Mix(Runtime.CurrentRuntime.Height, antoRect.Y, statementDialogAppear);
+            protoRect.Y = Helper.Mix(Runtime.CurrentRuntime.Height, protoRect.Y, statementDialogAppear);
             DrawTexturePro(DialogAntogonistTexture,
                 DialogRectangleSourceAntogonist,
                 antoRect,
-                Vector2.Zero, 0, Color.White);
+                Vector2.Zero, 0, antoColor);
             DrawTexturePro(DialogProtogonistTexture,
                 DialogRectangleSourceProtogonist,
                 protoRect,
-                Vector2.Zero, 0, Color.White);
+                Vector2.Zero, 0, protoColor);
+            if(DialogAppearTime > 0.9f)
+                DrawTexturePro(DialogMessageTexture,
+                    DialogRectangleSource,
+                    DialogRectangleTarget,
+                    Vector2.Zero, 0, Color.White);
         }
-        DrawText("Time: "+ GetTime(), 20, 110, 32, Color.White);
-        DrawText("Tick: "+CurrentTick, 20, 140, 32, Color.White);
-        DrawText("Index: "+ChapterIndex, 20, 200, 64, Color.White);
-
+        #if DEBUG
+        if (Raylib.IsKeyDown(KeyboardKey.D))
+        {
+            DrawText("Time: "+ GetTime(), 20, 110, 32, Color.White);
+            DrawText("Chapter Length: "+ CurrentChapter.ChapterLength, 400, 110, 32, Color.White);
+            DrawText("Chapter Switch Tick: "+ ChapterSwitchTick, 400, 140, 32, Color.White);
+            DrawText("Index: "+ChapterIndex, 20, 200, 64, Color.White);
+            DrawText("Tick: "+CurrentTick, 20, 140, 32, Color.White);
+            DrawText("TPS: "+ (CurrentTick / (GetTime() - GameStartedTimestamp)), 20, 250, 64, Color.Green);
+            DrawText("Next Tick: "+ NextTickStamp, 20, 300, 64, Color.Green);
+            DrawText("Tick length: "+ TickLength, 20, 350, 64, Color.Green);
+        }
+        #endif
         EndTextureMode();
     }
 
-    Player Player;
+    public Player Player;
     bool Disposed = false;
 
     public void Dispose()

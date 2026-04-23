@@ -53,6 +53,9 @@ public class GameplayScreen : Screen
     {
         DrawBackground();
         game!.RenderGame();
+        DrawTexturePro(game.Background.Texture,
+            Source, Dest,
+            Vector2.Zero, 0, Color.White);
         DrawTexturePro(game.Gameplay.Texture,
             Source, Dest,
             Vector2.Zero, 0, Color.White);

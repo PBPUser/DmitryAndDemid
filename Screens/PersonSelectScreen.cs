@@ -12,7 +12,6 @@ public class PersonSelectScreen : MenuScreen
 
     public PersonSelectScreen(bool isPractice) : base()
     {
-        SetBackground(Runtime.CurrentRuntime.Textures["practice_background.png"]);
         IsPractice = isPractice;
     }
 
@@ -28,7 +27,6 @@ public class PersonSelectScreen : MenuScreen
 
     public override void Render()
     {
-        DrawBackground();
         DrawMenu();
     }
 

@@ -2,7 +2,7 @@
   "Speed": 3,
   "WeaponScriptName": "AkobShoot",
   "BombScriptName": "AkobBomb",
-  "ArtName": "akob",
-  "Description": "eftrfghethertg w rfdgehrthertg hrtghjur",
+  "ArtName": "akob_art.png",
+  "Description": "akob_description.png",
   "Sprite": "akob.png"
 }

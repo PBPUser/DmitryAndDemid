@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.IO.Pipes;
 using DmitryAndDemid;
 using static Raylib_cs.Raylib;
 using static DmitryAndDemid.Runtime;
@@ -8,7 +10,7 @@ namespace DmitryAndDemid.Common;
 
 public class MenuScreen : Screen
 {
-    const double MenuSwitchCooldown = 0.125;
+    public const double MenuSwitchCooldown = 0.125;
     public const double MenuActivateCooldown = 0.5;
 
     protected Dictionary<string, EventHandler<int>> Menu = new();
@@ -17,9 +19,19 @@ public class MenuScreen : Screen
     protected int CurrentX = 0;
     protected int SelectedIndex = 0;
     protected bool AllowExitWithEscape = true;
+    protected bool LoopList = true;
+
+    protected double AnimationStartedAt = 0;
+    protected double AnimationStartedIndex = 0;
 
     public MenuScreen()
     {
+    }
+
+    public override void Created()
+    {
+        AnimationStartedIndex = SelectedIndex;
+        
         CreateMenu();
         MenuItems = new RenderTexture2D[Menu.Count()];
 
@@ -40,6 +52,7 @@ public class MenuScreen : Screen
     }
 
     public static double PreviousKeyTimestamp = 0;
+    protected int PreviousSelectedIndex = 0;
     EventHandler<int>? Event;
 
     bool ItemActivated = false;
@@ -59,12 +72,26 @@ public class MenuScreen : Screen
         if (Raylib.IsKeyDown(KeyboardKey.Up))
         {
             PreviousKeyTimestamp = GetTime();
-            SelectedIndex = (SelectedIndex - 1 + MenuItems.Count()) % MenuItems.Count();
+            PreviousSelectedIndex = SelectedIndex;
+            double j = ComputeAnimationIndex();
+            AnimationStartedIndex = j;
+            AnimationStartedAt = GetTime();
+            if(LoopList)
+                SelectedIndex = (SelectedIndex - 1 + MenuItems.Count()) % MenuItems.Count();
+            else
+                SelectedIndex = Math.Clamp(SelectedIndex - 1, 0, MenuItems.Count() - 1);
         }
         else if (Raylib.IsKeyDown(KeyboardKey.Down))
         {
             PreviousKeyTimestamp = GetTime();
-            SelectedIndex = (SelectedIndex + 1) % MenuItems.Count();
+            PreviousSelectedIndex = SelectedIndex;
+            double j = ComputeAnimationIndex();
+            AnimationStartedIndex = j;
+            AnimationStartedAt = GetTime();
+            if(LoopList)
+                SelectedIndex = (SelectedIndex + 1) % MenuItems.Count();
+            else
+                SelectedIndex = Math.Clamp(SelectedIndex + 1, 0, MenuItems.Count() - 1);
         }
         else if (Raylib.IsKeyDown(KeyboardKey.Enter))
         {
@@ -81,6 +108,15 @@ public class MenuScreen : Screen
         }
     }
 
+    protected double ComputeAnimationIndex()
+    {
+        double index;
+        if(SelectedIndex > AnimationStartedIndex)
+            return Math.Min(AnimationStartedIndex + (GetTime() - AnimationStartedAt) / MenuSwitchCooldown, (float)SelectedIndex);
+        else
+            return Math.Max(AnimationStartedIndex - (GetTime() - AnimationStartedAt) / MenuSwitchCooldown, (float)SelectedIndex);
+    }
+    
     public virtual void Exiting()
     {
         TimeDisappear = (float)Raylib.GetTime() + 0.5f;
@@ -92,7 +128,6 @@ public class MenuScreen : Screen
         int index = 0;
         foreach (var x in MenuItems)
         {
-
             DrawTexture(x.Texture, CurrentX, y, index == SelectedIndex ? Color.Yellow : Color.Black);
             y += x.Texture.Height;
             index++;

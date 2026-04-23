@@ -16,7 +16,7 @@ uniform vec4 color;
 
 void main()
 {
-    float wave = 1-smoothstep(uv.y-sin(pow(uv.x,xPower)*scale+offsetX)/3.14+offsetY, 0., 1.);
-    vec4 texelColor = texture2D(texture0, fragTexCoord);
+    vec2 uvx = (uv + vec2(1.)) / vec2(2.);
+    float wave = 1-smoothstep((1.-uvx.y)-sin(pow(uvx.x,xPower)*scale+offsetX)/3.14+offsetY, 0., 1.);
     gl_FragColor = color * wave;
 }

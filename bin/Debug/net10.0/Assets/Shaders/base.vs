@@ -23,7 +23,7 @@ void main()
     fragTexCoord = vertexTexCoord;
     uv = vec2(vertexPosition[0], vertexPosition[1]) / screenSize;
     fragColor = vertexColor;
-
+    uv = (mvp*vec4(vertexPosition,1.0)).xy;
     // Calculate final vertex position
     gl_Position = mvp*vec4(vertexPosition, 1.0);
 }

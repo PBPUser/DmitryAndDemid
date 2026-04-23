@@ -79,6 +79,7 @@ public class MainScreen : MenuScreen
 
     public override void Deactivated()
     {
+        Console.WriteLine("Deactivated");
         TimeDisappearMenu = GetTime() - AppearTime + 0.5;
     }
 
@@ -89,8 +90,8 @@ public class MainScreen : MenuScreen
             appear1 = (float)Helper.ComputeObjectTimeStart(z, 5, 1),
             appear2 = (float)Helper.ComputeObjectTimeStart(z, 1, 1),
             appear25 = (float)Helper.ComputeObjectTimeStart(z, 2, 0.5),
-            appear3 = (float)Helper.ComputeObjectTimeStart(z, 5, 0.9),
-            appear4 = (float)Helper.ComputeObjectTimeStart(z, 5.75, 0.25),
+            appear3 = (float)Helper.ComputeObjectTime(z, TimeAppearMenu, 0.9, TimeDisappearMenu, 0.5),
+            appear4 = (float)Helper.ComputeObjectTime(z, TimeAppearMenu, 0.25, TimeDisappearMenu, 0.5),
             appear5 = (float)Helper.ComputeObjectTime(z, TimeAppearMenu, 0.5, TimeDisappearMenu, 0.5);
         ;
         float time = (float)GetTime();
@@ -117,8 +118,18 @@ public class MainScreen : MenuScreen
 
     public override void CreateMenu()
     {
-        Menu["Urpa CTAPTOBATb"] = (a, b) => Console.WriteLine("");
-        Menu["Extra CTAPTOBATb"] = (a, b) => Environment.Exit(0);
+        Menu["Urpa CTAPTOBATb"] = (a, b) =>
+        {
+            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(0)));
+        };
+        Menu["Extra CTAPTOBATb"] = (a, b) => 
+        {
+            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(1)));
+        };
+        Menu["npaKTuKa"] = (a, b) =>
+        {
+            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(2)));
+        };
 #if DEBUG
         Menu["Gameplay Editor"] = (a, b) => { };
 #endif

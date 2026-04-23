@@ -10,7 +10,7 @@ public class PracticeScreen : MenuScreen
 
     public PracticeScreen(ProtogonistData data)
     {
-        SetBackground(Runtime.CurrentRuntime.Textures["practice_background.png"]);
+        SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
         Protogonist = data;
     }
 

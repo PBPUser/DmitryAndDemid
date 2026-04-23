@@ -12,6 +12,11 @@ public abstract class Screen : IDisposable
         TimeDisappear = 99999999999f;
     }
 
+    public virtual void Created()
+    {
+        
+    }
+    
     public virtual void Render()
     {
 

@@ -44,3 +44,8 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/practice_background.png
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/sugar_logo.png
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/telecom.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/selection.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/drogichinmap.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/difficulties.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/contrast.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/akob_art.png

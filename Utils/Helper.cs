@@ -22,6 +22,12 @@ public static class Helper
         LocationWaveScreenColor = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["wave"], "color");
 
         LocationFlipScreenSize = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["flip"], "screenSize");
+        
+        LocationRenderSelectionHeight = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["selection"], "height");
+        LocationRenderSelectionScreenSize = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["selection"], "screenSize");
+        
+        LocationContrastOpacity = GetShaderLocation(Runtime.CurrentRuntime.Shaders["contrast"], "opacity");
+        LocationContrastLevel = GetShaderLocation(Runtime.CurrentRuntime.Shaders["contrast"], "contrastLevel");
 
         PizzaSource = new Rectangle(0, 0, Runtime.CurrentRuntime.Textures["pizza.png"].Width, Runtime.CurrentRuntime.Textures["pizza.png"].Height);
     }
@@ -56,6 +62,16 @@ public static class Helper
     static int LocationCloudSize;
     static int LocationCloudScreenSize;
 
+    private static int LocationContrastLevel;
+    private static int LocationContrastOpacity;
+
+    public static void BeginContrastShader(float contrastLevel, float opacity)
+    {
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["contrast"], LocationContrastOpacity, opacity, ShaderUniformDataType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["contrast"], LocationContrastLevel, contrastLevel, ShaderUniformDataType.Float);
+        BeginShaderMode(Runtime.CurrentRuntime.Shaders["contrast"]);
+    }
+    
     public static RenderTexture2D RenderTextureInCloud(Texture2D texture, float radius = 3f, float angle = -0.85f, float width = 0.35f, float size = 1.4f)
     {
         RenderTexture2D cloud = Raylib.LoadRenderTexture(texture.Width * 2, texture.Height * 2);
@@ -94,10 +110,10 @@ public static class Helper
         Raylib.EndShaderMode();
     }
 
-    public static RenderTexture2D DrawDialog(string text)
+    public static RenderTexture2D DrawDialog(string text, float angle)
     {
         var tx = DrawText(text, 16, 4, 4, GetFontDefault(), Color.Black);
-        var vx = RenderTextureInCloud(tx.Texture);
+        var vx = RenderTextureInCloud(tx.Texture, 3f, angle);
         UnloadRenderTexture(tx);
         return vx;
     }
@@ -118,6 +134,11 @@ public static class Helper
             rc1.Width * imix + rc2.Width * mix,
             rc1.Height * imix + rc2.Height * mix
         );
+    }
+
+    public static float Mix(float f1, float f2, float mix)
+    {
+        return f1 * (1 - mix) + f2 * mix;
     }
 
     public static Vector4 Mix(Vector4 color1, Vector4 color2, float mix)
@@ -213,6 +234,7 @@ public static class Helper
     }
 
     public static Rectangle GetFullSource(Texture2D t) => new Rectangle(0, 0, t.Width, t.Height);
+    public static Rectangle GetFullSourceRenderTexture(RenderTexture2D rt2d) => new Rectangle(0, 0, rt2d.Texture.Width, -rt2d.Texture.Height);
 
     public static Rectangle GetFullscreenSource() => new Rectangle(0, 0, Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height);
 
@@ -230,5 +252,57 @@ public static class Helper
     public static Rectangle Scale(Rectangle rc, float scale)
     {
         return new Rectangle(rc.Position * scale, rc.Size * scale);
+    }
+
+    private static int LocationRenderSelectionScreenSize;
+    private static int LocationRenderSelectionHeight;
+    
+    public static Texture2D RenderSelectionBackground(int width, int height, int vPadding)
+    {
+        int h = height + vPadding * 2;
+        RenderTexture2D texture = LoadRenderTexture(width, h);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["selection"], LocationRenderSelectionHeight, (float)height, ShaderUniformDataType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["selection"], LocationRenderSelectionScreenSize, new float[] { 200f, 200f }, ShaderUniformDataType.Vec2);
+        BeginTextureMode(texture);
+        BeginShaderMode(Runtime.CurrentRuntime.Shaders["selection"]);
+        DrawRectanglePro(new Rectangle(0,0,width,height), Vector2.Zero, 0, Color.White);
+        EndShaderMode();
+        EndTextureMode();
+        return texture.Texture;
+    }
+
+    public static RenderTexture2D FillTextureWithColor(Color color, int w, int h)
+    {
+        var texture = LoadRenderTexture(w, h);
+        BeginTextureMode(texture);
+        DrawRectangle(0,0,w,h,color);
+        EndTextureMode();
+        return texture;
+    }
+
+    public static float FindAngle(Vector2 v1, Vector2 v2)
+    {
+        var angle = MathF.Atan2(v2.Y, v2.X)-MathF.Atan2(v1.Y, v1.X);
+        return angle;
+    }
+
+    public static float FindAngleDegress(Vector2 v1, Vector2 v2)
+    {
+        return 180 / MathF.PI * FindAngle(v1, v2);
+    }
+
+    public static Vector2 GetDirection(Vector2 v1, Vector2 v2)
+    {
+        var angle = FindAngle(v1, v2);
+        return new Vector2(MathF.Sin(angle), MathF.Cos(angle));
+    }
+
+    public static Vector2 Half = Vector2.One / 2;
+
+    public static bool IsInArea(Vector2 xPositionTo, Vector2 areaStart, Vector2 areaEnd)
+    {
+        return 
+            areaStart.X > xPositionTo.X || areaStart.Y > xPositionTo.Y ||
+            areaEnd.X < xPositionTo.X || areaEnd.Y < xPositionTo.Y;
     }
 }

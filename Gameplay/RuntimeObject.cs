@@ -6,6 +6,8 @@ namespace DmitryAndDemid.Gameplay;
 public class RuntimeObject : IDisposable
 {
     public Game Game;
+    public int SpawnTick = 0;
+    public float Speed = 1;
 
     public RuntimeObject(Game game, Vector2 position, Vector2 renderSize, Vector2 collisionSize, float rotation = 0)
     {
@@ -39,6 +41,7 @@ public class RuntimeObject : IDisposable
     public Dictionary<string, object>? Dictionary = new Dictionary<string, object>();
 
     public Action<RuntimeObject>? UpdateScript;
+    public Action<RuntimeObject>? CreateScript;
 
     public virtual void Update()
     {
