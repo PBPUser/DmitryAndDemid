@@ -22,9 +22,19 @@ public class Game : IDisposable
 
     public Game(ProtogonistData protogonistData, Stage stage, GameplayScreen screen)
     {
+        DialogProtogonistTexture = Runtime.CurrentRuntime.Textures[protogonistData.DialogArtName];
+        ProtogonistId = protogonistData.ID;
         Gameplay = LoadRenderTexture(384, 448);
         Background = LoadRenderTexture(384, 448);
         Dialog = LoadRenderTexture(Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height);
+
+        RectangleDialogProtogonistActive = Helper.Scale(new Rectangle(0, 224, 192, 256), Runtime.CurrentRuntime.Scale);
+        RectangleDialogAntogonistActive = Helper.Scale(new Rectangle(256, 224, 192, 256), Runtime.CurrentRuntime.Scale);
+        RectangleDialogProtogonistInactive = Helper.Scale(new Rectangle(-32, 288, 144, 192), Runtime.CurrentRuntime.Scale);
+        RectangleDialogAntogonistInactive = Helper.Scale(new Rectangle(288, 288, 144, 192), Runtime.CurrentRuntime.Scale);
+        RectangleDialogProtogonistPassive = Helper.Scale(new Rectangle(-32, 480, 144, 192), Runtime.CurrentRuntime.Scale);
+        RectangleDialogAntogonistPassive = Helper.Scale(new Rectangle(288, 480, 144, 192), Runtime.CurrentRuntime.Scale);
+        
         Player = new Player(this, protogonistData);
         Objects.Add(Player);
         StageInfo = stage;
@@ -41,6 +51,7 @@ public class Game : IDisposable
     public RenderTexture2D Gameplay;
     public RenderTexture2D Dialog;
     public RenderTexture2D Background;
+    
 
     public StageBackground StageBackground;
 
@@ -55,7 +66,19 @@ public class Game : IDisposable
     double PauseTimestamp = 0;
     int CurrentTick = 0;
     int ChapterSwitchTick = int.MaxValue;
+    
+    public string ProtogonistId;
+    private static Rectangle RectangleDialougePersonSource = new Rectangle(0, 0,768, 1024);
+    Rectangle RectangleDialogProtogonistActive;
+    Rectangle RectangleDialogAntogonistActive;
+    Rectangle RectangleDialogProtogonistInactive;
+    Rectangle RectangleDialogAntogonistInactive;
+    Rectangle RectangleDialogProtogonistPassive;
+    Rectangle RectangleDialogAntogonistPassive;
+    private int DialogAntogonistIndex = 0;
+    private int DialogProtogonistIndex = 0;
 
+    
     public void UpdateToNext()
     {
         CurrentTick++;
@@ -76,7 +99,6 @@ public class Game : IDisposable
         else
             while (ChapterBulletIndex < CurrentChapter.Bullets.Length)
             {
-                Console.WriteLine("tick: " + CurrentChapter.Bullets[ChapterBulletIndex].SpawnTick);
                 if (CurrentChapter.Bullets[ChapterBulletIndex].SpawnTick <= CurrentTick - TickChapterStart)
                 {
                     CurrentChapter.Bullets[ChapterBulletIndex].CreateScript?.Invoke(CurrentChapter.Bullets[ChapterBulletIndex]);
@@ -98,10 +120,20 @@ public class Game : IDisposable
                 ToRemove.Add(x);
         }
 
+        float time = (float)GetTime();
         foreach (var x in ToRemove)
         {
+            RemovedBullets.Add(new RemovedBullet(x.PositionTo, time));
             Objects.Remove(x);
-            RemovedBullets.Add(new RemovedBullet(x.PositionTo, CurrentTick));
+        }
+        ToRemove.Clear();
+        for(int i = 0; i < RemovedBullets.Count; i++)
+        {
+            if (time - RemovedBullets[i].Time > 0.5)
+            {
+                RemovedBullets.RemoveAt(i);
+                i--;
+            }
         }
     }
 
@@ -117,12 +149,6 @@ public class Game : IDisposable
     int dialogIndex = 0;
 
     Rectangle
-        DialogRectangleSourceProtogonist,
-        DialogRectangleSourceAntogonist,
-        DialogRectangleTargetInactiveProtogonist,
-        DialogRectangleTargetInactiveAntogonist,
-        DialogRectangleTargetActiveProtogonist,
-        DialogRectangleTargetActiveAntogonist,
         DialogRectangleSource,
         DialogRectangleTarget;
 
@@ -214,20 +240,15 @@ public class Game : IDisposable
         if (element.AntogonistSpeak)
         {
             DialogAntogonistTexture = element.Art;
-            DialogRectangleSourceAntogonist = Helper.GetFullSource(element.Art);
-            DialogRectangleTargetActiveAntogonist = Helper.Scale(Helper.ScaleByHeight(320, 120, DialogRectangleSourceAntogonist.Size, 360), Runtime.CurrentRuntime.Scale);
-            DialogRectangleTargetInactiveAntogonist = Helper.Scale(Helper.ScaleByHeight(328, 160, DialogRectangleSourceAntogonist.Size, 320), Runtime.CurrentRuntime.Scale);
+            DialogAntogonistIndex = element.ArtIndex;
             DialogRectangleSource = Helper.GetFullSourceRenderTexture(element.DialogTexture);
             DialogMessageTexture = element.DialogTexture.Texture;
             DialogRectangleTarget = Helper.Scale(Helper.ScaleByHeight(84, 320, DialogRectangleSource.Size / (float)Runtime.CurrentRuntime.Scale, (float)(-160 / Runtime.CurrentRuntime.Scale)),  Runtime.CurrentRuntime.Scale);
         }
         else
         {
-            DialogProtogonistTexture = element.Art;
-            DialogRectangleSourceProtogonist = Helper.GetFullSource(element.Art);
-            DialogRectangleTargetActiveProtogonist = Helper.Scale(Helper.ScaleByHeight(24, 120, DialogRectangleSourceProtogonist.Size, 360), Runtime.CurrentRuntime.Scale);
-            DialogRectangleTargetInactiveProtogonist = Helper.Scale(Helper.ScaleByHeight(16, 160, DialogRectangleSourceProtogonist.Size, 320), Runtime.CurrentRuntime.Scale);
             DialogRectangleSource = Helper.GetFullSourceRenderTexture(element.DialogTexture);
+            DialogProtogonistIndex = element.ArtIndex;
             DialogMessageTexture = element.DialogTexture.Texture;
             DialogRectangleTarget = Helper.Scale(Helper.ScaleByHeight(84, 320, DialogRectangleSource.Size/ (float)Runtime.CurrentRuntime.Scale, (float)(-160 / Runtime.CurrentRuntime.Scale)),  Runtime.CurrentRuntime.Scale);
         }
@@ -235,7 +256,8 @@ public class Game : IDisposable
 
     void ClearAll()
     {
-        ToRemove.AddRange(Objects[0..^0]);
+        if(Objects.Count > 1)
+            ToRemove.AddRange(Objects[1..^0]);
     }
 
     void StartChapter(Chapter chapter)
@@ -250,9 +272,7 @@ public class Game : IDisposable
     public void RenderGame()
     {
         StageBackground.Draw(Background, CurrentTick);
-        
         float state = Helper.EaseInOutElasticF((float)((GetTime() - PreviousTick) / TickLength));
-    
         (Rectangle rc, float rotation) info;
         BeginTextureMode(Gameplay);
         ClearBackground(Color.White with { A = 0 });
@@ -261,8 +281,8 @@ public class Game : IDisposable
             info = x.GetRenderInfo(state);
             DrawTexturePro(x.SourceTexture, x.SourceRect, info.rc, Vector2.Zero, info.rotation, Color.White);
         }
+        Helper.DrawDeathPoints(RemovedBullets, "disappear_shoot");
         EndTextureMode();
-
         BeginTextureMode(Dialog);
         ClearBackground(Color.White with { A = 0 });
         if (IsDialog)
@@ -272,20 +292,20 @@ public class Game : IDisposable
             float statementDialogAppear =
                 Helper.Pow2F(
                     (float)Helper.ComputeObjectTime(GetTime(), DialogAppearTime, 0.5, DialogDisappearTime, 0.5));
-            Color antoColor = Helper.Mix(Color.Black, Color.White, 0.5f + (statement * 0.5f));
-            Color protoColor = Helper.Mix(Color.Black, Color.White, 0.5f + ((1-statement) * 0.5f));
+            Color antoColor = Helper.Mix(Color.Black, Color.White, 0.5f + statement * 0.5f);
+            Color protoColor = Helper.Mix(Color.Black, Color.White, 0.5f + (1-statement) * 0.5f);
             Rectangle
-                antoRect = Helper.Mix(DialogRectangleTargetActiveAntogonist, DialogRectangleTargetInactiveAntogonist, 1-statement);
+                antoRect = Helper.Mix(RectangleDialogAntogonistActive, RectangleDialogAntogonistInactive, 1-statement);
             Rectangle
-                protoRect = Helper.Mix(DialogRectangleTargetActiveProtogonist, DialogRectangleTargetInactiveProtogonist, statement);
+                protoRect = Helper.Mix(RectangleDialogProtogonistActive, RectangleDialogProtogonistInactive, statement);
             antoRect.Y = Helper.Mix(Runtime.CurrentRuntime.Height, antoRect.Y, statementDialogAppear);
             protoRect.Y = Helper.Mix(Runtime.CurrentRuntime.Height, protoRect.Y, statementDialogAppear);
             DrawTexturePro(DialogAntogonistTexture,
-                DialogRectangleSourceAntogonist,
+                RectangleDialougePersonSource with {X = RectangleDialougePersonSource.Width * DialogAntogonistIndex },
                 antoRect,
                 Vector2.Zero, 0, antoColor);
             DrawTexturePro(DialogProtogonistTexture,
-                DialogRectangleSourceProtogonist,
+                RectangleDialougePersonSource with { X = RectangleDialougePersonSource.Width * DialogProtogonistIndex },
                 protoRect,
                 Vector2.Zero, 0, protoColor);
             if(DialogAppearTime > 0.9f)

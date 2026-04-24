@@ -5,11 +5,11 @@ namespace DmitryAndDemid.Gameplay;
 public struct RemovedBullet
 {
     public Vector2 Position;
-    public int Tick;
+    public float Time;
     
-    public RemovedBullet(Vector2 position, int tick)
+    public RemovedBullet(Vector2 position, float time)
     {
         Position = position;
-        Tick = tick;
+        Time = time;
     }
 }

@@ -18,7 +18,7 @@ public class MainScreen : MenuScreen
         RCPersonTarget1,
         RCPersonTarget2;
 
-    static string[] PersonImageNames = { "demid.png", "dima.png" };
+    static string[] PersonImageNames = { "demid_2.png", "dima.png" };
 
     public override void Unload()
     {

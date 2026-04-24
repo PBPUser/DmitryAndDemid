@@ -20,17 +20,20 @@ public class DifficultyScreen : MenuScreen
     
     public DifficultyScreen(int action) : base()
     {
+        SetTitle(Runtime.CurrentRuntime.Textures["rang_select.png"]);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
         Action = action;
         IsDefault = action == 0 || action == 2;
         IsExtra = action == 1 || action == 2;
         LoopList = false;
 
+        HorizontalDirectionNavigation = true;
+
         RectangleSelectionTarget = Helper.Scale(new Rectangle(310, 220, 220, 120), Runtime.CurrentRuntime.Scale);
         TargetHeight = RectangleSelectionTarget.Height;
 
         RectangleDestinationDifficultySelect = Helper.Scale(new Rectangle(200, 170, 240, 120), Runtime.CurrentRuntime.Scale);
-        RectangleDestinationDifficultySelected = Helper.Scale(new Rectangle(260, 400, 120, 60), Runtime.CurrentRuntime.Scale);
+        RectangleDestinationDifficultySelected = Helper.Scale(new Rectangle(220, 400, 160, 80), Runtime.CurrentRuntime.Scale);
         RectangleShift = new Vector2(300, 40) * (float)Runtime.CurrentRuntime.Scale;
     }
 
@@ -68,12 +71,14 @@ public class DifficultyScreen : MenuScreen
         else
             IsFirst = false;
         TimeDisappearSelected = float.MaxValue;
+        base.Activated();
     }
     
     public override void Deactivated()
     {
         TimeDisappearSelected = (float)GetTime() + 0.5f;
         TimeDisappearItems = (float)GetTime() + 0.5f;
+        base.Deactivated();
     }
 
     public override void Exiting()
@@ -159,6 +164,6 @@ public class DifficultyScreen : MenuScreen
             Vector2.Zero, 0f, 
             Color.White);
         EndShaderMode();
-        DrawText($"SelectedIndex: {SelectedIndex},XIndex:{xindex},Index:{index},AppearSelected:{appearSelected},Contrast:{MathF.Abs(SelectedIndex-index)}", 0, 20, 20, Color.DarkBlue);
+        DrawTitle();
     }
 }

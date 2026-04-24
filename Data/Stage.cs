@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json.Serialization;
 using DmitryAndDemid.Common;
+using DmitryAndDemid.Gameplay;
 
 namespace DmitryAndDemid.Data;
 
@@ -27,8 +28,6 @@ public class RuntimeStage
             .Where(x => x.Name == stage.StageBackgroundClass)
             .FirstOrDefault()!.GetConstructors().Where(x => x.GetParameters().Length == 0)
             .First().Invoke(new object[0]);
-        
-        
         for (int i = 0; true; i++)
         {
             var chapter = stage.Chapters.Where(x => x.Index == i).FirstOrDefault();
@@ -39,7 +38,7 @@ public class RuntimeStage
             }
             var dialog = stage.Dialogs.Where(x => x.Index == i).FirstOrDefault();
             if (dialog != null)
-                StageElements.Add(new RuntimeDialog(dialog));
+                StageElements.Add(new RuntimeDialog(dialog, game.ProtogonistId));
             else
                 break;
         }
@@ -56,10 +55,13 @@ public class RuntimeDialog : StageElement
 {
     public List<RuntimeDialogElement> Elements = new();
 
-    public RuntimeDialog(DialogInfo info)
+    public RuntimeDialog(DialogInfo info, string id)
     {
         Index = info.Index;
-        foreach (var x in info.Elements)
+        var personDialog = info.PersonDialogs.Where(x => x.ID == id).FirstOrDefault();
+        if (personDialog == null)
+            throw new Exception();
+        foreach (var x in personDialog.Elements)
             Elements.Add(new RuntimeDialogElement(x));
     }
 }

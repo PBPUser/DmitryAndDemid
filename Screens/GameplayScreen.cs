@@ -12,7 +12,7 @@ public class GameplayScreen : Screen
 {
     public GameplayScreen(ProtogonistData data, Stage stage)
     {
-        SetBackground(Runtime.CurrentRuntime.Textures["practice_background.png"]);
+        SetBackground(Runtime.CurrentRuntime.Textures["gameplay_background.png"]);
         game = new Game(data, stage, this);
         Source = new Rectangle(0, 0, 384, -448);
         Dest = new Rectangle((float)(32 * Runtime.CurrentRuntime.Scale), (float)(16 * Runtime.CurrentRuntime.Scale), (float)(384 * Runtime.CurrentRuntime.Scale), (float)(448 * Runtime.CurrentRuntime.Scale));

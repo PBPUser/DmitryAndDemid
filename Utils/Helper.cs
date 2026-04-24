@@ -1,4 +1,5 @@
 using System.Numerics;
+using DmitryAndDemid.Gameplay;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
 
@@ -28,6 +29,15 @@ public static class Helper
         
         LocationContrastOpacity = GetShaderLocation(Runtime.CurrentRuntime.Shaders["contrast"], "opacity");
         LocationContrastLevel = GetShaderLocation(Runtime.CurrentRuntime.Shaders["contrast"], "contrastLevel");
+
+        LocationRotateYaw = GetShaderLocation(Runtime.CurrentRuntime.Shaders["rotate"], "yaw");
+        LocationRotatePitch = GetShaderLocation(Runtime.CurrentRuntime.Shaders["rotate"], "pitch");
+        LocationRotateRoll = GetShaderLocation(Runtime.CurrentRuntime.Shaders["rotate"], "roll");
+        LocationRotateFocal = GetShaderLocation(Runtime.CurrentRuntime.Shaders["rotate"], "focal");
+
+        LocationDisappearShootPosition = GetShaderLocation(Runtime.CurrentRuntime.Shaders["disappear_shoot"], "pos");
+        LocationDisappearShootTime = GetShaderLocation(Runtime.CurrentRuntime.Shaders["disappear_shoot"], "u_time");
+
 
         PizzaSource = new Rectangle(0, 0, Runtime.CurrentRuntime.Textures["pizza.png"].Width, Runtime.CurrentRuntime.Textures["pizza.png"].Height);
     }
@@ -65,6 +75,20 @@ public static class Helper
     private static int LocationContrastLevel;
     private static int LocationContrastOpacity;
 
+    static int LocationRotateRoll;
+    static int LocationRotatePitch;
+    static int LocationRotateYaw;
+    static int LocationRotateFocal;
+
+    public static void BeginRotateShader(float roll, float pitch, float yaw, float focal)
+    {
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["rotate"], LocationRotateFocal, focal, ShaderUniformDataType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["rotate"], LocationRotateRoll, roll, ShaderUniformDataType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["rotate"], LocationRotatePitch, pitch, ShaderUniformDataType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["rotate"], LocationRotateYaw, yaw, ShaderUniformDataType.Float);
+        BeginShaderMode(Runtime.CurrentRuntime.Shaders["rotate"]);
+    }
+    
     public static void BeginContrastShader(float contrastLevel, float opacity)
     {
         SetShaderValue(Runtime.CurrentRuntime.Shaders["contrast"], LocationContrastOpacity, opacity, ShaderUniformDataType.Float);
@@ -297,12 +321,28 @@ public static class Helper
         return new Vector2(MathF.Sin(angle), MathF.Cos(angle));
     }
 
+    private static int LocationDisappearShootPosition;
+    private static int LocationDisappearShootTime;
+    
+    public static void DrawDeathPoints(List<RemovedBullet> objects, string shader)
+    {
+        float time = (float)GetTime();
+        foreach (var obj in objects)
+        {
+            SetShaderValue(Runtime.CurrentRuntime.Shaders[shader], LocationDisappearShootTime, time - obj.Time, ShaderUniformDataType.Float);
+            SetShaderValue(Runtime.CurrentRuntime.Shaders[shader], LocationDisappearShootPosition, obj.Position, ShaderUniformDataType.Vec2);
+            BeginShaderMode(Runtime.CurrentRuntime.Shaders[shader]);
+            DrawRectangle(0,0,384,448,Color.White);
+            EndShaderMode();
+        }
+    }
+
     public static Vector2 Half = Vector2.One / 2;
 
     public static bool IsInArea(Vector2 xPositionTo, Vector2 areaStart, Vector2 areaEnd)
     {
         return 
-            areaStart.X > xPositionTo.X || areaStart.Y > xPositionTo.Y ||
-            areaEnd.X < xPositionTo.X || areaEnd.Y < xPositionTo.Y;
+            areaStart.X < xPositionTo.X && areaStart.Y < xPositionTo.Y &&
+            areaEnd.X > xPositionTo.X && areaEnd.Y > xPositionTo.Y;
     }
 }
