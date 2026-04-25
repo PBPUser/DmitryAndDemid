@@ -66,6 +66,13 @@ public class GameplayScreen : Screen
 
     public override void Unload()
     {
+        Runtime.CurrentRuntime.SetScreenRenderingFrom(0);
         game = null;
+    }
+
+    public override void Created()
+    {
+        Runtime.CurrentRuntime.SetScreenRenderingFrom(Runtime.CurrentRuntime.GetScreenIndex(this));
+        base.Created();
     }
 }

@@ -37,7 +37,9 @@ public static class Helper
 
         LocationDisappearShootPosition = GetShaderLocation(Runtime.CurrentRuntime.Shaders["disappear_shoot"], "pos");
         LocationDisappearShootTime = GetShaderLocation(Runtime.CurrentRuntime.Shaders["disappear_shoot"], "u_time");
-
+        
+        LocationShadowDepth = GetShaderLocation(Runtime.CurrentRuntime.Shaders["shadow"], "depth");
+        LocationShadowResolution = GetShaderLocation(Runtime.CurrentRuntime.Shaders["shadow"], "res");
 
         PizzaSource = new Rectangle(0, 0, Runtime.CurrentRuntime.Textures["pizza.png"].Width, Runtime.CurrentRuntime.Textures["pizza.png"].Height);
     }
@@ -79,6 +81,9 @@ public static class Helper
     static int LocationRotatePitch;
     static int LocationRotateYaw;
     static int LocationRotateFocal;
+
+    private static int LocationShadowDepth;
+    private static int LocationShadowResolution;
 
     public static void BeginRotateShader(float roll, float pitch, float yaw, float focal)
     {
@@ -244,16 +249,17 @@ public static class Helper
         int height = size + vPadding * 2;
         RenderTexture2D rt2d = Raylib.LoadRenderTexture(width, height);
         RenderTexture2D rt2d2 = Raylib.LoadRenderTexture(width, height);
-        //Raylib.SetShaderValue(Runtime.CurrentRuntime.Shaders["flip"], LocationWaveScreenSize, new float[] { rt2d.Texture.Width, rt2d.Texture.Height }, ShaderUniformDataType.Vec2);
-        Raylib.BeginTextureMode(rt2d);
-        //Raylib.BeginShaderMode(Runtime.CurrentRuntime.Shaders["flip"]);
-        Raylib.DrawTextEx(font, s, new Vector2(hPadding, vPadding), size, 4, color);
-        //Raylib.EndShaderMode();
-        Raylib.EndTextureMode();
-        Raylib.BeginTextureMode(rt2d2);
-        Raylib.DrawTexture(rt2d.Texture, 0, 0, Color.White);
-        Raylib.EndTextureMode();
-        Raylib.UnloadRenderTexture(rt2d);
+        BeginTextureMode(rt2d);
+        DrawTextEx(font, s, new Vector2(hPadding, vPadding), size, 2, color);
+        EndTextureMode();
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowDepth, 4f, ShaderUniformDataType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowResolution, new float[] { width, height }, ShaderUniformDataType.Vec2);
+        BeginTextureMode(rt2d2);
+        BeginShaderMode(Runtime.CurrentRuntime.Shaders["shadow"]);
+        DrawTexture(rt2d.Texture, 0, 0, Color.White);
+        EndShaderMode();
+        EndTextureMode();
+        UnloadRenderTexture(rt2d);
         return rt2d2;
     }
 
@@ -317,8 +323,8 @@ public static class Helper
 
     public static Vector2 GetDirection(Vector2 v1, Vector2 v2)
     {
-        var angle = FindAngle(v1, v2);
-        return new Vector2(MathF.Sin(angle), MathF.Cos(angle));
+        var angle = FindAngle(Vector2.Zero, v2-v1);
+        return new Vector2(MathF.Cos(angle), MathF.Sin(angle));
     }
 
     private static int LocationDisappearShootPosition;
@@ -345,4 +351,15 @@ public static class Helper
             areaStart.X < xPositionTo.X && areaStart.Y < xPositionTo.Y &&
             areaEnd.X > xPositionTo.X && areaEnd.Y > xPositionTo.Y;
     }
+
+    
+    public static double BossAppearCurve(double x, double pow)
+    {
+        return (Math.Pow(x/2 - 1, pow) + 1) / 2;
+    } 
+    
+    public static float BossAppearCurveF(float x, float pow)
+    {
+        return (MathF.Pow(x/2 - 1, pow) + 1) / 2;
+    } 
 }

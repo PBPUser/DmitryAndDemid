@@ -65,3 +65,13 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/dima_dialog_arts.png
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/nikitab_dialog_art.png
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/disappear_shoot.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/nikitos_boss_art.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/shadow.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/BulletVisuals/default.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/enemies.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/bullets.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/BulletVisuals/laser.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/EntityVisuals/jv.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/EntityVisuals/jvundefined.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/BulletPresets/linear_direciton.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/fifo_loading.png

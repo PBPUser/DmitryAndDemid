@@ -184,7 +184,7 @@ public class MenuScreen : Screen
         int index = 0;
         foreach (var x in MenuItems)
         {
-            DrawTexture(x.Texture, CurrentX, y, index == SelectedIndex ? Color.Yellow : Color.Black);
+            DrawTexture(x.Texture, CurrentX, y, index == SelectedIndex ? Color.Yellow : Color.White);
             y += x.Texture.Height;
             index++;
         }

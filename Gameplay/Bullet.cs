@@ -1,9 +1,10 @@
 using System.Numerics;
+using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Utils;
 using Raylib_cs;
 
-namespace DmitryAndDemid.Data;
+namespace DmitryAndDemid.Gameplay;
 
 public class Bullet : RuntimeObject
 {
@@ -29,44 +30,37 @@ public class Bullet : RuntimeObject
         };
     }
     
-    public Bullet(Game game, BulletSpawnInfo info) : this(game,
-        new Vector2(info.X, info.Y),
+    public Bullet(Game game, BulletSpawnInfo info, int numberInStack) : this(game,
+        info.Position,
         BulletVisual.Constants[info.BulletVisual].RenderSize,
-        BulletVisual.Constants[info.BulletVisual].CollisionSize)
+        BulletVisual.Constants[info.BulletVisual].Collision)
     {
+        var constant = BulletVisual.Constants[info.BulletVisual];
         UpdateScript = BulletUpdateActions[info.BulletUpdateMethod];
         if(BulletUpdateActions.ContainsKey(info.BulletCreateMethod))
             CreateScript = BulletUpdateActions[info.BulletCreateMethod];
         Speed = info.Speed;
-        SpawnTick = info.SpawnTick;
-        SourceTexture = Runtime.CurrentRuntime.Textures[BulletVisual.Constants[info.BulletVisual].TextureName];
-        SourceRect = new Rectangle(0, 0, BulletVisual.Constants[info.BulletVisual].RenderSize.X, BulletVisual.Constants[info.BulletVisual].RenderSize.Y);
+        SpawnTick = numberInStack * info.StackDelay + info.SpawnTick;
+        SourceTexture = Runtime.CurrentRuntime.Textures[constant.Texture];
+        SourceRect = new Rectangle(constant.SourcePosition,
+            constant.SourceSize == null ?  constant.RenderSize :  constant.SourceSize!.Value);
+        UpdateCollisionRender(PositionTo+(info.StackPositionOffset*numberInStack), RotateTo);
+    }
+
+    public static Bullet CreateInGame(Game game, BulletSpawnInfo bulletSpawnInfo, int spawnTick)
+    { 
+        Bullet bullet = new (game, bulletSpawnInfo, 0);
+        bullet.SpawnTick = spawnTick;
+        return bullet;
     }
 
     Bullet(Game game, Vector2 pos, Vector2 renderSize, Vector2 collisionSize) : base(game, pos, renderSize,
-        collisionSize)
-    {
+        collisionSize) {
         
-    } 
-}
-
-public class BulletVisual
-{
-    public static Dictionary<string, BulletVisual> Constants = new Dictionary<string, BulletVisual>();
-
-    static BulletVisual()
-    {
-        Constants["Default"] = new BulletVisual("bullet.png", new Vector2(4,4), new Vector2(16, 16));
     }
     
-    public BulletVisual(string textureName, Vector2 collisionSize, Vector2 renderSize)
+    public override void Update()
     {
-        TextureName = textureName;
-        CollisionSize = collisionSize;
-        RenderSize = renderSize;
+        base.Update();
     }
-    
-    public string TextureName;
-    public Vector2 CollisionSize;
-    public Vector2 RenderSize;
 }

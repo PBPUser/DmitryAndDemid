@@ -2,11 +2,12 @@ using System.Text.Json.Serialization;
 
 namespace DmitryAndDemid.Data;
 
-public class EnemySpawnInfo : StageElement
+public class EnemySpawnInfo : ChapterElement
 {
-    [JsonInclude] public string EntityAppearance = "";
-    [JsonInclude] public string EntityScript = "";
-    [JsonInclude] public float EntitySpeed = 1f;
-    [JsonInclude] public int X = 0;
-    [JsonInclude] public int Y = 0;
+    [JsonInclude] public string Visual = "";
+    [JsonInclude] public string Script = "";
+    [JsonInclude] public string CreateScript = "";
+    [JsonInclude] public string AttackScript = "";
+    [JsonInclude] public float Speed = 1f;
+    [JsonInclude] public float Health = 20f;
 }

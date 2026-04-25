@@ -1,11 +1,22 @@
+using System.Numerics;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace DmitryAndDemid.Data;
 
 public class BulletSpawnInfo : ChapterElement
 {
-    [JsonInclude] public int X = 0;
-    [JsonInclude] public int Y = 0;
+    public static Dictionary<string, BulletSpawnInfo> Prefabs = new();
+
+    static BulletSpawnInfo()
+    {
+        foreach (var file in Directory.GetFiles("Assets/Data/BulletPresets", "*.json"))
+        {
+            Prefabs[Path.GetFileNameWithoutExtension(file)] = JsonSerializer
+                .Deserialize<BulletSpawnInfo>(File.ReadAllText(file));
+        }
+    }
+    
     [JsonInclude] public string BulletUpdateMethod = "Action1";
     [JsonInclude] public string BulletVisual = "Default";
     [JsonInclude] public string BulletCreateMethod = "WritePlayerPosition";

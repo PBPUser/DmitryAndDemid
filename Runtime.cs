@@ -176,13 +176,22 @@ public class Runtime
         QueueToRemove.Add(screen);
     }
 
+    private int UpdateRenderFrom = 0;
+    
+    public void SetScreenRenderingFrom(int index)
+    {
+        UpdateRenderFrom = Math.Clamp(index, 0, Screens.Count - 1);
+    }
+    
+    public int GetScreenIndex(Screen screen) => Screens.IndexOf(screen); 
+    
     void PreRender(double delta)
     {
         if (ScreenRefreshRequired)
             RefreshScreens();
-        foreach (var screen in Screens)
+        for (int i = UpdateRenderFrom; i < Screens.Count; i++)
         {
-            screen.PreRender(delta);
+            Screens[i].PreRender(delta);
         }
         Screens.Last().TopUpdate();
     }
@@ -211,9 +220,9 @@ public class Runtime
     {
         BeginDrawing();
         ClearBackground(Color.Black);
-        foreach (var screen in Screens)
-            screen.Render();
+        for (int i = UpdateRenderFrom; i < Screens.Count; i++)
+            Screens[i].Render();
         DrawFPS(0, 0);
         EndDrawing();
-    }
+     }
 }

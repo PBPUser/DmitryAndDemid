@@ -1,0 +1,5 @@
+{
+  "BulletUpdateMethod": "MoveToPlayer",
+  "BulletCreateMethod": "WriteDirectionToPlayer",
+  "BulletVisual": "default"
+}

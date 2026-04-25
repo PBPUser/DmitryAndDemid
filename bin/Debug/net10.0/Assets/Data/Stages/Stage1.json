@@ -2,16 +2,23 @@
   "StageBackgroundClass": "DrogichinBackground",
   "Chapters": [
     {
-      "ChapterLength": 120,
+      "ChapterLength": 500,
       "Index": 0,
+      "Type": 2,
+      "ChapterBossArt": "nikitos_boss_art.png",
+      "ChapterLabel": "Nikitos ponos",
       "BulletSpawnInfos": [{
         "X": 20,
         "Y": 20,
         "BulletUpdateMethod": "MoveToPlayer",
         "Speed": 1,
         "BulletCreateMethod": "WriteDirectionToPlayer",
-        "BulletVisual": "Default",
-        "SpawnTick": 0
+        "BulletVisual": "default",
+        "SpawnTick": 0,
+        "Stacked": true,
+        "StackDelay": 15,
+        "StackLength": 10,
+        "StackPositionOffset": { "X": 10, "Y": 0 }
       }]
     },
     {
@@ -23,7 +30,7 @@
         "Speed": 10,
         "BulletUpdateMethod": "MoveToPlayer",
         "BulletCreateMethod": "WriteDirectionToPlayer",
-        "BulletVisual": "Default",
+        "BulletVisual": "default",
         "SpawnTick": 40
       }, 
         {
@@ -32,7 +39,7 @@
           "Speed": 10,
         "BulletUpdateMethod": "MoveToPlayer",
         "BulletCreateMethod": "WriteDirectionToPlayer",
-        "BulletVisual": "Default",
+        "BulletVisual": "default",
         "SpawnTick": 45
       },
         {
@@ -41,7 +48,7 @@
           "Speed": 10,
           "BulletUpdateMethod": "MoveToPlayer",
           "BulletCreateMethod": "WriteDirectionToPlayer",
-          "BulletVisual": "Default",
+          "BulletVisual": "default",
           "SpawnTick": 50
         }]
     },

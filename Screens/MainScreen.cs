@@ -114,6 +114,12 @@ public class MainScreen : MenuScreen
         DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceLeft, LogoTargetLeft, Vector2.Zero, 0f, Color.White with { A = Helper.TimeToTransparency(appear25) });
         DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceRight, LogoTargetRight, Vector2.Zero, 0f, Color.White with { A = Helper.TimeToTransparency(appear25) });
         DrawTexturePro(SelectedPerson, RCPersonSource, Helper.Mix(RCPersonTarget1, RCPersonTarget2, appear4), Vector2.Zero, 0f, Color.White);
+        #if DEBUG
+        var hp = Helper.GetDirection(new Vector2(640, 260), GetMousePosition());
+        DrawLine(640, 260, 640+(int)(hp.X * 500), 260+(int)(hp.Y * 500), Color.Blue);
+        DrawText($"Test: {hp}", 0, 220, 20, Color.Red);
+        DrawText($"Coords: {hp*500}", 0, 240, 20, Color.Red);
+        #endif
     }
 
     public override void CreateMenu()
