@@ -12,9 +12,11 @@ namespace DmitryAndDemid.Screens;
 public class PersonSelectScreen : MenuScreen
 {
     bool IsPractice;
+    private int Difficulty;
 
-    public PersonSelectScreen(bool isPractice) : base()
+    public PersonSelectScreen(bool isPractice, int difficulty) : base()
     {
+        Difficulty = difficulty;
         HorizontalDirectionNavigation = true;
         VerticalDirectionNavigation = false;
         IsPractice = isPractice;
@@ -107,6 +109,7 @@ public class PersonSelectScreen : MenuScreen
 
     void OpenNext()
     {
+        Console.WriteLine($"Difficulty: {Difficulty}");
         if (IsPractice)
         {
             string data = File.ReadAllText(Files[SelectedIndex]);
@@ -115,7 +118,7 @@ public class PersonSelectScreen : MenuScreen
                 var json = JsonSerializer.Deserialize<ProtogonistData>(data);
                 if (json == null)
                     throw new Exception();
-                Runtime.CurrentRuntime.AddScreen(new PracticeScreen(json));
+                Runtime.CurrentRuntime.AddScreen(new PracticeScreen(json, Difficulty));
             }
             catch (Exception ex)
             {

@@ -7,36 +7,47 @@ namespace DmitryAndDemid.Data;
 
 public class Stage
 {
+    [JsonInclude] public int Index = 0;
+    [JsonInclude] public int TitleTick = 0;
     [JsonInclude] public string StageArt = "akob.png";
     [JsonInclude] public string StageBackgroundClass = "StageBackground";
-    [JsonInclude]
-    public ChapterInfo[] Chapters = new ChapterInfo[0];
-    [JsonInclude]
-    public DialogInfo[] Dialogs = new DialogInfo[0];
+    [JsonInclude] public ChapterInfo[] Chapters = new ChapterInfo[0];
+    [JsonInclude] public DialogInfo[] Dialogs = new DialogInfo[0];
+    [JsonInclude] public BossSpawnInfo[] Bosses = new BossSpawnInfo[0];
 }
 
 public class RuntimeStage
 {
     public List<StageElement> StageElements = new();
+    public Dictionary<string, Boss> Bosses = new();
     public StageBackground Background;
+    public int Index;
+    public int TitleTick;
     
     public RuntimeStage(Stage stage, Game game)
     {
+        TitleTick = stage.TitleTick;
+        Index = stage.Index;
         Background = (StageBackground)Assembly.GetExecutingAssembly()
             .GetTypes()
             .Where(x => x.IsAssignableTo(typeof(StageBackground)))
             .Where(x => x.Name == stage.StageBackgroundClass)
             .FirstOrDefault()!.GetConstructors().Where(x => x.GetParameters().Length == 0)
             .First().Invoke(new object[0]);
+        foreach (var bossSpawnInfo in stage.Bosses)
+        {
+            var boss = new Boss(game, bossSpawnInfo);
+            Bosses[bossSpawnInfo.DialogElementAppearID] = boss;
+        }
         for (int i = 0; true; i++)
         {
-            var chapter = stage.Chapters.Where(x => x.Index == i).FirstOrDefault();
+            var chapter = stage.Chapters.FirstOrDefault(x => x.Index == i);
             if (chapter != null)
             {
                 StageElements.Add(new Chapter(game, chapter));
                 continue;
             }
-            var dialog = stage.Dialogs.Where(x => x.Index == i).FirstOrDefault();
+            var dialog = stage.Dialogs.FirstOrDefault(x => x.Index == i);
             if (dialog != null)
                 StageElements.Add(new RuntimeDialog(dialog, game.ProtogonistId));
             else

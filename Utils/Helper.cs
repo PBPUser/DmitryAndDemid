@@ -1,7 +1,13 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
+using System.Text.Json;
 using DmitryAndDemid.Gameplay;
+using Pango;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
+using Color = Raylib_cs.Color;
+using Font = Raylib_cs.Font;
+using Rectangle = Raylib_cs.Rectangle;
 
 namespace DmitryAndDemid.Utils;
 
@@ -41,10 +47,16 @@ public static class Helper
         LocationShadowDepth = GetShaderLocation(Runtime.CurrentRuntime.Shaders["shadow"], "depth");
         LocationShadowResolution = GetShaderLocation(Runtime.CurrentRuntime.Shaders["shadow"], "res");
 
+        LocationGradientBorderWidth = GetShaderLocation(Runtime.CurrentRuntime.Shaders["gradient"], "border_width");
+        LocationGradientResoulution = GetShaderLocation(Runtime.CurrentRuntime.Shaders["gradient"], "resolution");
+
         PizzaSource = new Rectangle(0, 0, Runtime.CurrentRuntime.Textures["pizza.png"].Width, Runtime.CurrentRuntime.Textures["pizza.png"].Height);
     }
 
     static Rectangle PizzaSource;
+
+    private static int LocationGradientBorderWidth;
+    private static int LocationGradientResoulution;
 
     public static bool GetResolutionFromString(string str, out (int width, int height) res)
     {
@@ -141,7 +153,7 @@ public static class Helper
 
     public static RenderTexture2D DrawDialog(string text, float angle)
     {
-        var tx = DrawText(text, 16, 4, 4, GetFontDefault(), Color.Black);
+        var tx = DrawText(text, 16, 4, 4, 2, GetFontDefault(), Color.Black, "shadow");
         var vx = RenderTextureInCloud(tx.Texture, 3f, angle);
         UnloadRenderTexture(tx);
         return vx;
@@ -240,22 +252,39 @@ public static class Helper
         : (MathF.Pow(2, -20 * x + 10) * MathF.Sin((20 * x - 11.125f) * c5)) / 2 + 1;
     }
 
-    public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, Font font) => DrawText(s, fontSize, hPadding, vPadding, font, Color.White);
-
-    public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, Font font, Color color)
+    public static RenderTexture2D DrawTextScaled(string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, string shader = "shadow") => DrawText(s, 
+        (int)(fontSize*Runtime.CurrentRuntime.Scale), 
+        (int)(hPadding*Runtime.CurrentRuntime.Scale), 
+        (int)(vPadding*Runtime.CurrentRuntime.Scale), 
+        (int)(spacing*Runtime.CurrentRuntime.Scale),
+        font, 
+        Color.White,
+        shader);
+    public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, string shader = "shadow") => 
+        DrawText(s, fontSize, hPadding, vPadding, spacing, font, Color.White, shader);
+    
+    public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, Color color, string shader)
     {
-        int size = (int)(fontSize * Runtime.CurrentRuntime.Scale);
-        int width = size * s.Length + hPadding * 2;
-        int height = size + vPadding * 2;
+        int width = s.Length * fontSize + hPadding * 2;
+        int height = fontSize + vPadding * 2;
         RenderTexture2D rt2d = Raylib.LoadRenderTexture(width, height);
         RenderTexture2D rt2d2 = Raylib.LoadRenderTexture(width, height);
         BeginTextureMode(rt2d);
-        DrawTextEx(font, s, new Vector2(hPadding, vPadding), size, 2, color);
+        DrawTextEx(font, s, new Vector2(hPadding, vPadding), fontSize, spacing, color);
         EndTextureMode();
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowDepth, 4f, ShaderUniformDataType.Float);
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowResolution, new float[] { width, height }, ShaderUniformDataType.Vec2);
+        switch (shader)
+        {
+            case "shadow":
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowDepth, 4f, ShaderUniformDataType.Float);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowResolution, new float[] { width, height }, ShaderUniformDataType.Vec2);
+                break;
+            case "gradient":
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientBorderWidth, 2f, ShaderUniformDataType.Float);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientResoulution, new float[] {width,height}, ShaderUniformDataType.Vec2);
+                break;
+        }
         BeginTextureMode(rt2d2);
-        BeginShaderMode(Runtime.CurrentRuntime.Shaders["shadow"]);
+        BeginShaderMode(Runtime.CurrentRuntime.Shaders[shader]);
         DrawTexture(rt2d.Texture, 0, 0, Color.White);
         EndShaderMode();
         EndTextureMode();
@@ -352,6 +381,11 @@ public static class Helper
             areaEnd.X > xPositionTo.X && areaEnd.Y > xPositionTo.Y;
     }
 
+    public static bool IsCollied(Rectangle rc1, Rectangle rc2)
+    {
+        return Raymath.Vector2Distance(rc1.Center, rc2.Center) < (rc1.Width + rc2.Width) / 2;
+    }
+
     
     public static double BossAppearCurve(double x, double pow)
     {
@@ -361,5 +395,62 @@ public static class Helper
     public static float BossAppearCurveF(float x, float pow)
     {
         return (MathF.Pow(x/2 - 1, pow) + 1) / 2;
-    } 
+    }
+    
+    public static void PlaySound(Sound sound)
+    {
+        var soundCopy = LoadSoundAlias(sound);
+        SetSoundVolume(soundCopy, Runtime.CurrentRuntime.SFXVolume);
+        Raylib.PlaySound(soundCopy);
+        SoundAlieases[AliasIndex] = sound;
+        AliasIndex++;
+        if (RequiresUnloading)
+        {
+            UnloadSoundAlias(SoundAlieases[AliasIndex-1]);
+        }
+
+        if (AliasIndex < AliasCount)
+            return;
+        RequiresUnloading = true;
+        AliasIndex = 0;
+    }
+
+    private const int AliasCount = 4096;
+    private static int AliasIndex = 0;
+    private static bool RequiresUnloading = false;
+    private static Sound[] SoundAlieases = new Sound[4096];
+    
+    static Dictionary<string, string> TransliterationDictionary = 
+        JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText("Assets/Data/cyrilic-transliteration-table.json"));
+    static Dictionary<string, string> TranslationDictionary = 
+        JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText("Assets/Data/translation.json"));
+
+    public static string Translate(string i18n)
+    {
+        if(TranslationDictionary.ContainsKey(i18n))
+            return Transliterate(TranslationDictionary[i18n]);
+        return Transliterate(i18n);
+    }
+    
+    public static string Transliterate(string text)
+    {
+        string final = "";
+        string[] chars;
+        foreach (var c in text)
+        {
+            if (TransliterationDictionary.ContainsKey(c.ToString()))
+            {
+                chars = TransliterationDictionary[c.ToString()].Split(";;");
+                final += chars[new Random().Next(chars.Length - 1)];
+            }
+            else
+                final += c;
+        }
+        return final;
+    }
+
+    public static void UpdatePlayingMusic()
+    {
+        throw new NotImplementedException();
+    }
 }

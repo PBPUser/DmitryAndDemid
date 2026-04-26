@@ -21,14 +21,20 @@ public class Runtime
     public int Width;
     public int Height;
 
+    public float SFXVolume = 1.0f;
+    public float MusicVolume = 1.0f;
+
     public bool DisableClose = false;
     bool ADPTriggered = false;
     public Rectangle FullScreenRect;
 
 
     public double Scale = 1;
+    public float ScaleF = 1;
     public Dictionary<string, Shader> Shaders = new();
     public Dictionary<string, Texture2D> Textures = new();
+    public Dictionary<string, Sound> Sounds = new();
+    public Dictionary<string, Font> Fonts = new();
 
     public async Task Start()
     {
@@ -62,6 +68,7 @@ public class Runtime
         Height = height;
         FullScreenRect = new(0, 0, Width, Height);
         Scale = ((double)width) / 640d;
+        ScaleF = (float)Scale;
         InitWindow(width, height, "An AKOB Game 2: A story about Dmitry from Drochigin and Demid (Sergeevich)");
         SetTargetFPS(240);
         SetExitKey(KeyboardKey.Null);
@@ -92,10 +99,21 @@ public class Runtime
 
     async Task Load()
     {
+        try
+        {
+            InitAudioDevice();
+        }
+        catch (Exception ex)
+        {
+            ADPTriggered = true;
+            ScreenLoading.SetADPText("HeBo3MoJHo uHutsuAJlu3upoBaTb 3ByKoByI0 noDcucTemu.", false);
+        }
         LoadShaders();
+        LoadFonts();
         LoadTextures();
         Helper.LoadShaderAttribs();
         var thread = Thread.CurrentThread;
+        LoadAudio();
         Task.Delay(3000).ContinueWith(_ =>
         {
             if (!ADPTriggered)
@@ -119,6 +137,12 @@ public class Runtime
         AddScreen(ScreenMain);
     }
 
+    void LoadAudio()
+    {
+        foreach (var file in Directory.GetFiles("Assets/Sounds"))
+            Sounds[Path.GetFileNameWithoutExtension(file)] = LoadSound(file);
+    }
+    
     void LoadTextures()
     {
         foreach (var x in Directory.GetFiles("Assets/Textures", "*.png"))
@@ -154,7 +178,14 @@ public class Runtime
                 break;
             }
         }
+    }
 
+    void LoadFonts()
+    {
+        foreach (var font in Directory.GetFiles("Assets/Fonts"))
+        {
+            Fonts[Path.GetFileNameWithoutExtension(font)] = LoadFont(font);
+        }
     }
 
     public void AddAction(System.Action action)

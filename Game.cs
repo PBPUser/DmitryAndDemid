@@ -15,6 +15,11 @@ namespace DmitryAndDemid;
 
 public class Game : IDisposable
 {
+    static Game()
+    {
+        StagesTitleTexture = Runtime.CurrentRuntime.Textures["stages.png"];
+    }
+    
     public const int TPS = 60;
     public const int ChapterDelay = 120;
     public const int DialogLength = 600;
@@ -22,15 +27,17 @@ public class Game : IDisposable
     private const double BossArtAnimationLength = 2d;
     private static Rectangle BossRectangle = new Rectangle(0, 0, 384, 448);
     private static float ChapterBossTitleYFrom = 320;
-
-    public Game(ProtogonistData protogonistData, Stage stage, GameplayScreen screen)
+    public int Difficulty = 1;
+    
+    public Game(ProtogonistData protogonistData, Stage stage, GameplayScreen screen, int difficulty)
     {
         DialogProtogonistTexture = Runtime.CurrentRuntime.Textures[protogonistData.DialogArtName];
         ProtogonistId = protogonistData.ID;
         Gameplay = LoadRenderTexture(384, 448);
         Background = LoadRenderTexture(384, 448);
         Dialog = LoadRenderTexture(Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height);
-
+        Difficulty = difficulty;
+        
         RectangleDialogProtogonistActive = Helper.Scale(new Rectangle(0, 224, 192, 256), Runtime.CurrentRuntime.Scale);
         RectangleDialogAntogonistActive = Helper.Scale(new Rectangle(256, 224, 192, 256), Runtime.CurrentRuntime.Scale);
         RectangleDialogProtogonistInactive = Helper.Scale(new Rectangle(-32, 288, 144, 192), Runtime.CurrentRuntime.Scale);
@@ -95,9 +102,15 @@ public class Game : IDisposable
     
     public void UpdateToNext()
     {
+        float time = (float)GetTime();
         CurrentTick++;
         PreviousTick = NextTickStamp;
         NextTickStamp = GameStartedTimestamp + (CurrentTick + 1) * TickLength;
+        if (IsDied)
+        {
+            if (DiedTimestamp + DieAnimationLength < time)
+                IsDied = false;
+        }
         if (IsDialog)
         {
             if (NextDialogTick < CurrentTick)
@@ -135,11 +148,28 @@ public class Game : IDisposable
                 break;
             }
         }
-            
+
+        DrawStageTitle = time < TimestampDisappearStageTitle && time > TimestampAppearStageTitle;
+        
         if (CurrentTick == ChapterSwitchTick)
-        {
             NextChapter();
+
+        if (CurrentChapter != null)
+        {
+            if (CurrentChapter.Type != ChapterType.NonBoss)
+            {
+                int j = CurrentChapter.ChapterLength - CurrentTick + TickChapterStart;
+                if (j == 0)
+                {
+                    SetBonus(true);
+                    Helper.PlaySound(Runtime.CurrentRuntime.Sounds["fault"]);
+                }
+                else if (j > 0 && (CurrentChapter.ChapterLength > 600 && j < 601 || j < 301))
+                    if(j % 60 == 0)
+                        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["pre-timeout"]);
+            }
         }
+        
         foreach (var x in Objects)
         {
             x.Update();
@@ -147,14 +177,17 @@ public class Game : IDisposable
             if (!Helper.IsInArea(x.PositionTo, AreaStart, AreaEnd)) 
                 ToRemove.Add(x);
         }
-
+        if(NextClearAllTick == CurrentTick)
+            ClearAll();
         if (ObjectsPending)
         {
             Objects.AddRange(ObjectsToAdd);
             ObjectsToAdd.Clear();
         }
+        if (IsDialog)
+            return;
+
         
-        float time = (float)GetTime();
         foreach (var x in ToRemove)
         {
             RemovedBullets.Add(new RemovedBullet(x.PositionTo, time));
@@ -252,6 +285,14 @@ public class Game : IDisposable
         }
         else
             NextDialogTick = CurrentTick + DialogLength;
+
+        if (CurrentStage.Bosses.ContainsKey(element.ID))
+        {
+            var boss = CurrentStage.Bosses[element.ID];
+            AddObject(boss);
+            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["boss-appear"]);
+            boss.SetSpawnTick(CurrentTick);
+        }
         bool? previousSpeaker = CurrentElement != null ? CurrentElement.AntogonistSpeak : null;
         CurrentElement = element;
         if (previousSpeaker == null)
@@ -295,10 +336,12 @@ public class Game : IDisposable
         DialogRectangleTarget = Helper.Scale(Helper.ScaleByHeight(84, 320, DialogRectangleSource.Size / (float)Runtime.CurrentRuntime.Scale, (float)(-160 / Runtime.CurrentRuntime.Scale)),  Runtime.CurrentRuntime.Scale);
     }
 
+    private int NextClearAllTick = -1;
+    
     void ClearAll()
     {
         if(Objects.Count > 1)
-            ToRemove.AddRange(Objects[1..^0]);
+            ToRemove.AddRange(Objects.Where(x => !x.ClearProtected));
     }
 
     private float BossAppearTimestamp = 0;
@@ -315,12 +358,39 @@ public class Game : IDisposable
             RectangleChapterTitleDestination = new Rectangle(384 - RectangleChapterTitleSource.Width, 0,
                 RectangleChapterTitleSource.Size);
         }
+
+        Boss boss;
+        foreach (var action in CurrentChapter.BossActions)
+        {
+            boss = CurrentStage.Bosses[action.ID];
+            boss.UpdateScript = Boss.Actions[action.MoveAction];
+            boss.ShootScript = Boss.Actions[action.ShootAction];
+            boss.CreateScript = Boss.Actions[action.StartAction];
+            boss.CreateScript.Invoke(boss);
+        }
         IsDialog = false;
         TickChapterStart = CurrentTick;
         ChapterBulletIndex = 0;
         ChapterSwitchTick = CurrentTick + CurrentChapter.ChapterLength + ChapterDelay;
     }
 
+    private const double BonusTextDuration = 5;
+    private const double BonusAppearDuration = 0.25;
+    private static Rectangle BonusSourceRect = new Rectangle(0, 0, 1536, 512);
+    private Rectangle BonusTargetRect;
+    private double BonusAppearTime = 0;
+    private double BonusDisappearTime = 0;
+    private Texture2D BonusTexture;
+    
+    void SetBonus(bool isFailed, string bonus = "")
+    {
+        if (isFailed)
+            BonusTexture = Runtime.CurrentRuntime.Textures["bonus-failed.png"];
+        BonusAppearTime = GetTime();
+        BonusDisappearTime = GetTime() + BonusTextDuration;
+        BonusTargetRect = Helper.Scale(new Rectangle(32,96,384,128), Runtime.CurrentRuntime.Scale);
+    }
+    
     private const float BossAppearXAnimation = .75f;
     private const float BossAppearYAnimation = .75f;
     private const float BossAppearAnimationWait = .75f;
@@ -344,34 +414,43 @@ public class Game : IDisposable
             DrawTexturePro(x.SourceTexture, x.SourceRect, info.rc, Vector2.Zero, info.rotation, Color.White);
         }
         Helper.DrawDeathPoints(RemovedBullets, "disappear_shoot");
-        if (CurrentChapter.Type == ChapterType.Spell)  {
-            float appear = .5f - Helper.BossAppearCurveF(time-BossAppearTimestamp, 5f);
-            float titleAppearX = MathF.Pow(1-Raymath.Clamp((time-BossAppearTimestamp)/BossAppearXAnimation, 0, 1), 6);
-            float titleAppearY = MathF.Pow(1-Raymath.Clamp((time-BossAppearXAnimation-BossAppearAnimationWait-BossAppearTimestamp)/BossAppearYAnimation, 0, 1), 6);
-            
-            DrawTexturePro(CurrentChapter.ChapterAttackTexture, 
-                BossRectangle, BossRectangle with { Position = BossRectangle.Position - BossArtShift * appear + BossStaticShift },
-                Vector2.Zero, appear, Color.White with {A=192});
-            DrawTexturePro(CurrentChapter.ChapterTitleTexture.Texture,
-                RectangleChapterTitleSource,  
-                RectangleChapterTitleDestination with { X = RectangleChapterTitleDestination.X + (titleAppearX*RectangleChapterTitleDestination.Width), 
-                    Y = ChapterBossTitleYFrom * titleAppearY },
-                Vector2.Zero, 0,
-                Color.White);
-#if DEBUG
-            if (Raylib.IsKeyDown(KeyboardKey.D))
+        if (CurrentChapter != null)
+        {
+            if (CurrentChapter?.Type != ChapterType.NonBoss)
             {
-                DrawText("Entity Rectangle: "+appear , 20, 370, 20, Color.White);
-                DrawText("Boss Appear: "+appear , 20, 370, 20, Color.White);
-                DrawText("X Appear: "+titleAppearX , 20, 390, 20, Color.Blue);
-                DrawText("Y Appear: "+titleAppearY , 20, 410, 20, Color.Red);
+                DrawText(""+((CurrentChapter.ChapterLength - CurrentTick) / 60), 0,0,24,Color.White);
             }
+            if (CurrentChapter?.Type == ChapterType.Spell)  {
+                float appear = .5f - Helper.BossAppearCurveF(time-BossAppearTimestamp, 5f);
+                float titleAppearX = MathF.Pow(1-Raymath.Clamp((time-BossAppearTimestamp)/BossAppearXAnimation, 0, 1), 6);
+                float titleAppearY = MathF.Pow(1-Raymath.Clamp((time-BossAppearXAnimation-BossAppearAnimationWait-BossAppearTimestamp)/BossAppearYAnimation, 0, 1), 6);
+            
+                DrawTexturePro(CurrentChapter.ChapterAttackTexture, 
+                    BossRectangle, BossRectangle with { Position = BossRectangle.Position - BossArtShift * appear + BossStaticShift },
+                    Vector2.Zero, appear, Color.White with {A=192});
+                DrawTexturePro(CurrentChapter.ChapterTitleTexture.Texture,
+                    RectangleChapterTitleSource,  
+                    RectangleChapterTitleDestination with { X = RectangleChapterTitleDestination.X + (titleAppearX*RectangleChapterTitleDestination.Width), 
+                        Y = ChapterBossTitleYFrom * titleAppearY },
+                    Vector2.Zero, 0,
+                    Color.White);
+#if DEBUG
+                if (Raylib.IsKeyDown(KeyboardKey.D))
+                {
+                    DrawText("Entity Rectangle: "+appear , 20, 370, 20, Color.White);
+                    DrawText("Boss Appear: "+appear , 20, 370, 20, Color.White);
+                    DrawText("X Appear: "+titleAppearX , 20, 390, 20, Color.Blue);
+                    DrawText("Y Appear: "+titleAppearY , 20, 410, 20, Color.Red);
+                }
 #endif
+            }
         }
-        
         EndTextureMode();
         BeginTextureMode(Dialog);
         ClearBackground(Color.White with { A = 0 });
+        float bonusSignState = (float)Helper.ComputeObjectTime(
+            time, BonusAppearTime, BonusAppearDuration, BonusDisappearTime, BonusAppearDuration
+        );
         if (IsDialog)
         {
             float statement = Helper.Pow2F((float)Helper.ComputeObjectTime(GetTime(), DialogCharatcterSwitchAppearTime, 0.5,
@@ -405,7 +484,6 @@ public class Game : IDisposable
         if (Raylib.IsKeyDown(KeyboardKey.D))
         {
             DrawText("Time: "+ GetTime(), 20, 110, 32, Color.White);
-            DrawText("Chapter Length: "+ CurrentChapter.ChapterLength, 400, 110, 32, Color.White);
             DrawText("Chapter Switch Tick: "+ ChapterSwitchTick, 400, 140, 32, Color.White);
             DrawText("Index: "+ChapterIndex, 20, 200, 64, Color.White);
             DrawText("Tick: "+CurrentTick, 20, 140, 32, Color.White);
@@ -415,11 +493,50 @@ public class Game : IDisposable
             DrawText("Objects count: "+ Objects.Count, 20, 370, 20, Color.Red);
             if (CurrentChapter != null)
             {
+                DrawText("Chapter Length: "+ CurrentChapter.ChapterLength, 400, 110, 32, Color.White);
                 DrawText("Bullets count: "+ CurrentChapter.Bullets.Length, 20, 390, 20, Color.Red);
                 DrawText("Last bullets: "+ (CurrentChapter.Bullets.Length-ChapterBulletIndex), 20, 410, 20, Color.Red);
             }
+            else if (IsDialog)
+            {
+                DrawText("Next dialog tick: "+ NextDialogTick, 400, 110, 32, Color.White);
+            }
+        }
+
+        
+        if (Raylib.IsKeyDown(KeyboardKey.T))
+        {
+            DrawText("Tick: "+ time, 128, 512, 32, Color.White);
+            DrawText("DrawStageTitle: "+ DrawStageTitle, 128, 0, 32, Color.White);
+            DrawText("Appear: "+ TimestampAppearStageTitle, 128, 32, 32, Color.White);
+            DrawText("Disappear: "+ TimestampDisappearStageTitle, 128, 64, 32, Color.White);
+        }
+        if (Raylib.IsKeyDown(KeyboardKey.R))
+        {
+            DrawText("Source: "+BonusSourceRect , 20, 0, 20, Color.White);
+            DrawText("Target: "+BonusTargetRect , 20, 20, 20, Color.Blue);
+            DrawText("State: "+bonusSignState , 20, 40, 20, Color.Blue);
         }
         #endif
+        if (DrawStageTitle)
+        {
+            float appear;
+            for (int i = 0; i < 4; i++)
+            {
+                appear = Helper.ComputeObjectTime(time, TimestampAppearStageTitle+.5f*i, TitleAppearLength, TimestampDisappearStageTitle, TitleAppearLength);
+                DrawTexturePro(StagesTitleTexture,
+                    StageTitleSources[i], StageTitleTargets[i], i==3? StageTitleTargetOrigin :Vector2.Zero, 
+                    i == 3 ? 60 * (float)Helper.ComputeObjectTimeStart(time, TimestampAppearStageTitle+2f, 1f) : 0,
+                    Color.White with {A = Helper.TimeToTransparency(appear)});
+#if DEBUG
+                if (Raylib.IsKeyDown(KeyboardKey.T))
+                {
+                    DrawText("Appear: "+ appear, 128, i*32+128, 32, Color.White);
+                }
+#endif
+            }
+        }
+        DrawTexturePro(BonusTexture, BonusSourceRect, BonusTargetRect with { Height = bonusSignState * BonusTargetRect.Height }, Vector2.Zero, 0, Color.White);
         EndTextureMode();
     }
 
@@ -442,9 +559,35 @@ public class Game : IDisposable
         GameStartedTimestamp = GetTime();
         NextTickStamp = GameStartedTimestamp + TickLength;
         ChapterIndex = -1;
+        SetTitle(StageInfo.Index, StageInfo.TitleTick);
         NextChapter();
     }
 
+    private Rectangle[] StageTitleSources = new Rectangle[4];
+    private Rectangle[] StageTitleTargets = new Rectangle[4];
+    private Vector2 StageTitleTargetOrigin;
+    private float TimestampAppearStageTitle = float.MaxValue;
+    float TimestampDisappearStageTitle = float.MaxValue;
+    private const float TitleAppearLength = 0.25f;
+    private const float TitleShowDuration = 5f;
+    private bool ChapterTitleShow = false;
+    private static Texture2D StagesTitleTexture;
+    bool DrawStageTitle = false;
+    
+    public void SetTitle(int index, int tick)
+    {
+        TimestampAppearStageTitle = (float)(GameStartedTimestamp + (TickLength * tick));
+        TimestampDisappearStageTitle = TimestampAppearStageTitle + TitleShowDuration;
+        StageTitleTargetOrigin = new Vector2(-40) * Runtime.CurrentRuntime.ScaleF;
+        StageTitleSources[0] = new Rectangle(0, 512*index, 1536, 80);
+        StageTitleTargets[0] = Helper.Scale(new Rectangle(32, 96, 384, 20), Runtime.CurrentRuntime.ScaleF);
+        StageTitleSources[1] = new Rectangle(0, 512*index+80, 1536, 316);
+        StageTitleTargets[1] = Helper.Scale(new Rectangle(32, 116, 384, 79), Runtime.CurrentRuntime.ScaleF);
+        StageTitleSources[2] = new Rectangle(0, 512*index+396, 1536, 116);
+        StageTitleTargets[2] = Helper.Scale(new Rectangle(32, 215, 384, 29), Runtime.CurrentRuntime.ScaleF);
+        StageTitleSources[3] = new Rectangle(1536, 640*index, 640, 640);
+        StageTitleTargets[3] = Helper.Scale(new Rectangle(256, 110, 80, 80), Runtime.CurrentRuntime.ScaleF);
+    }
 
     public void Update()
     {
@@ -459,23 +602,25 @@ public class Game : IDisposable
         if (rS == Playing)
             return;
         Playing = rS;
-        if (!Playing)
-        {
-            PauseTimestamp = GetTime();
-        }
-        else
+        if (Playing)
         {
             var s = GetTime() - PauseTimestamp;
             PreviousTick += s;
             NextTickStamp += s;
+            return;
         }
+        PauseTimestamp = GetTime();
     }
 
-    const double DialogSkipDelay = 0.1;
+    const double DialogSkipDelay = 0.25;
     double DialogSkipCooldownBefore = 0;
 
     public void ProcessInput()
     {
+        if (IsKeyDown(KeyboardKey.V))
+        {
+            BossKilled();
+        }
         if (!IsDialog)
             return;
         if (!CurrentElement.Skipable)
@@ -489,5 +634,26 @@ public class Game : IDisposable
             if (dialogIndex + 1 == CurrentDialog.Elements.Count)
                 ChapterSwitchTick = CurrentTick + 1;
         }
+    }
+
+    void BossKilled()
+    {
+        ClearAll();
+        ChapterSwitchTick = CurrentTick + ChapterDelay;
+    }
+
+    public bool IsDied;
+    public float DiedTimestamp;
+    public Vector2 DiePosition;
+    public const float DieAnimationLength = 1.6f;
+    public const int DieClearAllDelay = 40;
+    
+    public void SetDied()
+    {
+        IsDied = true;
+        DiePosition = Player.PositionTo;
+        DiedTimestamp = (float)GetTime();
+        NextClearAllTick = CurrentTick + DieClearAllDelay;
+        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["dead"]);
     }
 }

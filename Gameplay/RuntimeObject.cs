@@ -8,6 +8,7 @@ public class RuntimeObject : IDisposable
     public Game Game;
     public int SpawnTick = 0;
     public float Speed = 1;
+    public bool ClearProtected = false;
 
     public RuntimeObject(Game game, Vector2 position, Vector2 renderSize, Vector2 collisionSize, float rotation = 0)
     {
@@ -23,7 +24,7 @@ public class RuntimeObject : IDisposable
         UpdateCollisionRender(position, rotation);
     }
 
-    public bool CollisionEnabled;
+    public bool CollisionEnabled = true;
 
     Vector2 PositionFrom;
     public Vector2 PositionTo;

@@ -1,23 +1,39 @@
 {
   "StageBackgroundClass": "DrogichinBackground",
+  "Index": 0,
+  "TitleTick": 0,
+  "Bosses": [
+    {
+    "ID": "nikitos_mid",
+    "DialogElementAppearID": "midboss_appear",
+    "BossSpriteTexture": "nikitos-sprite.png"
+    },
+    {
+      "ID": "nikitos_main",
+      "DialogElementAppearID": "boss_appear",
+      "BossSpriteTexture": "nikitos-sprite.png"
+    }
+  ],
   "Chapters": [
     {
-      "ChapterLength": 500,
+      "ChapterLength": 600,
       "Index": 0,
-      "Type": 2,
-      "ChapterBossArt": "nikitos_boss_art.png",
-      "ChapterLabel": "Nikitos ponos",
       "EnemySpawnInfos": [{
         "Visual": "jv",
-        "Script":  "MoveLinearDown",
+        "Script":  "MoveLinearDownRight",
         "AttackScript": "ShootIntoPlayer",
         "SpawnTick": 60,
-        "Position": {"X": 192, "Y": -64},
-        "Speed": 3
+        "Position": {"X": -32, "Y": 64},
+        "Speed": 2,
+        "Stacked": true,
+        "StackLength": 10,
+        "StackDelay": 30,
+        "BulletSpeed": 3,
+        "BulletSpawnRate": 10
       }]
     },
     {
-      "ChapterLength": 300,
+      "ChapterLength": 120,
       "Index": 1,
       "BulletSpawnInfos": [{
         "Position": {"X": 192, "Y": 24},
@@ -74,7 +90,8 @@
               "Text": "Idi nahui Nikitos",
               "Skipable": true,
               "AntogonistSpeak": false,
-              "ArtIndex": 1
+              "ArtIndex": 1,
+              "ID": "midboss_appear"
             },
             {
               "Text": "Sam idi!",

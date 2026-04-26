@@ -10,17 +10,25 @@ namespace DmitryAndDemid.Screens;
 
 public class GameplayScreen : Screen
 {
-    public GameplayScreen(ProtogonistData data, Stage stage)
+    public GameplayScreen(ProtogonistData data, Stage stage, int difficulty)
     {
         SetBackground(Runtime.CurrentRuntime.Textures["gameplay_background.png"]);
-        game = new Game(data, stage, this);
+        game = new Game(data, stage, this, difficulty);
         Source = new Rectangle(0, 0, 384, -448);
-        Dest = new Rectangle((float)(32 * Runtime.CurrentRuntime.Scale), (float)(16 * Runtime.CurrentRuntime.Scale), (float)(384 * Runtime.CurrentRuntime.Scale), (float)(448 * Runtime.CurrentRuntime.Scale));
+        Dest = new Rectangle(32 * Runtime.CurrentRuntime.ScaleF, 16 * Runtime.CurrentRuntime.ScaleF, 384 * Runtime.CurrentRuntime.ScaleF, 448 * Runtime.CurrentRuntime.ScaleF);
         DialogDest = Helper.GetFullscreenSource();
         DialogSource = Helper.GetFullscreenSource();
         DialogSource.Height *= -1;
-
+        DieShader = Runtime.CurrentRuntime.Shaders["die"];
         PauseMenu = new PauseMenu(this);
+        SetShaderValue(
+            DieShader, 
+            GetShaderLocation(DieShader, "scale"),
+            Runtime.CurrentRuntime.ScaleF,
+            ShaderUniformDataType.Float
+            );
+        LocationDiePosition = GetShaderLocation(DieShader, "pos");
+        LocationDieTime = GetShaderLocation(DieShader, "time");
     }
 
     public PauseMenu PauseMenu;
@@ -49,16 +57,29 @@ public class GameplayScreen : Screen
         game!.ProcessInput();
     }
 
+    private Shader DieShader;
+    private int LocationDiePosition;
+    private int LocationDieTime;
+    
     public override void Render()
     {
+        float time = (float)GetTime();
         DrawBackground();
         game!.RenderGame();
+        if (game.IsDied)
+        {
+            SetShaderValue(DieShader, LocationDieTime, (time- game.DiedTimestamp) / Game.DieAnimationLength, ShaderUniformDataType.Float);
+            SetShaderValue(DieShader, LocationDiePosition, game.DiePosition, ShaderUniformDataType.Vec2);
+            BeginShaderMode(Runtime.CurrentRuntime.Shaders["die"]);
+        }
         DrawTexturePro(game.Background.Texture,
             Source, Dest,
             Vector2.Zero, 0, Color.White);
         DrawTexturePro(game.Gameplay.Texture,
             Source, Dest,
             Vector2.Zero, 0, Color.White);
+        if(game.IsDied)
+            EndShaderMode();
         DrawTexturePro(game.Dialog.Texture,
             DialogSource, DialogDest,
             Vector2.Zero, 0, Color.White);

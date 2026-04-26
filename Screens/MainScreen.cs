@@ -51,7 +51,7 @@ public class MainScreen : MenuScreen
         int logoCenterX = (int)((Runtime.CurrentRuntime.Width - logoCenterWidth) * 0.45f);
         LogoTargetCenter1 = new Rectangle(logoCenterX, -logoCenterHeight, logoCenterWidth, logoCenterHeight * 0.7f);
         LogoTargetCenter2 = new Rectangle(logoCenterX, (int)(Runtime.CurrentRuntime.Scale * 32), logoCenterWidth, logoCenterHeight);
-        CurrentY = (int)(256 * Runtime.CurrentRuntime.Scale);
+        CurrentY = (int)(192 * Runtime.CurrentRuntime.Scale);
     }
 
     static Color DarkRed = new Color(0.7f, 0, 0, 1);
@@ -124,26 +124,46 @@ public class MainScreen : MenuScreen
 
     public override void CreateMenu()
     {
-        Menu["Urpa CTAPTOBATb"] = (a, b) =>
+        Menu["menu.start"] = (a, b) =>
         {
             Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(0)));
         };
-        Menu["Extra CTAPTOBATb"] = (a, b) => 
+        Menu["menu.extra"] = (a, b) => 
         {
             Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(1)));
         };
-        Menu["npaKTuKa"] = (a, b) =>
+        Menu["menu.practice"] = (a, b) =>
         {
             Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(2)));
+        };
+        Menu["menu.trophy"] = (a, b) =>
+        {
+            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(3)));
+        };
+        Menu["menu.music"] = (a, b) =>
+        {
+            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(3)));
+        };
+        Menu["menu.replay"] = (a, b) =>
+        {
+            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(3)));
+        };
+        Menu["menu.stats"] = (a, b) =>
+        {
+            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(3)));
         };
 #if DEBUG
         Menu["Gameplay Editor"] = (a, b) => { };
 #endif
-        Menu["Maru4ecKa9I npaKTuKa"] = (a, b) =>
+        Menu["menu.spell"] = (a, b) =>
         {
-            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new PersonSelectScreen(true)));
+            //Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new PersonSelectScreen(true)));
         };
-        Menu["BblXoD"] = (a, b) => { Environment.Exit(0); };
+        Menu["menu.settings"] = (a, b) =>
+        {
+            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new SettingsScreen()));
+        };
+        Menu["menu.exit"] = (a, b) => { Environment.Exit(0); };
     }
 
     public override void PreRender(double delta)

@@ -7,9 +7,11 @@ namespace DmitryAndDemid.Screens;
 public class PracticeScreen : MenuScreen
 {
     ProtogonistData Protogonist;
-
-    public PracticeScreen(ProtogonistData data)
+    private int Difficulty;
+    
+    public PracticeScreen(ProtogonistData data, int difficulty)
     {
+        Difficulty = difficulty;
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
         Protogonist = data;
     }
@@ -37,6 +39,6 @@ public class PracticeScreen : MenuScreen
         Runtime.CurrentRuntime.AddScreen(new GameplayScreen(Protogonist, JsonSerializer.Deserialize<Stage>(File.ReadAllText(FileNames[SelectedIndex]), new JsonSerializerOptions()
         {
             IncludeFields = true
-        })));
+        }), Difficulty));
     }
 }

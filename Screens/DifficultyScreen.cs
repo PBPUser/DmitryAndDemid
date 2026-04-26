@@ -93,13 +93,13 @@ public class DifficultyScreen : MenuScreen
         switch (Action)
         {
             case 0:
-                Runtime.CurrentRuntime.AddScreen(new PersonSelectScreen(false));
+                Runtime.CurrentRuntime.AddScreen(new PersonSelectScreen(false, difficulty));
                 break;
             case 1:
-                Runtime.CurrentRuntime.AddScreen(new PersonSelectScreen(false));
+                Runtime.CurrentRuntime.AddScreen(new PersonSelectScreen(false, difficulty));
                 break;
             case 2:
-                Runtime.CurrentRuntime.AddScreen(new PersonSelectScreen(true));
+                Runtime.CurrentRuntime.AddScreen(new PersonSelectScreen(true, difficulty));
                 break;
         }
     }

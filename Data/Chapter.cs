@@ -15,11 +15,11 @@ public class Chapter : StageElement
         Index = info.Index;
         Bullets = info.BulletSpawnInfos.SelectMany(x => GetBulletsFromInfo(g, x)).OrderBy(x => x.SpawnTick).ToArray();
         Enemies = info.EnemySpawnInfos.SelectMany(x => GetEnemiesFromInfo(g, x)).OrderBy(x => x.SpawnTick).ToArray();
-        
+        BossActions = info.BossActionInfos;
         if (Type == ChapterType.Spell)
         {
             ChapterAttackTexture = Runtime.CurrentRuntime.Textures[info.ChapterBossArt];
-            ChapterTitleTexture = Helper.DrawText(info.ChapterLabel, 4, 0, 0, Raylib.GetFontDefault(), Color.Red);
+            ChapterTitleTexture = Helper.DrawText(info.ChapterLabel, 4, 0, 0, 2, Raylib.GetFontDefault(), Color.Red, "shadow");
         }
     }
 

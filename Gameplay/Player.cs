@@ -13,6 +13,7 @@ public class Player : RuntimeObject
 
     public Player(Game game, ProtogonistData data) : base(game, new Vector2(192, 400), new Vector2(32, 32), new Vector2(8), 0)
     {
+        ClearProtected = true;
         ProtogonistData = data;
         CollisionEnabled = false;
         if (Runtime.CurrentRuntime.Textures.ContainsKey(data.Sprite))
@@ -32,6 +33,17 @@ public class Player : RuntimeObject
 
     public override void Update()
     {
+        if (RestoreTick > Game.CurrentTick)
+        {
+            int j = Game.CurrentTick - RestoreTick + RestoreInvincibilityLength;
+            if (j < RestoreAnimationLength)
+            {
+                UpdateCollisionRender(new Vector2(192, 400) + new Vector2(0, 128) * (1-((float)j/(float)RestoreInvincibilityLength)), 0);
+                return;
+            }
+        }
+        else
+            CollisionEnabled = true;
         Vector2 PositionChange = Vector2.Zero;
         if (Raylib.IsKeyDown(KeyboardKey.Left))
             PositionChange.X -= 1;
@@ -42,5 +54,16 @@ public class Player : RuntimeObject
         if (Raylib.IsKeyDown(KeyboardKey.Down))
             PositionChange.Y += 1;
         UpdateCollisionRender(PositionTo + PositionChange, 0);
+    }
+
+    private const int RestoreInvincibilityLength = 300;
+    private const int RestoreAnimationLength = 60;
+    private int RestoreTick = 0;
+
+    public void Die()
+    {
+        Game.SetDied();
+        CollisionEnabled = false;
+        RestoreTick = Game.CurrentTick + RestoreInvincibilityLength;
     }
 }

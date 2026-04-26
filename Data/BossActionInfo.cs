@@ -7,5 +7,8 @@ public class BossActionInfo
 {
     [JsonInclude] public string ID = "";
     [JsonInclude] public Vector2? StartingPosition = null;
-    [JsonInclude] public string BossAction = "";
+    [JsonInclude] public string MoveAction = "";
+    [JsonInclude] public string ShootAction = "";
+    [JsonInclude] public string StartAction = "";
+    [JsonInclude] public float Health = 0f;
 }

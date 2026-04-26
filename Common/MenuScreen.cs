@@ -1,11 +1,13 @@
 using System.Globalization;
 using System.IO.Pipes;
 using System.Numerics;
+using Atk;
 using DmitryAndDemid;
 using static Raylib_cs.Raylib;
 using static DmitryAndDemid.Runtime;
 using DmitryAndDemid.Utils;
 using Raylib_cs;
+using Rectangle = Raylib_cs.Rectangle;
 
 namespace DmitryAndDemid.Common;
 
@@ -28,7 +30,9 @@ public class MenuScreen : Screen
 
     static MenuScreen()
     {
-        MenuTextureTarget = Helper.Scale(new Rectangle(0, 0, 640, 135), Runtime.CurrentRuntime.Scale);
+        MenuTextureTarget = Helper.Scale(
+            new Rectangle(0, 0, 640, 135), 
+            Runtime.CurrentRuntime.Scale);
     }
     
     public MenuScreen()
@@ -51,7 +55,7 @@ public class MenuScreen : Screen
 
     static RenderTexture2D DrawMenuItem(string text)
     {
-        return Helper.DrawText(text, 16, 8, 8, GetFontDefault());
+        return Helper.DrawTextScaled(Helper.Translate(text), 16, 8, 4, 2, Runtime.CurrentRuntime.Fonts["newsreader"], "gradient");
     }
 
     public virtual void CreateMenu()
@@ -86,6 +90,7 @@ public class MenuScreen : Screen
         if (Raylib.IsKeyDown(KeyboardKey.Up)&& VerticalDirectionNavigation ||
             IsKeyDown(KeyboardKey.Left) && HorizontalDirectionNavigation)
         {
+            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
             PreviousKeyTimestamp = GetTime();
             PreviousSelectedIndex = SelectedIndex;
             double j = ComputeAnimationIndex();
@@ -100,6 +105,7 @@ public class MenuScreen : Screen
             IsKeyDown(KeyboardKey.Down) && VerticalDirectionNavigation ||
             IsKeyDown(KeyboardKey.Right) && HorizontalDirectionNavigation)
         {
+            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
             PreviousKeyTimestamp = GetTime();
             PreviousSelectedIndex = SelectedIndex;
             double j = ComputeAnimationIndex();
@@ -115,6 +121,7 @@ public class MenuScreen : Screen
             PreviousKeyTimestamp = GetTime();
             ItemActivated = true;
             Event = Menu.ElementAt(SelectedIndex).Value;
+            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["button"]);
         }
         else if (AllowExitWithEscape && Raylib.IsKeyDown(KeyboardKey.Escape))
         {
@@ -153,6 +160,7 @@ public class MenuScreen : Screen
     
     public virtual void Exiting()
     {
+        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["esc"]);
         TimeDisappear = (float)Raylib.GetTime() + 0.5f;
         TimeDisappearTitle = (float)GetTime() + 0.5f;
     }

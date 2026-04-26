@@ -11,9 +11,11 @@ public class RuntimeDialogElement
     public Texture2D Art;
     public bool AntogonistSpeak;
     public int ArtIndex = 0;
+    public string ID;
 
     public RuntimeDialogElement(DialogInfo.DialogElement dialogElement)
     {
+        ID = dialogElement.ID;
         ArtIndex = dialogElement.ArtIndex;
         Skipable = dialogElement.Skipable;
         if(dialogElement.AntogonistSpeak)

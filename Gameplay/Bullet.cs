@@ -9,7 +9,8 @@ namespace DmitryAndDemid.Gameplay;
 public class Bullet : RuntimeObject
 {
     private static Dictionary<string, Action<RuntimeObject>> BulletUpdateActions = new();
-
+    public bool PlayerShoot = false;
+    
     static Bullet()
     {
         BulletUpdateActions["Action1"] = obj =>
@@ -62,5 +63,15 @@ public class Bullet : RuntimeObject
     public override void Update()
     {
         base.Update();
+        if (!CollisionEnabled)
+            return;
+        if (PlayerShoot)
+        {
+            return;
+        }
+        if (!Game.Player.CollisionEnabled)
+            return;
+        if(Helper.IsCollied(Game.Player.Collision, Collision))
+            Game.Player.Die();
     }
 }

@@ -1,0 +1,16 @@
+{
+  "menu.start": "Игра стартовать",
+  "menu.extra": "Extra стартовать",
+  "menu.practice": "Практика",
+  "menu.spell": "Магическая практика",
+  "menu.music": "Музыкальная шкатулка",
+  "menu.trophy": "Псевдоним",
+  "menu.replay": "Переигровки",
+  "menu.stats": "Данные игрокововые",
+  "menu.settings": "Настройки",
+  "menu.exit": "Выход",
+  "settings.sfx_down": "SFX эффекты (долбит нормально) опуск вниз",
+  "settings.sfx_up": "SFX эффекты (долбит нормально) опуск вверх",
+  "settings.music_down": "Музыка опуск вниз",
+  "settings.music_up": "Музыка опуск вверх"
+}
