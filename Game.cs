@@ -404,6 +404,7 @@ public class Game : IDisposable
         BeginTextureMode(Gameplay);
         ClearBackground(Color.White with { A = 0 });
         int vy = 0;
+        Player.RenderBottomLayer();
         foreach (var x in Objects)
         {
             info = x.GetRenderInfo(state);
@@ -413,6 +414,7 @@ public class Game : IDisposable
             #endif
             DrawTexturePro(x.SourceTexture, x.SourceRect, info.rc, Vector2.Zero, info.rotation, Color.White);
         }
+        Player.RenderTopLayer();
         Helper.DrawDeathPoints(RemovedBullets, "disappear_shoot");
         if (CurrentChapter != null)
         {

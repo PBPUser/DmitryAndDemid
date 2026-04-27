@@ -34,7 +34,9 @@ public class MainScreen : MenuScreen
         LogoTargetLeft = new Rectangle(0, 0, (float)(130 * Runtime.CurrentRuntime.Scale), (float)(95 * Runtime.CurrentRuntime.Scale));
         LogoTargetRight = new Rectangle(Runtime.CurrentRuntime.Width - (float)(135 * Runtime.CurrentRuntime.Scale), 0, (float)(135 * Runtime.CurrentRuntime.Scale), (float)(52 * Runtime.CurrentRuntime.Scale));
 
-
+        Configuration.Config.FastLoading = true;
+        Configuration.Config.Save();
+        
         TitleIndex = new Random().Next(0, PersonImageNames.Count());
         SelectedPerson = Runtime.CurrentRuntime.Textures[PersonImageNames[TitleIndex]];
 
@@ -104,7 +106,7 @@ public class MainScreen : MenuScreen
         var color1 = Helper.Mix(Color.Black, Color.Red, (float)appear2);
         var color2 = Helper.Mix(Color.Black, DarkRed, (float)appear2);
         DrawTexturePro(Runtime.CurrentRuntime.Textures["game_logo.png"], LogoSourceCenter, Helper.Mix(LogoTargetCenter1, LogoTargetCenter2, Helper.EaseInOutElasticF(appear3)), Vector2.Zero, 0f, Color.White);
-        CurrentX = (int)((16 - (Helper.Pow2F(1 - appear5) * 320)) * Runtime.CurrentRuntime.Scale);
+        CurrentX = (int)((16 - (Helper.Pow2F(1 - appear5) * 384)) * Runtime.CurrentRuntime.Scale);
 #if DEBUG
         CurrentX = 0;
 #endif

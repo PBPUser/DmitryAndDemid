@@ -1,10 +1,11 @@
 {
   "ID": "akob",
-  "Speed": 3,
+  "Speed": 2,
+  "FocusSpeed": 1,
   "WeaponScriptName": "AkobShoot",
   "BombScriptName": "AkobBomb",
   "ArtName": "akob_art.png",
   "Description": "akob_art.png",
   "DialogArtName": "akob_dialog_arts.png",
-  "Sprite": "akob.png"
+  "Sprite": "akob_sprite.png"
 }

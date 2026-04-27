@@ -48,7 +48,7 @@ public static class Helper
         LocationShadowResolution = GetShaderLocation(Runtime.CurrentRuntime.Shaders["shadow"], "res");
 
         LocationGradientBorderWidth = GetShaderLocation(Runtime.CurrentRuntime.Shaders["gradient"], "border_width");
-        LocationGradientResoulution = GetShaderLocation(Runtime.CurrentRuntime.Shaders["gradient"], "resolution");
+        LocationGradientResoulution = GetShaderLocation(Runtime.CurrentRuntime.Shaders["gradient"], "res");
 
         PizzaSource = new Rectangle(0, 0, Runtime.CurrentRuntime.Textures["pizza.png"].Width, Runtime.CurrentRuntime.Textures["pizza.png"].Height);
     }
@@ -259,11 +259,12 @@ public static class Helper
         (int)(spacing*Runtime.CurrentRuntime.Scale),
         font, 
         Color.White,
-        shader);
-    public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, string shader = "shadow") => 
-        DrawText(s, fontSize, hPadding, vPadding, spacing, font, Color.White, shader);
+        shader,
+        Runtime.CurrentRuntime.ScaleF);
+    public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, string shader = "shadow", float scale = 1f) => 
+        DrawText(s, fontSize, hPadding, vPadding, spacing, font, Color.White, shader, scale);
     
-    public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, Color color, string shader)
+    public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, Color color, string shader, float scale = 1f)
     {
         int width = s.Length * fontSize + hPadding * 2;
         int height = fontSize + vPadding * 2;
@@ -280,7 +281,7 @@ public static class Helper
                 break;
             case "gradient":
                 SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientBorderWidth, 2f, ShaderUniformDataType.Float);
-                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientResoulution, new float[] {width,height}, ShaderUniformDataType.Vec2);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientResoulution, new Vector2(width,height), ShaderUniformDataType.Vec2);
                 break;
         }
         BeginTextureMode(rt2d2);

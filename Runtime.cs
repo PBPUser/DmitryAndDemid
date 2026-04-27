@@ -66,6 +66,8 @@ public class Runtime
         }
         Width = width;
         Height = height;
+        SFXVolume = Config.SFXVolume;
+        MusicVolume = Config.MusicVolume;
         FullScreenRect = new(0, 0, Width, Height);
         Scale = ((double)width) / 640d;
         ScaleF = (float)Scale;
@@ -97,7 +99,7 @@ public class Runtime
 
     List<System.Action> Actions = new();
 
-    async Task Load()
+    Task Load()
     {
         try
         {
@@ -107,14 +109,18 @@ public class Runtime
         {
             ADPTriggered = true;
             ScreenLoading.SetADPText("HeBo3MoJHo uHutsuAJlu3upoBaTb 3ByKoByI0 noDcucTemu.", false);
-        }
+        } 
         LoadShaders();
         LoadFonts();
         LoadTextures();
         Helper.LoadShaderAttribs();
         var thread = Thread.CurrentThread;
         LoadAudio();
-        Task.Delay(3000).ContinueWith(_ =>
+        #if DEBUG
+        Task.Delay(500).ContinueWith(_ =>
+        #else
+        Task.Delay(Config.FastLoading?3000:33000).ContinueWith(_ =>
+        #endif
         {
             if (!ADPTriggered)
                 AddAction(() =>
@@ -128,6 +134,7 @@ public class Runtime
                         SwitchToMain();
                 });
         });
+        return Task.CompletedTask;
     }
 
     void SwitchToMain()

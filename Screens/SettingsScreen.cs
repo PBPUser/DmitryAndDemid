@@ -10,7 +10,15 @@ public class SettingsScreen : MenuScreen
     {
         
     }
-    
+
+    public override void Exiting()
+    {
+        Configuration.Config.SFXVolume = Runtime.CurrentRuntime.SFXVolume;
+        Configuration.Config.MusicVolume = Runtime.CurrentRuntime.MusicVolume;
+        Configuration.Config.Save();
+        base.Exiting();
+    }
+
     public override void CreateMenu()
     {
         SetTitle(Runtime.CurrentRuntime.Textures["settings.png"]);

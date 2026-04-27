@@ -91,3 +91,10 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Sounds/dead.ogg
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/stages.png
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/nikitos-sprite.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/huffbuzz.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/raylib.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/raylib_extra_libs.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/raylib_basic_libs.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/raylib_cs.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/akob_sprite.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/akob_sprite.png~

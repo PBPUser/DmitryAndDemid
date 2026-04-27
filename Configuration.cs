@@ -21,6 +21,10 @@ public class Configuration
     public FullScreenType FullScreenType = FullScreenType.Window;
     [JsonInclude]
     public bool AlwaysAsk = true;
+    [JsonInclude] public float SFXVolume = 0.9f;
+    [JsonInclude] public float MusicVolume = 1.0f;
+
+    [JsonInclude] public bool FastLoading = false;
 
     public void Save()
     {
