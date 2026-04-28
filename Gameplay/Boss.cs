@@ -31,6 +31,7 @@ public class Boss : RuntimeObject
     public Boss(Game game, BossSpawnInfo info) : base(game, 
         info.Position, info.RenderSize, info.CollisionSize)
     {
+        Attackable = true;
         ClearProtected = true;
         ID = info.ID;
         SourceRect = new Rectangle(0, 0, info.RenderSize);

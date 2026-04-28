@@ -21,4 +21,5 @@ public class BulletSpawnInfo : ChapterElement
     [JsonInclude] public string BulletVisual = "Default";
     [JsonInclude] public string BulletCreateMethod = "WritePlayerPosition";
     [JsonInclude] public float Speed = 0;
+    [JsonInclude] public float Damage = 0;
 }

@@ -13,21 +13,17 @@ public class Bullet : RuntimeObject
     
     static Bullet()
     {
-        BulletUpdateActions["Action1"] = obj =>
+        BulletUpdateActions["MoveByDirection"] = obj =>
         {
-            obj.UpdateCollisionRender(obj.PositionTo + new Vector2(0, 1),0);
-        };
-        BulletUpdateActions["MoveToPlayer"] = obj =>
-        {
-            obj.UpdateCollisionRender(obj.PositionTo + (Vector2)(obj.Dictionary["DirectionToPlayer"]),0);
-        };
-        BulletUpdateActions["WritePlayerPosition"] = obj =>
-        {
-            obj.Dictionary["PlayerPosition"] = obj.Game.Player.PositionTo;
+            obj.UpdateCollisionRender(obj.PositionTo + (Vector2)(obj.Dictionary["Direction"]),0);
         };
         BulletUpdateActions["WriteDirectionToPlayer"] = obj =>
         {
-            obj.Dictionary["DirectionToPlayer"] = Helper.GetDirection(obj.PositionTo, obj.Game.Player.PositionTo) * obj.Speed;
+            obj.Dictionary["Direction"] = Helper.GetDirection(obj.PositionTo, obj.Game.Player.PositionTo) * obj.Speed;
+        };
+        BulletUpdateActions["WriteAngularDirection"] = obj =>
+        {
+            obj.Dictionary["Direction"] = Helper.GetDirection(obj.RotateTo+MathF.PI/2) * obj.Speed;
         };
     }
     
@@ -36,6 +32,8 @@ public class Bullet : RuntimeObject
         BulletVisual.Constants[info.BulletVisual].RenderSize,
         BulletVisual.Constants[info.BulletVisual].Collision)
     {
+        Damage = info.Damage;
+        RotateTo = info.Rotation;
         var constant = BulletVisual.Constants[info.BulletVisual];
         UpdateScript = BulletUpdateActions[info.BulletUpdateMethod];
         if(BulletUpdateActions.ContainsKey(info.BulletCreateMethod))
@@ -59,6 +57,8 @@ public class Bullet : RuntimeObject
         collisionSize) {
         
     }
+
+    public float Damage = 0;
     
     public override void Update()
     {
@@ -67,6 +67,14 @@ public class Bullet : RuntimeObject
             return;
         if (PlayerShoot)
         {
+            foreach (var o in Game.Objects.Where(x => x.Attackable))
+                if (Helper.IsCollied(Collision, o.Collision))
+                {
+                    Game.Score = Game.Score+ 10;
+                    o.Attack(Damage);
+                    Helper.PlaySound(Runtime.CurrentRuntime.Sounds["damage"]);
+                    Game.RemoveObject(this);
+                }
             return;
         }
         if (!Game.Player.CollisionEnabled)

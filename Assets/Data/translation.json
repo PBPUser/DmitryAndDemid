@@ -12,5 +12,10 @@
   "settings.sfx_down": "SFX эффекты (долбит нормально) опуск вниз",
   "settings.sfx_up": "SFX эффекты (долбит нормально) опуск вверх",
   "settings.music_down": "Музыка опуск вниз",
-  "settings.music_up": "Музыка опуск вверх"
+  "settings.music_up": "Музыка опуск вверх",
+  "ingame.continue": "Продолжить",
+  "ingame.save": "Save переигровку",
+  "ingame.save_and_exit": "Save переигровку & exit",
+  "ingame.restart": "Перезапустить current...",
+  "ingame.exit": "Выйти"
 }

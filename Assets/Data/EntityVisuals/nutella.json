@@ -1,0 +1,6 @@
+{
+  "Texture": "enemies.png",
+  "RenderSize": { "X": 48, "Y": 48 },
+  "SourcePosition": { "X": 80, "Y": 0 },
+  "Collision": {"X": 24, "Y": 24 }
+}

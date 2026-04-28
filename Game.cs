@@ -7,6 +7,7 @@ using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Screens;
 using DmitryAndDemid.Utils;
+using Gtk;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
 using Rectangle = Raylib_cs.Rectangle;
@@ -28,6 +29,59 @@ public class Game : IDisposable
     private static Rectangle BossRectangle = new Rectangle(0, 0, 384, 448);
     private static float ChapterBossTitleYFrom = 320;
     public int Difficulty = 1;
+    public RenderTexture2D CurrentScoreTexture;
+    
+    public Rectangle CurrentScoreSource;
+    public Rectangle CurrentScoreTarget;
+
+    public long Score
+    {
+        get => score;
+        set
+        {
+            if (score == value)
+                return;
+            score = value;
+            var text = FormatScore(value);
+            var measure = MeasureTextEx(Runtime.CurrentRuntime.Fonts["kodemono"],
+                text, 16 * Runtime.CurrentRuntime.ScaleF, 0);
+            Helper.DrawTextOnRenderTexture(ref CurrentScoreTexture, text, (int)(16 * Runtime.CurrentRuntime.ScaleF),
+                (int)(0 * Runtime.CurrentRuntime.ScaleF), 
+                (int)(0 * Runtime.CurrentRuntime.ScaleF), 
+                (int)(0 * Runtime.CurrentRuntime.ScaleF),
+                Runtime.CurrentRuntime.Fonts["kodemono"], Color.White, "gradient", Runtime.CurrentRuntime.ScaleF);
+            CurrentScoreSource =
+                new Rectangle(0, 0, CurrentScoreTexture.Texture.Width, 
+                    CurrentScoreTexture.Texture.Height);
+            CurrentScoreTarget =
+                new Rectangle(622 * Runtime.CurrentRuntime.ScaleF - measure.X,
+                    64 * Runtime.CurrentRuntime.ScaleF,
+                    CurrentScoreTexture.Texture.Width,
+                    CurrentScoreTexture.Texture.Height);
+            
+        }
+    }
+
+    private int Continue = 0;
+    
+    private string FormatScore(long _score)
+    {
+        int digitsCount = (int)Math.Log10(_score);
+        string result = "";
+        
+        string score = $"{Continue}";
+        if (_score > 0)
+            score = $"{_score}{Continue}";
+        for (int i = score.Length - 1; i >= 0; i--)
+        {
+            result = score[i] + result;
+            if ((score.Length-i) % 3 == 0 && i > 0)
+                result = "," + result;
+        }
+        return result;
+    }
+    
+    private long score = -1;
     
     public Game(ProtogonistData protogonistData, Stage stage, GameplayScreen screen, int difficulty)
     {
@@ -45,19 +99,61 @@ public class Game : IDisposable
         RectangleDialogProtogonistPassive = Helper.Scale(new Rectangle(-32, 480, 144, 192), Runtime.CurrentRuntime.Scale);
         RectangleDialogAntogonistPassive = Helper.Scale(new Rectangle(288, 480, 144, 192), Runtime.CurrentRuntime.Scale);
         
-        Player = new Player(this, protogonistData);
+        Player = new Player(this, protogonistData, new PlayerController());
         Objects.Add(Player);
         StageInfo = stage;
         CurrentStage = new RuntimeStage(stage, this);
         StageBackground = CurrentStage.Background;
-        Start();
+        Playing = true;
+        CurrentScoreTexture = LoadRenderTexture((int)(200*Runtime.CurrentRuntime.ScaleF), (int)(40*Runtime.CurrentRuntime.ScaleF));
         GameplayScreen = screen;
+        UITexture = LoadRenderTexture(
+            (int)(186 * Runtime.CurrentRuntime.ScaleF),
+            (int)(500 * Runtime.CurrentRuntime.ScaleF)
+        );
+        UIElementWidth = (int)(20 * Runtime.CurrentRuntime.ScaleF);
+        UIElementHeight = (int)(20 * Runtime.CurrentRuntime.ScaleF);
+        BombsY = (int)(36 * Runtime.CurrentRuntime.ScaleF);
+        UIPositionX = (int)(436 * Runtime.CurrentRuntime.ScaleF);
+        UIPositionY = (int)(97 * Runtime.CurrentRuntime.ScaleF);
+        
+        Score = -1;
+        Start();
+        
     }
 
+    public int UIPositionX;
+    public int UIPositionY;
     
     public Stage StageInfo;
     RuntimeStage CurrentStage;
-    public bool Playing = false;
+
+    public bool Playing
+    {
+        get => playing;
+        set
+        {
+            if (playing == value)
+                return;
+            playing = value;
+            GameplayScreen.Paused = !value;
+            if (value)
+            {
+                var s = GetTime() - PauseTimestamp;
+                PreviousTick += s;
+                NextTickStamp += s;
+                DialogAppearTime += s;
+                DialogDisappearTime += s;
+                BonusAppearTime += s;
+                GameStartedTimestamp += s;
+                return;
+            }
+            PauseTimestamp = GetTime();
+        }
+    }
+
+    private bool playing = true;
+    
     public RenderTexture2D Gameplay;
     public RenderTexture2D Dialog;
     public RenderTexture2D Background;
@@ -98,6 +194,12 @@ public class Game : IDisposable
         ObjectsPending = true;
         ObjectsToAdd.Add(obj);
         obj.CreateScript?.Invoke(obj);
+    }
+
+    public void UpdateScoreFirstTime()
+    {
+        Score = -1;
+        Score = 0;
     }
     
     public void UpdateToNext()
@@ -453,6 +555,9 @@ public class Game : IDisposable
         float bonusSignState = (float)Helper.ComputeObjectTime(
             time, BonusAppearTime, BonusAppearDuration, BonusDisappearTime, BonusAppearDuration
         );
+        float fullPowerState = (float)Helper.ComputeObjectTime(
+            time, FullPowerAppearTimestamp, BonusAppearDuration, FullPowerDisappearTimestamp, BonusAppearDuration
+        );
         if (IsDialog)
         {
             float statement = Helper.Pow2F((float)Helper.ComputeObjectTime(GetTime(), DialogCharatcterSwitchAppearTime, 0.5,
@@ -539,6 +644,7 @@ public class Game : IDisposable
             }
         }
         DrawTexturePro(BonusTexture, BonusSourceRect, BonusTargetRect with { Height = bonusSignState * BonusTargetRect.Height }, Vector2.Zero, 0, Color.White);
+        DrawTexturePro(Runtime.CurrentRuntime.Textures["full-power.png"], BonusSourceRect, BonusTargetRect with { Height = fullPowerState * BonusTargetRect.Height }, Vector2.Zero, 0, Color.White);
         EndTextureMode();
     }
 
@@ -595,6 +701,8 @@ public class Game : IDisposable
     {
         if (NextTickStamp > GetTime())
             return;
+        if (!playing)
+            return;
         UpdateToNext();
     }
 
@@ -604,14 +712,6 @@ public class Game : IDisposable
         if (rS == Playing)
             return;
         Playing = rS;
-        if (Playing)
-        {
-            var s = GetTime() - PauseTimestamp;
-            PreviousTick += s;
-            NextTickStamp += s;
-            return;
-        }
-        PauseTimestamp = GetTime();
     }
 
     const double DialogSkipDelay = 0.25;
@@ -658,4 +758,51 @@ public class Game : IDisposable
         NextClearAllTick = CurrentTick + DieClearAllDelay;
         Helper.PlaySound(Runtime.CurrentRuntime.Sounds["dead"]);
     }
+
+    public void RemoveObject(RuntimeObject runtimeObject)
+    {
+        ToRemove.Add(runtimeObject);
+    }
+
+    private double FullPowerAppearTimestamp;
+    private double FullPowerDisappearTimestamp;
+    
+    public void SetFullPower()
+    {
+        FullPowerAppearTimestamp = GetTime();
+        FullPowerDisappearTimestamp = GetTime() + BonusTextDuration;
+        
+    }
+
+    public RenderTexture2D UITexture;
+    public int UIElementWidth, BombsY, UIElementHeight;
+    
+    public void UpdateUI()
+    {
+        var rc = new Rectangle(0, 0, UIElementWidth, UIElementHeight);
+        var rc2 = new Rectangle(0, 0, 96, 96);
+        BeginTextureMode(UITexture);
+        ClearBackground(Color.White with {A=0});
+        for(int i = 0; i < 8; i++)
+            DrawTexturePro(Runtime.CurrentRuntime.Textures["ingame-stuff.png"],
+                rc2 with { X= i<Player.HeartPoints? 0 : i == Player.HeartPoints ? 
+                    384 - (Player.HeartSpices * 96)
+                    : 384 },
+                rc with { X = UIElementWidth * i },
+                Vector2.Zero, 0, Color.White);
+        rc.Y = BombsY;
+        for(int i = 0; i < 8; i++)
+            DrawTexturePro(Runtime.CurrentRuntime.Textures["ingame-stuff.png"],
+                rc2 with { Y=96, X= i<Player.Bombs? 0 : i == Player.BombsSpices ? 
+                    384 - (Player.BombsSpices * 96)
+                    : 384 },
+                rc with { X = UIElementWidth * i },
+                Vector2.Zero, 0, Color.White);
+        DrawText($"Power: {Player.Power}", 0, (int)(128 * Runtime.CurrentRuntime.ScaleF), (int)(16 * Runtime.CurrentRuntime.ScaleF), Color.White);
+        DrawText($"Graze: {Player.Graze}", 0, (int)(160 * Runtime.CurrentRuntime.ScaleF), (int)(16 * Runtime.CurrentRuntime.ScaleF), Color.White);
+        EndTextureMode();
+        
+    }
+
+    public bool ForcedPause = false;
 }

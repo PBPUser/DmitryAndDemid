@@ -81,7 +81,6 @@ public class MainScreen : MenuScreen
 
     public override void Deactivated()
     {
-        Console.WriteLine("Deactivated");
         TimeDisappearMenu = GetTime() - AppearTime + 0.5;
     }
 

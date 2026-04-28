@@ -9,6 +9,7 @@ public class RuntimeObject : IDisposable
     public int SpawnTick = 0;
     public float Speed = 1;
     public bool ClearProtected = false;
+    public bool Attackable = false;
 
     public RuntimeObject(Game game, Vector2 position, Vector2 renderSize, Vector2 collisionSize, float rotation = 0)
     {
@@ -47,6 +48,11 @@ public class RuntimeObject : IDisposable
     public virtual void Update()
     {
 
+    }
+
+    public virtual void Attack(float damage)
+    {
+        
     }
 
     public void UpdateCollisionRender(Vector2 newPos, float newRotate)

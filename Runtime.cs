@@ -27,6 +27,10 @@ public class Runtime
     public bool DisableClose = false;
     bool ADPTriggered = false;
     public Rectangle FullScreenRect;
+    
+    
+    private Rectangle CurrentScoreSource;
+    Rectangle CurrentScoreTarget;
 
 
     public double Scale = 1;

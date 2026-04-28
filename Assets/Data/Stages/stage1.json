@@ -16,20 +16,79 @@
   ],
   "Chapters": [
     {
-      "ChapterLength": 600,
+      "ChapterLength": 1800,
       "Index": 0,
       "EnemySpawnInfos": [{
         "Visual": "jv",
         "Script":  "MoveLinearDownRight",
         "AttackScript": "ShootIntoPlayer",
         "SpawnTick": 60,
-        "Position": {"X": -32, "Y": 64},
+        "Position": {"X": -32, "Y": 0},
         "Speed": 2,
         "Stacked": true,
         "StackLength": 10,
         "StackDelay": 30,
         "BulletSpeed": 3,
-        "BulletSpawnRate": 10
+        "BulletSpawnRate": 10,
+        "Health": 2
+      },{
+        "Visual": "jv",
+        "Script":  "MoveLinearDownLeft",
+        "AttackScript": "ShootIntoPlayer",
+        "SpawnTick": 60,
+        "Position": {"X": 416, "Y": 0},
+        "Speed": 2,
+        "Stacked": true,
+        "StackLength": 10,
+        "StackDelay": 30,
+        "BulletSpeed": 3,
+        "BulletSpawnRate": 10,
+        "Health": 2,
+        "DropLargePowerPointsCount": 3,
+        "DropScorePointsCount": 6
+      }, {
+        "Visual": "nutella",
+        "Script":  "TargetLinear",
+        "AttackScript": "ShootDirectional",
+        "SpawnTick": 600,
+        "Position": {"X": 320, "Y": -32},
+        "Speed": 2,
+        "BulletSpeed": 3,
+        "BulletSpawnRate": 10,
+        "PositionTarget": {"X": 320, "Y": 64},
+        "FinalPosition": {"X": 320, "Y": 600 },
+        "DislocationOnTargetDuration": 600,
+        "ShootStreamCount": 2,
+        "AngleBetweenStreams": 45,
+        "DropLargePowerPointsCount": 3
+      }, {
+        "Visual": "nutella",
+        "Script":  "TargetLinear",
+        "AttackScript": "ShootDirectional",
+        "SpawnTick": 660,
+        "Position": {"X": 64, "Y": -32},
+        "Speed": 2,
+        "BulletSpeed": 3,
+        "BulletSpawnRate": 10,
+        "PositionTarget": {"X": 64, "Y": 64},
+        "FinalPosition": {"X": 64, "Y": 600 },
+        "DislocationOnTargetDuration": 600,
+        "ShootStreamCount": 2,
+        "AngleBetweenStreams": 45
+      },{
+        "Visual": "nutella",
+        "Script":  "TargetLinear",
+        "AttackScript": "ShootDirectional",
+        "SpawnTick": 720,
+        "Position": {"X": 192, "Y": -32},
+        "Speed": 2,
+        "BulletSpeed": 3,
+        "BulletSpawnRate": 10,
+        "PositionTarget": {"X": 192, "Y": 64},
+        "FinalPosition": {"X": 192, "Y": 600 },
+        "DislocationOnTargetDuration": 600,
+        "ShootStreamCount": 2,
+        "AngleBetweenStreams": 45
       }]
     },
     {
@@ -38,7 +97,7 @@
       "BulletSpawnInfos": [{
         "Position": {"X": 192, "Y": 24},
         "Speed": 15,
-        "BulletUpdateMethod": "MoveToPlayer",
+        "BulletUpdateMethod": "MoveByDirection",
         "BulletCreateMethod": "WriteDirectionToPlayer",
         "BulletVisual": "default",
         "SpawnTick": 40
@@ -46,7 +105,7 @@
         {
           "Position": {"X": 192, "Y": 24},
           "Speed": 10,
-        "BulletUpdateMethod": "MoveToPlayer",
+        "BulletUpdateMethod": "MoveByDirection",
         "BulletCreateMethod": "WriteDirectionToPlayer",
         "BulletVisual": "default",
         "SpawnTick": 45
@@ -54,7 +113,7 @@
         {
           "Position": {"X": 192, "Y": 24},
           "Speed": 10,
-          "BulletUpdateMethod": "MoveToPlayer",
+          "BulletUpdateMethod": "MoveByDirection",
           "BulletCreateMethod": "WriteDirectionToPlayer",
           "BulletVisual": "default",
           "SpawnTick": 50

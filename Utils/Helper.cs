@@ -263,14 +263,16 @@ public static class Helper
         Runtime.CurrentRuntime.ScaleF);
     public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, string shader = "shadow", float scale = 1f) => 
         DrawText(s, fontSize, hPadding, vPadding, spacing, font, Color.White, shader, scale);
-    
-    public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, Color color, string shader, float scale = 1f)
+
+    public static void DrawTextOnRenderTexture(ref RenderTexture2D texture, string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, Color color, string shader, float scale = 1f)
     {
+        if(IsRenderTextureValid(texture))
+            UnloadRenderTexture(texture);
         int width = s.Length * fontSize + hPadding * 2;
         int height = fontSize + vPadding * 2;
-        RenderTexture2D rt2d = Raylib.LoadRenderTexture(width, height);
-        RenderTexture2D rt2d2 = Raylib.LoadRenderTexture(width, height);
-        BeginTextureMode(rt2d);
+        RenderTexture2D temp = Raylib.LoadRenderTexture(width, height);
+        texture = Raylib.LoadRenderTexture(width, height);
+        BeginTextureMode(temp);
         DrawTextEx(font, s, new Vector2(hPadding, vPadding), fontSize, spacing, color);
         EndTextureMode();
         switch (shader)
@@ -284,13 +286,22 @@ public static class Helper
                 SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientResoulution, new Vector2(width,height), ShaderUniformDataType.Vec2);
                 break;
         }
-        BeginTextureMode(rt2d2);
+        BeginTextureMode(texture);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders[shader]);
-        DrawTexture(rt2d.Texture, 0, 0, Color.White);
+        DrawTexture(temp.Texture, 0, 0, Color.White);
         EndShaderMode();
         EndTextureMode();
-        UnloadRenderTexture(rt2d);
-        return rt2d2;
+        UnloadRenderTexture(temp);
+    }
+    
+    private static RenderTexture2D ScoreDigits;
+    public static Vector2 ScoreDigitSize;
+    
+    public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, Color color, string shader, float scale = 1f)
+    {
+        RenderTexture2D texture = new RenderTexture2D();
+        DrawTextOnRenderTexture(ref texture, s, fontSize, hPadding, vPadding, spacing, font, color, shader, scale);
+        return texture;
     }
 
     public static Rectangle GetFullSource(Texture2D t) => new Rectangle(0, 0, t.Width, t.Height);
@@ -354,8 +365,10 @@ public static class Helper
     public static Vector2 GetDirection(Vector2 v1, Vector2 v2)
     {
         var angle = FindAngle(Vector2.Zero, v2-v1);
-        return new Vector2(MathF.Cos(angle), MathF.Sin(angle));
+        return GetDirection(angle);
     }
+    
+    public static Vector2 GetDirection(float angle) => new(MathF.Cos(angle), MathF.Sin(angle));
 
     private static int LocationDisappearShootPosition;
     private static int LocationDisappearShootTime;
@@ -384,7 +397,13 @@ public static class Helper
 
     public static bool IsCollied(Rectangle rc1, Rectangle rc2)
     {
+        #if DEBUG
+        var vecDistance = Raymath.Vector2Distance(rc1.Center, rc2.Center);
+        var wDistance = (rc1.Width + rc2.Width) / 2;
+        return vecDistance < wDistance;
+#else
         return Raymath.Vector2Distance(rc1.Center, rc2.Center) < (rc1.Width + rc2.Width) / 2;
+#endif
     }
 
     

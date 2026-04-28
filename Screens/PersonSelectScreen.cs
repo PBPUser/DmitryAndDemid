@@ -109,7 +109,6 @@ public class PersonSelectScreen : MenuScreen
 
     void OpenNext()
     {
-        Console.WriteLine($"Difficulty: {Difficulty}");
         if (IsPractice)
         {
             string data = File.ReadAllText(Files[SelectedIndex]);

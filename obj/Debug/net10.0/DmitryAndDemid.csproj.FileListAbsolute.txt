@@ -97,4 +97,15 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/raylib_basic_libs.png
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/raylib_cs.png
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/akob_sprite.png
-/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/akob_sprite.png~
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/EntityVisuals/nutella.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/difficulties_ingame.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Sounds/damage.ogg
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/collectables.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/full-power.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Fonts/kodemono.ttf
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/BulletVisuals/akob.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/bullets.png~
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Sounds/pause.ogg
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/ingame-stuff.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/ingame-stuff.png~
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/.ingame-stuff.png-autosave.kra
