@@ -59,6 +59,7 @@ public class Bullet : RuntimeObject
     }
 
     public float Damage = 0;
+    private bool IsGrazed = false;
     
     public override void Update()
     {
@@ -79,7 +80,19 @@ public class Bullet : RuntimeObject
         }
         if (!Game.Player.CollisionEnabled)
             return;
-        if(Helper.IsCollied(Game.Player.Collision, Collision))
+        if (Helper.IsCollied(Game.Player.Collision, Collision))
+        {
             Game.Player.Die();
+            return;
+        }
+        if (IsGrazed)
+            return;
+        if (Helper.IsCollied(Game.Player.Collision, Collision with { Width = Collision.Width * 16 }))
+        {
+            Game.Player.Graze++;
+            //TODO: Graze sound
+            IsGrazed = true;
+        }
+        
     }
 }
