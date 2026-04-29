@@ -30,7 +30,7 @@ public class Enemy : RuntimeObject
                     BulletVisual = "default",
                     BulletUpdateMethod = "MoveByDirection",
                     Position = a.PositionTo
-                }, 0));
+                }, 0, true));
             }
         };
         Actions["ShootDirectional"] = a =>
@@ -53,7 +53,7 @@ public class Enemy : RuntimeObject
                         BulletUpdateMethod = "MoveByDirection",
                         Position = a.PositionTo,
                         Rotation = startingPoint + (i * enemy.AngleBetweenStreams)
-                    }, 0));
+                    }, 0, true));
             }
         };
         Actions["MoveLinearDownRight"] = a =>

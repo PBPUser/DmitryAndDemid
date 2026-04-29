@@ -90,7 +90,7 @@ public class Player : RuntimeObject
                 Position = BulletSourcePositions[i],
                 BulletUpdateMethod = "MoveByDirection",
                 BulletCreateMethod = "WriteAngularDirection"
-            },0);
+            },0, false);
             b.PlayerShoot = true;
             Game.AddObject(b);
         }
@@ -167,7 +167,7 @@ public class Player : RuntimeObject
                 return;
             if (newValue / 100 > power / 100)
             {
-                if (power > 399)
+                if (newValue > 399)
                 {
                     // TODO: Play full power sound
                     Game.SetFullPower();

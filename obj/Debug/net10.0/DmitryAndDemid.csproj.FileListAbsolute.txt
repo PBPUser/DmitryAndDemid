@@ -109,3 +109,9 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/ingame-stuff.png
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/ingame-stuff.png~
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/.ingame-stuff.png-autosave.kra
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/.chapter-finish-template.png-autosave.kra
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/chapter-finish-template.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/cursosor.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Sounds/swap.mp3
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Fonts/googlesans.ttf
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Music/Descriptions/gameover.json

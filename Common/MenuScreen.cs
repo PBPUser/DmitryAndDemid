@@ -40,7 +40,7 @@ public class MenuScreen : Screen
         TimeAppearTitle = (float)GetTime();
     }
 
-    public override void Created()
+    protected override void Created()
     {
         AnimationStartedIndex = SelectedIndex;
         
@@ -96,6 +96,8 @@ public class MenuScreen : Screen
             double j = ComputeAnimationIndex();
             AnimationStartedIndex = j;
             AnimationStartedAt = GetTime();
+            if (MenuItems.Length == 0)
+                return;
             if(LoopList)
                 SelectedIndex = (SelectedIndex - 1 + MenuItems.Count()) % MenuItems.Count();
             else
@@ -111,6 +113,8 @@ public class MenuScreen : Screen
             double j = ComputeAnimationIndex();
             AnimationStartedIndex = j;
             AnimationStartedAt = GetTime();
+            if (MenuItems.Length == 0)
+                return;
             if(LoopList)
                 SelectedIndex = (SelectedIndex + 1) % MenuItems.Count();
             else

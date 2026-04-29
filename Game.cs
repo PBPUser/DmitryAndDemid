@@ -7,9 +7,11 @@ using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Screens;
 using DmitryAndDemid.Utils;
+using Gdk;
 using Gtk;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
+using Color = Raylib_cs.Color;
 using Rectangle = Raylib_cs.Rectangle;
 
 namespace DmitryAndDemid;
@@ -83,7 +85,7 @@ public class Game : IDisposable
     
     private long score = -1;
     
-    public Game(ProtogonistData protogonistData, Stage stage, GameplayScreen screen, int difficulty)
+    public Game(ProtogonistData protogonistData, Stage stage, GameplayScreen screen, int difficulty, Replay? replay = null)
     {
         DialogProtogonistTexture = Runtime.CurrentRuntime.Textures[protogonistData.DialogArtName];
         ProtogonistId = protogonistData.ID;
@@ -98,8 +100,7 @@ public class Game : IDisposable
         RectangleDialogAntogonistInactive = Helper.Scale(new Rectangle(288, 288, 144, 192), Runtime.CurrentRuntime.Scale);
         RectangleDialogProtogonistPassive = Helper.Scale(new Rectangle(-32, 480, 144, 192), Runtime.CurrentRuntime.Scale);
         RectangleDialogAntogonistPassive = Helper.Scale(new Rectangle(288, 480, 144, 192), Runtime.CurrentRuntime.Scale);
-        
-        Player = new Player(this, protogonistData, new PlayerController());
+        Player = new Player(this, protogonistData, replay == null ? new PlayerController() : new ReplayController(replay));
         Objects.Add(Player);
         StageInfo = stage;
         CurrentStage = new RuntimeStage(stage, this);
@@ -116,6 +117,24 @@ public class Game : IDisposable
         BombsY = (int)(36 * Runtime.CurrentRuntime.ScaleF);
         UIPositionX = (int)(436 * Runtime.CurrentRuntime.ScaleF);
         UIPositionY = (int)(97 * Runtime.CurrentRuntime.ScaleF);
+
+        ScoreDifferenceFontSize = 12;
+        var sdfs = (int)(12 * Runtime.CurrentRuntime.ScaleF);
+        var measureScoreDif = MeasureTextEx(Runtime.CurrentRuntime.Fonts["kodemono"],
+            "0", sdfs, 0);
+        ScoreLetterHeight = (int)measureScoreDif[1];
+        ScoreValuesTexture = LoadRenderTexture((int)(measureScoreDif.X * 11), (int)(measureScoreDif.Y * 10));
+        ScoreLetterWidth = (int)measureScoreDif.X;
+        ScoreTexture = LoadRenderTexture((int)(160 * Runtime.CurrentRuntime.ScaleF), (int)(112 * Runtime.CurrentRuntime.ScaleF));
+        ScoreTransferTargetRectangle = new Rectangle(0, 22, ScoreValuesTexture.Texture.Width, measureScoreDif.Y);
+
+        ScoreTextureSourceRC = Helper.GetFullSourceRenderTexture(ScoreTexture);
+        ScoreTextureDestinationRC = new Rectangle(
+            new Vector2(144, 186) * Runtime.CurrentRuntime.ScaleF,
+            new Vector2(160, 112) * Runtime.CurrentRuntime.ScaleF
+        );
+        ScoreXBase = (int)(144 * Runtime.CurrentRuntime.ScaleF);
+        BonusTargetRect = Helper.Scale(new Rectangle(32,96,384,128), Runtime.CurrentRuntime.Scale);
         
         Score = -1;
         Start();
@@ -205,7 +224,13 @@ public class Game : IDisposable
     public void UpdateToNext()
     {
         float time = (float)GetTime();
+        if(DrawUpdateScoreCounter)
+            UpdateScoreCounter();
         CurrentTick++;
+        if (CurrentTick == 1932)
+        {
+            
+        }
         PreviousTick = NextTickStamp;
         NextTickStamp = GameStartedTimestamp + (CurrentTick + 1) * TickLength;
         if (IsDied)
@@ -252,10 +277,8 @@ public class Game : IDisposable
         }
 
         DrawStageTitle = time < TimestampDisappearStageTitle && time > TimestampAppearStageTitle;
-        
         if (CurrentTick == ChapterSwitchTick)
             NextChapter();
-
         if (CurrentChapter != null)
         {
             if (CurrentChapter.Type != ChapterType.NonBoss)
@@ -275,7 +298,8 @@ public class Game : IDisposable
         foreach (var x in Objects)
         {
             x.Update();
-            x.UpdateScript?.Invoke(x);
+            if(!x.UseVelocity)
+                x.UpdateScript?.Invoke(x);
             if (!Helper.IsInArea(x.PositionTo, AreaStart, AreaEnd)) 
                 ToRemove.Add(x);
         }
@@ -347,6 +371,7 @@ public class Game : IDisposable
             if (CurrentChapter.Type == ChapterType.Spell)
                 UnloadRenderTexture(CurrentChapter.ChapterTitleTexture);
             CurrentChapter = null;
+            SetScoreCounter();
         }
         ChapterIndex++;
         ChapterSwitchTick = int.MaxValue;
@@ -377,6 +402,94 @@ public class Game : IDisposable
         IsDialog = true;
     }
 
+    public RenderTexture2D ScoreTexture;
+    public RenderTexture2D ScoreValuesTexture;
+
+    private uint ScoreTicks = 0;
+    private long PreviousScoreWhenScoreCounterUpdated = 0;
+    private bool DrawUpdateScoreCounter = false;
+    private float ScoreCounterAppearanceTimestamp = float.MaxValue;
+    private float ScoreCounterDisappearanceTimestamp = float.MaxValue;
+    private const float ScoreCounterShowDuration = 3f;
+    private const float ScoreTickDuration = 1f;
+    private int ScoreDifferenceFontSize;
+    private uint ScoreTick = 0;
+    private Rectangle ScoreTransferTargetRectangle;
+    private int[] ScoreTransferTargetX = new int[10];
+    private int ScoreLetterWidth = 0;
+    private int ScoreLetterHeight = 0;
+    private int ScoreXBase = 0;
+
+    public Rectangle ScoreTextureSourceRC;
+    public Rectangle ScoreTextureDestinationRC;
+    
+    void SetScoreCounter()
+    {
+        ScoreTick = uint.MaxValue;
+        long scoreDifference = Score-PreviousScoreWhenScoreCounterUpdated;
+        PreviousScoreWhenScoreCounterUpdated = Score;
+        ScoreTicks = Math.Clamp((uint)Math.Log10(scoreDifference), 2, 10);
+        float[] scoreTickValues = GetRandomSequence(ScoreTicks, 0f, 100f);
+        float total = 0;
+        for (int i = 0; i < ScoreTicks; i++)
+        {
+            total += scoreTickValues[i];
+            scoreTickValues[i] += total;
+        }
+        scoreTickValues[0] = 0;
+        scoreTickValues[ScoreTicks-1] = total;
+        int t;
+        var font = Runtime.CurrentRuntime.Fonts["kodemono"];
+        BeginTextureMode(ScoreValuesTexture);
+        for (int i = 0; i < ScoreTicks; i++)
+        {
+            t = (int)(scoreTickValues[i] / total * scoreDifference);
+            ScoreTransferTargetX[i] = ScoreXBase - ScoreLetterWidth*((int)Math.Log10(t)+1);
+            Helper.DrawTextOnRenderTextureWithoutReinitialization(ref ScoreValuesTexture, new Vector2(0,0), $"{t}0", ScoreDifferenceFontSize, 
+                0, font, Color.White, "gradient", Runtime.CurrentRuntime.ScaleF);
+            //DrawTextPro(font, new Vector2(0, i*ScoreTransferTargetRectangle.Y), Vector2.Zero,
+                //ScoreDifferenceFontSize, Color.White);
+        }
+        EndTextureMode();
+        DrawUpdateScoreCounter = true;
+        ScoreCounterAppearanceTimestamp = (float)GetTime();
+        ScoreCounterDisappearanceTimestamp = ScoreCounterAppearanceTimestamp + ScoreCounterShowDuration;
+    }
+
+    void UpdateScoreCounter()
+    {
+        float time = (float)GetTime();
+        if (ScoreCounterDisappearanceTimestamp < time)
+        {
+            DrawUpdateScoreCounter = false;
+            return;
+        }
+        uint currentScoreTick = (uint)(Math.Min((time - ScoreCounterAppearanceTimestamp) / ScoreTickDuration, 1) * ScoreTicks);
+        if (currentScoreTick == ScoreTick)
+            return;
+        BeginTextureMode(ScoreTexture);
+        ClearBackground(Color.White with {A=0});
+        DrawTextureEx(
+            Runtime.CurrentRuntime.Textures["chapter-finish-template.png"], Vector2.Zero, 0,
+            Runtime.CurrentRuntime.ScaleF/4, Color.White
+            );
+        DrawTexturePro(ScoreValuesTexture.Texture, 
+            new Rectangle(0, currentScoreTick * ScoreTransferTargetRectangle.Height, ScoreTransferTargetRectangle.Width, ScoreLetterWidth),
+            ScoreTransferTargetRectangle with { X = 0 },
+            Vector2.Zero, 0, Color.White
+            );
+        EndTextureMode();
+        if (currentScoreTick == ScoreTicks)
+        {
+            //TODO: Play score complete sound
+        }
+        else
+        {
+            //TODO: Play score tick sound
+        }
+        ScoreTick = currentScoreTick;
+    }
+    
     void SetDialogElement(RuntimeDialogElement element)
     {
         if (dialogIndex + 1 == CurrentDialog.Elements.Count)
@@ -483,6 +596,7 @@ public class Game : IDisposable
     private double BonusAppearTime = 0;
     private double BonusDisappearTime = 0;
     private Texture2D BonusTexture;
+
     
     void SetBonus(bool isFailed, string bonus = "")
     {
@@ -490,7 +604,6 @@ public class Game : IDisposable
             BonusTexture = Runtime.CurrentRuntime.Textures["bonus-failed.png"];
         BonusAppearTime = GetTime();
         BonusDisappearTime = GetTime() + BonusTextDuration;
-        BonusTargetRect = Helper.Scale(new Rectangle(32,96,384,128), Runtime.CurrentRuntime.Scale);
     }
     
     private const float BossAppearXAnimation = .75f;
@@ -587,6 +700,14 @@ public class Game : IDisposable
                     DialogRectangleTarget,
                     Vector2.Zero, 0, Color.White);
         }
+
+        if (DrawUpdateScoreCounter)
+        {
+            DrawTexturePro(ScoreTexture.Texture,
+                ScoreTextureSourceRC,
+                ScoreTextureDestinationRC,
+                Vector2.Zero, 0,Color.White);
+        }
         #if DEBUG
         if (Raylib.IsKeyDown(KeyboardKey.D))
         {
@@ -610,7 +731,15 @@ public class Game : IDisposable
             }
         }
 
-        
+        if (IsKeyDown(KeyboardKey.K))
+        {
+            DrawText($"ScoreTextureSourceRC: {ScoreTextureSourceRC}", 0, 0, 24, Color.White);
+            DrawText($"ScoreTextureDestinationRC: {ScoreTextureDestinationRC}", 0, 24, 24, Color.White);
+            DrawText($"Tick: {ScoreTick}", 0, 48, 24, Color.White);
+            DrawText($"ScoreTransferTargetX: {string.Join(", ", ScoreTransferTargetX)}", 0, 72, 24, Color.White);
+            DrawText($"ScoreTransferTargetRectangle: {ScoreTransferTargetRectangle}", 0, 96, 24, Color.White);
+            DrawText($"ScoreXBase: {ScoreXBase}", 0, 120, 24, Color.White);
+        }        
         if (Raylib.IsKeyDown(KeyboardKey.T))
         {
             DrawText("Tick: "+ time, 128, 512, 32, Color.White);
@@ -635,16 +764,21 @@ public class Game : IDisposable
                     StageTitleSources[i], StageTitleTargets[i], i==3? StageTitleTargetOrigin :Vector2.Zero, 
                     i == 3 ? 60 * (float)Helper.ComputeObjectTimeStart(time, TimestampAppearStageTitle+2f, 1f) : 0,
                     Color.White with {A = Helper.TimeToTransparency(appear)});
-#if DEBUG
-                if (Raylib.IsKeyDown(KeyboardKey.T))
-                {
-                    DrawText("Appear: "+ appear, 128, i*32+128, 32, Color.White);
-                }
-#endif
             }
         }
         DrawTexturePro(BonusTexture, BonusSourceRect, BonusTargetRect with { Height = bonusSignState * BonusTargetRect.Height }, Vector2.Zero, 0, Color.White);
-        DrawTexturePro(Runtime.CurrentRuntime.Textures["full-power.png"], BonusSourceRect, BonusTargetRect with { Height = fullPowerState * BonusTargetRect.Height }, Vector2.Zero, 0, Color.White);
+        #if DEBUG
+        if (Raylib.IsKeyDown(KeyboardKey.H))
+        {
+            DrawText("target RC: " + BonusTargetRect, 0, 0, 24, Color.White);
+            DrawText("source RC: " + BonusSourceRect, 0, 24, 24, Color.White);
+            DrawText("FullPowerAppearTimestamp: " + FullPowerAppearTimestamp, 0, 48, 24, Color.White);
+            DrawText("FullPowerDisappearTimestamp: " + FullPowerDisappearTimestamp, 0, 72, 24, Color.White);
+            DrawText("state: " + fullPowerState, 0, 96, 24, Color.White);
+            DrawText("state: " + fullPowerState, 0, 120, 24, Color.White);
+        }
+        #endif 
+        DrawTexturePro(Runtime.CurrentRuntime.Textures["full-power.png"], BonusSourceRect, BonusTargetRect with { Height = BonusTargetRect.Height * fullPowerState }, Vector2.Zero, 0, Color.White);
         EndTextureMode();
     }
 

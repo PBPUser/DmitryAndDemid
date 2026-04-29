@@ -208,7 +208,7 @@ public class Runtime
     public void AddScreen(Screen screen)
     {
         ScreenRefreshRequired = true;
-        screen.Created();
+        screen.TargetCreate();
         QueueToAdd.Add(screen);
     }
 

@@ -19,20 +19,16 @@ public class Collectable : RuntimeObject
     private static float VelocityXMP = 59f/60f;
     private const float VelocityMagnetPerFrame = .5f;
     
-    Vector2 Velocity;
-    
     public override void Update()
     {
         if (Helper.IsCollied(Game.Player.Collision, Collision))
         {
             Apply();
-            Console.WriteLine($"Collected {this.GetType()}");
             Game.RemoveObject(this);
             return;
         }
         else if (Helper.IsCollied(Game.Player.Collision with { Width = Game.Player.PointMagnetRadius }, Collision))
         {
-            Console.WriteLine($"Magnets {this.GetType()}!!!");
             Velocity = Raymath.Vector2MoveTowards(Velocity, Helper.GetDirection(PositionTo, Game.Player.PositionTo),
                 VelocityMagnetPerFrame);
         }

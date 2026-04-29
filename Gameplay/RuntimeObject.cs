@@ -10,6 +10,11 @@ public class RuntimeObject : IDisposable
     public float Speed = 1;
     public bool ClearProtected = false;
     public bool Attackable = false;
+    public byte Alpha = 255;
+    public bool InCollectableState = false;
+    public bool TransferableInCollectableState = false;
+    public Vector2 Velocity;
+    public bool UseVelocity = false;
 
     public RuntimeObject(Game game, Vector2 position, Vector2 renderSize, Vector2 collisionSize, float rotation = 0)
     {

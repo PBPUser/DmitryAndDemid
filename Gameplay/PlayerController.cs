@@ -16,33 +16,34 @@ public class PlayerController : PlayerControllerBase
     public override void Update(Player player, int tick)
     {
         int speed = Raylib.IsKeyDown(KeyboardKey.LeftShift) ? player.FocusSpeed : player.Speed;
-        Vector2 PositionChange = Vector2.Zero;
+        Vector2 positionChange = Vector2.Zero;
         byte movement = 0;
         if (Raylib.IsKeyDown(KeyboardKey.Left))
         {
-            PositionChange.X -= speed;
+            positionChange.X -= speed;
             movement += 1;
         }
         movement <<= 1;
         if (Raylib.IsKeyDown(KeyboardKey.Right))
         {
-            PositionChange.X += speed;
+            positionChange.X += speed;
             movement += 1;
         }
         movement <<= 1;
         if (Raylib.IsKeyDown(KeyboardKey.Up))
         {
-            PositionChange.Y -= speed;
+            positionChange.Y -= speed;
             movement += 1;
         }
         movement <<= 1;
         if (Raylib.IsKeyDown(KeyboardKey.Down))
         {
-            PositionChange.Y += speed;
+            positionChange.Y += speed;
             movement += 1;
         }
         movement <<= 1;
-        player.UpdateCollisionRender(player.PositionTo + PositionChange, 0);
+        player.UpdateCollisionRender(player.PositionTo + positionChange,
+            0);
         player.IsFocused = Raylib.IsKeyDown(KeyboardKey.LeftShift);
         if (player.IsFocused)
             movement += 1;

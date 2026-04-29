@@ -27,11 +27,19 @@ public class Bullet : RuntimeObject
         };
     }
     
-    public Bullet(Game game, BulletSpawnInfo info, int numberInStack) : this(game,
+    public void SetCollectableState()
+    {
+        Alpha = 128;
+        InCollectableState = true;
+        UseVelocity = true;
+    }
+    
+    public Bullet(Game game, BulletSpawnInfo info, int numberInStack, bool transferable) : this(game,
         info.Position,
         BulletVisual.Constants[info.BulletVisual].RenderSize,
         BulletVisual.Constants[info.BulletVisual].Collision)
     {
+        TransferableInCollectableState = transferable;
         Damage = info.Damage;
         RotateTo = info.Rotation;
         var constant = BulletVisual.Constants[info.BulletVisual];
@@ -46,13 +54,6 @@ public class Bullet : RuntimeObject
         UpdateCollisionRender(PositionTo+(info.StackPositionOffset*numberInStack), RotateTo);
     }
 
-    public static Bullet CreateInGame(Game game, BulletSpawnInfo bulletSpawnInfo, int spawnTick)
-    { 
-        Bullet bullet = new (game, bulletSpawnInfo, 0);
-        bullet.SpawnTick = spawnTick;
-        return bullet;
-    }
-
     Bullet(Game game, Vector2 pos, Vector2 renderSize, Vector2 collisionSize) : base(game, pos, renderSize,
         collisionSize) {
         
@@ -60,10 +61,22 @@ public class Bullet : RuntimeObject
 
     public float Damage = 0;
     private bool IsGrazed = false;
+    public int ScoreWhenCollected = 100;
     
     public override void Update()
     {
-        base.Update();
+        if (InCollectableState)
+        {
+            if (Helper.IsCollied(Game.Player.Collision, Collision))
+            {
+                Game.Score += ScoreWhenCollected;
+                Game.RemoveObject(this);
+            }
+            else
+            {
+            }
+            return;
+        }
         if (!CollisionEnabled)
             return;
         if (PlayerShoot)
@@ -78,21 +91,15 @@ public class Bullet : RuntimeObject
                 }
             return;
         }
-        if (!Game.Player.CollisionEnabled)
-            return;
-        if (Helper.IsCollied(Game.Player.Collision, Collision))
-        {
+        
+        if (Game.Player.CollisionEnabled && Helper.IsCollied(Game.Player.Collision, Collision))
             Game.Player.Die();
-            return;
-        }
-        if (IsGrazed)
-            return;
-        if (Helper.IsCollied(Game.Player.Collision, Collision with { Width = Collision.Width * 16 }))
+        else if (!IsGrazed && Helper.IsCollied(Game.Player.Collision, Collision with { Width = Collision.Width * 16 }))
         {
             Game.Player.Graze++;
             //TODO: Graze sound
             IsGrazed = true;
         }
-        
+        base.Update();
     }
 }

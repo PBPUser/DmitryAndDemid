@@ -142,7 +142,7 @@ public class GameplayScreen : Screen
         Game = null;
     }
 
-    public override void Created()
+    protected override void Created()
     {
         Game!.UpdateScoreFirstTime();
         Game!.UpdateUI();

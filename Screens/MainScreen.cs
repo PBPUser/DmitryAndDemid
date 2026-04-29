@@ -54,8 +54,10 @@ public class MainScreen : MenuScreen
         LogoTargetCenter1 = new Rectangle(logoCenterX, -logoCenterHeight, logoCenterWidth, logoCenterHeight * 0.7f);
         LogoTargetCenter2 = new Rectangle(logoCenterX, (int)(Runtime.CurrentRuntime.Scale * 32), logoCenterWidth, logoCenterHeight);
         CurrentY = (int)(192 * Runtime.CurrentRuntime.Scale);
+        MusicRoom = new MusicRoomScreen();
     }
 
+    private MusicRoomScreen MusicRoom;
     static Color DarkRed = new Color(0.7f, 0, 0, 1);
     static Rectangle LogoSourceLeft = new Rectangle(0, 0, 260, 190);
     static Rectangle LogoSourceRight = new Rectangle(810, 0, 270, 105);
@@ -143,11 +145,11 @@ public class MainScreen : MenuScreen
         };
         Menu["menu.music"] = (a, b) =>
         {
-            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(3)));
+            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(MusicRoom));
         };
         Menu["menu.replay"] = (a, b) =>
         {
-            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(3)));
+            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new IngameSaveReplayScreen()));
         };
         Menu["menu.stats"] = (a, b) =>
         {

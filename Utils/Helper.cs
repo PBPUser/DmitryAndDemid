@@ -264,12 +264,53 @@ public static class Helper
     public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, string shader = "shadow", float scale = 1f) => 
         DrawText(s, fontSize, hPadding, vPadding, spacing, font, Color.White, shader, scale);
 
+    public static void DrawTextOnRenderTextureWithoutReinitialization(ref RenderTexture2D texture, 
+        Vector2 pos,
+        string s, int fontSize,
+        int spacing, Font font, Color color,
+        string shader, float scale = 1f)
+    {
+        int sFontSize = (int)(fontSize * scale);
+        int sSpacing = (int)(spacing * scale);
+        var measure = MeasureTextEx(font, s, sFontSize, sSpacing);
+        RenderTexture2D temp = LoadRenderTexture((int)measure.X+8, (int)measure.Y+8);
+        RenderTexture2D temp2 = LoadRenderTexture((int)measure.X+8, (int)measure.Y+8);
+        Rectangle source = new(0, -temp2.Texture.Height, temp2.Texture.Width, -temp2.Texture.Height);
+        Rectangle destination = new(pos - new Vector2(4), source.Size * new Vector2(1, -1));
+        BeginTextureMode(temp);
+        DrawTextEx(font, s, new Vector2(4, 4), fontSize, sSpacing, color);
+        EndTextureMode();
+        switch (shader)
+        {
+            case "shadow":
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowDepth, 4f, ShaderUniformDataType.Float);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowResolution, measure + new Vector2(8,8), ShaderUniformDataType.Vec2);
+                break;
+            case "gradient":
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientBorderWidth, 2f, ShaderUniformDataType.Float);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientResoulution,  measure + new Vector2(8,8), ShaderUniformDataType.Vec2);
+                break;
+        }
+        BeginTextureMode(temp2);
+        BeginShaderMode(Runtime.CurrentRuntime.Shaders[shader]);
+        DrawTexture(temp.Texture, 0, 0, Color.White);
+        EndShaderMode();
+        EndTextureMode();
+        BeginTextureMode(texture);
+        DrawTexturePro(temp2.Texture,
+            source, destination, Vector2.Zero, 0, Color.White);
+        EndTextureMode();
+        UnloadRenderTexture(temp);
+        UnloadRenderTexture(temp2);
+    }
+    
     public static void DrawTextOnRenderTexture(ref RenderTexture2D texture, string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, Color color, string shader, float scale = 1f)
     {
         if(IsRenderTextureValid(texture))
             UnloadRenderTexture(texture);
-        int width = s.Length * fontSize + hPadding * 2;
-        int height = fontSize + vPadding * 2;
+        var measure = MeasureTextEx(font, s, fontSize, spacing);
+        int width = (int)(measure.X + hPadding * 2);
+        int height = (int)(measure.Y + vPadding * 2);
         RenderTexture2D temp = Raylib.LoadRenderTexture(width, height);
         texture = Raylib.LoadRenderTexture(width, height);
         BeginTextureMode(temp);
@@ -305,7 +346,7 @@ public static class Helper
     }
 
     public static Rectangle GetFullSource(Texture2D t) => new Rectangle(0, 0, t.Width, t.Height);
-    public static Rectangle GetFullSourceRenderTexture(RenderTexture2D rt2d) => new Rectangle(0, 0, rt2d.Texture.Width, -rt2d.Texture.Height);
+    public static Rectangle GetFullSourceRenderTexture(RenderTexture2D rt2d) => new Rectangle(0, rt2d.Texture.Height, rt2d.Texture.Width, -rt2d.Texture.Height);
 
     public static Rectangle GetFullscreenSource() => new Rectangle(0, 0, Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height);
 
@@ -398,7 +439,13 @@ public static class Helper
     public static bool IsCollied(Rectangle rc1, Rectangle rc2)
     {
         #if DEBUG
-        var vecDistance = Raymath.Vector2Distance(rc1.Center, rc2.Center);
+        if (rc1.X > rc2.X)
+        {
+            var temp = rc2.X;
+            rc2.X = rc1.X;
+            rc1.X = temp;
+        }
+        var vecDistance = MathF.Abs(Raymath.Vector2Distance(rc1.Center, rc2.Center));
         var wDistance = (rc1.Width + rc2.Width) / 2;
         return vecDistance < wDistance;
 #else

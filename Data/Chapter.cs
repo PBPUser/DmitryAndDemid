@@ -50,7 +50,7 @@ public class Chapter : StageElement
     static Bullet[] GetBulletsFromInfo(Game g,BulletSpawnInfo info)
     {
         if(!info.Stacked)
-            return [new Bullet(g, info, 0)];
+            return [new Bullet(g, info, 0, true)];
         if (info.StackLength <= 0)
         {
             Console.WriteLine("Invalid Stack Length");
@@ -58,7 +58,7 @@ public class Chapter : StageElement
         }
         Bullet[] bullets = new Bullet[info.StackLength];
         for(int i = 0; i < info.StackLength; i++)
-            bullets[i] = new Bullet(g, info,i);
+            bullets[i] = new Bullet(g, info,i, true);
         return bullets;
     }
 }
