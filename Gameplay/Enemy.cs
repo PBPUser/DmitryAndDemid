@@ -12,7 +12,7 @@ public class Enemy : RuntimeObject
     private static Dictionary<string, Action<RuntimeObject>> Actions = new();
     static Enemy()
     {
-        Actions["MoveLinearDown"] = a => a.UpdateCollisionRender(a.PositionTo+new Vector2(0,a.Speed), a.RotateTo);
+        Actions["MoveLinearDown"] = a => a.UpdateCollisionRender(a.PositionTo + new Vector2(0, a.Speed), a.RotateTo);
         Actions["ShootIntoPlayer"] = a =>
         {
             if (a.PositionTo.Y > 320)
@@ -20,7 +20,7 @@ public class Enemy : RuntimeObject
             if (a.Game.Difficulty == 0)
                 return;
             var enemy = (a as Enemy);
-            if (a.Game.CurrentTick % (enemy.BulletSpawnRate * (5-a.Game.Difficulty)) == 0)
+            if (a.Game.CurrentTick % (enemy.BulletSpawnRate * (5 - a.Game.Difficulty)) == 0)
             {
                 a.Game.AddObject(new Bullet(a.Game, new BulletSpawnInfo()
                 {
@@ -42,8 +42,8 @@ public class Enemy : RuntimeObject
             var enemy = (a as Enemy);
             if (a.Game.CurrentTick % (enemy.BulletSpawnRate) == 0)
             {
-                float startingPoint = -enemy.ShootStreamCount / 2f * enemy.AngleBetweenStreams + enemy.RotateTo; 
-                for(int i = 0; i < enemy.ShootStreamCount; i++)
+                float startingPoint = -enemy.ShootStreamCount / 2f * enemy.AngleBetweenStreams + enemy.RotateTo;
+                for (int i = 0; i < enemy.ShootStreamCount; i++)
                     a.Game.AddObject(new Bullet(a.Game, new BulletSpawnInfo()
                     {
                         Speed = enemy.BulletSpeed * a.Game.Difficulty,
@@ -56,19 +56,13 @@ public class Enemy : RuntimeObject
                     }, 0, true));
             }
         };
-        Actions["MoveLinearDownRight"] = a =>
-        {
-            a.UpdateCollisionRender(a.PositionTo+new Vector2(a.Speed,a.Speed), a.RotateTo);
-        };
-        Actions["MoveLinearDownLeft"] = a =>
-        {
-            a.UpdateCollisionRender(a.PositionTo+new Vector2(-a.Speed,a.Speed), a.RotateTo);
-        };
+        Actions["MoveLinearDownRight"] = a => a.UpdateCollisionRender(a.PositionTo + new Vector2(a.Speed, a.Speed), a.RotateTo);
+        Actions["MoveLinearDownLeft"] = a => a.UpdateCollisionRender(a.PositionTo + new Vector2(-a.Speed, a.Speed), a.RotateTo);
         Actions["TargetLinear"] = a =>
         {
             var enemy = (a as Enemy);
             Vector2 pos = Vector2.Zero;
-            if(enemy.PositionTo != enemy.Target)
+            if (enemy.PositionTo != enemy.Target)
             {
                 pos = Raymath.Vector2MoveTowards(a.PositionTo, enemy.Target, a.Speed) - a.PositionTo;
             }
@@ -83,16 +77,16 @@ public class Enemy : RuntimeObject
     }
 
     private EnemySpawnInfo Info;
-    
-    public Enemy(Game game, EnemySpawnInfo info, int numberInStack) : base(game, info.Position, 
+
+    public Enemy(Game game, EnemySpawnInfo info, int numberInStack) : base(game, info.Position,
         EntityVisual.Visuals[info.Visual].RenderSize,
         EntityVisual.Visuals[info.Visual].Collision)
     {
         Info = info;
         Attackable = true;
-        if(Actions.ContainsKey(info.Script))
+        if (Actions.ContainsKey(info.Script))
             UpdateScript = Actions[info.Script];
-        if(Actions.ContainsKey(info.CreateScript))
+        if (Actions.ContainsKey(info.CreateScript))
             CreateScript = Actions[info.CreateScript];
         if (Actions.ContainsKey(info.AttackScript))
             AttackScript = Actions[info.AttackScript];
@@ -135,22 +129,22 @@ public class Enemy : RuntimeObject
                 float angDif = MathF.PI * 2 / collectables.Length;
                 for (int i = 0; i < Info.DropPowerPointsCount; i++)
                 {
-                    collectables[i] = new PowerCollectable(Game, PositionTo, 
-                        Helper.GetDirection(MathF.PI+i*angDif));
+                    collectables[i] = new PowerCollectable(Game, PositionTo,
+                        Helper.GetDirection(MathF.PI + i * angDif));
                 }
                 int j = Info.DropPowerPointsCount;
                 for (int i = 0; i < Info.DropLargePowerPointsCount; i++)
                 {
-                    collectables[i+j] = new LargePowerCollectable(Game, PositionTo, 
-                        Helper.GetDirection(MathF.PI+i*angDif));
+                    collectables[i + j] = new LargePowerCollectable(Game, PositionTo,
+                        Helper.GetDirection(MathF.PI + i * angDif));
                 }
-                j+=Info.DropLargePowerPointsCount;
+                j += Info.DropLargePowerPointsCount;
                 for (int i = 0; i < Info.DropScorePointsCount; i++)
                 {
-                    collectables[i+j] = new ScoreCollectable(Game, PositionTo, 
-                        Helper.GetDirection(MathF.PI+i*angDif));
+                    collectables[i + j] = new ScoreCollectable(Game, PositionTo,
+                        Helper.GetDirection(MathF.PI + i * angDif));
                 }
-                j+=Info.DropScorePointsCount;
+                j += Info.DropScorePointsCount;
                 foreach (var collectable in collectables)
                     Game.AddObject(collectable);
                 Game.RemoveObject(this);
@@ -159,7 +153,7 @@ public class Enemy : RuntimeObject
     }
 
     private float health = 0f;
-    
+
     public float BulletSpeed;
     public float BulletSpawnRate;
     public Action<RuntimeObject>? AttackScript { get; set; }

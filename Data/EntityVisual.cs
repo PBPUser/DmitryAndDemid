@@ -14,7 +14,7 @@ public class EntityVisual
             Visuals[Path.GetFileNameWithoutExtension(file)] = JsonSerializer.Deserialize<EntityVisual>(File.ReadAllText(file), new JsonSerializerOptions()
             {
                 IncludeFields = true
-            });
+            })!;
     }
 
     [JsonInclude] public string Texture;
