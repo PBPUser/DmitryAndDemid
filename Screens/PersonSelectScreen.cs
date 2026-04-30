@@ -11,15 +11,15 @@ namespace DmitryAndDemid.Screens;
 
 public class PersonSelectScreen : MenuScreen
 {
-    bool IsPractice;
+    public GameType GameType;
     private int Difficulty;
 
-    public PersonSelectScreen(bool isPractice, int difficulty) : base()
+    public PersonSelectScreen(GameType gameType, int difficulty) : base()
     {
         Difficulty = difficulty;
         HorizontalDirectionNavigation = true;
         VerticalDirectionNavigation = false;
-        IsPractice = isPractice;
+        GameType = gameType;
         ArtDestination = Helper.Scale(new Rectangle(40, 80, 200, 400), Runtime.CurrentRuntime.Scale);
         DescriptionDestination = Helper.Scale(new Rectangle(320, 100, 280, 200), Runtime.CurrentRuntime.Scale);
         ArtShift = (float)(Runtime.CurrentRuntime.Scale * 40f);
@@ -109,20 +109,25 @@ public class PersonSelectScreen : MenuScreen
 
     void OpenNext()
     {
-        if (IsPractice)
+        string data = File.ReadAllText(Files[SelectedIndex]);
+        var json = JsonSerializer.Deserialize<ProtogonistData>(data);
+        if (json == null)
+            throw new Exception();
+        if (GameType == GameType.Practice)
+            Runtime.CurrentRuntime.AddScreen(new PracticeScreen(json, Difficulty));
+        else if (GameType == GameType.Default)
         {
-            string data = File.ReadAllText(Files[SelectedIndex]);
-            try
-            {
-                var json = JsonSerializer.Deserialize<ProtogonistData>(data);
-                if (json == null)
-                    throw new Exception();
-                Runtime.CurrentRuntime.AddScreen(new PracticeScreen(json, Difficulty));
-            }
-            catch (Exception ex)
-            {
-                Console.Write(ex.StackTrace);
-            }
+            var gamePlayScreen = new GameplayScreen(json, Game.Stages[0], Difficulty);
+            gamePlayScreen.Game.ContinueAfterStageEnds = true;
+            Runtime.CurrentRuntime.AddScreen(gamePlayScreen);
         }
+        else if (GameType == GameType.Extra)
+        {
+            var gamePlayScreen = new GameplayScreen(json, Game.Stages[3], Difficulty);
+            gamePlayScreen.Game.ContinueAfterStageEnds = true;
+            Runtime.CurrentRuntime.AddScreen(gamePlayScreen);
+        }
+                
+        
     }
 }

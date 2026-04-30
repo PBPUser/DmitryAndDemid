@@ -65,5 +65,6 @@ public class Replay
         [JsonInclude] public string Person = "";
         [JsonInclude] public DateTime Timestamp = new DateTime();
         [JsonInclude] public string Slowdown = "0.0";
+        [JsonInclude] public ReplayStageInfo[] ReplayStageInfo = new ReplayStageInfo[0];
     }
 }

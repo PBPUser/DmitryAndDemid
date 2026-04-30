@@ -16,7 +16,7 @@
   ],
   "Chapters": [
     {
-      "ChapterLength": 1800,
+      "ChapterLength": 200,
       "Index": 0,
       "EnemySpawnInfos": [{
         "Visual": "jv",
@@ -133,89 +133,11 @@
           "ID": "akob",
           "Elements": [
             {
-              "Text": "Privet Nikitos",
-              "Skipable": true,
-              "AntogonistSpeak": false,
-              "ArtIndex": 0
-            },
-            {
-              "Text": "VSEM PRIVET DRUZYA, S VAMI NIKITOS",
-              "Skipable": true,
-              "AntogonistSpeak": true,
-              "Art": "nikitos_dialog_arts.png",
-              "ArtIndex": 0
-            },
-            {
               "Text": "Idi nahui Nikitos",
               "Skipable": true,
               "AntogonistSpeak": false,
               "ArtIndex": 1,
               "ID": "midboss_appear"
-            },
-            {
-              "Text": "Sam idi!",
-              "Skipable": true,
-              "AntogonistSpeak": true,
-              "Art": "nikitos_dialog_arts.png",
-              "ArtIndex": 1
-            },
-            {
-              "Text": "Nikitos porval 04ko",
-              "Skipable": true,
-              "AntogonistSpeak": false,
-              "ArtIndex": 2
-            },
-            {
-              "Text": "Eto ti porval o4k0",
-              "Skipable": true,
-              "AntogonistSpeak": true,
-              "Art": "nikitos_dialog_arts.png",
-              "ArtIndex": 2
-            },
-            {
-              "Text": "Nikitos xo4eT ewe",
-              "Skipable": true,
-              "AntogonistSpeak": false,
-              "ArtIndex": 3
-            },
-            {
-              "Text": "Wa Te6e 9I DaM nu3Dbl",
-              "Skipable": true,
-              "AntogonistSpeak": true,
-              "Art": "nikitos_dialog_arts.png",
-              "ArtIndex": 3
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "Index": 4,
-      "PersonDialogs": [
-        {
-          "ID": "akob",
-          "Elements": [
-            {
-              "Text": "Text 1",
-              "Skipable": true
-            },
-            {
-              "Text": "Text 2",
-              "Skipable": true,
-              "AntogonistSpeak": true,
-              "Art": "dima.png"
-            },
-            {
-              "Text": "The Text 3",
-              "Skipable": true,
-              "AntogonistSpeak": false,
-              "Art": "dima.png"
-            },
-            {
-              "Text": "The Text 4",
-              "Skipable": true,
-              "AntogonistSpeak": false,
-              "Art": "demid.png"
             }
           ]
         }

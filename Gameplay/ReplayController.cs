@@ -5,11 +5,13 @@ namespace DmitryAndDemid.Gameplay;
 
 public class ReplayController : PlayerController
 {
+    private int StageFrom = 0;
     private Replay Replay;
     
-    public ReplayController(Replay replay)
+    public ReplayController(Replay replay, int stageFrom)
     {
         Replay = replay;
+        StageFrom = stageFrom;
     }
     
     public override void Update(Player player, int tick)

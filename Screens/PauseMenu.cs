@@ -1,4 +1,5 @@
 using DmitryAndDemid.Common;
+using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Utils;
 using static Raylib_cs.Raylib;
 
@@ -25,11 +26,14 @@ public class PauseMenu : MenuScreen
         };
         Menu["ingame.save"] = (a, b) =>
         {
-            
+            IngameSaveReplayScreen replayScreen = new IngameSaveReplayScreen((GameplayScreen.Game!.Player.Controller as PlayerController)!, GameplayScreen);
+            Runtime.CurrentRuntime.AddScreen(replayScreen);
         };
         Menu["ingame.save_and_exit"] = (a, b) =>
         {
-            
+            IngameSaveReplayScreen replayScreen = new IngameSaveReplayScreen((GameplayScreen.Game!.Player.Controller as PlayerController)!, GameplayScreen);
+            Runtime.CurrentRuntime.AddScreen(replayScreen);
+            replayScreen.ExitAfterSave = true;
         };
         Menu["ingame.restart"] = (a, b) =>
         {

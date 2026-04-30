@@ -23,6 +23,9 @@ public class MenuScreen : Screen
     protected int SelectedIndex = 0;
     protected bool AllowExitWithEscape = true;
     protected bool LoopList = true;
+    protected Vector2 SelectedItemOffset = Vector2.Zero;
+    protected Vector2 SelectedNoise = new Vector2(8, 8) * CurrentRuntime.ScaleF;
+    protected float SelectedItemScale = 1f;
 
     protected double AnimationStartedAt = 0;
     protected double AnimationStartedIndex = 0;
@@ -123,9 +126,11 @@ public class MenuScreen : Screen
         else if (Raylib.IsKeyDown(KeyboardKey.Enter))
         {
             PreviousKeyTimestamp = GetTime();
-            ItemActivated = true;
-            Event = Menu.ElementAt(SelectedIndex).Value;
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["button"]);
+            if(SelectedIndex > MenuItems.Count() - 1)
+                return;
+            Event = Menu.ElementAt(SelectedIndex).Value;
+            ItemActivated = true;
         }
         else if (AllowExitWithEscape && Raylib.IsKeyDown(KeyboardKey.Escape))
         {
@@ -192,12 +197,29 @@ public class MenuScreen : Screen
     
     protected void DrawMenu()
     {
+        Vector2 offset;
         int y = CurrentY;
         int index = 0;
+        double cIndex = ComputeAnimationIndexLoop();
+        float offsetState = 0;
+        float scale = 0;
+        float t = (float)GetTime();
+        float swapNoise = 1-(float)Helper.ComputeObjectTimeStart(t, AnimationStartedAt, 0.25);
         foreach (var x in MenuItems)
-        {
-            DrawTexture(x.Texture, CurrentX, y, index == SelectedIndex ? Color.Yellow : Color.White);
-            y += x.Texture.Height;
+        { 
+            offsetState = (float)Math.Abs(1-Math.Clamp(Math.Abs(cIndex - index), 0, 1));
+            offset = offsetState * SelectedItemOffset;
+            if (index == SelectedIndex)
+            {
+                offset += swapNoise*SelectedNoise*new Vector2(MathF.Sin(t*100+24), MathF.Cos(t*100));
+            }
+            scale = SelectedItemScale * offsetState + 1f * (1 - offsetState);
+            
+            DrawTextureEx(x.Texture, new Vector2(CurrentX + offset.X, y + offset.Y), 0, scale, 
+                index == SelectedIndex ? Helper.Mix(Color.Yellow, Color.White, MathF.Abs((t * 
+                        (ItemActivated ? 30 : 2)
+                        ) % 2 - 1)) : Color.White);
+            y += (int)(x.Texture.Height * scale);
             index++;
         }
     }

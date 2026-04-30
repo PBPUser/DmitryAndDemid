@@ -6,6 +6,9 @@ namespace DmitryAndDemid.Common;
 
 public abstract class Screen : IDisposable
 {
+    public static int LastIndex = 0;
+    public int Index = 0;
+    
     public Screen()
     {
     }
@@ -47,6 +50,18 @@ public abstract class Screen : IDisposable
 
     public virtual void Deactivated()
     {
+    }
+
+    public void TargetOpen()
+    {
+        Index = LastIndex;
+        LastIndex++;
+        Openned();
+    } 
+    
+    protected virtual void Openned()
+    {
+        
     }
 
     public void Dispose()

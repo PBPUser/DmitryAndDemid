@@ -13,6 +13,8 @@ namespace DmitryAndDemid.Utils;
 
 public static class Helper
 {
+    public static string[] DifficultyIds = ["Jlerkuj", "HopMaJlb", "XAPDKOP", "MaKcuM", "3xTpa"];
+    
     public static void LoadShaderAttribs()
     {
         LocationCloudRadius = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["cloud"], "radius");

@@ -80,13 +80,18 @@ public class GameplayScreen : Screen
     
     public override void PreRender(double f)
     {
+        Game!.Update();
+    }
+
+    public override void TopUpdate()
+    {
+        Game!.ProcessInput();
         if (IsKeyDown(KeyboardKey.Escape)  && !Game!.ForcedPause && GetTime() - MenuScreen.PreviousKeyTimestamp > MenuScreen.MenuSwitchCooldown)
         {
             MenuScreen.PreviousKeyTimestamp = GetTime();
             Paused = !Paused;
         }
-        Game!.Update();
-        Game!.ProcessInput();
+        base.TopUpdate();
     }
 
     private Shader DieShader;
@@ -95,7 +100,7 @@ public class GameplayScreen : Screen
     
     public override void Render()
     {
-        float time = (float)GetTime();
+        float time = (float)Game.GetTime();
         DrawBackground();
         Game!.RenderGame();
         if (Game.IsDied)

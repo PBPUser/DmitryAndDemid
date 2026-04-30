@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using DmitryAndDemid.Common;
+using DmitryAndDemid.Data;
 using DmitryAndDemid.Utils;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
@@ -9,23 +10,14 @@ namespace DmitryAndDemid.Screens;
 
 public class DifficultyScreen : MenuScreen
 {
-    bool IsDefault;
-    bool IsExtra;
-    /// <summary>
-    /// 0 - Default game
-    /// 1 - Extra
-    /// 2 - Practice
-    /// </summary>
-    int Action;
+    private GameType GameType;
     
-    public DifficultyScreen(int action) : base()
+    public DifficultyScreen(GameType gameType) : base()
     {
         SetTitle(Runtime.CurrentRuntime.Textures["rang_select.png"]);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
-        Action = action;
-        IsDefault = action == 0 || action == 2;
-        IsExtra = action == 1 || action == 2;
         LoopList = false;
+        GameType = gameType;
 
         HorizontalDirectionNavigation = true;
 
@@ -49,14 +41,14 @@ public class DifficultyScreen : MenuScreen
     
     public override void CreateMenu()
     {
-        if (IsDefault)
+        if (GameType.HasFlag(GameType.Default))
         {
             Menu["Easy"] = (a, b) => OpenNext(0);
             Menu["Normal"] = (a, b) => OpenNext(1);
             Menu["Hard"] = (a, b) => OpenNext(2);
             Menu["Max"] = (a, b) => OpenNext(3);
         }
-        if(IsExtra)
+        if(GameType.HasFlag(GameType.Extra))
             Menu["Extra"] = (a, b) => OpenNext(4);
     }
 
@@ -90,18 +82,7 @@ public class DifficultyScreen : MenuScreen
 
     void OpenNext(int difficulty)
     {
-        switch (Action)
-        {
-            case 0:
-                Runtime.CurrentRuntime.AddScreen(new PersonSelectScreen(false, difficulty));
-                break;
-            case 1:
-                Runtime.CurrentRuntime.AddScreen(new PersonSelectScreen(false, difficulty));
-                break;
-            case 2:
-                Runtime.CurrentRuntime.AddScreen(new PersonSelectScreen(true, difficulty));
-                break;
-        }
+                Runtime.CurrentRuntime.AddScreen(new PersonSelectScreen(GameType, difficulty));
     }
 
     private float TimeAppearItems = float.MinValue;
@@ -122,7 +103,7 @@ public class DifficultyScreen : MenuScreen
         RectangleSelectionTarget.Height = TargetHeight * Helper.EaseInOutElasticF(appearState);
         
         
-        int sourceIndex = !IsDefault & IsExtra ? 4 : 0;
+        int sourceIndex = GameType == GameType.Extra ? 4 : 0;
         int x = 0;
         DrawTexturePro(
             Runtime.CurrentRuntime.Textures["MenuItemSelectionGradient1"],
@@ -159,7 +140,7 @@ public class DifficultyScreen : MenuScreen
         Helper.BeginContrastShader(MathF.Abs(SelectedIndex-index), appearSelected);
         DrawTexturePro(
             Runtime.CurrentRuntime.Textures["difficulties.png"],
-            RectangleSourceDifficulty with { Y = !IsDefault & IsExtra ? 1920 : 480 * SelectedIndex },
+            RectangleSourceDifficulty with { Y = GameType == GameType.Extra ? 1920 : 480 * SelectedIndex },
             rectangleSelected, 
             Vector2.Zero, 0f, 
             Color.White);

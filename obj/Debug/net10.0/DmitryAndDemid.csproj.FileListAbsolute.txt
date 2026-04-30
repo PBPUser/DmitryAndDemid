@@ -115,3 +115,5 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Sounds/swap.mp3
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Fonts/googlesans.ttf
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Music/Descriptions/gameover.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/get-spell-card.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/stage_complete.png

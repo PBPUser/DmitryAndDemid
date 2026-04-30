@@ -14,6 +14,8 @@ public static class Keyboard
     private static Action<char?>? Callback = null;
     private const double InputCooldown = 0.2f;
     public static double LastInputTimestamp = 0;
+    public static double LastSwitchTimestamp = 0;
+    public static double LastClickTimestamp = 0;
     static Vector2 PreviousCursosorPosition = new Vector2(0, 0);
     private static float PreviousCursosorRotation = 0f;
     private static float TargetCursosorRotation = 0f;
@@ -54,20 +56,23 @@ public static class Keyboard
     
     public static void DrawKeyboard(int x, int y)
     {
-        float state = (float)Helper.ComputeObjectTimeStart(GetTime(), LastInputTimestamp, InputCooldown);
+        float state = (float)Helper.ComputeObjectTimeStart(GetTime(), LastSwitchTimestamp, InputCooldown);
+        float state2 = (float)Helper.ComputeObjectTimeStart(GetTime(), LastClickTimestamp, InputCooldown);
         for(int i = 0; i < 6; i++)
             DrawTexturePro(Texture.Texture,
                 new Rectangle(i*(LineWidth+Spacing),0, LineWidth, LineHeight),
                 new Rectangle(x, y+i*LineHeight, LineWidth, LineHeight),
                 Vector2.Zero, 0, Color.White);
+        var s = CursosorTarget.Size * state2 + (1 - state2) * (0.5f * CursosorTarget.Size);
         DrawTexturePro(
             Cursosor, CursosorSource,
             CursosorTarget with
             {
                 Position = (new Vector2(x + X * (LetterWidth+Spacing), y + Y * LineHeight) * state +
-                           (new Vector2(x,y) + PreviousCursosorPosition * new Vector2((LetterWidth+Spacing), LineHeight)) * (1 - state)) + new Vector2(LetterWidth + Spacing, LineHeight) / 2
+                           (new Vector2(x,y) + PreviousCursosorPosition * new Vector2((LetterWidth+Spacing), LineHeight)) * (1 - state)) + new Vector2(LetterWidth + Spacing, LineHeight) / 2,
+                Size = s
             },
-            CursosorTarget.Size,
+            s,
             state * TargetCursosorRotation + (1-state) * PreviousCursosorRotation
             , Color.White);
         
@@ -77,7 +82,7 @@ public static class Keyboard
     {
         X = 0;
         Y = 0;
-        LastInputTimestamp = GetTime();
+        LastInputTimestamp = LastClickTimestamp = LastSwitchTimestamp = GetTime();
         Callback = null;
         PreviousCursosorRotation = 0f;
         PreviousCursosorPosition = new Vector2(0, 0);
@@ -99,6 +104,27 @@ public static class Keyboard
                 X = 7;
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
             LastInputTimestamp = GetTime();
+            LastSwitchTimestamp = GetTime();
+        }
+
+        if (IsKeyDown(KeyboardKey.Escape))
+        {
+            if (X == 14 && Y == 5)
+            {
+                Callback?.Invoke(null);
+                Helper.PlaySound(Runtime.CurrentRuntime.Sounds["esc"]);
+            }
+            else
+            {
+                PreviousCursosorRotation = TargetCursosorRotation;
+                PreviousCursosorPosition = new Vector2(X, Y);
+                Helper.PlaySound(Runtime.CurrentRuntime.Sounds["esc"]);
+                TargetCursosorRotation = GetRandomValue(0, 360);
+                LastSwitchTimestamp = GetTime();
+                LastInputTimestamp = GetTime();
+                X = 14;
+                Y = 5;
+            }
         }
         if (IsKeyDown(KeyboardKey.Right))
         {
@@ -112,6 +138,7 @@ public static class Keyboard
                 X = 0;
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
             LastInputTimestamp = GetTime();
+            LastSwitchTimestamp = GetTime();
         }
         if (IsKeyDown(KeyboardKey.Up))
         {
@@ -127,6 +154,7 @@ public static class Keyboard
             }
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
             LastInputTimestamp = GetTime();
+            LastSwitchTimestamp = GetTime();
         }
         if (IsKeyDown(KeyboardKey.Down))
         {
@@ -144,6 +172,7 @@ public static class Keyboard
             }
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
             LastInputTimestamp = GetTime();
+            LastSwitchTimestamp = GetTime();
         }
 
         if (IsKeyDown(KeyboardKey.Z) || IsKeyDown(KeyboardKey.Enter))
@@ -153,19 +182,20 @@ public static class Keyboard
                 if (X == 14)
                 {
                     Callback?.Invoke(null);
-                    Helper.PlaySound(Runtime.CurrentRuntime.Sounds["swap"]);
+                    Helper.PlaySound(Runtime.CurrentRuntime.Sounds["esc"]);
                     return;
                 }
                 if (X == 15)
                 {
                     Callback?.Invoke('\n');
-                    // TODO: Play extend sound
+                    Helper.PlaySound(Runtime.CurrentRuntime.Sounds["swap"]);
                     return;
                 }
             }
             Callback?.Invoke(chars[X+Y*16]);
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["button"]);
             LastInputTimestamp = GetTime();
+            LastClickTimestamp = GetTime();
         }
     }
 

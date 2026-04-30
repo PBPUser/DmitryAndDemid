@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Numerics;
+using System.Text.Json;
 using Atk;
 using DmitryAndDemid.Backgrounds;
 using DmitryAndDemid.Common;
@@ -85,7 +86,7 @@ public class Game : IDisposable
     
     private long score = -1;
     
-    public Game(ProtogonistData protogonistData, Stage stage, GameplayScreen screen, int difficulty, Replay? replay = null)
+    public Game(ProtogonistData protogonistData, Stage stage, GameplayScreen screen, int difficulty, Replay? replay = null, int stageFrom = 0)
     {
         DialogProtogonistTexture = Runtime.CurrentRuntime.Textures[protogonistData.DialogArtName];
         ProtogonistId = protogonistData.ID;
@@ -100,11 +101,9 @@ public class Game : IDisposable
         RectangleDialogAntogonistInactive = Helper.Scale(new Rectangle(288, 288, 144, 192), Runtime.CurrentRuntime.Scale);
         RectangleDialogProtogonistPassive = Helper.Scale(new Rectangle(-32, 480, 144, 192), Runtime.CurrentRuntime.Scale);
         RectangleDialogAntogonistPassive = Helper.Scale(new Rectangle(288, 480, 144, 192), Runtime.CurrentRuntime.Scale);
-        Player = new Player(this, protogonistData, replay == null ? new PlayerController() : new ReplayController(replay));
+        Player = new Player(this, protogonistData, replay == null ? new PlayerController() : new ReplayController(replay, stageFrom));
         Objects.Add(Player);
         StageInfo = stage;
-        CurrentStage = new RuntimeStage(stage, this);
-        StageBackground = CurrentStage.Background;
         Playing = true;
         CurrentScoreTexture = LoadRenderTexture((int)(200*Runtime.CurrentRuntime.ScaleF), (int)(40*Runtime.CurrentRuntime.ScaleF));
         GameplayScreen = screen;
@@ -117,7 +116,8 @@ public class Game : IDisposable
         BombsY = (int)(36 * Runtime.CurrentRuntime.ScaleF);
         UIPositionX = (int)(436 * Runtime.CurrentRuntime.ScaleF);
         UIPositionY = (int)(97 * Runtime.CurrentRuntime.ScaleF);
-
+        SwitchStage(stage);
+        
         ScoreDifferenceFontSize = 12;
         var sdfs = (int)(12 * Runtime.CurrentRuntime.ScaleF);
         var measureScoreDif = MeasureTextEx(Runtime.CurrentRuntime.Fonts["kodemono"],
@@ -141,60 +141,33 @@ public class Game : IDisposable
         
     }
 
+    public void SwitchStage(Stage stage)
+    {
+        CurrentStage = new RuntimeStage(stage, this);
+        StageBackground = CurrentStage.Background;
+        CurrentStageIndex = stage.Index;
+    }
+    
     public int UIPositionX;
     public int UIPositionY;
-    
     public Stage StageInfo;
     RuntimeStage CurrentStage;
-
-    public bool Playing
-    {
-        get => playing;
-        set
-        {
-            if (playing == value)
-                return;
-            playing = value;
-            GameplayScreen.Paused = !value;
-            if (value)
-            {
-                var s = GetTime() - PauseTimestamp;
-                PreviousTick += s;
-                NextTickStamp += s;
-                DialogAppearTime += s;
-                DialogDisappearTime += s;
-                BonusAppearTime += s;
-                GameStartedTimestamp += s;
-                return;
-            }
-            PauseTimestamp = GetTime();
-        }
-    }
-
     private bool playing = true;
-    
     public RenderTexture2D Gameplay;
     public RenderTexture2D Dialog;
     public RenderTexture2D Background;
-    
-
     public StageBackground StageBackground;
-
     public List<RuntimeObject> Objects = new();
-
     private int 
         ChapterBulletIndex = 0,
         ChapterEnemyIndex = 0;
-
     double GameStartedTimestamp = 0;
     double PreviousTick = 0;
     double NextTickStamp = 0;
     static double TickLength = 1d / TPS;
-    double PauseTimestamp = 0;
     public int CurrentTick = 0;
     int ChapterSwitchTick = int.MaxValue;
     private bool ObjectsPending = false;
-    
     public string ProtogonistId;
     private static Rectangle RectangleDialougePersonSource = new Rectangle(0, 0,768, 1024);
     Rectangle RectangleDialogProtogonistActive;
@@ -205,8 +178,9 @@ public class Game : IDisposable
     Rectangle RectangleDialogAntogonistPassive;
     private int DialogAntogonistIndex = 0;
     private int DialogProtogonistIndex = 0;
-
     List<RuntimeObject> ObjectsToAdd = new();
+    private const int EndStageDelay = 300;
+    private const double EndStageSignDisplayingDuration = 3;
 
     public void AddObject(RuntimeObject obj)
     {
@@ -227,10 +201,6 @@ public class Game : IDisposable
         if(DrawUpdateScoreCounter)
             UpdateScoreCounter();
         CurrentTick++;
-        if (CurrentTick == 1932)
-        {
-            
-        }
         PreviousTick = NextTickStamp;
         NextTickStamp = GameStartedTimestamp + (CurrentTick + 1) * TickLength;
         if (IsDied)
@@ -240,7 +210,7 @@ public class Game : IDisposable
         }
         if (IsDialog)
         {
-            if (NextDialogTick < CurrentTick)
+            if (NextDialogTick <= CurrentTick)
             {
                 dialogIndex++;
                 SetDialogElement(CurrentDialog.Elements[dialogIndex]);
@@ -249,6 +219,11 @@ public class Game : IDisposable
         else if (ChapterSwitchTick < CurrentTick + ChapterDelay)
         {
             ClearAll();
+            SetScoreCounter();
+            if (ChapterIndex + 1 == CurrentStage.StageElements.Count)
+            {
+                SetChapterComplete();
+            }
         }
         else
         {
@@ -330,6 +305,15 @@ public class Game : IDisposable
         }
     }
 
+    private double StageEndAppearTime = 0;
+    private double StageEndDisppearTime = 0;
+    
+    private void SetChapterComplete()
+    {
+        StageEndAppearTime = GetTime();
+        StageEndDisppearTime = GetTime() + EndStageSignDisplayingDuration;
+    }
+
     private List<RemovedBullet> RemovedBullets = new();
     private List<RuntimeObject> ToRemove = new List<RuntimeObject>();
     static Vector2 AreaStart = new Vector2(-100, -100);
@@ -356,9 +340,34 @@ public class Game : IDisposable
         DialogCharatcterSwitchAppearTime = double.MaxValue,
         DialogCharatcterSwitchDisappearTime = double.MaxValue;
 
+    public bool ContinueAfterStageEnds = false;
+    public int CurrentStageIndex = 0;
+    public int EndGameAtStageWithIndex = 2;
+
+    public static List<Stage> Stages =
+        Directory.GetFiles("Assets/Data/Stages").Select(x => JsonSerializer.Deserialize<Stage>(File.ReadAllText(x))).ToList()!;
+    
     void LoadNextStage()
     {
+        if (ContinueAfterStageEnds)
+        {
+            var stage = Stages.FirstOrDefault(x => x.Index == CurrentStageIndex + 1);
+            if (stage != null)
+                SwitchStage(stage);
+            else
+            {
+                GameOver = true;
+                BlackLoadingScreen bls = new BlackLoadingScreen(10, 3, () =>
+                {
+                    
+                }, false, 3);
+                Runtime.CurrentRuntime.AddScreen(bls);
+                Console.WriteLine("I should show ending, but i have no ending(");
+            }
+            return;
+        }
         TogglePause(true);
+        ForcedPause = true;
     }
 
     private Rectangle RectangleChapterTitleSource;
@@ -371,7 +380,6 @@ public class Game : IDisposable
             if (CurrentChapter.Type == ChapterType.Spell)
                 UnloadRenderTexture(CurrentChapter.ChapterTitleTexture);
             CurrentChapter = null;
-            SetScoreCounter();
         }
         ChapterIndex++;
         ChapterSwitchTick = int.MaxValue;
@@ -587,6 +595,8 @@ public class Game : IDisposable
         TickChapterStart = CurrentTick;
         ChapterBulletIndex = 0;
         ChapterSwitchTick = CurrentTick + CurrentChapter.ChapterLength + ChapterDelay;
+        if (CurrentStage.StageElements.Count() == ChapterIndex - 1)
+            ChapterSwitchTick += EndStageDelay;
     }
 
     private const double BonusTextDuration = 5;
@@ -597,11 +607,14 @@ public class Game : IDisposable
     private double BonusDisappearTime = 0;
     private Texture2D BonusTexture;
 
+    private List<ReplayStageInfo> StageInfosForReplay = new();
     
     void SetBonus(bool isFailed, string bonus = "")
     {
         if (isFailed)
             BonusTexture = Runtime.CurrentRuntime.Textures["bonus-failed.png"];
+        else
+        BonusTexture = Runtime.CurrentRuntime.Textures["get-spell-card.png"];
         BonusAppearTime = GetTime();
         BonusDisappearTime = GetTime() + BonusTextDuration;
     }
@@ -635,7 +648,7 @@ public class Game : IDisposable
         {
             if (CurrentChapter?.Type != ChapterType.NonBoss)
             {
-                DrawText(""+((CurrentChapter.ChapterLength - CurrentTick) / 60), 0,0,24,Color.White);
+                DrawText(""+((CurrentChapter?.ChapterLength - CurrentTick) / 60), 0,0,24,Color.White);
             }
             if (CurrentChapter?.Type == ChapterType.Spell)  {
                 float appear = .5f - Helper.BossAppearCurveF(time-BossAppearTimestamp, 5f);
@@ -670,6 +683,9 @@ public class Game : IDisposable
         );
         float fullPowerState = (float)Helper.ComputeObjectTime(
             time, FullPowerAppearTimestamp, BonusAppearDuration, FullPowerDisappearTimestamp, BonusAppearDuration
+        );
+        float stageCompleteState = (float)Helper.ComputeObjectTime(
+            time, StageEndAppearTime, BonusAppearDuration, StageEndDisppearTime, BonusAppearDuration
         );
         if (IsDialog)
         {
@@ -779,6 +795,7 @@ public class Game : IDisposable
         }
         #endif 
         DrawTexturePro(Runtime.CurrentRuntime.Textures["full-power.png"], BonusSourceRect, BonusTargetRect with { Height = BonusTargetRect.Height * fullPowerState }, Vector2.Zero, 0, Color.White);
+        DrawTexturePro(Runtime.CurrentRuntime.Textures["stage_complete.png"], BonusSourceRect, BonusTargetRect with { Height = BonusTargetRect.Height * stageCompleteState }, Vector2.Zero, 0, Color.White);
         EndTextureMode();
     }
 
@@ -840,13 +857,6 @@ public class Game : IDisposable
         UpdateToNext();
     }
 
-    public void TogglePause(bool? state = null)
-    {
-        bool rS = state == null ? !Playing : state == true;
-        if (rS == Playing)
-            return;
-        Playing = rS;
-    }
 
     const double DialogSkipDelay = 0.25;
     double DialogSkipCooldownBefore = 0;
@@ -934,9 +944,59 @@ public class Game : IDisposable
                 Vector2.Zero, 0, Color.White);
         DrawText($"Power: {Player.Power}", 0, (int)(128 * Runtime.CurrentRuntime.ScaleF), (int)(16 * Runtime.CurrentRuntime.ScaleF), Color.White);
         DrawText($"Graze: {Player.Graze}", 0, (int)(160 * Runtime.CurrentRuntime.ScaleF), (int)(16 * Runtime.CurrentRuntime.ScaleF), Color.White);
+        DrawText($"Pause Length: {PauseLength}\nPauseTimestamp: {PauseTimestamp}", 0, (int)(192 * Runtime.CurrentRuntime.ScaleF), (int)(16 * Runtime.CurrentRuntime.ScaleF), Color.White);
         EndTextureMode();
-        
     }
 
+    public float GetTime()
+    {
+        if (gameOver)
+            return GameOverTimestamp;
+        return
+            (float)(playing ? Raylib.GetTime() - PauseLength : PauseTimestamp-PauseLength);
+    }
+
+    private bool gameOver = false;
+    private double PauseLength = 0;
+    double PauseTimestamp = 0;
     public bool ForcedPause = false;
+    private float GameOverTimestamp = 0;
+
+    private bool GameOver
+    {
+        get => gameOver;
+        set
+        {
+            if (!value)
+                return;
+            gameOver = true;
+            GameOverTimestamp = GetTime();
+        }
+    }
+    public bool Playing
+    {
+        get => playing;
+        set
+        {
+            if (playing == value)
+                return;
+            playing = value;
+            GameplayScreen.Paused = !value;
+            if (value)
+            {
+                if(PauseTimestamp > 0)
+                    PauseLength += Raylib.GetTime() - PauseTimestamp;
+            }
+            else
+                PauseTimestamp = Raylib.GetTime();
+        }
+    }
+    
+    public void TogglePause(bool? state = null)
+    {
+        bool rS = state == null ? !Playing : state == true;
+        if (rS == Playing)
+            return;
+        Playing = rS;
+    }
 }

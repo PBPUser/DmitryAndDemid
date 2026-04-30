@@ -1,5 +1,6 @@
 using System.Numerics;
 using DmitryAndDemid.Common;
+using DmitryAndDemid.Data;
 using DmitryAndDemid.Utils;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
@@ -55,6 +56,8 @@ public class MainScreen : MenuScreen
         LogoTargetCenter2 = new Rectangle(logoCenterX, (int)(Runtime.CurrentRuntime.Scale * 32), logoCenterWidth, logoCenterHeight);
         CurrentY = (int)(192 * Runtime.CurrentRuntime.Scale);
         MusicRoom = new MusicRoomScreen();
+        SelectedItemOffset = new Vector2(8, 0) * Runtime.CurrentRuntime.ScaleF;
+        SelectedItemScale = 1.2f;
     }
 
     private MusicRoomScreen MusicRoom;
@@ -129,19 +132,19 @@ public class MainScreen : MenuScreen
     {
         Menu["menu.start"] = (a, b) =>
         {
-            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(0)));
+            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Default)));
         };
         Menu["menu.extra"] = (a, b) => 
         {
-            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(1)));
+            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Extra)));
         };
         Menu["menu.practice"] = (a, b) =>
         {
-            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(2)));
+            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Practice)));
         };
         Menu["menu.trophy"] = (a, b) =>
         {
-            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(3)));
+            //Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(3)));
         };
         Menu["menu.music"] = (a, b) =>
         {
@@ -149,11 +152,11 @@ public class MainScreen : MenuScreen
         };
         Menu["menu.replay"] = (a, b) =>
         {
-            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new IngameSaveReplayScreen()));
+            //Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new IngameSaveReplayScreen()));
         };
         Menu["menu.stats"] = (a, b) =>
         {
-            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(3)));
+            //Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Practice)));
         };
 #if DEBUG
         Menu["Gameplay Editor"] = (a, b) => { };

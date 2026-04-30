@@ -1,5 +1,6 @@
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
+using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Utils;
 using Gtk;
 using Raylib_cs;
@@ -8,7 +9,10 @@ namespace DmitryAndDemid.Screens;
 
 public class IngameSaveReplayScreen : Screen
 {
-    public IngameSaveReplayScreen()
+    private PlayerController Controller;
+    GameplayScreen GameplayScreen;
+    
+    public IngameSaveReplayScreen(PlayerController playerController, GameplayScreen screen)
     {
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
         MenuItems = new RenderTexture2D[20];
@@ -18,6 +22,8 @@ public class IngameSaveReplayScreen : Screen
         Y = (int)(32 * Runtime.CurrentRuntime.ScaleF);
         var font = Runtime.CurrentRuntime.Fonts["googlesans"];
         LineHeight = (int)(Spacing + Raylib.MeasureTextEx(font, "a", FontSize, Spacing).Y);
+        Controller = playerController;
+        GameplayScreen = screen;
     }
 
     private int FontSize;
@@ -32,6 +38,7 @@ public class IngameSaveReplayScreen : Screen
     private const double InputDelay = 0.25f;
     private string Current = "";
     private string CurrentFormat = "";
+    public bool ExitAfterSave = false;
 
     public void DrawPage(int page)
     {
@@ -59,10 +66,13 @@ public class IngameSaveReplayScreen : Screen
     {
         base.Render();
         DrawBackground();
+        float state = (float)Helper.ComputeObjectTime((float)Raylib.GetTime(),
+                KeyboardModeSwitchInTime, 0.5,
+                KeyboardModeSwitchOutTime, 0.5);
         if (InKeyboardMode)
         {
             Raylib.DrawTexture(MenuItems[Index].Texture, X, Y, Color.Yellow);
-            Keyboard.DrawKeyboard((Runtime.CurrentRuntime.Width - Keyboard.LineWidth)/2, Runtime.CurrentRuntime.Height - Keyboard.KeyboardHeight);
+            
             return;
         }
         for (int i = 0; i < 20; i++)
@@ -70,6 +80,7 @@ public class IngameSaveReplayScreen : Screen
             Raylib.DrawTexture(MenuItems[i].Texture, X,
                 Y + (i*LineHeight), i == Index ? Color.Yellow : Color.White);
         }
+        Keyboard.DrawKeyboard((Runtime.CurrentRuntime.Width - Keyboard.LineWidth)/2, (int)(Runtime.CurrentRuntime.Height - (Keyboard.KeyboardHeight*state)));
     }
 
     
@@ -81,7 +92,7 @@ public class IngameSaveReplayScreen : Screen
 
     public override void Activated()
     {
-        
+        KeyboardModeSwitchInTime = float.MaxValue;
     }
 
     public override void Unload()
@@ -92,6 +103,9 @@ public class IngameSaveReplayScreen : Screen
         }
         base.Unload();
     }
+
+    private float KeyboardModeSwitchInTime = 0;
+    private float KeyboardModeSwitchOutTime = float.MaxValue;
     
     public override void TopUpdate()
     {
@@ -106,10 +120,19 @@ public class IngameSaveReplayScreen : Screen
         {
             var font = Runtime.CurrentRuntime.Fonts["googlesans"];
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["button"]);
+            KeyboardModeSwitchInTime = (float)Raylib.GetTime();
+            KeyboardModeSwitchOutTime = float.MaxValue;
             InKeyboardMode = true;
             LetterIndex = 0;
             Current = "";
-            CurrentFormat = $"No. {Index:00} %s --/--/-- --:-- %P----- ------- --- ---%";
+            var time = DateTime.Now;
+            CurrentFormat = $"No. {Index:00} %s {(time.Year%100):00}/{time.Month:00}/{time.Day:00} {time.Hour:00}:{time.Minute:00} {GameplayScreen.Game.ProtogonistId.PadLeft(7,' ')} {Helper.DifficultyIds[GameplayScreen.Game.Difficulty]} All 0.0%";
+            var rJson = new Replay.ReplayJson();
+            rJson.Timestamp = time;
+            rJson.Person = GameplayScreen.Game.ProtogonistId;
+            rJson.Difficulty = GameplayScreen.Game.Difficulty;
+            rJson.Stage = "All";
+            rJson.Slowdown = "0.0";
             LastInputTime = Raylib.GetTime();
             Keyboard.Reset();
             Keyboard.SetKeyboardCallback(a =>
@@ -118,6 +141,20 @@ public class IngameSaveReplayScreen : Screen
                 {
                     InKeyboardMode = false;
                     LastInputTime = Raylib.GetTime();
+                    KeyboardModeSwitchOutTime = (float)Raylib.GetTime()+0.5f;
+                    if (ExitAfterSave)
+                    {
+                        Runtime.CurrentRuntime.RemoveScreen(this); 
+                        Runtime.CurrentRuntime.RemoveScreen(GameplayScreen);
+                        Runtime.CurrentRuntime.RemoveScreen(GameplayScreen.PauseMenu);
+                    }
+                    else
+                    {
+                        Runtime.CurrentRuntime.RemoveScreen(this); 
+                    }
+                    rJson.Nickname = Current;
+                    var r = new Replay(Controller.Movements, rJson);
+                    r.Save($"Replays/aab020-{Index:0000}.rpy");
                     return;
                 }
                 if (a == null)
@@ -128,6 +165,7 @@ public class IngameSaveReplayScreen : Screen
                     MenuItems[Index] = Helper.DrawText(ReadFile(Index), FontSize, 0, 0, 
                         Spacing, font, "gradient", 
                         Runtime.CurrentRuntime.ScaleF);
+                    KeyboardModeSwitchOutTime = (float)Raylib.GetTime()+0.5f;
                     return;
                 }
 
