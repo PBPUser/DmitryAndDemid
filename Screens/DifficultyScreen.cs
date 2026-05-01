@@ -43,13 +43,13 @@ public class DifficultyScreen : MenuScreen
     {
         if (GameType.HasFlag(GameType.Default))
         {
-            Menu["Easy"] = (a, b) => OpenNext(0);
-            Menu["Normal"] = (a, b) => OpenNext(1);
-            Menu["Hard"] = (a, b) => OpenNext(2);
-            Menu["Max"] = (a, b) => OpenNext(3);
+            MenuItems.Add(new MenuItem("Easy", "", a => OpenNext(0)));
+            MenuItems.Add(new MenuItem("Normal", "", a => OpenNext(1)));
+            MenuItems.Add(new MenuItem("Hard", "", a => OpenNext(2)));
+            MenuItems.Add(new MenuItem("Max", "", a => OpenNext(3)));
         }
         if(GameType.HasFlag(GameType.Extra))
-            Menu["Extra"] = (a, b) => OpenNext(4);
+            MenuItems.Add(new MenuItem("Extra", "", a => OpenNext(4)));
     }
 
     private bool IsFirst = true;
@@ -110,7 +110,7 @@ public class DifficultyScreen : MenuScreen
             RectangleSelectionSource, RectangleSelectionTarget, 
             Helper.Half * RectangleSelectionTarget.Size, angle+((1-appearState)*60f), 
             Color.White);
-        for (; sourceIndex < Menu.Count; sourceIndex++)
+        for (; sourceIndex < MenuItems.Count; sourceIndex++)
         {
             if (x != SelectedIndex)
             {

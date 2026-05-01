@@ -179,7 +179,7 @@ public class Game : IDisposable
     private int DialogAntogonistIndex = 0;
     private int DialogProtogonistIndex = 0;
     List<RuntimeObject> ObjectsToAdd = new();
-    private const int EndStageDelay = 300;
+    private const int EndStageDelay = 600;
     private const double EndStageSignDisplayingDuration = 3;
 
     public void AddObject(RuntimeObject obj)
@@ -216,14 +216,15 @@ public class Game : IDisposable
                 SetDialogElement(CurrentDialog.Elements[dialogIndex]);
             }
         }
-        else if (ChapterSwitchTick < CurrentTick + ChapterDelay)
+        else if (ChapterSwitchTick == CurrentTick + ChapterDelay)
         {
             ClearAll();
             SetScoreCounter();
             if (ChapterIndex + 1 == CurrentStage.StageElements.Count)
-            {
-                SetChapterComplete();
-            }
+                SetStageComplete();
+        }
+        else if (CurrentTick ==  ChapterSwitchTick - EndStageDelay)
+        {
         }
         else
         {
@@ -305,13 +306,13 @@ public class Game : IDisposable
         }
     }
 
-    private double StageEndAppearTime = 0;
-    private double StageEndDisppearTime = 0;
+    private double StageCompleteAppearTime = 0;
+    private double StageCompleteDisappearTime = 0;
     
-    private void SetChapterComplete()
+    private void SetStageComplete()
     {
-        StageEndAppearTime = GetTime();
-        StageEndDisppearTime = GetTime() + EndStageSignDisplayingDuration;
+        StageCompleteAppearTime = GetTime();
+        StageCompleteDisappearTime = GetTime() + EndStageSignDisplayingDuration;
     }
 
     private List<RemovedBullet> RemovedBullets = new();
@@ -345,7 +346,10 @@ public class Game : IDisposable
     public int EndGameAtStageWithIndex = 2;
 
     public static List<Stage> Stages =
-        Directory.GetFiles("Assets/Data/Stages").Select(x => JsonSerializer.Deserialize<Stage>(File.ReadAllText(x))).ToList()!;
+        Directory.GetFiles("Assets/Data/Stages").Select(x => JsonSerializer.Deserialize<Stage>(File.ReadAllText(x), new JsonSerializerOptions()
+        {
+            IncludeFields =true
+        })).ToList()!;
     
     void LoadNextStage()
     {
@@ -638,7 +642,7 @@ public class Game : IDisposable
             info = x.GetRenderInfo(state);
             #if DEBUG
             if(IsKeyDown(KeyboardKey.F))
-            DrawText($"source_rc: {x.SourceRect}, info_rc: {info.rc}", 0, vy+=8,8,Color.White);
+                DrawText($"source_rc: {x.SourceRect}, info_rc: {info.rc}", 0, vy+=8,8,Color.White);
             #endif
             DrawTexturePro(x.SourceTexture, x.SourceRect, info.rc, Vector2.Zero, info.rotation, Color.White);
         }
@@ -685,7 +689,7 @@ public class Game : IDisposable
             time, FullPowerAppearTimestamp, BonusAppearDuration, FullPowerDisappearTimestamp, BonusAppearDuration
         );
         float stageCompleteState = (float)Helper.ComputeObjectTime(
-            time, StageEndAppearTime, BonusAppearDuration, StageEndDisppearTime, BonusAppearDuration
+            time, StageCompleteAppearTime, BonusAppearDuration, StageCompleteDisappearTime, BonusAppearDuration
         );
         if (IsDialog)
         {
@@ -791,7 +795,8 @@ public class Game : IDisposable
             DrawText("FullPowerAppearTimestamp: " + FullPowerAppearTimestamp, 0, 48, 24, Color.White);
             DrawText("FullPowerDisappearTimestamp: " + FullPowerDisappearTimestamp, 0, 72, 24, Color.White);
             DrawText("state: " + fullPowerState, 0, 96, 24, Color.White);
-            DrawText("state: " + fullPowerState, 0, 120, 24, Color.White);
+            DrawText("stageCompleteState: " + stageCompleteState, 0, 144, 24, Color.White);
+            DrawText($"stageCompleteTimestamps: {StageCompleteAppearTime}, {StageCompleteDisappearTime}", 0, 168, 24, Color.White);
         }
         #endif 
         DrawTexturePro(Runtime.CurrentRuntime.Textures["full-power.png"], BonusSourceRect, BonusTargetRect with { Height = BonusTargetRect.Height * fullPowerState }, Vector2.Zero, 0, Color.White);
@@ -873,10 +878,17 @@ public class Game : IDisposable
             return;
         if (GetTime() < DialogSkipCooldownBefore)
             return;
-        if (IsKeyDown(KeyboardKey.Z))
+        if (Player.IsShooting)
         {
             DialogSkipCooldownBefore = GetTime() + DialogSkipDelay;
-            NextDialogTick = CurrentTick + 1;
+            if (dialogIndex + 1 == CurrentDialog.Elements.Count)
+            {
+                ChapterSwitchTick = CurrentTick + 1;
+                NextDialogTick = int.MaxValue;
+                DialogDisappearTime = GetTime() + 0.5 + TickLength * DialogLength;
+            }
+            else
+                NextDialogTick = CurrentTick + 1;
             if (dialogIndex + 1 == CurrentDialog.Elements.Count)
                 ChapterSwitchTick = CurrentTick + 1;
         }

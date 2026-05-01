@@ -11,14 +11,13 @@ using Rectangle = Raylib_cs.Rectangle;
 
 namespace DmitryAndDemid.Common;
 
-public class MenuScreen : Screen
+public abstract class MenuScreen : ScreenWithTitle
 {
     public const double MenuSwitchCooldown = 0.125;
     public const double MenuActivateCooldown = 0.5;
-
-    protected Dictionary<string, EventHandler<int>> Menu = new();
-    protected RenderTexture2D[] MenuItems;
+    
     protected int CurrentY = 0;
+    protected List<MenuItem> MenuItems = new();
     protected int CurrentX = 0;
     protected int SelectedIndex = 0;
     protected bool AllowExitWithEscape = true;
@@ -29,14 +28,6 @@ public class MenuScreen : Screen
 
     protected double AnimationStartedAt = 0;
     protected double AnimationStartedIndex = 0;
-
-
-    static MenuScreen()
-    {
-        MenuTextureTarget = Helper.Scale(
-            new Rectangle(0, 0, 640, 135), 
-            Runtime.CurrentRuntime.Scale);
-    }
     
     public MenuScreen()
     {
@@ -46,14 +37,7 @@ public class MenuScreen : Screen
     protected override void Created()
     {
         AnimationStartedIndex = SelectedIndex;
-        
         CreateMenu();
-        MenuItems = new RenderTexture2D[Menu.Count()];
-
-        for (int i = 0; i < Menu.Count(); i++)
-        {
-            MenuItems[i] = DrawMenuItem(Menu.Keys.ElementAt(i));
-        }
     }
 
     static RenderTexture2D DrawMenuItem(string text)
@@ -71,10 +55,7 @@ public class MenuScreen : Screen
     
     public static double PreviousKeyTimestamp = 0;
     protected int PreviousSelectedIndex = 0;
-    EventHandler<int>? Event;
-    private Texture2D MenuTitleTexture;
-    private static Rectangle MenuTextureSource = new Rectangle(0, 0, 1920, 270);
-    private static Rectangle MenuTextureTarget;
+    Action<int>? Event;
 
     bool ItemActivated = false;
 
@@ -86,20 +67,20 @@ public class MenuScreen : Screen
                 return;
             ItemActivated = false;
             if (Event != null)
-                Event.Invoke(null, 0);
+                Event.Invoke(0);
         }
         if (GetTime() - PreviousKeyTimestamp < MenuSwitchCooldown)
             return;
-        if (Raylib.IsKeyDown(KeyboardKey.Up)&& VerticalDirectionNavigation ||
-            IsKeyDown(KeyboardKey.Left) && HorizontalDirectionNavigation)
+        if ((IsKeyDown(KeyboardKey.Up) || Controller.IsButtonDown(GamepadButton.LeftFaceUp))&& VerticalDirectionNavigation ||
+            (IsKeyDown(KeyboardKey.Left) || Controller.IsButtonDown(GamepadButton.LeftFaceLeft)) && HorizontalDirectionNavigation)
         {
-            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
+            Helper.PlaySound(CurrentRuntime.Sounds["item-switch"]);
             PreviousKeyTimestamp = GetTime();
             PreviousSelectedIndex = SelectedIndex;
             double j = ComputeAnimationIndex();
             AnimationStartedIndex = j;
             AnimationStartedAt = GetTime();
-            if (MenuItems.Length == 0)
+            if (MenuItems.Count == 0)
                 return;
             if(LoopList)
                 SelectedIndex = (SelectedIndex - 1 + MenuItems.Count()) % MenuItems.Count();
@@ -107,8 +88,8 @@ public class MenuScreen : Screen
                 SelectedIndex = Math.Clamp(SelectedIndex - 1, 0, MenuItems.Count() - 1);
         }
         else if (
-            IsKeyDown(KeyboardKey.Down) && VerticalDirectionNavigation ||
-            IsKeyDown(KeyboardKey.Right) && HorizontalDirectionNavigation)
+            ((IsKeyDown(KeyboardKey.Down)) || Controller.IsButtonDown(GamepadButton.LeftFaceDown)) && VerticalDirectionNavigation ||
+            (IsKeyDown(KeyboardKey.Right) || Controller.IsButtonDown(GamepadButton.LeftFaceRight)) && HorizontalDirectionNavigation)
         {
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
             PreviousKeyTimestamp = GetTime();
@@ -116,27 +97,27 @@ public class MenuScreen : Screen
             double j = ComputeAnimationIndex();
             AnimationStartedIndex = j;
             AnimationStartedAt = GetTime();
-            if (MenuItems.Length == 0)
+            if (MenuItems.Count == 0)
                 return;
             if(LoopList)
                 SelectedIndex = (SelectedIndex + 1) % MenuItems.Count();
             else
                 SelectedIndex = Math.Clamp(SelectedIndex + 1, 0, MenuItems.Count() - 1);
         }
-        else if (Raylib.IsKeyDown(KeyboardKey.Enter))
+        else if (IsKeyDown(KeyboardKey.Enter) || IsKeyDown(KeyboardKey.Z) || Controller.IsButtonDown(GamepadButton.RightFaceDown))
         {
             PreviousKeyTimestamp = GetTime();
-            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["button"]);
+            Helper.PlaySound(CurrentRuntime.Sounds["button"]);
             if(SelectedIndex > MenuItems.Count() - 1)
                 return;
-            Event = Menu.ElementAt(SelectedIndex).Value;
+            Event = MenuItems[SelectedIndex].Action;
             ItemActivated = true;
         }
-        else if (AllowExitWithEscape && Raylib.IsKeyDown(KeyboardKey.Escape))
+        else if (AllowExitWithEscape && (IsKeyDown(KeyboardKey.Escape) || IsKeyDown(KeyboardKey.X) || Controller.IsButtonDown(GamepadButton.RightFaceRight)))
         {
             Exiting();
             PreviousKeyTimestamp = GetTime();
-            Event = (a, b) => Runtime.CurrentRuntime.RemoveScreen(this);
+            Event = a => CurrentRuntime.RemoveScreen(this);
             ItemActivated = true;
         }
     }
@@ -158,41 +139,13 @@ public class MenuScreen : Screen
         if (isPositive)
         {
             return Math.Min(AnimationStartedIndex + (GetTime() - AnimationStartedAt) / MenuSwitchCooldown,
-                (float)SelectedIndex + (isReverted ? Menu.Count : 0)) % Menu.Count;
+                (float)SelectedIndex + (isReverted ? MenuItems.Count : 0)) % MenuItems.Count;
         }
         else
         {
-            return Math.Max(AnimationStartedIndex - (GetTime() - AnimationStartedAt) / MenuSwitchCooldown + (isReverted ? Menu.Count : 0),
-                (float)SelectedIndex) % Menu.Count;
+            return Math.Max(AnimationStartedIndex - (GetTime() - AnimationStartedAt) / MenuSwitchCooldown + (isReverted ? MenuItems.Count : 0),
+                (float)SelectedIndex) % MenuItems.Count;
         }
-    }
-    
-    public virtual void Exiting()
-    {
-        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["esc"]);
-        TimeDisappear = (float)Raylib.GetTime() + 0.5f;
-        TimeDisappearTitle = (float)GetTime() + 0.5f;
-    }
-
-    private float TimeDisappearTitle = float.MaxValue;
-    private float TimeAppearTitle = float.MinValue;
-    
-    public override void Deactivated()
-    {
-        TimeDisappearTitle = (float)GetTime() + 0.5f;
-        base.Deactivated();
-    }
-
-    public override void Activated()
-    {
-        TimeAppearTitle = (float)GetTime();
-        TimeDisappearTitle = float.MaxValue;
-        base.Activated();
-    }
-
-    protected void SetTitle(Texture2D title)
-    {
-        MenuTitleTexture = title;
     }
     
     protected void DrawMenu()
@@ -206,7 +159,7 @@ public class MenuScreen : Screen
         float t = (float)GetTime();
         float swapNoise = 1-(float)Helper.ComputeObjectTimeStart(t, AnimationStartedAt, 0.25);
         foreach (var x in MenuItems)
-        { 
+        {
             offsetState = (float)Math.Abs(1-Math.Clamp(Math.Abs(cIndex - index), 0, 1));
             offset = offsetState * SelectedItemOffset;
             if (index == SelectedIndex)
@@ -214,7 +167,6 @@ public class MenuScreen : Screen
                 offset += swapNoise*SelectedNoise*new Vector2(MathF.Sin(t*100+24), MathF.Cos(t*100));
             }
             scale = SelectedItemScale * offsetState + 1f * (1 - offsetState);
-            
             DrawTextureEx(x.Texture, new Vector2(CurrentX + offset.X, y + offset.Y), 0, scale, 
                 index == SelectedIndex ? Helper.Mix(Color.Yellow, Color.White, MathF.Abs((t * 
                         (ItemActivated ? 30 : 2)
@@ -224,9 +176,73 @@ public class MenuScreen : Screen
         }
     }
 
-    protected void DrawTitle()
+    public class MenuItem : IDisposable
     {
-        float appear = (float)Helper.ComputeObjectTime(Raylib.GetTime(), TimeAppearTitle, .5f, TimeDisappearTitle, .5f);
-        DrawTexturePro(MenuTitleTexture, MenuTextureSource, MenuTextureTarget with { Y = (1-Helper.Pow2F(appear)) * MenuTextureTarget.Height * -1 }, Vector2.Zero, 0, Color.White);
+        public MenuItem(string text, string replace, Action<int>? action)
+        {
+            Action = action;
+            Text = text;
+            Replace = replace;
+        }
+
+        public static bool RequiresRender = false;
+        public static List<MenuItem> RenderItemQueue = new();
+        
+        private string text = "";
+        private string replace = "";
+        public Action<int>? Action;
+        public Texture2D Texture =>  texture.Texture;
+        private RenderTexture2D texture = new RenderTexture2D();
+
+        public static void AddToRender(MenuItem item)
+        {
+            if (RenderItemQueue.Contains(item))
+                return;
+            RequiresRender = true;
+            RenderItemQueue.Add(item);
+        }
+
+        public static void RenderItems()
+        {
+            RequiresRender = false;
+            foreach (var item in RenderItemQueue)
+                item.Render();
+            RenderItemQueue.Clear();
+        }
+
+        void Render()
+        {
+            if(texture.Id != 0)
+                UnloadRenderTexture(texture);
+            texture=Helper.DrawTextScaled(Helper.Translate(text).Replace("%s", Helper.Translate(replace)), 16, 8, 4, 2, Runtime.CurrentRuntime.Fonts["newsreader"], "gradient");
+        }
+        
+        public string Text
+        {
+            get => text;
+            set
+            {
+                text = value;
+                AddToRender(this);
+            }
+        }
+
+        public string Replace
+        {
+            get => replace;
+            set
+            {
+                if (replace == value)
+                    return;
+                replace = value;
+                AddToRender(this);
+            }
+        }
+
+        public void Dispose()
+        {
+            if(texture.Id != 0)
+                UnloadRenderTexture(texture);
+        }
     }
 }

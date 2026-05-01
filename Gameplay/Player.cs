@@ -88,8 +88,8 @@ public class Player : RuntimeObject
                 BulletVisual = "akob",
                 Rotation = MathF.PI,
                 Position = BulletSourcePositions[i],
-                BulletUpdateMethod = "MoveByDirection",
-                BulletCreateMethod = "WriteAngularDirection"
+                BulletActionClass = "MoveByDirection",
+                Args = ["UseRotation"]
             },0, false);
             b.PlayerShoot = true;
             Game.AddObject(b);

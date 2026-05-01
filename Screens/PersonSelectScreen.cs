@@ -47,7 +47,7 @@ public class PersonSelectScreen : MenuScreen
         int i = 0;
         foreach (var x in Files)
         {
-            Menu[Path.GetFileNameWithoutExtension(x)] = (a, b) => OpenNext();
+            MenuItems.Add(new MenuItem(Path.GetFileNameWithoutExtension(x),"", a => OpenNext()));
             var json = JsonSerializer.Deserialize<ProtogonistData>(File.ReadAllText(x));
             ArtTextures[i] = Runtime.CurrentRuntime.Textures[json.ArtName];
             DescriptionTextures[i] = Runtime.CurrentRuntime.Textures[json.Description];
@@ -71,9 +71,9 @@ public class PersonSelectScreen : MenuScreen
         float appear = (float)Helper.ComputeObjectTime(Raylib.GetTime(), TimeAppear, .5f, TimeDisappear, .5f);
         float invertedAppearElastic = Helper.EaseInOutElasticF(1 - appear);
         float index = (float)ComputeAnimationIndexLoop();
-        for(int j = 0; j < Menu.Count; j++)
+        for(int j = 0; j < MenuItems.Count; j++)
         {
-            float position = ((index + 1 - j + Menu.Count) % Menu.Count)-1;
+            float position = ((index + 1 - j + MenuItems.Count) % MenuItems.Count)-1;
             float transparency = 1-Math.Abs(position);
             DrawTexturePro(
                 Runtime.CurrentRuntime.Textures["MenuItemSelectionGradient1"], 

@@ -17,33 +17,33 @@ public class PauseMenu : MenuScreen
 
     public override void CreateMenu()
     {
-        Menu["ingame.continue"] = (a, b) =>
+        MenuItems.Add(new MenuItem("ingame.continue", "", a =>
         {
             if (GameplayScreen.Game!.ForcedPause)
                 return;
             GameplayScreen.Resume();
             Runtime.CurrentRuntime.RemoveScreen(this);
-        };
-        Menu["ingame.save"] = (a, b) =>
+        }));
+        MenuItems.Add(new MenuItem("ingame.save", "", a =>
         {
             IngameSaveReplayScreen replayScreen = new IngameSaveReplayScreen((GameplayScreen.Game!.Player.Controller as PlayerController)!, GameplayScreen);
             Runtime.CurrentRuntime.AddScreen(replayScreen);
-        };
-        Menu["ingame.save_and_exit"] = (a, b) =>
+        }));
+        MenuItems.Add(new MenuItem("ingame.save_and_exit", "", a =>
         {
             IngameSaveReplayScreen replayScreen = new IngameSaveReplayScreen((GameplayScreen.Game!.Player.Controller as PlayerController)!, GameplayScreen);
             Runtime.CurrentRuntime.AddScreen(replayScreen);
             replayScreen.ExitAfterSave = true;
-        };
-        Menu["ingame.restart"] = (a, b) =>
+        }));
+        MenuItems.Add(new MenuItem("ingame.restart", "", a =>
         {
             
-        };
-        Menu["ingame.exit"] = (a, b) =>
+        }));
+        MenuItems.Add(new MenuItem("ingame.exit", "", a =>
         {
             Runtime.CurrentRuntime.RemoveScreen(this); 
             Runtime.CurrentRuntime.RemoveScreen(GameplayScreen);
-        };
+        }));
     }
 
     public override void Activated()

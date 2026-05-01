@@ -4,9 +4,9 @@
   "TitleTick": 0,
   "Bosses": [
     {
-    "ID": "nikitos_mid",
-    "DialogElementAppearID": "midboss_appear",
-    "BossSpriteTexture": "nikitos-sprite.png"
+      "ID": "nikitos_mid",
+      "DialogElementAppearID": "midboss_appear",
+      "BossSpriteTexture": "nikitos-sprite.png"
     },
     {
       "ID": "nikitos_main",
@@ -16,80 +16,53 @@
   ],
   "Chapters": [
     {
-      "ChapterLength": 200,
+      "ChapterLength": 1200,
       "Index": 0,
-      "EnemySpawnInfos": [{
+      "EnemySpawnInfos": [
+        {
         "Visual": "jv",
-        "Script":  "MoveLinearDownRight",
-        "AttackScript": "ShootIntoPlayer",
+        "Actions": [
+          {
+            "Class": "MoveByRotation"
+          },
+          {
+            "Class": "ShootIntoPlayer",
+            "Args": ["16", "240", "default"]
+          }
+        ],
+        "Rotation": 45,
         "SpawnTick": 60,
-        "Position": {"X": -32, "Y": 0},
+        "Position": {"X": -32, "Y": 32},
         "Speed": 2,
         "Stacked": true,
         "StackLength": 10,
-        "StackDelay": 30,
+        "StackDelay": 60,
         "BulletSpeed": 3,
         "BulletSpawnRate": 10,
         "Health": 2
-      },{
-        "Visual": "jv",
-        "Script":  "MoveLinearDownLeft",
-        "AttackScript": "ShootIntoPlayer",
-        "SpawnTick": 60,
-        "Position": {"X": 416, "Y": 0},
-        "Speed": 2,
-        "Stacked": true,
-        "StackLength": 10,
-        "StackDelay": 30,
-        "BulletSpeed": 3,
-        "BulletSpawnRate": 10,
-        "Health": 2,
-        "DropLargePowerPointsCount": 3,
-        "DropScorePointsCount": 6
-      }, {
-        "Visual": "nutella",
-        "Script":  "TargetLinear",
-        "AttackScript": "ShootDirectional",
-        "SpawnTick": 600,
-        "Position": {"X": 320, "Y": -32},
-        "Speed": 2,
-        "BulletSpeed": 3,
-        "BulletSpawnRate": 10,
-        "PositionTarget": {"X": 320, "Y": 64},
-        "FinalPosition": {"X": 320, "Y": 600 },
-        "DislocationOnTargetDuration": 600,
-        "ShootStreamCount": 2,
-        "AngleBetweenStreams": 45,
-        "DropLargePowerPointsCount": 3
-      }, {
-        "Visual": "nutella",
-        "Script":  "TargetLinear",
-        "AttackScript": "ShootDirectional",
-        "SpawnTick": 660,
-        "Position": {"X": 64, "Y": -32},
-        "Speed": 2,
-        "BulletSpeed": 3,
-        "BulletSpawnRate": 10,
-        "PositionTarget": {"X": 64, "Y": 64},
-        "FinalPosition": {"X": 64, "Y": 600 },
-        "DislocationOnTargetDuration": 600,
-        "ShootStreamCount": 2,
-        "AngleBetweenStreams": 45
-      },{
-        "Visual": "nutella",
-        "Script":  "TargetLinear",
-        "AttackScript": "ShootDirectional",
-        "SpawnTick": 720,
-        "Position": {"X": 192, "Y": -32},
-        "Speed": 2,
-        "BulletSpeed": 3,
-        "BulletSpawnRate": 10,
-        "PositionTarget": {"X": 192, "Y": 64},
-        "FinalPosition": {"X": 192, "Y": 600 },
-        "DislocationOnTargetDuration": 600,
-        "ShootStreamCount": 2,
-        "AngleBetweenStreams": 45
-      }]
+      },
+        {
+          "Visual": "jv",
+          "Actions": [
+            {
+              "Class": "MoveByRotation"
+            },
+            {
+              "Class": "CircleShoot",
+              "Args": ["16", "16", "default", "true", ""]
+            }
+          ],
+          "Rotation": 135,
+          "SpawnTick": 60,
+          "Position": {"X": 406, "Y": 32},
+          "Speed": 2,
+          "Stacked": true,
+          "StackLength": 10,
+          "StackDelay": 60,
+          "BulletSpeed": 3,
+          "BulletSpawnRate": 10,
+          "Health": 2
+        }]
     },
     {
       "ChapterLength": 120,
@@ -101,15 +74,15 @@
         "BulletCreateMethod": "WriteDirectionToPlayer",
         "BulletVisual": "default",
         "SpawnTick": 40
-      }, 
+      },
         {
           "Position": {"X": 192, "Y": 24},
           "Speed": 10,
-        "BulletUpdateMethod": "MoveByDirection",
-        "BulletCreateMethod": "WriteDirectionToPlayer",
-        "BulletVisual": "default",
-        "SpawnTick": 45
-      },
+          "BulletUpdateMethod": "MoveByDirection",
+          "BulletCreateMethod": "WriteDirectionToPlayer",
+          "BulletVisual": "default",
+          "SpawnTick": 45
+        },
         {
           "Position": {"X": 192, "Y": 24},
           "Speed": 10,

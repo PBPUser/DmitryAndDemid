@@ -86,7 +86,9 @@ public class GameplayScreen : Screen
     public override void TopUpdate()
     {
         Game!.ProcessInput();
-        if (IsKeyDown(KeyboardKey.Escape)  && !Game!.ForcedPause && GetTime() - MenuScreen.PreviousKeyTimestamp > MenuScreen.MenuSwitchCooldown)
+        if ((IsKeyDown(KeyboardKey.Escape) ||
+             Controller.IsButtonDown(Configuration.Config.PauseButton)) 
+            && !Game!.ForcedPause && GetTime() - MenuScreen.PreviousKeyTimestamp > MenuScreen.MenuSwitchCooldown)
         {
             MenuScreen.PreviousKeyTimestamp = GetTime();
             Paused = !Paused;

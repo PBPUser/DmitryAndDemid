@@ -1,0 +1,8 @@
+{
+  "Description": "Иди мойся под струю\nПройти основную игру за sugar с депозитом",
+  "ID": "clearas_sugar_bad",
+  "Index": 9,
+  "HasAction": true,
+  "ActionType": "ending",
+  "ActionInfo": "sugar_bad"
+}

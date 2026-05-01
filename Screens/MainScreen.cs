@@ -2,6 +2,7 @@ using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Utils;
+using GLib;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
 
@@ -58,9 +59,11 @@ public class MainScreen : MenuScreen
         MusicRoom = new MusicRoomScreen();
         SelectedItemOffset = new Vector2(8, 0) * Runtime.CurrentRuntime.ScaleF;
         SelectedItemScale = 1.2f;
+        TrophyScreen = new TrophyScreen();
     }
 
     private MusicRoomScreen MusicRoom;
+    private TrophyScreen TrophyScreen;
     static Color DarkRed = new Color(0.7f, 0, 0, 1);
     static Rectangle LogoSourceLeft = new Rectangle(0, 0, 260, 190);
     static Rectangle LogoSourceRight = new Rectangle(810, 0, 270, 105);
@@ -125,51 +128,29 @@ public class MainScreen : MenuScreen
         DrawLine(640, 260, 640+(int)(hp.X * 500), 260+(int)(hp.Y * 500), Color.Blue);
         DrawText($"Test: {hp}", 0, 220, 20, Color.Red);
         DrawText($"Coords: {hp*500}", 0, 240, 20, Color.Red);
+        for (int i = 0; i < Runtime.CurrentRuntime.GamepadCount; i++)
+        {
+            DrawText($"Gamepad: {GetGamepadName_(i)} {IsGamepadButtonDown(i, GamepadButton.LeftFaceUp)} {IsGamepadButtonDown(i, GamepadButton.RightFaceLeft)}", 0, 260+i*20, 20, Color.Red);
+        }
         #endif
     }
 
     public override void CreateMenu()
     {
-        Menu["menu.start"] = (a, b) =>
-        {
-            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Default)));
-        };
-        Menu["menu.extra"] = (a, b) => 
-        {
-            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Extra)));
-        };
-        Menu["menu.practice"] = (a, b) =>
-        {
-            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Practice)));
-        };
-        Menu["menu.trophy"] = (a, b) =>
-        {
-            //Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(3)));
-        };
-        Menu["menu.music"] = (a, b) =>
-        {
-            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(MusicRoom));
-        };
-        Menu["menu.replay"] = (a, b) =>
-        {
-            //Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new IngameSaveReplayScreen()));
-        };
-        Menu["menu.stats"] = (a, b) =>
-        {
-            //Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Practice)));
-        };
+        
+        MenuItems.Add(new MenuItem("menu.start", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Default))));
+        MenuItems.Add(new MenuItem("menu.extra", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Extra))));
+        MenuItems.Add(new MenuItem("menu.practice", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Practice))));
+        MenuItems.Add(new MenuItem("menu.spell", "", a => {}));
+        MenuItems.Add(new MenuItem("menu.stats", "", a => {}));
+        MenuItems.Add(new MenuItem("menu.replay", "", a => {}));
+        MenuItems.Add(new MenuItem("menu.trophy", "", a => Runtime.CurrentRuntime.AddScreen(TrophyScreen)));
+        MenuItems.Add(new MenuItem("menu.music", "", a => Runtime.CurrentRuntime.AddScreen(MusicRoom)));
 #if DEBUG
-        Menu["Gameplay Editor"] = (a, b) => { };
+        MenuItems.Add(new MenuItem("Gameplay Editor", "", a => {}));
 #endif
-        Menu["menu.spell"] = (a, b) =>
-        {
-            //Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new PersonSelectScreen(true)));
-        };
-        Menu["menu.settings"] = (a, b) =>
-        {
-            Runtime.CurrentRuntime.AddAction(() => Runtime.CurrentRuntime.AddScreen(new SettingsScreen()));
-        };
-        Menu["menu.exit"] = (a, b) => { Environment.Exit(0); };
+        MenuItems.Add(new MenuItem("menu.settings", "", a => Runtime.CurrentRuntime.AddScreen(new SettingsScreen())));
+        MenuItems.Add(new MenuItem("menu.exit", "", a => Environment.Exit(0)));
     }
 
     public override void PreRender(double delta)

@@ -23,20 +23,15 @@ public class SettingsScreen : MenuScreen
     {
         SetTitle(Runtime.CurrentRuntime.Textures["settings.png"]);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
-        Menu["settings.sfx_down"] = (a, b) => Runtime.CurrentRuntime.SFXVolume = Math.Max(Runtime.CurrentRuntime.SFXVolume-0.1f, 0);
-        Menu["settings.sfx_up"] = (a, b) => Runtime.CurrentRuntime.SFXVolume = Math.Min(Runtime.CurrentRuntime.SFXVolume+0.1f, 1);
-        Menu["settings.music_down"] = (a, b) =>
-        {
-            Runtime.CurrentRuntime.MusicVolume = Math.Max(Runtime.CurrentRuntime.SFXVolume - 0.1f, 0);
-            Helper.UpdatePlayingMusic();
-        };
-        Menu["settings.music_up"] = (a, b) =>
-        {
-            Runtime.CurrentRuntime.MusicVolume -= Math.Min(Runtime.CurrentRuntime.SFXVolume + 0.1f, 1);
-            Helper.UpdatePlayingMusic();
-        };
+        MenuItems.Add(new MenuItem("settings.sfx", "", a => {}));
+        MenuItems.Add(new MenuItem("settings.music", "", a => {}));
+        MenuItems.Add(new MenuItem("settings.fullscreen", "", a => {}));
+        MenuItems.Add(new MenuItem("settings.vsync", "", a => {}));
+        MenuItems.Add(new MenuItem("settings.controller", "", a => {}));
+        MenuItems.Add(new MenuItem("settings.default", "", a => {}));
+        MenuItems.Add(new MenuItem("ingame.exit", "", a => {}));
         CurrentX = (int)(Runtime.CurrentRuntime.Scale * 32);
-        CurrentY = (int)(Runtime.CurrentRuntime.Scale * 256);
+        CurrentY = (int)(Runtime.CurrentRuntime.Scale * 192);
     }
 
     public override void Render()

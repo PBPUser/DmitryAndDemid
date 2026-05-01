@@ -43,7 +43,7 @@ public class MusicRoomScreen : MenuScreen
         {
             Infos[i] = JsonSerializer.Deserialize<MusicInfo>(File.ReadAllText(files[i]));
             Descriptions[i] = Helper.DrawText(Helper.Transliterate(Infos[i].Description), FontSize, 4, 2, 2, font, "gradient", Runtime.CurrentRuntime.ScaleF);
-            Menu[Infos[i].Title] = (j, a) => PlayMusic();
+            MenuItems.Add(new MenuItem(Infos[i].Title, "", a => PlayMusic()));
         }
         CurrentX = (int)(Runtime.CurrentRuntime.Scale * 32);
         CurrentY = (int)(Runtime.CurrentRuntime.Scale * 64);

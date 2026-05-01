@@ -70,16 +70,13 @@ public class IngameSaveReplayScreen : Screen
                 KeyboardModeSwitchInTime, 0.5,
                 KeyboardModeSwitchOutTime, 0.5);
         if (InKeyboardMode)
-        {
             Raylib.DrawTexture(MenuItems[Index].Texture, X, Y, Color.Yellow);
-            
-            return;
-        }
-        for (int i = 0; i < 20; i++)
-        {
-            Raylib.DrawTexture(MenuItems[i].Texture, X,
-                Y + (i*LineHeight), i == Index ? Color.Yellow : Color.White);
-        }
+        else
+            for (int i = 0; i < 20; i++)
+            {
+                Raylib.DrawTexture(MenuItems[i].Texture, X,
+                    Y + (i*LineHeight), i == Index ? Color.Yellow : Color.White);
+            }
         Keyboard.DrawKeyboard((Runtime.CurrentRuntime.Width - Keyboard.LineWidth)/2, (int)(Runtime.CurrentRuntime.Height - (Keyboard.KeyboardHeight*state)));
     }
 

@@ -22,9 +22,7 @@ public class PracticeScreen : MenuScreen
     {
         FileNames = Directory.GetFiles("Assets/Data/Stages", "*.json");
         foreach (var x in FileNames)
-        {
-            Menu[Path.GetFileNameWithoutExtension(x)] = (a, b) => OpenLevel(x);
-        }
+            MenuItems.Add(new MenuItem(x, "", a => OpenLevel(x)));
     }
 
     public override void Render()

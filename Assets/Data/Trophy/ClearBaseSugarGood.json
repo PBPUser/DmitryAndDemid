@@ -1,0 +1,8 @@
+{
+  "Description": "АААААААААААААА...\nПройти основную игру за Sugar не используя депозит",
+  "ID": "clearas_sugar_good",
+  "Index": 6,
+  "HasAction": true,
+  "ActionType": "ending",
+  "ActionInfo": "sugar_good"
+}

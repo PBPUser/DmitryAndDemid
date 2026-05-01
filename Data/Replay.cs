@@ -37,6 +37,9 @@ public class Replay
 
     public void Save(string fileName)
     {
+        string dir = String.Join('/', fileName.Replace("\\", "/").Split("/")[0..^1]);
+        if(!Directory.Exists(dir))
+            Directory.CreateDirectory(dir);
         File.WriteAllBytes(fileName, Export());
     }
 

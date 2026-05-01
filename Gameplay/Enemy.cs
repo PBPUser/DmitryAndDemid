@@ -1,4 +1,5 @@
 using System.Numerics;
+using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Gameplay.Collectables;
@@ -9,71 +10,8 @@ namespace DmitryAndDemid.Gameplay;
 
 public class Enemy : RuntimeObject
 {
-    private static Dictionary<string, Action<RuntimeObject>> Actions = new();
     static Enemy()
     {
-        Actions["MoveLinearDown"] = a => a.UpdateCollisionRender(a.PositionTo + new Vector2(0, a.Speed), a.RotateTo);
-        Actions["ShootIntoPlayer"] = a =>
-        {
-            if (a.PositionTo.Y > 320)
-                return;
-            if (a.Game.Difficulty == 0)
-                return;
-            var enemy = (a as Enemy);
-            if (a.Game.CurrentTick % (enemy.BulletSpawnRate * (5 - a.Game.Difficulty)) == 0)
-            {
-                a.Game.AddObject(new Bullet(a.Game, new BulletSpawnInfo()
-                {
-                    Speed = enemy.BulletSpeed,
-                    SpawnTick = a.Game.CurrentTick,
-                    BulletCreateMethod = "WriteDirectionToPlayer",
-                    BulletVisual = "default",
-                    BulletUpdateMethod = "MoveByDirection",
-                    Position = a.PositionTo
-                }, 0, true));
-            }
-        };
-        Actions["ShootDirectional"] = a =>
-        {
-            if (a.PositionTo.Y > 320)
-                return;
-            if (a.Game.Difficulty == 0)
-                return;
-            var enemy = (a as Enemy);
-            if (a.Game.CurrentTick % (enemy.BulletSpawnRate) == 0)
-            {
-                float startingPoint = -enemy.ShootStreamCount / 2f * enemy.AngleBetweenStreams + enemy.RotateTo;
-                for (int i = 0; i < enemy.ShootStreamCount; i++)
-                    a.Game.AddObject(new Bullet(a.Game, new BulletSpawnInfo()
-                    {
-                        Speed = enemy.BulletSpeed * a.Game.Difficulty,
-                        SpawnTick = a.Game.CurrentTick,
-                        BulletCreateMethod = "WriteAngularDirection",
-                        BulletVisual = "default",
-                        BulletUpdateMethod = "MoveByDirection",
-                        Position = a.PositionTo,
-                        Rotation = startingPoint + (i * enemy.AngleBetweenStreams)
-                    }, 0, true));
-            }
-        };
-        Actions["MoveLinearDownRight"] = a => a.UpdateCollisionRender(a.PositionTo + new Vector2(a.Speed, a.Speed), a.RotateTo);
-        Actions["MoveLinearDownLeft"] = a => a.UpdateCollisionRender(a.PositionTo + new Vector2(-a.Speed, a.Speed), a.RotateTo);
-        Actions["TargetLinear"] = a =>
-        {
-            var enemy = (a as Enemy);
-            Vector2 pos = Vector2.Zero;
-            if (enemy.PositionTo != enemy.Target)
-            {
-                pos = Raymath.Vector2MoveTowards(a.PositionTo, enemy.Target, a.Speed) - a.PositionTo;
-            }
-            else if (enemy.DislocationOnTargetDuration > a.Game.CurrentTick - a.SpawnTick)
-                return;
-            else
-                pos = Raymath.Vector2MoveTowards(a.PositionTo, enemy.Final, a.Speed) - a.PositionTo;
-            a.UpdateCollisionRender(
-                enemy.PositionTo + pos,
-                0);
-        };
     }
 
     private EnemySpawnInfo Info;
@@ -84,12 +22,6 @@ public class Enemy : RuntimeObject
     {
         Info = info;
         Attackable = true;
-        if (Actions.ContainsKey(info.Script))
-            UpdateScript = Actions[info.Script];
-        if (Actions.ContainsKey(info.CreateScript))
-            CreateScript = Actions[info.CreateScript];
-        if (Actions.ContainsKey(info.AttackScript))
-            AttackScript = Actions[info.AttackScript];
         Speed = info.Speed;
         BulletSpeed = info.BulletSpeed;
         BulletSpawnRate = info.BulletSpawnRate;
@@ -102,7 +34,16 @@ public class Enemy : RuntimeObject
         Health = info.Health;
         ShootStreamCount = info.ShootStreamCount;
         AngleBetweenStreams = info.AngleBetweenStreams / 180 * MathF.PI;
-        UpdateCollisionRender((info.StackPositionOffset * numberInStack) + PositionTo, RotateTo);
+        UpdateCollisionRender((info.StackPositionOffset * numberInStack) + info.Position, Helper.ToRadians(info.Rotation + info.StackRotationOffset * numberInStack));
+        EnemyActions = new EnemyAction[info.Actions.Length];
+        for(int i =0;i<info.Actions.Length;i++)
+        {
+            if (EnemyAction.Actions.TryGetValue(info.Actions[i].Class, out var j))
+            {
+                EnemyActions[i] = (EnemyAction)j.GetConstructors().First(x => x.GetParameters().Length == 0).Invoke([]);
+                EnemyActions[i].Init(info.Actions[i].Args, game, this);
+            }
+        }    
     }
 
     public Vector2 Target = Vector2.Zero, Final = Vector2.Zero;
@@ -156,11 +97,12 @@ public class Enemy : RuntimeObject
 
     public float BulletSpeed;
     public float BulletSpawnRate;
-    public Action<RuntimeObject>? AttackScript { get; set; }
+    public EnemyAction[] EnemyActions;
 
     public override void Update()
     {
-        AttackScript?.Invoke(this);
+        foreach (var action in EnemyActions)
+            action.Act(this);
     }
 
     public override void Attack(float damage)

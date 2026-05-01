@@ -1,4 +1,5 @@
 using System.Numerics;
+using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Utils;
@@ -8,6 +9,7 @@ namespace DmitryAndDemid.Gameplay;
 
 public class Bullet : RuntimeObject
 {
+    private BulletAction? RuntimeAction = null;
     private static Dictionary<string, Action<RuntimeObject>> BulletUpdateActions = new();
     public bool PlayerShoot = false;
     
@@ -15,7 +17,7 @@ public class Bullet : RuntimeObject
     {
         BulletUpdateActions["MoveByDirection"] = obj =>
         {
-            obj.UpdateCollisionRender(obj.PositionTo + (Vector2)(obj.Dictionary["Direction"]),0);
+            obj.UpdateCollisionRender(obj.PositionTo + (Vector2)(obj.Dictionary["Direction"]),obj.RotateTo);
         };
         BulletUpdateActions["WriteDirectionToPlayer"] = obj =>
         {
@@ -43,15 +45,17 @@ public class Bullet : RuntimeObject
         Damage = info.Damage;
         RotateTo = info.Rotation;
         var constant = BulletVisual.Constants[info.BulletVisual];
-        UpdateScript = BulletUpdateActions[info.BulletUpdateMethod];
-        if(BulletUpdateActions.ContainsKey(info.BulletCreateMethod))
-            CreateScript = BulletUpdateActions[info.BulletCreateMethod];
         Speed = info.Speed;
         SpawnTick = numberInStack * info.StackDelay + info.SpawnTick;
         SourceTexture = Runtime.CurrentRuntime.Textures[constant.Texture];
         SourceRect = new Rectangle(constant.SourcePosition,
             constant.SourceSize == null ?  constant.RenderSize :  constant.SourceSize!.Value);
-        UpdateCollisionRender(PositionTo+(info.StackPositionOffset*numberInStack), RotateTo);
+        UpdateCollisionRender(PositionTo+(info.StackPositionOffset*numberInStack), info.Rotation);
+        if (BulletAction.Actions.TryGetValue(info.BulletActionClass, out var action))
+        {
+            RuntimeAction = (BulletAction)action.GetConstructors().First().Invoke([]);
+            RuntimeAction.Init(info.Args, game, this);
+        }
     }
 
     Bullet(Game game, Vector2 pos, Vector2 renderSize, Vector2 collisionSize) : base(game, pos, renderSize,
@@ -65,6 +69,7 @@ public class Bullet : RuntimeObject
     
     public override void Update()
     {
+        RuntimeAction?.Act(this);
         if (InCollectableState)
         {
             if (Helper.IsCollied(Game.Player.Collision, Collision))

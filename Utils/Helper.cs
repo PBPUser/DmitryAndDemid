@@ -405,6 +405,11 @@ public static class Helper
         return 180 / MathF.PI * FindAngle(v1, v2);
     }
 
+    public static float ToRadians(float degree)
+    {
+        return  degree * MathF.PI / 180f;
+    }
+
     public static Vector2 GetDirection(Vector2 v1, Vector2 v2)
     {
         var angle = FindAngle(Vector2.Zero, v2-v1);

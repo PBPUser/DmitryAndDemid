@@ -39,6 +39,7 @@ public class Runtime
     public Dictionary<string, Texture2D> Textures = new();
     public Dictionary<string, Sound> Sounds = new();
     public Dictionary<string, Font> Fonts = new();
+    public int GamepadCount = 0;
 
     public async Task Start()
     {
@@ -231,11 +232,20 @@ public class Runtime
     {
         if (ScreenRefreshRequired)
             RefreshScreens();
+        GamepadCheck();
         for (int i = UpdateRenderFrom; i < Screens.Count; i++)
         {
             Screens[i].PreRender(delta);
         }
         Screens.Last().TopUpdate();
+    }
+
+    void GamepadCheck()
+    {
+        int prevGamepadCount = GamepadCount;
+        GamepadCount = 0;
+        while (IsGamepadAvailable(GamepadCount))
+            GamepadCount++;
     }
 
     void RefreshScreens()
@@ -261,6 +271,8 @@ public class Runtime
     void Render()
     {
         BeginDrawing();
+        if(MenuScreen.MenuItem.RequiresRender)
+            MenuScreen.MenuItem.RenderItems();
         ClearBackground(Color.Black);
         for (int i = UpdateRenderFrom; i < Screens.Count; i++)
             Screens[i].Render();
