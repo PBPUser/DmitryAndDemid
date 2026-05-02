@@ -10,7 +10,7 @@ public abstract class EnemyAction
     public int ToTick = 0;
     
     public static Dictionary<string, Type> Actions = new();
-
+    
     static EnemyAction()
     {
         LoadRuntimeActions();
@@ -33,9 +33,10 @@ public abstract class EnemyAction
         if (LimitTicks)
         {
             var x = enemy.Game.CurrentTick - enemy.SpawnTick;
-            if(x > FromTick && x < ToTick)
-                Act(enemy);
+            if (x < FromTick || x > ToTick)
+                return;
         }
+        Act(enemy);
     }
 
     public virtual void Init(string[] values, Game game, Enemy enemy)

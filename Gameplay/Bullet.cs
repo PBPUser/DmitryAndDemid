@@ -48,6 +48,7 @@ public class Bullet : RuntimeObject
         Speed = info.Speed;
         SpawnTick = numberInStack * info.StackDelay + info.SpawnTick;
         SourceTexture = Runtime.CurrentRuntime.Textures[constant.Texture];
+        Effect = constant.Effect;
         SourceRect = new Rectangle(constant.SourcePosition,
             constant.SourceSize == null ?  constant.RenderSize :  constant.SourceSize!.Value);
         UpdateCollisionRender(PositionTo+(info.StackPositionOffset*numberInStack), info.Rotation);

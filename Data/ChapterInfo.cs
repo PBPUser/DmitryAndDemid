@@ -10,6 +10,6 @@ public class ChapterInfo : StageElement
     [JsonInclude] public int ChapterLength = 25;
     [JsonInclude] public BulletSpawnInfo[] BulletSpawnInfos = new BulletSpawnInfo[0];
     [JsonInclude] public EnemySpawnInfo[] EnemySpawnInfos = new EnemySpawnInfo[0];
-    [JsonInclude] public int[] Difficulty = [0,1,2,3];
     [JsonInclude] public BossActionInfo[] BossActionInfos = new BossActionInfo[0];
+    [JsonInclude] public int[] Difficulty = [0,1,2,3,4];
 }

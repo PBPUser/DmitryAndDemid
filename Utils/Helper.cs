@@ -227,6 +227,14 @@ public static class Helper
         return timeAppear * timeDisappear;
     }
 
+    public static float ComputeObjectTime0To2(float time, float start, float appearLength, float end,
+        float disappearLength)
+    {
+        float timeAppear = Clamp((time - start) / appearLength, 0, 1);
+        float timeDisappear = Clamp((time - end) / disappearLength, 0, 1);
+        return timeAppear + timeDisappear;
+    }
+
     public static double ComputeObjectTimeStart(double time, double start, double appearLength)
     {
         return Math.Clamp((time - start) / appearLength, 0, 1);
@@ -394,27 +402,13 @@ public static class Helper
         return texture;
     }
 
-    public static float FindAngle(Vector2 v1, Vector2 v2)
-    {
-        var angle = MathF.Atan2(v2.Y, v2.X)-MathF.Atan2(v1.Y, v1.X);
-        return angle;
-    }
+    public static float FindAngle(Vector2 v1, Vector2 v2) => MathF.Atan2((v2-v1).Y, (v2-v1).X);
 
-    public static float FindAngleDegress(Vector2 v1, Vector2 v2)
-    {
-        return 180 / MathF.PI * FindAngle(v1, v2);
-    }
+    public static float FindAngleDegrees(Vector2 v1, Vector2 v2) => FindAngle(v1, v2) * 180 / MathF.PI;
 
-    public static float ToRadians(float degree)
-    {
-        return  degree * MathF.PI / 180f;
-    }
+    public static float ToRadians(float degree) => degree * MathF.PI / 180f;
 
-    public static Vector2 GetDirection(Vector2 v1, Vector2 v2)
-    {
-        var angle = FindAngle(Vector2.Zero, v2-v1);
-        return GetDirection(angle);
-    }
+    public static Vector2 GetDirection(Vector2 v1, Vector2 v2) => GetDirection(FindAngle(v1, v2));
     
     public static Vector2 GetDirection(float angle) => new(MathF.Cos(angle), MathF.Sin(angle));
 

@@ -17,17 +17,17 @@ public class CircleShoot : EnemyAction
     public override void Act(Enemy enemy)
     {
         int tick = enemy.Game.CurrentTick - enemy.SpawnTick;
-        if (tick % Rate != 0)
+        if ((enemy.Game.CurrentTick - enemy.SpawnTick) % Rate != 0)
             return;
-        float angle = TargetPlayer ? Raymath.Vector2Angle(enemy.PositionTo, enemy.Game.Player.PositionTo) : RotationStart;
-        float angleDif = MathF.PI *2 / BulletsCount;
+        float angle = TargetPlayer ? Helper.FindAngle(enemy.PositionTo, enemy.Game.Player.PositionTo) : RotationStart;
+        float angleDif = MathF.PI * 2 / BulletsCount;
         for(int i = 0; i < BulletsCount; i++)
             enemy.Game.AddObject(new Bullet(enemy.Game, new BulletSpawnInfo()
             {
                 Speed = enemy.BulletSpeed,
                 SpawnTick = enemy.Game.CurrentTick,
                 BulletActionClass = "MoveByDirection",
-                Args = ["UseRotation"],
+                Args = ["UseRotationRad"],
                 BulletVisual = Visual,
                 Position = enemy.PositionTo,
                 Rotation = angle + angleDif * i

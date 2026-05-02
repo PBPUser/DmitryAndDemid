@@ -20,4 +20,5 @@ public class BulletVisual
     [JsonInclude] public Vector2 RenderSize;
     [JsonInclude] public Vector2 SourcePosition = new Vector2(0, 0);
     [JsonInclude] public Vector2? SourceSize = null;
+    [JsonInclude] public string Effect = "";
 }

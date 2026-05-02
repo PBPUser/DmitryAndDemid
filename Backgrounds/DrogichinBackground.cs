@@ -10,15 +10,15 @@ public class DrogichinBackground : StageBackground
 {
     private static DrogichinPoint[] Points =
     {
-        new DrogichinPoint(234, 811, 0,-90-Helper.FindAngleDegress(new Vector2(234,811), new Vector2(401,887))),
-        new DrogichinPoint(401, 887, 100,-90-Helper.FindAngleDegress(new Vector2(234,811), new Vector2(401,887))),
-        new DrogichinPoint(581, 953, 200, -90-Helper.FindAngleDegress(new Vector2(401,887), new Vector2(581,953))),
-        new DrogichinPoint(830, 941, 300, -90-Helper.FindAngleDegress(new Vector2(581,953), new Vector2(830,941))),
-        new DrogichinPoint(1048, 927, 400, -90-Helper.FindAngleDegress(new Vector2(830,941), new Vector2(1048,927))),
-        new DrogichinPoint(1144, 926, 500, -90-Helper.FindAngleDegress(new Vector2(1048,927), new Vector2(1144,926))),
-        new DrogichinPoint(2208, 726, 660, -90-Helper.FindAngleDegress(new Vector2(1144,926), new Vector2(2208,726))),
-        new DrogichinPoint(2208, 707, 690, -90-Helper.FindAngleDegress(new Vector2(2208,707), new Vector2(2258,255))),
-        new DrogichinPoint(2258, 255, 800, -90-Helper.FindAngleDegress(new Vector2(2258,255), new Vector2(2258,255))),
+        new DrogichinPoint(234, 811, 0,-90-Helper.FindAngleDegrees(new Vector2(234,811), new Vector2(401,887))),
+        new DrogichinPoint(401, 887, 100,-90-Helper.FindAngleDegrees(new Vector2(234,811), new Vector2(401,887))),
+        new DrogichinPoint(581, 953, 200, -90-Helper.FindAngleDegrees(new Vector2(401,887), new Vector2(581,953))),
+        new DrogichinPoint(830, 941, 300, -90-Helper.FindAngleDegrees(new Vector2(581,953), new Vector2(830,941))),
+        new DrogichinPoint(1048, 927, 400, -90-Helper.FindAngleDegrees(new Vector2(830,941), new Vector2(1048,927))),
+        new DrogichinPoint(1144, 926, 500, -90-Helper.FindAngleDegrees(new Vector2(1048,927), new Vector2(1144,926))),
+        new DrogichinPoint(2208, 726, 660, -90-Helper.FindAngleDegrees(new Vector2(1144,926), new Vector2(2208,726))),
+        new DrogichinPoint(2208, 707, 690, -90-Helper.FindAngleDegrees(new Vector2(2208,707), new Vector2(2258,255))),
+        new DrogichinPoint(2258, 255, 800, -90-Helper.FindAngleDegrees(new Vector2(2258,255), new Vector2(2258,255))),
         
     };
 

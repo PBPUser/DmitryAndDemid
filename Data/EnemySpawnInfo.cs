@@ -25,4 +25,7 @@ public class EnemyActionInfo
 {
     [JsonInclude] public string Class = "";
     [JsonInclude] public string[] Args = [];
+    [JsonInclude] public bool LimitTicks = false;
+    [JsonInclude] public int FromTick = 0;
+    [JsonInclude] public int ToTick = 0;
 }

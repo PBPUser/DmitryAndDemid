@@ -18,29 +18,8 @@
     {
       "ChapterLength": 1200,
       "Index": 0,
+      "Difficulty": [0],
       "EnemySpawnInfos": [
-        {
-        "Visual": "jv",
-        "Actions": [
-          {
-            "Class": "MoveByRotation"
-          },
-          {
-            "Class": "ShootIntoPlayer",
-            "Args": ["16", "240", "default"]
-          }
-        ],
-        "Rotation": 45,
-        "SpawnTick": 60,
-        "Position": {"X": -32, "Y": 32},
-        "Speed": 2,
-        "Stacked": true,
-        "StackLength": 10,
-        "StackDelay": 60,
-        "BulletSpeed": 3,
-        "BulletSpawnRate": 10,
-        "Health": 2
-      },
         {
           "Visual": "jv",
           "Actions": [
@@ -49,13 +28,213 @@
             },
             {
               "Class": "CircleShoot",
-              "Args": ["16", "16", "default", "true", ""]
+              "Args": ["256", "8", "default", "true", ""]
+            },
+            {
+              "Class": "LinearRotate",
+              "Args": ["1"],
+              "LimitTicks": true,
+              "FromTick": 300,
+              "ToTick": 360
             }
           ],
+          "SpawnTick": 65,
           "Rotation": 135,
-          "SpawnTick": 60,
-          "Position": {"X": 406, "Y": 32},
           "Speed": 2,
+          "Position": {"X": 406, "Y": 32},
+          "Stacked": true,
+          "StackLength": 10,
+          "StackDelay": 60,
+          "BulletSpeed": 5,
+          "BulletSpawnRate": 10,
+          "Health": 2
+        },
+        {
+          "Visual": "jv",
+          "Actions": [
+            {
+              "Class": "MoveByRotation"
+            },
+            {
+              "Class": "ShootIntoPlayer",
+              "Args": ["256", "240", "default"]
+            }
+          ],
+          "Rotation": 45,
+          "SpawnTick": 60,
+          "Position": {"X": -32, "Y": 32},
+          "Speed": 3,
+          "Stacked": true,
+          "StackLength": 10,
+          "StackDelay": 60,
+          "BulletSpeed": 3,
+          "BulletSpawnRate": 10,
+          "Health": 2
+        }]
+    },
+    {
+      "ChapterLength": 1200,
+      "Index": 0,
+      "Difficulty": [1],
+      "EnemySpawnInfos": [
+        {
+          "Visual": "jv",
+          "Actions": [
+            {
+              "Class": "MoveByRotation"
+            },
+            {
+              "Class": "CircleShoot",
+              "Args": ["64", "16", "default", "true", ""]
+            },
+            {
+              "Class": "LinearRotate",
+              "Args": ["1"],
+              "LimitTicks": true,
+              "FromTick": 300,
+              "ToTick": 360
+            }
+          ],
+          "SpawnTick": 65,
+          "Rotation": 135,
+          "Speed": 2,
+          "Position": {"X": 406, "Y": 32},
+          "Stacked": true,
+          "StackLength": 10,
+          "StackDelay": 60,
+          "BulletSpeed": 3,
+          "BulletSpawnRate": 10,
+          "Health": 2
+        },
+        {
+          "Visual": "jv",
+          "Actions": [
+            {
+              "Class": "MoveByRotation"
+            },
+            {
+              "Class": "ShootIntoPlayer",
+              "Args": ["16", "240", "default"]
+            }
+          ],
+          "Rotation": 45,
+          "SpawnTick": 60,
+          "Position": {"X": -32, "Y": 32},
+          "Speed": 3,
+          "Stacked": true,
+          "StackLength": 10,
+          "StackDelay": 60,
+          "BulletSpeed": 3,
+          "BulletSpawnRate": 10,
+          "Health": 2
+        }]
+    },
+    {
+      "ChapterLength": 1200,
+      "Index": 0,
+      "Difficulty": [2],
+      "EnemySpawnInfos": [
+        {
+          "Visual": "jv",
+          "Actions": [
+            {
+              "Class": "MoveByRotation"
+            },
+            {
+              "Class": "CircleShoot",
+              "Args": ["64", "16", "default", "true", ""]
+            },
+            {
+              "Class": "LinearRotate",
+              "Args": ["1"],
+              "LimitTicks": true,
+              "FromTick": 300,
+              "ToTick": 360
+            }
+          ],
+          "SpawnTick": 65,
+          "Rotation": 135,
+          "Speed": 2,
+          "Position": {"X": 406, "Y": 32},
+          "Stacked": true,
+          "StackLength": 10,
+          "StackDelay": 60,
+          "BulletSpeed": 3,
+          "BulletSpawnRate": 10,
+          "Health": 2
+        },
+        {
+          "Visual": "jv",
+          "Actions": [
+            {
+              "Class": "MoveByRotation"
+            },
+            {
+              "Class": "ShootIntoPlayer",
+              "Args": ["16", "240", "default"]
+            }
+          ],
+          "Rotation": 45,
+          "SpawnTick": 60,
+          "Position": {"X": -32, "Y": 32},
+          "Speed": 3,
+          "Stacked": true,
+          "StackLength": 10,
+          "StackDelay": 60,
+          "BulletSpeed": 3,
+          "BulletSpawnRate": 10,
+          "Health": 2
+        }]
+    },
+    {
+      "ChapterLength": 1200,
+      "Index": 0,
+      "Difficulty": [3],
+      "EnemySpawnInfos": [
+        {
+          "Visual": "jv",
+          "Actions": [
+            {
+              "Class": "MoveByRotation"
+            },
+            {
+              "Class": "CircleShoot",
+              "Args": ["64", "16", "default", "true", ""]
+            },
+            {
+              "Class": "LinearRotate",
+              "Args": ["1"],
+              "LimitTicks": true,
+              "FromTick": 300,
+              "ToTick": 360
+            }
+          ],
+          "SpawnTick": 65,
+          "Rotation": 135,
+          "Speed": 2,
+          "Position": {"X": 406, "Y": 32},
+          "Stacked": true,
+          "StackLength": 10,
+          "StackDelay": 60,
+          "BulletSpeed": 3,
+          "BulletSpawnRate": 10,
+          "Health": 2
+        },
+        {
+          "Visual": "jv",
+          "Actions": [
+            {
+              "Class": "MoveByRotation"
+            },
+            {
+              "Class": "ShootIntoPlayer",
+              "Args": ["16", "240", "default"]
+            }
+          ],
+          "Rotation": 45,
+          "SpawnTick": 60,
+          "Position": {"X": -32, "Y": 32},
+          "Speed": 3,
           "Stacked": true,
           "StackLength": 10,
           "StackDelay": 60,

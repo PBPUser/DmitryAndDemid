@@ -29,6 +29,9 @@ public class MoveByDirection : BulletAction
             case "UseRotation":
                 Direction = Helper.GetDirection(bullet.RotateTo+MathF.PI/2) * bullet.Speed;
                 return;
+            case "UseRotationRad":
+                Direction = Helper.GetDirection(bullet.RotateTo) * bullet.Speed;
+                return;
         }
     }
 }

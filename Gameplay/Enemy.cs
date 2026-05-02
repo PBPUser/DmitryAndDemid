@@ -42,6 +42,12 @@ public class Enemy : RuntimeObject
             {
                 EnemyActions[i] = (EnemyAction)j.GetConstructors().First(x => x.GetParameters().Length == 0).Invoke([]);
                 EnemyActions[i].Init(info.Actions[i].Args, game, this);
+                EnemyActions[i].LimitTicks = info.Actions[i].LimitTicks;
+                if (EnemyActions[i].LimitTicks)
+                {
+                    EnemyActions[i].FromTick = info.Actions[i].FromTick;
+                    EnemyActions[i].ToTick = info.Actions[i].ToTick;
+                }
             }
         }    
     }
@@ -102,7 +108,7 @@ public class Enemy : RuntimeObject
     public override void Update()
     {
         foreach (var action in EnemyActions)
-            action.Act(this);
+            action.InvokeAct(this);
     }
 
     public override void Attack(float damage)

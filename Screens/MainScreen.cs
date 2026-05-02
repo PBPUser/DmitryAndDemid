@@ -61,7 +61,9 @@ public class MainScreen : MenuScreen
         SelectedItemScale = 1.2f;
         TrophyScreen = new TrophyScreen();
     }
-
+#if DEBUG
+    private int LineX = 0, LineY = 0;
+#endif
     private MusicRoomScreen MusicRoom;
     private TrophyScreen TrophyScreen;
     static Color DarkRed = new Color(0.7f, 0, 0, 1);
@@ -123,21 +125,20 @@ public class MainScreen : MenuScreen
         DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceLeft, LogoTargetLeft, Vector2.Zero, 0f, Color.White with { A = Helper.TimeToTransparency(appear25) });
         DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceRight, LogoTargetRight, Vector2.Zero, 0f, Color.White with { A = Helper.TimeToTransparency(appear25) });
         DrawTexturePro(SelectedPerson, RCPersonSource, Helper.Mix(RCPersonTarget1, RCPersonTarget2, appear4), Vector2.Zero, 0f, Color.White);
-        #if DEBUG
-        var hp = Helper.GetDirection(new Vector2(640, 260), GetMousePosition());
-        DrawLine(640, 260, 640+(int)(hp.X * 500), 260+(int)(hp.Y * 500), Color.Blue);
-        DrawText($"Test: {hp}", 0, 220, 20, Color.Red);
+#if DEBUG
+        var hp = Helper.GetDirection(new Vector2(LineX, LineY), GetMousePosition());
+        DrawLine(LineX, LineY, LineX+(int)(hp.X * 500), LineY+(int)(hp.Y * 500), Color.Blue);
+        DrawText($"Direction: {hp}", 0, 220, 20, Color.Red);
         DrawText($"Coords: {hp*500}", 0, 240, 20, Color.Red);
         for (int i = 0; i < Runtime.CurrentRuntime.GamepadCount; i++)
         {
             DrawText($"Gamepad: {GetGamepadName_(i)} {IsGamepadButtonDown(i, GamepadButton.LeftFaceUp)} {IsGamepadButtonDown(i, GamepadButton.RightFaceLeft)}", 0, 260+i*20, 20, Color.Red);
         }
-        #endif
+#endif
     }
 
     public override void CreateMenu()
     {
-        
         MenuItems.Add(new MenuItem("menu.start", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Default))));
         MenuItems.Add(new MenuItem("menu.extra", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Extra))));
         MenuItems.Add(new MenuItem("menu.practice", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Practice))));
@@ -155,6 +156,13 @@ public class MainScreen : MenuScreen
 
     public override void PreRender(double delta)
     {
+        #if DEBUG
+        if (IsMouseButtonDown(MouseButton.Left))
+        {
+            LineX = GetMouseX();
+            LineY = GetMouseY();
+        }
+        #endif
         if (GetTime() - AppearTime < 6)
             return;
     }

@@ -3,5 +3,6 @@
   "RenderSize": { "X": 12, "Y": 12 },
   "SourcePosition": { "X": 8, "Y": 0 },
   "SourceSize": {"X": 16, "Y": 16 },
-  "Collision": {"X": 4, "Y": 4 }
+  "Collision": {"X": 4, "Y": 4 },
+  "Effect": "fade_glow"
 }

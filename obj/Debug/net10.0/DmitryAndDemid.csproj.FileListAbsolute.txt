@@ -132,3 +132,11 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/BulletVisuals/light.json
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/bullets.png~
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/replays.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/fade_glow.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/.staff_roll_background.png-autosave.kra
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/staff_roll_background.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/vilkaCut.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/dima_bottom.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/dima_top.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/object.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/bloom_ending.fs

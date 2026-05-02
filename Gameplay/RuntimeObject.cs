@@ -15,6 +15,8 @@ public class RuntimeObject : IDisposable
     public bool TransferableInCollectableState = false;
     public Vector2 Velocity;
     public bool UseVelocity = false;
+    public string Effect = "";
+    public Vector3 EffectColor = Vector3.One;
 
     public RuntimeObject(Game game, Vector2 position, Vector2 renderSize, Vector2 collisionSize, float rotation = 0)
     {

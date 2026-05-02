@@ -1,5 +1,6 @@
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
+using DmitryAndDemid.Utils;
 using Raylib_cs;
 
 namespace DmitryAndDemid.Gameplay.RuntimeActions.EnemyBehavior;
@@ -12,7 +13,7 @@ public class ShootIntoPlayer : EnemyAction
     
     public override void Act(Enemy enemy)
     {
-        if (enemy.PositionTo.Y > 320)
+        if (enemy.PositionTo.Y > MaxY)
             return;
         if ((enemy.Game.CurrentTick - enemy.SpawnTick) % Rate != 0)
             return;
@@ -21,10 +22,10 @@ public class ShootIntoPlayer : EnemyAction
             Speed = enemy.BulletSpeed,
             SpawnTick = enemy.Game.CurrentTick,
             BulletActionClass = "MoveByDirection",
-            Args = ["WriteDirectionToPlayer"],
+            Args = ["UseRotationRad"],
             BulletVisual = Visual,
             Position = enemy.PositionTo,
-            Rotation = Raymath.Vector2Angle(enemy.PositionTo, enemy.Game.Player.PositionTo)
+            Rotation = Helper.FindAngle(enemy.PositionTo, enemy.Game.Player.PositionTo)
         }, 0, true));
     }
 

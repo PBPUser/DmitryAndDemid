@@ -24,7 +24,7 @@ public class RuntimeStage
     public int Index;
     public int TitleTick;
     
-    public RuntimeStage(Stage stage, Game game)
+    public RuntimeStage(Stage stage, Game game, int difficulty)
     {
         TitleTick = stage.TitleTick;
         Index = stage.Index;
@@ -41,7 +41,7 @@ public class RuntimeStage
         }
         for (int i = 0; true; i++)
         {
-            var chapter = stage.Chapters.FirstOrDefault(x => x.Index == i);
+            var chapter = stage.Chapters.FirstOrDefault(x => x.Index == i && x.Difficulty.Contains(difficulty));
             if (chapter != null)
             {
                 StageElements.Add(new Chapter(game, chapter));

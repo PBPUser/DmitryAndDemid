@@ -135,6 +135,7 @@ public class Game : IDisposable
         );
         ScoreXBase = (int)(144 * Runtime.CurrentRuntime.ScaleF);
         BonusTargetRect = Helper.Scale(new Rectangle(32,96,384,128), Runtime.CurrentRuntime.Scale);
+        GameLayerEffects = LoadRenderTexture(384, 448);
         
         Score = -1;
         Start();
@@ -143,11 +144,12 @@ public class Game : IDisposable
 
     public void SwitchStage(Stage stage)
     {
-        CurrentStage = new RuntimeStage(stage, this);
+        CurrentStage = new RuntimeStage(stage, this, Difficulty);
         StageBackground = CurrentStage.Background;
         CurrentStageIndex = stage.Index;
     }
-    
+
+    private RenderTexture2D GameLayerEffects;
     public int UIPositionX;
     public int UIPositionY;
     public Stage StageInfo;
@@ -363,7 +365,7 @@ public class Game : IDisposable
                 GameOver = true;
                 BlackLoadingScreen bls = new BlackLoadingScreen(10, 3, () =>
                 {
-                    
+                    Runtime.CurrentRuntime.AddScreen(new CreditsScreen());
                 }, false, 3);
                 Runtime.CurrentRuntime.AddScreen(bls);
                 Console.WriteLine("I should show ending, but i have no ending(");
@@ -637,6 +639,7 @@ public class Game : IDisposable
         ClearBackground(Color.White with { A = 0 });
         int vy = 0;
         Player.RenderBottomLayer();
+        float value = 0;
         foreach (var x in Objects)
         {
             info = x.GetRenderInfo(state);
@@ -644,7 +647,18 @@ public class Game : IDisposable
             if(IsKeyDown(KeyboardKey.F))
                 DrawText($"source_rc: {x.SourceRect}, info_rc: {info.rc}", 0, vy+=8,8,Color.White);
             #endif
+            Shader shader;
+            if (x.Effect != "")
+            {
+                shader = Runtime.CurrentRuntime.Shaders[x.Effect];
+                value = Helper.ComputeObjectTime0To2(CurrentTick, x.SpawnTick, 10, 99999, 5);
+                SetShaderValue(shader, GetShaderLocation(shader, "statement"), value, ShaderUniformDataType.Float);
+                SetShaderValue(shader, GetShaderLocation(shader, "color"), x.EffectColor, ShaderUniformDataType.Vec3);
+                SetShaderValue(shader, GetShaderLocation(shader, "position"), x.PositionTo, ShaderUniformDataType.Vec2);
+                BeginShaderMode(shader);
+            }
             DrawTexturePro(x.SourceTexture, x.SourceRect, info.rc, Vector2.Zero, info.rotation, Color.White);
+            EndShaderMode();
         }
         Player.RenderTopLayer();
         Helper.DrawDeathPoints(RemovedBullets, "disappear_shoot");

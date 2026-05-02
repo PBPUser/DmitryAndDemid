@@ -38,9 +38,7 @@ void main(){
     float delta_value = 0.;
     delta_value = max(delta_value, delta(fragTexCoord, vec2(dx*0.,-1.*dy) + fragTexCoord));
     delta_value = max(delta_value, delta(fragTexCoord, vec2(-1.*dx,0.*dy) + fragTexCoord));
-    //delta_value = max(delta_value, delta(fragTexCoord, vec2(1.*dx,0.*dy) + fragTexCoord));
     delta_value = max(delta_value, delta(fragTexCoord, vec2(-1.*dx,-1.*dy) + fragTexCoord));
     vec4 color_grad = vec4(mix(from_color,to_color,uv.y+2.-1.), color[3]);
     gl_FragColor = mix(color_grad, border_color, delta_value);
-    //gl_FragColor = vec4(fragTexCoord - (res/2), 1., 1.);
 }
