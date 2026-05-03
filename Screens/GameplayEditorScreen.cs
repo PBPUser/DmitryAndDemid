@@ -51,10 +51,7 @@ public class GameplayEditorScreen : Screen
                 var item = Data.BulletVisual.Constants.ElementAt(Item).Value;
                 Text($"Size: {item.RenderSize}");
                 Text($"Type: {item.RenderType}");
-                if (ColorEdit3($"Color: ", ref Color))
-                {
-                    
-                }
+                if (ColorEdit3("Color: ", ref Color))
                 SliderFloat("Zoom", ref Zoom, 0.01f, 100);
                 var texture = item.GetTexture(Color);
                 rlImGui.ImageRect(texture,
