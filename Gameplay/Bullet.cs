@@ -10,47 +10,41 @@ namespace DmitryAndDemid.Gameplay;
 public class Bullet : RuntimeObject
 {
     private BulletAction? RuntimeAction = null;
-    private static Dictionary<string, Action<RuntimeObject>> BulletUpdateActions = new();
     public bool PlayerShoot = false;
     
-    static Bullet()
-    {
-        BulletUpdateActions["MoveByDirection"] = obj =>
-        {
-            obj.UpdateCollisionRender(obj.PositionTo + (Vector2)(obj.Dictionary["Direction"]),obj.RotateTo);
-        };
-        BulletUpdateActions["WriteDirectionToPlayer"] = obj =>
-        {
-            obj.Dictionary["Direction"] = Helper.GetDirection(obj.PositionTo, obj.Game.Player.PositionTo) * obj.Speed;
-        };
-        BulletUpdateActions["WriteAngularDirection"] = obj =>
-        {
-            obj.Dictionary["Direction"] = Helper.GetDirection(obj.RotateTo+MathF.PI/2) * obj.Speed;
-        };
-    }
     
     public void SetCollectableState()
     {
         Alpha = 128;
         InCollectableState = true;
         UseVelocity = true;
+        Velocity = -Helper.GetDirection(PositionTo, Game.Player.PositionTo) * 4f ;
     }
     
     public Bullet(Game game, BulletSpawnInfo info, int numberInStack, bool transferable) : this(game,
         info.Position,
         BulletVisual.Constants[info.BulletVisual].RenderSize,
+        Vector2.Zero,
         BulletVisual.Constants[info.BulletVisual].Collision)
     {
+        IsBullet = true;
         TransferableInCollectableState = transferable;
         Damage = info.Damage;
         RotateTo = info.Rotation;
         var constant = BulletVisual.Constants[info.BulletVisual];
+        EffectColor = info.EffectColor;
         Speed = info.Speed;
         SpawnTick = numberInStack * info.StackDelay + info.SpawnTick;
-        SourceTexture = Runtime.CurrentRuntime.Textures[constant.Texture];
         Effect = constant.Effect;
-        SourceRect = new Rectangle(constant.SourcePosition,
+        if (Effect != "")
+        {
+            UseEffect = true;
+            EffectShader = Runtime.CurrentRuntime.Shaders[Effect];
+        }
+        SourceTexture = constant.GetTexture(info.EffectColor);
+        SourceRect = new Rectangle(constant.GetSourcePosition(info.EffectColor),
             constant.SourceSize == null ?  constant.RenderSize :  constant.SourceSize!.Value);
+        TextureSize = constant.SourceSize.Value;
         UpdateCollisionRender(PositionTo+(info.StackPositionOffset*numberInStack), info.Rotation);
         if (BulletAction.Actions.TryGetValue(info.BulletActionClass, out var action))
         {
@@ -59,7 +53,7 @@ public class Bullet : RuntimeObject
         }
     }
 
-    Bullet(Game game, Vector2 pos, Vector2 renderSize, Vector2 collisionSize) : base(game, pos, renderSize,
+    Bullet(Game game, Vector2 pos, Vector2 renderSize, Vector2 textureSize, Vector2 collisionSize) : base(game, pos, renderSize, textureSize,
         collisionSize) {
         
     }
@@ -67,6 +61,7 @@ public class Bullet : RuntimeObject
     public float Damage = 0;
     private bool IsGrazed = false;
     public int ScoreWhenCollected = 100;
+    private const float TransferToCollectableStateSpeed = 0.2f;
     
     public override void Update()
     {
@@ -80,6 +75,8 @@ public class Bullet : RuntimeObject
             }
             else
             {
+                Velocity = Raymath.Vector2MoveTowards(Velocity,
+                    Helper.GetDirection(PositionTo, Game.Player.PositionTo), TransferToCollectableStateSpeed);
             }
             return;
         }

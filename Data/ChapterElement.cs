@@ -16,4 +16,6 @@ public class ChapterElement
     [JsonInclude] public Vector2 PositionTarget = Vector2.Zero;
     [JsonInclude] public int DislocationOnTargetDuration = 0;
     [JsonInclude] public Vector2 FinalPosition = Vector2.Zero;
+    [JsonInclude] public Vector3 EffectColor = Vector3.One;
+    [JsonInclude] public Vector3 TextureColor = Vector3.One;
 }

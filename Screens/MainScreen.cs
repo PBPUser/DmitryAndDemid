@@ -3,7 +3,9 @@ using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Utils;
 using GLib;
+using ImGuiNET;
 using Raylib_cs;
+using rlImGui_cs;
 using static Raylib_cs.Raylib;
 
 namespace DmitryAndDemid.Screens;
@@ -125,17 +127,22 @@ public class MainScreen : MenuScreen
         DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceLeft, LogoTargetLeft, Vector2.Zero, 0f, Color.White with { A = Helper.TimeToTransparency(appear25) });
         DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceRight, LogoTargetRight, Vector2.Zero, 0f, Color.White with { A = Helper.TimeToTransparency(appear25) });
         DrawTexturePro(SelectedPerson, RCPersonSource, Helper.Mix(RCPersonTarget1, RCPersonTarget2, appear4), Vector2.Zero, 0f, Color.White);
+    }
+    
 #if DEBUG
+    public override void DrawImgui()
+    {
+        ImGui.Begin("Gamepad testing window");
         var hp = Helper.GetDirection(new Vector2(LineX, LineY), GetMousePosition());
         DrawLine(LineX, LineY, LineX+(int)(hp.X * 500), LineY+(int)(hp.Y * 500), Color.Blue);
-        DrawText($"Direction: {hp}", 0, 220, 20, Color.Red);
-        DrawText($"Coords: {hp*500}", 0, 240, 20, Color.Red);
+        ImGui.TextUnformatted($"Direction: {hp}");ImGui.TextUnformatted($"Direction: {hp}");
+        ImGui.TextUnformatted($"Coords: {hp*500}");
         for (int i = 0; i < Runtime.CurrentRuntime.GamepadCount; i++)
-        {
-            DrawText($"Gamepad: {GetGamepadName_(i)} {IsGamepadButtonDown(i, GamepadButton.LeftFaceUp)} {IsGamepadButtonDown(i, GamepadButton.RightFaceLeft)}", 0, 260+i*20, 20, Color.Red);
-        }
-#endif
+            ImGui.TextUnformatted($"Gamepad: {GetGamepadName_(i)} {IsGamepadButtonDown(i, GamepadButton.LeftFaceUp)} {IsGamepadButtonDown(i, GamepadButton.RightFaceLeft)}");
+        ImGui.ShowDemoWindow();
+        ImGui.End();
     }
+#endif
 
     public override void CreateMenu()
     {
@@ -148,7 +155,7 @@ public class MainScreen : MenuScreen
         MenuItems.Add(new MenuItem("menu.trophy", "", a => Runtime.CurrentRuntime.AddScreen(TrophyScreen)));
         MenuItems.Add(new MenuItem("menu.music", "", a => Runtime.CurrentRuntime.AddScreen(MusicRoom)));
 #if DEBUG
-        MenuItems.Add(new MenuItem("Gameplay Editor", "", a => {}));
+        MenuItems.Add(new MenuItem("Gameplay Editor", "", a => Runtime.CurrentRuntime.AddScreen(new GameplayEditorScreen())));
 #endif
         MenuItems.Add(new MenuItem("menu.settings", "", a => Runtime.CurrentRuntime.AddScreen(new SettingsScreen())));
         MenuItems.Add(new MenuItem("menu.exit", "", a => Environment.Exit(0)));

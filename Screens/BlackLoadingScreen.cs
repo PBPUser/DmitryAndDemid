@@ -37,7 +37,7 @@ public class BlackLoadingScreen : Screen
         base.TopUpdate();
         if (EventExecuted)
             return;
-        if (GetTime() - LoadingTime < LoadingTime)
+        if (GetTime() - TimeAppear < LoadingTime)
             return;
         Event?.Invoke();
         EventExecuted = true;

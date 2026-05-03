@@ -1,3 +1,4 @@
+using System.Data;
 using System.Numerics;
 using System.Reflection;
 using DmitryAndDemid.Common;
@@ -19,7 +20,7 @@ public class Player : RuntimeObject
     public float PointMagnetRadius => 
         PositionTo.Y < 100 || !CollisionEnabled ? 6000f : 24f;
 
-    public Player(Game game, ProtogonistData data, PlayerControllerBase controller) : base(game, new Vector2(192, 400), new Vector2(32, 32), new Vector2(8), 0)
+    public Player(Game game, ProtogonistData data, PlayerControllerBase controller) : base(game, new Vector2(192, 400), new Vector2(32, 32), Helper.GetSize(Runtime.CurrentRuntime.Textures[data.Sprite]), new Vector2(8), 0)
     {
         Controller = controller;
         ClearProtected = true;

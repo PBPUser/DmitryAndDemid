@@ -11,15 +11,24 @@ uniform vec4 colDiffuse;
 uniform float statement;
 uniform vec3 color;
 uniform vec2 position;
+uniform vec2 resolution;
 
-const vec2 res = vec2(384, 448);
+const float strengthMax = 3.;
+const vec3 z = vec3(0);
+const float outlineSize = 3.;
+
+const float distance = 1.;
 
 void main(){
-    vec2 pos = (position / res) * 2. - 1.;
-    pos.y = 1-pos.y;
-    float transparency = 1.-abs(1.-statement);
-    vec4 _color = texture(texture0, fragTexCoord);
-    _color[3] *= transparency;
-    
-    gl_FragColor = _color;
+    float strength = 6.;
+    float opacity = 1.-abs(1.-statement);
+    vec2 texelSize = vec2(2.) / resolution;
+    vec2 off = texelSize * vec2(sin(distance), cos(distance));
+    vec4 result = texture(texture0, fragTexCoord) * 0.227;
+    float wb = 0.227 / strength;
+    for(float i = 1.; i < strength; i++){
+      result += texture(texture0, fragTexCoord + off * i) * wb * (strength-i);
+      result += texture(texture0, fragTexCoord - off * i) * wb * (strength-i);
+    }
+    gl_FragColor = vec4(result.rgb, clamp(result[3],0.,1.)*opacity);
 }

@@ -68,6 +68,12 @@ public abstract class Screen : IDisposable
     {
         Unload();
     }
+#if DEBUG
+    public virtual void DrawImgui()
+    {
+        
+    }
+#endif
 
     public float TimeAppear = 0f;
     public float TimeDisappear = 99999999f;

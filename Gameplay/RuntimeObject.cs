@@ -11,20 +11,25 @@ public class RuntimeObject : IDisposable
     public bool ClearProtected = false;
     public bool Attackable = false;
     public byte Alpha = 255;
+    public bool IsBullet = false;
     public bool InCollectableState = false;
     public bool TransferableInCollectableState = false;
     public Vector2 Velocity;
     public bool UseVelocity = false;
     public string Effect = "";
+    public bool UseEffect = false;
     public Vector3 EffectColor = Vector3.One;
+    public Shader EffectShader;
+    public Vector2 TextureSize;
 
-    public RuntimeObject(Game game, Vector2 position, Vector2 renderSize, Vector2 collisionSize, float rotation = 0)
+    public RuntimeObject(Game game, Vector2 position, Vector2 renderSize, Vector2 textureSize, Vector2 collisionSize, float rotation = 0)
     {
         Game = game;
         PositionTo = position;
         PositionFrom = PositionTo;
         RenderSize = renderSize;
         CollisionSize = collisionSize;
+        TextureSize = textureSize;
 
         StateFrom = new Rectangle(PositionFrom - (RenderSize / 2), RenderSize);
         StateTo = StateFrom;
@@ -46,8 +51,6 @@ public class RuntimeObject : IDisposable
     public float RotateTo;
     public Rectangle SourceRect;
     public Texture2D SourceTexture;
-
-    public Dictionary<string, object>? Dictionary = new Dictionary<string, object>();
 
     public Action<RuntimeObject>? UpdateScript;
     public Action<RuntimeObject>? CreateScript;
@@ -83,6 +86,5 @@ public class RuntimeObject : IDisposable
 
     public void Dispose()
     {
-        Dictionary = null;
     }
 }

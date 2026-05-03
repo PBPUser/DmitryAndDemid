@@ -521,4 +521,9 @@ public static class Helper
     {
         throw new NotImplementedException();
     }
+
+    public static Vector2 GetSize(Texture2D texture)
+    {
+        return new Vector2(texture.Width, texture.Height);
+    }
 }

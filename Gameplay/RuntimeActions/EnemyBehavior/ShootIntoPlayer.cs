@@ -1,3 +1,4 @@
+using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Utils;
@@ -23,6 +24,7 @@ public class ShootIntoPlayer : EnemyAction
             SpawnTick = enemy.Game.CurrentTick,
             BulletActionClass = "MoveByDirection",
             Args = ["UseRotationRad"],
+            EffectColor = new Vector3(0, 1, 0),
             BulletVisual = Visual,
             Position = enemy.PositionTo,
             Rotation = Helper.FindAngle(enemy.PositionTo, enemy.Game.Player.PositionTo)

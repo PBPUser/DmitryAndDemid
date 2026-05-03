@@ -13,6 +13,7 @@ using Gtk;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
 using Color = Raylib_cs.Color;
+using Object = Atk.Object;
 using Rectangle = Raylib_cs.Rectangle;
 
 namespace DmitryAndDemid;
@@ -220,7 +221,7 @@ public class Game : IDisposable
         }
         else if (ChapterSwitchTick == CurrentTick + ChapterDelay)
         {
-            ClearAll();
+            ClearAll(true);
             SetScoreCounter();
             if (ChapterIndex + 1 == CurrentStage.StageElements.Count)
                 SetStageComplete();
@@ -281,8 +282,12 @@ public class Game : IDisposable
             if (!Helper.IsInArea(x.PositionTo, AreaStart, AreaEnd)) 
                 ToRemove.Add(x);
         }
-        if(NextClearAllTick == CurrentTick)
-            ClearAll();
+
+        if (NextClearAllTick == CurrentTick)
+        {
+            ClearAll(CollectNextClearAll);
+            CollectNextClearAll = true;
+        }
         if (ObjectsPending)
         {
             Objects.AddRange(ObjectsToAdd);
@@ -566,10 +571,19 @@ public class Game : IDisposable
     }
 
     private int NextClearAllTick = -1;
-    
-    void ClearAll()
+
+    void ClearAll(bool collect)
     {
-        if(Objects.Count > 1)
+        if (Objects.Count == 1)
+            return;
+        if (collect)
+        {
+            foreach (var collectable in Objects.Where(x => x.IsBullet).Select(x => ((Bullet)x)).Where(x => x.PlayerShoot))
+                collectable.SetCollectableState();
+            ToRemove.AddRange(Objects.Where(x => x.IsBullet).Where(x => !((Bullet)x).PlayerShoot));
+            ToRemove.AddRange(Objects.Where(x => !x.IsBullet && !x.ClearProtected));
+        }
+        else
             ToRemove.AddRange(Objects.Where(x => !x.ClearProtected));
     }
 
@@ -624,6 +638,8 @@ public class Game : IDisposable
         BonusAppearTime = GetTime();
         BonusDisappearTime = GetTime() + BonusTextDuration;
     }
+
+    
     
     private const float BossAppearXAnimation = .75f;
     private const float BossAppearYAnimation = .75f;
@@ -650,11 +666,12 @@ public class Game : IDisposable
             Shader shader;
             if (x.Effect != "")
             {
-                shader = Runtime.CurrentRuntime.Shaders[x.Effect];
+                shader = x.EffectShader;
                 value = Helper.ComputeObjectTime0To2(CurrentTick, x.SpawnTick, 10, 99999, 5);
                 SetShaderValue(shader, GetShaderLocation(shader, "statement"), value, ShaderUniformDataType.Float);
                 SetShaderValue(shader, GetShaderLocation(shader, "color"), x.EffectColor, ShaderUniformDataType.Vec3);
                 SetShaderValue(shader, GetShaderLocation(shader, "position"), x.PositionTo, ShaderUniformDataType.Vec2);
+                SetShaderValue(shader, GetShaderLocation(shader, "resolution"), x.TextureSize, ShaderUniformDataType.Vec2);
                 BeginShaderMode(shader);
             }
             DrawTexturePro(x.SourceTexture, x.SourceRect, info.rc, Vector2.Zero, info.rotation, Color.White);
@@ -910,7 +927,7 @@ public class Game : IDisposable
 
     void BossKilled()
     {
-        ClearAll();
+        ClearAll(true);
         ChapterSwitchTick = CurrentTick + ChapterDelay;
     }
 
@@ -919,9 +936,11 @@ public class Game : IDisposable
     public Vector2 DiePosition;
     public const float DieAnimationLength = 1.6f;
     public const int DieClearAllDelay = 40;
+    public bool CollectNextClearAll = true;
     
     public void SetDied()
     {
+        CollectNextClearAll = false;
         IsDied = true;
         DiePosition = Player.PositionTo;
         DiedTimestamp = (float)GetTime();

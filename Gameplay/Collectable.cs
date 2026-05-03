@@ -6,7 +6,7 @@ namespace DmitryAndDemid.Gameplay;
 
 public class Collectable : RuntimeObject
 {
-    public Collectable(Game game, Texture2D texture, Vector2 sourcePosition, Vector2 position, Vector2 renderSize, Vector2 velocity) : base(game, position, renderSize, new Vector2(12), 0)
+    public Collectable(Game game, Texture2D texture, Vector2 sourcePosition, Vector2 position, Vector2 renderSize, Vector2 velocity) : base(game, position, renderSize, Helper.GetSize(texture), new Vector2(12), 0)
     {
         SourceTexture = texture;
         SourceRect = new Rectangle(sourcePosition, renderSize);

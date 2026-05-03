@@ -1,5 +1,6 @@
 using System.Numerics;
 using DmitryAndDemid.Common;
+using DmitryAndDemid.Data;
 using DmitryAndDemid.Utils;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
@@ -64,7 +65,7 @@ public class CreditsScreen : Screen
     private Shader Bloom;
     
     private const double
-        CreditsLength = 30;
+        CreditsLength = 30, CreditsFade = 3, CreditsDecoractionsStart = 6, CreditsDecorationsFade = 0.5;
 
     private const int
         BPM = 120, BeatAnimateRate = 8;
@@ -97,10 +98,15 @@ public class CreditsScreen : Screen
     
     public override void Render()
     {
-        double time = GetTime() - TimeAppear;
-        double state = ((time)
-                % CreditsLength
-                ) / CreditsLength;
+        double time = (GetTime() - TimeAppear) 
+                      #if DEBUG
+                      % CreditsLength
+                      #endif
+                      ;
+        double state = time / CreditsLength;
+        double fade = Math.Clamp(((CreditsLength /2) - Math.Abs(time - (CreditsLength/2))) / CreditsFade, 0, 1);
+        float decorationsFade = (float)Math.Clamp((time - CreditsDecoractionsStart) / CreditsDecorationsFade, 0, 1);
+        
         DrawTexturePro(Runtime.CurrentRuntime.Textures["staff_roll_background.png"],
             BgSource with { Y = (float)(state * 720) },
             BgTarget,
@@ -138,25 +144,29 @@ public class CreditsScreen : Screen
             j++;
         }
         EndTextureMode();
-        #if DEBUG
-        int k = 0;
-        DrawText($"NikitosSource: {NSource}", 0, k+=20, 20, Color.White);
-        DrawText($"NikitosTarget: {NTarget}", 0, k+=20, 20, Color.White);
-        #endif
         SetShaderValue(Bloom, GetShaderLocation(Bloom, "strength"), 6+MathF.Abs((float)Math.Sin(time % 2 - 1)), ShaderUniformDataType.Float);
-        SetShaderValue(Bloom, GetShaderLocation(Bloom, "opacity"), .25f, ShaderUniformDataType.Float);
+        SetShaderValue(Bloom, GetShaderLocation(Bloom, "opacity"), .25f * decorationsFade, ShaderUniformDataType.Float);
         BeginShaderMode(Bloom);
         DrawTexturePro(NikitosJumpingTexture.Texture,
             NSource with { X = (float)(state * Runtime.CurrentRuntime.Width * 2 / 1.2) },
             NTarget, NOrigin,120, Color.White with { A = 64 } );
         EndShaderMode();
-        SetShaderValue(Bloom, GetShaderLocation(Bloom, "opacity"), .5f, ShaderUniformDataType.Float);
+        SetShaderValue(Bloom, GetShaderLocation(Bloom, "opacity"), .5f * decorationsFade, ShaderUniformDataType.Float);
         SetShaderValue(Bloom, GetShaderLocation(Bloom, "strength"), 3+MathF.Abs((float)Math.Tan(time % 2 - 1)), ShaderUniformDataType.Float);
         BeginShaderMode(Bloom);
         DrawTexturePro(DmitryEatingTexture.Texture,
             DSource with { X = (float)(state * Runtime.CurrentRuntime.Width * 2 / 1.2) },
             DTarget, DOrigin,-15, Color.White with { A = 128 } );
         EndShaderMode();
+        DrawRectangle(0,0,Runtime.CurrentRuntime.Width,Runtime.CurrentRuntime.Height, Color.Black with {A=Helper.TimeToTransparency(1-fade)});
+#if DEBUG
+        int k = 0;
+        DrawText($"NikitosSource: {NSource}", 0, k+=20, 20, Color.White);
+        DrawText($"NikitosTarget: {NTarget}", 0, k+=20, 20, Color.White);
+        DrawText($"Time: {time}", 0, k+=20, 20, Color.White);
+        DrawText($"Fade: {fade}", 0, k+=20, 20, Color.White);
+        DrawText($"Decorations Fade: {decorationsFade}", 0, k+=20, 20, Color.White);
+#endif
         base.Render();
     }
 #if DEBUG

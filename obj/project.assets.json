@@ -79,6 +79,41 @@
           "build/GtkSharp.targets": {}
         }
       },
+      "ImGui.NET/1.91.6.1": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/ImGui.NET.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/ImGui.NET.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/linux-x64/native/libcimgui.so": {
+            "assetType": "native",
+            "rid": "linux-x64"
+          },
+          "runtimes/osx/native/libcimgui.dylib": {
+            "assetType": "native",
+            "rid": "osx"
+          },
+          "runtimes/win-arm64/native/cimgui.dll": {
+            "assetType": "native",
+            "rid": "win-arm64"
+          },
+          "runtimes/win-x64/native/cimgui.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x86/native/cimgui.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          }
+        }
+      },
       "PangoSharp/3.24.24.95": {
         "type": "package",
         "dependencies": {
@@ -125,6 +160,19 @@
             "assetType": "native",
             "rid": "win-x86"
           }
+        }
+      },
+      "rlImgui-cs/3.2.0": {
+        "type": "package",
+        "dependencies": {
+          "ImGui.NET": "1.91.6.1",
+          "Raylib-cs": "7.0.1"
+        },
+        "compile": {
+          "lib/net6.0/rlImGui.dll": {}
+        },
+        "runtime": {
+          "lib/net6.0/rlImGui.dll": {}
         }
       }
     }
@@ -209,6 +257,29 @@
         "lib/netstandard2.0/GtkSharp.dll"
       ]
     },
+    "ImGui.NET/1.91.6.1": {
+      "sha512": "Ph3j8pO6UM28PPJWP+5LEJSPVPkd8ivpVS8tRyY9b0IHn1HDIrMZ2o/FdiXaYW6YhNxMHmbevw6Jcfs+IDKi0Q==",
+      "type": "package",
+      "path": "imgui.net/1.91.6.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "build/net40/ImGui.NET.targets",
+        "imgui.net.1.91.6.1.nupkg.sha512",
+        "imgui.net.nuspec",
+        "lib/net6.0/ImGui.NET.dll",
+        "lib/net6.0/ImGui.NET.xml",
+        "lib/net8.0/ImGui.NET.dll",
+        "lib/net8.0/ImGui.NET.xml",
+        "lib/netstandard2.0/ImGui.NET.dll",
+        "lib/netstandard2.0/ImGui.NET.xml",
+        "runtimes/linux-x64/native/libcimgui.so",
+        "runtimes/osx/native/libcimgui.dylib",
+        "runtimes/win-arm64/native/cimgui.dll",
+        "runtimes/win-x64/native/cimgui.dll",
+        "runtimes/win-x86/native/cimgui.dll"
+      ]
+    },
     "PangoSharp/3.24.24.95": {
       "sha512": "H7JeyEvLsgvsbamGpRgoNtdvzPiGwwsUuoeTobN1C/JRjw1J8Snw0yf2WBr7CKx5GLwbrwpQYOb7N/HD17ME8A==",
       "type": "package",
@@ -243,12 +314,27 @@
         "runtimes/win-x64/native/raylib.dll",
         "runtimes/win-x86/native/raylib.dll"
       ]
+    },
+    "rlImgui-cs/3.2.0": {
+      "sha512": "FmVDFI+5PRWyQCIOMo3KQuEiwjiUxDcQmSY8YgBhxqdhT+MiW1lUZXDYdYG2Vla/nTbm546U8eqfUSOWnG5QIg==",
+      "type": "package",
+      "path": "rlimgui-cs/3.2.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE",
+        "README.md",
+        "lib/net6.0/rlImGui.dll",
+        "rlimgui-cs.3.2.0.nupkg.sha512",
+        "rlimgui-cs.nuspec"
+      ]
     }
   },
   "projectFileDependencyGroups": {
     "net10.0": [
       "GtkSharp >= 3.24.24.95",
-      "Raylib-cs >= 7.0.2"
+      "Raylib-cs >= 7.0.2",
+      "rlImgui-cs >= 3.2.0"
     ]
   },
   "packageFolders": {
@@ -301,6 +387,10 @@
           "Raylib-cs": {
             "target": "Package",
             "version": "[7.0.2, )"
+          },
+          "rlImgui-cs": {
+            "target": "Package",
+            "version": "[3.2.0, )"
           }
         },
         "imports": [

@@ -29,7 +29,7 @@ public class Boss : RuntimeObject
     public Action<RuntimeObject>? ShootScript;
     
     public Boss(Game game, BossSpawnInfo info) : base(game, 
-        info.Position, info.RenderSize, info.CollisionSize)
+        info.Position, info.RenderSize, Helper.GetSize(Runtime.CurrentRuntime.Textures[info.BossSpriteTexture]), info.CollisionSize)
     {
         Attackable = true;
         ClearProtected = true;

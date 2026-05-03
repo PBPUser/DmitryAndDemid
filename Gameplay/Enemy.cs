@@ -18,6 +18,7 @@ public class Enemy : RuntimeObject
 
     public Enemy(Game game, EnemySpawnInfo info, int numberInStack) : base(game, info.Position,
         EntityVisual.Visuals[info.Visual].RenderSize,
+        Helper.GetSize(Runtime.CurrentRuntime.Textures[EntityVisual.Visuals[info.Visual].Texture]),
         EntityVisual.Visuals[info.Visual].Collision)
     {
         Info = info;

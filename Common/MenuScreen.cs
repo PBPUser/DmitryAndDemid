@@ -176,6 +176,7 @@ public abstract class MenuScreen : ScreenWithTitle
         }
     }
 
+
     public class MenuItem : IDisposable
     {
         public MenuItem(string text, string replace, Action<int>? action)
