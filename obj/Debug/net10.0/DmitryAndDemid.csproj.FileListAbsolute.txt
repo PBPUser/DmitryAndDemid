@@ -140,8 +140,6 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/dima_top.png
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/object.png
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/bloom_ending.fs
-/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/BulletVisuals/emit.json
-/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/emit.fs
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/ImGui.NET.dll
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/rlImGui.dll
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/runtimes/linux-x64/native/libcimgui.so
@@ -149,3 +147,14 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/runtimes/win-arm64/native/cimgui.dll
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/runtimes/win-x64/native/cimgui.dll
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/runtimes/win-x86/native/cimgui.dll
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/BulletVisuals/bubble.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/BulletVisuals/circle.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/BulletVisuals/oval.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/BulletVisuals/pentabullet.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/emit_bubble.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/emit_circle.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/emit_pentabullet.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/BulletVisuals/pentabullet_emit.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/pentabullet.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/emit_rhombusbullet.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/BulletVisuals/rhombusbullet.json

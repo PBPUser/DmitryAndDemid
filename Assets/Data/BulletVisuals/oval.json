@@ -1,0 +1,8 @@
+{
+  "Texture": "emit_circle",
+  "RenderType": 0,
+  "RenderSize": { "X": 32, "Y": 64 },
+  "SourcePosition": { "X": 0, "Y": 0 },
+  "SourceSize": {"X": 32, "Y": 64 },
+  "Collision": {"X": 4, "Y": 4 }
+}

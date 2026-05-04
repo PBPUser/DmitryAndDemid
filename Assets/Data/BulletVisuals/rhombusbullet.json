@@ -1,0 +1,8 @@
+{
+  "Texture": "emit_rhombusbullet",
+  "RenderType": 0,
+  "RenderSize": { "X": 24, "Y": 48 },
+  "SourcePosition": { "X": 0, "Y": 0 },
+  "SourceSize": {"X": 24, "Y": 48 },
+  "Collision": {"X": 4, "Y": 4 }
+}

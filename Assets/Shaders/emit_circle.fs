@@ -14,8 +14,14 @@ uniform vec2 resolution;
 const float strengthMax = 3.;
 const vec3 z = vec3(0);
 const float outlineSize = 3.;
-const float distance = 1.;
+const float _distance = 1.;
+const vec2 c = vec2(.5);
+const float padding = 3.4;
 
 void main(){
-    gl_FragColor = vec4(1.0);
+    float d = distance(c, fragTexCoord) * padding;
+	float transparency = smoothstep(-.2, 0.5, 1-d);
+	float colorness = smoothstep(1-d, 1., .73);
+	float grayColor = 1-(1-d)*.1;
+    gl_FragColor = vec4(mix(vec3(grayColor), color, colorness), transparency);
 }

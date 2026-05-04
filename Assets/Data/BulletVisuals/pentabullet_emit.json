@@ -1,0 +1,8 @@
+{
+  "Texture": "emit_pentabullet",
+  "RenderType": 0,
+  "RenderSize": { "X": 16, "Y": 32 },
+  "SourcePosition": { "X": 0, "Y": 0 },
+  "SourceSize": {"X": 16, "Y": 32 },
+  "Collision": {"X": 4, "Y": 4 }
+}

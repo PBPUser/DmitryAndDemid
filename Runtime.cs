@@ -5,6 +5,7 @@ using static DmitryAndDemid.Configuration;
 using Gtk;
 using Raylib_cs;
 using DmitryAndDemid.Common;
+using DmitryAndDemid.Data;
 using DmitryAndDemid.Screens;
 using DmitryAndDemid.Utils;
 using ImGuiNET;
@@ -88,6 +89,7 @@ public class Runtime
         double c = 0;
         ScreenLoading = new LoadingScreen();
         AddScreen(ScreenLoading);
+        BulletVisual.FillRCPrerender();
         await Load();
         while (!WindowShouldClose() || DisableClose)
         {
