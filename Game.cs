@@ -68,6 +68,12 @@ public class Game : IDisposable
 
     private int Continue = 0;
     
+    #if DEBUG
+    public const float LoadingTime = 3;
+    #else
+    public const float LoadingTime = 3;
+    #endif
+    
     private string FormatScore(long _score)
     {
         int digitsCount = (int)Math.Log10(_score);
@@ -140,7 +146,6 @@ public class Game : IDisposable
         
         Score = -1;
         Start();
-        
     }
 
     public void SwitchStage(Stage stage)
@@ -164,7 +169,7 @@ public class Game : IDisposable
     private int 
         ChapterBulletIndex = 0,
         ChapterEnemyIndex = 0;
-    double GameStartedTimestamp = 0;
+    public double GameStartedTimestamp = 0;
     double PreviousTick = 0;
     double NextTickStamp = 0;
     static double TickLength = 1d / TPS;
@@ -200,12 +205,17 @@ public class Game : IDisposable
     
     public void UpdateToNext()
     {
-        float time = (float)GetTime();
+        float time = GetTime();
         if(DrawUpdateScoreCounter)
             UpdateScoreCounter();
         CurrentTick++;
         PreviousTick = NextTickStamp;
         NextTickStamp = GameStartedTimestamp + (CurrentTick + 1) * TickLength;
+        if (GameplayScreensCleanupRequired)
+        {
+            GameplayScreenEffects.RemoveAll(x => GameplayScreenEffectsToRemove.Contains(x));
+            GameplayScreenEffectsToRemove.Clear();
+        }
         if (IsDied)
         {
             if (DiedTimestamp + DieAnimationLength < time)
@@ -295,8 +305,6 @@ public class Game : IDisposable
         }
         if (IsDialog)
             return;
-
-        
         foreach (var x in ToRemove)
         {
             RemovedBullets.Add(new RemovedBullet(x.PositionTo, time));
@@ -639,8 +647,6 @@ public class Game : IDisposable
         BonusDisappearTime = GetTime() + BonusTextDuration;
     }
 
-    
-    
     private const float BossAppearXAnimation = .75f;
     private const float BossAppearYAnimation = .75f;
     private const float BossAppearAnimationWait = .75f;
@@ -653,7 +659,9 @@ public class Game : IDisposable
         (Rectangle rc, float rotation) info;
         BeginTextureMode(Gameplay);
         ClearBackground(Color.White with { A = 0 });
+        #if DEBUG
         int vy = 0;
+        #endif
         Player.RenderBottomLayer();
         float value = 0;
         foreach (var x in Objects)
@@ -664,14 +672,14 @@ public class Game : IDisposable
                 DrawText($"source_rc: {x.SourceRect}, info_rc: {info.rc}", 0, vy+=8,8,Color.White);
             #endif
             Shader shader;
-            if (x.Effect != "")
+            if (x.UseEffect)
             {
                 shader = x.EffectShader;
                 value = Helper.ComputeObjectTime0To2(CurrentTick, x.SpawnTick, 10, 99999, 5);
                 SetShaderValue(shader, GetShaderLocation(shader, "statement"), value, ShaderUniformDataType.Float);
                 SetShaderValue(shader, GetShaderLocation(shader, "color"), x.EffectColor, ShaderUniformDataType.Vec3);
                 SetShaderValue(shader, GetShaderLocation(shader, "position"), x.PositionTo, ShaderUniformDataType.Vec2);
-                SetShaderValue(shader, GetShaderLocation(shader, "resolution"), x.TextureSize, ShaderUniformDataType.Vec2);
+                SetShaderValue(shader, GetShaderLocation(shader, "resolution"), x.RenderSize, ShaderUniformDataType.Vec2);
                 BeginShaderMode(shader);
             }
             DrawTexturePro(x.SourceTexture, x.SourceRect, info.rc, Vector2.Zero, info.rotation, Color.White);
@@ -851,7 +859,7 @@ public class Game : IDisposable
     public void Start()
     {
         CurrentTick = 0;
-        GameStartedTimestamp = GetTime();
+        GameStartedTimestamp = GetTime() + LoadingTime;
         NextTickStamp = GameStartedTimestamp + TickLength;
         ChapterIndex = -1;
         SetTitle(StageInfo.Index, StageInfo.TitleTick);
@@ -937,6 +945,10 @@ public class Game : IDisposable
     public const float DieAnimationLength = 1.6f;
     public const int DieClearAllDelay = 40;
     public bool CollectNextClearAll = true;
+
+    private bool GameplayScreensCleanupRequired = false;
+    public List<GameplayScreenEffect> GameplayScreenEffects = new();
+    List<GameplayScreenEffect> GameplayScreenEffectsToRemove = new();
     
     public void SetDied()
     {
@@ -945,6 +957,7 @@ public class Game : IDisposable
         DiePosition = Player.PositionTo;
         DiedTimestamp = (float)GetTime();
         NextClearAllTick = CurrentTick + DieClearAllDelay;
+        GameplayScreenEffects.Add(new GameplayScreenEffect(this, DiePosition, 10000, "die", DiedTimestamp, DiedTimestamp + 1.6f));
         Helper.PlaySound(Runtime.CurrentRuntime.Sounds["dead"]);
     }
 
@@ -1043,5 +1056,11 @@ public class Game : IDisposable
         if (rS == Playing)
             return;
         Playing = rS;
+    }
+
+    public void RemoveScreenEffect(GameplayScreenEffect gameplayScreenEffect)
+    {
+        GameplayScreensCleanupRequired = true;
+        GameplayScreenEffectsToRemove.Add(gameplayScreenEffect);
     }
 }

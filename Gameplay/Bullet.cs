@@ -44,7 +44,6 @@ public class Bullet : RuntimeObject
         SourceTexture = constant.GetTexture(info.EffectColor);
         SourceRect = new Rectangle(constant.GetSourcePosition(info.EffectColor),
             constant.SourceSize == null ?  constant.RenderSize :  constant.GetSourceSize());
-        TextureSize = constant.GetSourceSize();
         UpdateCollisionRender(PositionTo+(info.StackPositionOffset*numberInStack), info.Rotation);
         if (BulletAction.Actions.TryGetValue(info.BulletActionClass, out var action))
         {

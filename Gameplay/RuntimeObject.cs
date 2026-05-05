@@ -20,7 +20,6 @@ public class RuntimeObject : IDisposable
     public bool UseEffect = false;
     public Vector3 EffectColor = Vector3.One;
     public Shader EffectShader;
-    public Vector2 TextureSize;
 
     public RuntimeObject(Game game, Vector2 position, Vector2 renderSize, Vector2 textureSize, Vector2 collisionSize, float rotation = 0)
     {
@@ -29,7 +28,6 @@ public class RuntimeObject : IDisposable
         PositionFrom = PositionTo;
         RenderSize = renderSize;
         CollisionSize = collisionSize;
-        TextureSize = textureSize;
 
         StateFrom = new Rectangle(PositionFrom - (RenderSize / 2), RenderSize);
         StateTo = StateFrom;

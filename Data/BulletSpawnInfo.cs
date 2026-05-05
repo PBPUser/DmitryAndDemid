@@ -17,7 +17,7 @@ public class BulletSpawnInfo : ChapterElement
         }
     }
     
-    [JsonInclude] public string BulletVisual = "Default";
+    [JsonInclude] public string BulletVisual = "default";
     [JsonInclude] public string BulletActionClass = "";
     [JsonInclude] public string[] Args = [];
     

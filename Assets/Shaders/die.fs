@@ -10,7 +10,7 @@ uniform sampler2D texture0;
 uniform vec4 colDiffuse;
 uniform float time;
 uniform float scale;
-uniform vec2 pos;
+uniform vec2 position;
 
 const float offset = 32.;
 const vec2 res = vec2(384., 448.);
@@ -26,15 +26,15 @@ void main(){
   ftc = ftc * res;
   float t = time;
   float il = (max(0.75, t) - .75) * 4.;
-  bool j = distance(ftc, pos)>t*448.;
-  j = j!=(distance(ftc, pos+vec2(0., offset))<t*448.);
-  j = j!=(distance(ftc, pos-vec2(0., offset))<t*448.);
-  j = j!=(distance(ftc, pos+vec2(offset, 0.))<t*448.);
-  j = j!=(distance(ftc, pos-vec2(offset, 0.))<t*448.);
-  j = j!=(distance(ftc, pos)<(t-.2)*448.);  
+  bool j = distance(ftc, position)>t*448.;
+  j = j!=(distance(ftc, position+vec2(0., offset))<t*448.);
+  j = j!=(distance(ftc, position-vec2(0., offset))<t*448.);
+  j = j!=(distance(ftc, position+vec2(offset, 0.))<t*448.);
+  j = j!=(distance(ftc, position-vec2(offset, 0.))<t*448.);
+  j = j!=(distance(ftc, position)<(t-.2)*448.);  
   if(t > .4){
     t = t - .4;
-    j = j!=(distance(ftc, pos)<t*448.);
+    j = j!=(distance(ftc, position)<t*448.);
   }
   gl_FragColor = invert(fragTexCoord, j, il);
 }

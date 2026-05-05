@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DmitryAndDemid.Utils;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
 
@@ -46,9 +47,9 @@ public class BulletVisual
     [JsonInclude] public string Effect = "";
     
     [JsonIgnore] public string ShaderText = "";
-    [JsonIgnore] int CurrentX = 0;
-    [JsonIgnore] int CurrentY = 0;
-    [JsonIgnore] Dictionary<Vector3, Vector2> Positions = new();
+    [JsonIgnore] public int CurrentX = 0;
+    [JsonIgnore] public int CurrentY = 0;
+    [JsonIgnore] Dictionary<int, Vector2> Positions = new();
     [JsonIgnore] RenderTexture2D Bullets = new RenderTexture2D();
     [JsonIgnore] Vector3 PreviousColor = -Vector3.One;
     [JsonIgnore] private bool CustomShaderUsed = false;
@@ -60,11 +61,11 @@ public class BulletVisual
             return Runtime.CurrentRuntime.Textures[Texture];
         if(ShaderText == "")
             ShaderText = File.ReadAllText($"Assets/Shaders/{Texture}.fs");
-        if (Positions.ContainsKey(color))
+        int iColor = Helper.Vector3ColorToInt(color);
+        if (Positions.ContainsKey(iColor))
             return Bullets.Texture;
         BeginTextureMode(Bullets);
         var shader = CustomShaderUsed ? CustomShader : Runtime.CurrentRuntime.Shaders[Texture];
-        
         SetShaderValue(shader, GetShaderLocation(shader,"color"),
             color, ShaderUniformDataType.Vec3);
         BeginShaderMode(shader);
@@ -72,20 +73,17 @@ public class BulletVisual
             new (0,0,384,448),
             new (CurrentX,CurrentY,SourceSize.Value),
             Vector2.Zero, 0, Color.White);
-        //DrawRectangle(0, 0, 512, 512, Color.Green);
         EndShaderMode();
         EndTextureMode();
-        Positions.Add(color, new Vector2(CurrentX, 8192-CurrentY));
+        Positions.Add(iColor, new Vector2(CurrentX, 8192+CurrentY));
         CurrentX += (int)SourceSize.Value.X;
         if (CurrentX + SourceSize.Value.X > 8192-SourceSize.Value.X)
         {
             CurrentX = 0;
             CurrentY += (int)SourceSize.Value.Y;
         }
-
-        if (CurrentX > 8192 - SourceSize.Value.Y)
+        if (CurrentY > 8192 - SourceSize.Value.Y)
             CurrentY = 0;
-        //CurrentY += (int)SourceSize.Value.Y;
         return Bullets.Texture;
     }
 
@@ -93,8 +91,9 @@ public class BulletVisual
     {
         if(RenderType == BulletVisualRenderType.FromSprite)
             return SourcePosition;
-        if (Positions.ContainsKey(color))
-            return Positions[color];
+        int iColor = Helper.Vector3ColorToInt(color);
+        if (Positions.ContainsKey(iColor))
+            return Positions[iColor];
         return Vector2.Zero;
     }
 
@@ -104,8 +103,6 @@ public class BulletVisual
             return SourceSize.Value;
         return SourceSize.Value * new Vector2(1, -1);
     }
-    
-    
 #if DEBUG
     public static string BaseVS = File.ReadAllText("Assets/Shaders/base.vs");
     
@@ -130,7 +127,7 @@ public class BulletVisual
         foreach (var color in this.Positions)
         {
             SetShaderValue(CustomShader, GetShaderLocation(CustomShader,"color"),
-                color.Key, ShaderUniformDataType.Vec3);
+                Helper.ColorIntToVector3(color.Key), ShaderUniformDataType.Vec3);
             BeginShaderMode(CustomShader);
             DrawTexturePro(Rectangle384x448.Texture, 
                 new (0,0,384,448),

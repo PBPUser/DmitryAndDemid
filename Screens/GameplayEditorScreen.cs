@@ -4,6 +4,7 @@ using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Utils;
 using ImGuiNET;
+using Microsoft.VisualBasic.CompilerServices;
 using Raylib_cs;
 using rlImGui_cs;
 using static ImGuiNET.ImGui;
@@ -17,6 +18,9 @@ public class GameplayEditorScreen : Screen
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
         TexturePreview = LoadRenderTexture(8192, 8192);
         TexturePreview2 = LoadRenderTexture(8192, 8192);
+        GameplayPreview = LoadRenderTexture(384, 448);
+        LoadingPreview = LoadRenderTexture(640, 480);
+        LoadingBuffer = LoadRenderTexture(640, 480);
         EffectsFragmentShaderTexts = new string[Effects.Length];
         EffectsOverride = new bool[Effects.Length];
         EffectsShadersOverrides = new Shader[Effects.Length];
@@ -25,18 +29,22 @@ public class GameplayEditorScreen : Screen
             EffectsOverride[i] = false;
             EffectsFragmentShaderTexts[i] = File.ReadAllText($"Assets/Shaders/{Effects[i]}.fs");
         }
+        ForkSize =  new Vector2(ForkTexture.Width, ForkTexture.Height);
     }
 
+    private Vector2 ForkSize;
+    private Texture2D ForkTexture = Runtime.CurrentRuntime.Textures["vilkaCut.png"];
     private bool UseEffect = false;
     private int Item = 0; 
     private int Page = 0;
     private float Zoom = 1;
     private float State = 1;
-    private string[] Items = ["Bullet Visuals", ""];
+    private float Time = 0;
     private Vector3 Color = Vector3.One;
-    private RenderTexture2D TexturePreview;
-    private RenderTexture2D TexturePreview2;
+    private Vector2 Position = Vector2.One;
+    private RenderTexture2D TexturePreview, TexturePreview2, GameplayPreview, LoadingPreview, LoadingBuffer;
     private bool ShowFull = false;
+    private bool HighlightCurrent = false;
     public string ShaderText = "";
     public int EffectIndex = 0;
     private string[] Effects = Runtime.CurrentRuntime.Shaders.Keys.ToArray();
@@ -44,8 +52,31 @@ public class GameplayEditorScreen : Screen
     private bool[] EffectsOverride;
     private Shader[] EffectsShadersOverrides;
     private double TimeStart = 0f;
+    private double TimeStart2 = 0f;
     private float PreviousValue = 0f;
+    private float Speed = 1f;
+    private float PreviousValue2 = 0f;
+    private float LoadingScreenLength = 8f;
+    private float LoadingScreenFade = 0.5f;
+    private float LoadingScreenFadeState = 1f;
+    private float LoadingFifoShowDelay = 2f;
+    private string LoadingShaderText = File.ReadAllText("Assets/Shaders/loading.fs");
+    private string LoadingSwapShaderText = File.ReadAllText("Assets/Shaders/loading_swap.fs");
+    private bool LoadingShaderOverriden = false;
+    private bool LoadingSwapShaderOverriden = false;
+    private Texture2D LoadingTexture = Runtime.CurrentRuntime.Textures["loading.png"];
 
+    private Shader
+        LoadingTileShader = Runtime.CurrentRuntime.Shaders["loading"],
+        LoadingSwapShader = Runtime.CurrentRuntime.Shaders["loading_swap"];
+
+    private static Rectangle
+        LoadingBufferSource = new Rectangle(0, -480, 640, 480),
+        LoadingTarget = new Rectangle(0, 0, 640, 480);
+    private Rectangle
+        LoadingSource = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["loading.png"]);
+    
+    
     public override void TopUpdate()
     {
         var s = Raylib.GetTime() - TimeStart;
@@ -67,6 +98,8 @@ public class GameplayEditorScreen : Screen
     {
         DrawBackground();
         base.Render();
+        if (EffectIndex == -1)
+            return;
     }
 
 #if DEBUG
@@ -75,15 +108,17 @@ public class GameplayEditorScreen : Screen
         BeginMainMenuBar();
         if (MenuItem("Bullet Viewer"))
             Page = 0;
-        if (MenuItem("Texture Viewer"))
+        if (MenuItem("Gameplay Effect Viewer and Editor"))
             Page = 1;
+        if (MenuItem("Loading Screen test"))
+            Page = 2;
         if (MenuItem("Exit"))
             Runtime.CurrentRuntime.RemoveScreen(this);
         EndMainMenuBar();
         switch (Page)
         {
             case 0:
-                string[] j = Data.BulletVisual.Constants.Select(x => x.Key).ToArray();
+                string[] j = BulletVisual.Constants.Select(x => x.Key).ToArray();
                 Begin("Bullet Selection");
                 BeginTable("Bullet Selection Table", 3);
                 EndTable();
@@ -93,6 +128,7 @@ public class GameplayEditorScreen : Screen
                 if(Button("Reset Zoom"))
                     Zoom = 1;
                 Checkbox("Show Full", ref ShowFull);
+                Checkbox("Highlight Current", ref HighlightCurrent);
                 if (ListBox("Visuals", ref Item, j, j.Length))
                 {
                     var r = Effects.FirstOrDefault(x => x.Equals(BulletVisual.Constants.ElementAt(Item).Key as string));
@@ -101,6 +137,7 @@ public class GameplayEditorScreen : Screen
                 var item = Data.BulletVisual.Constants.ElementAt(Item).Value;
                 Text($"Size: {item.RenderSize}");
                 Text($"Type: {item.RenderType}");
+                Text($"Current Position: {item.CurrentX} {item.CurrentY}");
                 End();
                 
                 Begin("Effect Setting");
@@ -161,9 +198,31 @@ public class GameplayEditorScreen : Screen
                 EndShaderMode();
                 BeginTextureMode(TexturePreview);
                 ClearBackground(Raylib_cs.Color.Black with {A = 0});
+                if (ShowFull && HighlightCurrent)
+                {
+                    var rc = new Rectangle(item.GetSourcePosition(Color), item.GetSourceSize());
+                    DrawRectangle((int)rc.X,
+                        (int)(rc.Y+rc.Height),
+                        (int)rc.Width,
+                        (int)Math.Abs(rc.Height),
+                        Raylib_cs.Color.Magenta with
+                        {
+                            A = 128
+                        });
+                }
                 DrawTexture(TexturePreview2.Texture, 0, 0, Raylib_cs.Color.White);
                 EndTextureMode();
-                if (!ShowFull)
+                if (ShowFull)
+                {
+                    var size = Helper.GetSize(TexturePreview.Texture);
+                    var rc = new Rectangle(Vector2.Zero, size);
+                    if (item.RenderType == BulletVisualRenderType.FromShader)
+                        rc.Size *= new Vector2(1, -1);
+                    Text($"Full Size: {size}");
+                    Text($"Rectangle: {rc}");
+                    rlImGui.ImageRect(TexturePreview.Texture, (int)(size.X * Zoom), (int)(size.Y * Zoom), rc);
+                }
+                else
                 {
                     var rc = new Rectangle(item.GetSourcePosition(Color), item.GetSourceSize());
                     Text($"Rectangle: {rc}");
@@ -173,16 +232,6 @@ public class GameplayEditorScreen : Screen
                         (int)(item.SourceSize.Value.X * Zoom), 
                         (int)(item.SourceSize.Value.Y * Zoom),
                         rc);
-                }
-                else
-                {
-                    var size = Helper.GetSize(TexturePreview.Texture);
-                    var rc = new Rectangle(Vector2.Zero, size);
-                    if (item.RenderType == BulletVisualRenderType.FromShader)
-                        rc.Size *= new Vector2(1, -1);
-                    Text($"Full Size: {size}");
-                    Text($"Rectangle: {rc}");
-                    rlImGui.ImageRect(TexturePreview.Texture, (int)(size.X * Zoom), (int)(size.Y * Zoom), rc);
                 }
                 End();
                 if (item.RenderType == BulletVisualRenderType.FromSprite)
@@ -194,6 +243,130 @@ public class GameplayEditorScreen : Screen
                     item.ReloadShader();
                 if(item.LastShaderInvalid)
                     Text("Something went wrong");
+                End();
+                break;
+            case 1:
+                Begin("Effect Selector");
+                ListBox("Select effect for gameplay", ref EffectIndex, Effects, Effects.Length);
+                SliderFloat("Time", ref Time, 0, 1);
+                if (Button("Play Animation"))
+                    TimeStart2 = Raylib.GetTime();
+                SliderFloat2("Position", ref Position, 0, 448);
+                End();
+                if(EffectIndex == -1)
+                    break;
+                Begin($"{Effects[EffectIndex]}.fs - Shader Editor (GAMESCREEN EFFECT)");
+                if (InputTextMultiline("Text of shader", ref EffectsFragmentShaderTexts[EffectIndex], 65536,
+                        new Vector2(640, 480), ImGuiInputTextFlags.AllowTabInput))
+                {
+                    var sh = LoadShaderFromMemory(BulletVisual.BaseVS, EffectsFragmentShaderTexts[EffectIndex]);
+                    if (IsShaderValid(sh))
+                    {
+                        if(EffectsOverride[EffectIndex])
+                            UnloadShader(EffectsShadersOverrides[EffectIndex]);
+                        EffectsShadersOverrides[EffectIndex] = sh;
+                        EffectsOverride[EffectIndex] = true;
+                    }
+                    else
+                        UnloadShader(sh);
+                }
+                End();
+                
+                var shader = EffectsOverride[EffectIndex] ? EffectsShadersOverrides[EffectIndex] : Runtime.CurrentRuntime.Shaders[Effects[EffectIndex]];
+                BeginTextureMode(GameplayPreview);
+                SetShaderValue(shader,GetShaderLocation(shader,"position"), Position * new Vector2(1, -1), ShaderUniformDataType.Vec2);
+                SetShaderValue(shader,GetShaderLocation(shader,"time"), Time, ShaderUniformDataType.Float);
+                BeginShaderMode(shader);
+                DrawTexturePro(BulletVisual.Rectangle384x448.Texture, new Rectangle(0,448,384,-448), new Rectangle(0,0,384,448),
+                    Vector2.Zero, 0, Raylib_cs.Color.White);
+                EndShaderMode();
+                EndTextureMode();
+                
+                Begin("Gameplay");
+                Text($"Position: {Position}");
+                Text($"Time: {Time}");
+                rlImGui.Image(GameplayPreview.Texture);
+                End();
+                break;
+            case 2:
+                float time = (float)Raylib.GetTime();
+                Begin("Loading Screen Tester");
+                SliderFloat("Speed", ref Speed, 0, 20);
+                SliderFloat("Fade", ref LoadingScreenFadeState, 0f, 2f);
+                End();
+                Begin("Loading Screen Animation Tester");
+                SliderFloat("Fade Length", ref LoadingScreenFade, 0.1f, 2f);
+                SliderFloat("Loading Time", ref LoadingScreenLength, 2, 30);
+                SliderFloat("Fifo Delay", ref LoadingFifoShowDelay, 2, 30);
+                if (Button("Play"))
+                {
+                    TiledLoadingScreen? screen = null;
+                    screen = new TiledLoadingScreen(LoadingScreenLength, LoadingScreenFade, () =>
+                    {
+                        Runtime.CurrentRuntime.RemoveScreen(screen);
+                    }, true, LoadingFifoShowDelay);
+                    screen.LoadingShaderTiles = LoadingTileShader;
+                    screen.LoadingShaderSwap = LoadingSwapShader;
+                    screen.TimeDisappear = screen.TimeAppear + LoadingScreenLength;
+                    Runtime.CurrentRuntime.AddScreen(screen);
+                }
+                End();
+                Begin("loading.fs - Shader Editor (LOADING)");
+                if (InputTextMultiline("Text", ref LoadingShaderText, 65536, new Vector2(640, 480),
+                        ImGuiInputTextFlags.AllowTabInput))
+                {
+                    var sh =  LoadShaderFromMemory(BulletVisual.BaseVS, LoadingShaderText);
+                    if (IsShaderValid(sh))
+                    {
+                        if(LoadingShaderOverriden)
+                            UnloadShader(LoadingTileShader);
+                        LoadingTileShader = sh;
+                        LoadingShaderOverriden = true;
+                    }
+                    else
+                        UnloadShader(sh);
+                }
+                End();
+                Begin("loading_swap.fs - Shader Editor (LOADING)");
+                if (InputTextMultiline("Text", ref LoadingSwapShaderText, 65536, new Vector2(640, 480),
+                        ImGuiInputTextFlags.AllowTabInput))
+                {
+                    var sh =  LoadShaderFromMemory(BulletVisual.BaseVS, LoadingSwapShaderText);
+                    if (IsShaderValid(sh))
+                    {
+                        if (LoadingSwapShaderOverriden)
+                            UnloadShader(LoadingSwapShader);
+                        LoadingSwapShader = sh;
+                        LoadingSwapShaderOverriden = true;
+                    }
+                    else
+                        UnloadShader(sh);
+                }
+                End();
+                BeginTextureMode(LoadingBuffer);
+                ClearBackground(Raylib_cs.Color.Black with {A=0});
+                SetShaderValue(LoadingTileShader, GetShaderLocation(LoadingTileShader, "time"), time,
+                    ShaderUniformDataType.Float);                
+                SetShaderValue(LoadingTileShader, GetShaderLocation(LoadingTileShader, "speed"), Speed,
+                    ShaderUniformDataType.Float);
+                SetShaderValue(LoadingTileShader, GetShaderLocation(LoadingTileShader, "textureRes"), LoadingSource.Size * 2,
+                    ShaderUniformDataType.Vec2);
+                SetShaderValue(LoadingTileShader, GetShaderLocation(LoadingTileShader, "outputRes"), LoadingTarget.Size,
+                    ShaderUniformDataType.Vec2);
+                BeginShaderMode(LoadingTileShader);
+                DrawTexturePro(LoadingTexture, LoadingSource, LoadingTarget, Vector2.Zero, 0, Raylib_cs.Color.White);
+                EndShaderMode();
+                EndTextureMode();
+                BeginTextureMode(LoadingPreview);
+                ClearBackground(Raylib_cs.Color.Black with {A=0});
+                SetShaderValue(LoadingSwapShader, GetShaderLocation(LoadingSwapShader, "time"), LoadingScreenFadeState,
+                    ShaderUniformDataType.Float);
+                BeginShaderMode(LoadingSwapShader);
+                DrawTexturePro(LoadingBuffer.Texture, LoadingBufferSource, LoadingTarget, Vector2.Zero, 0, Raylib_cs.Color.White);
+                EndShaderMode();
+                EndTextureMode();
+                Begin("Loading Preview");
+                rlImGui.Image(LoadingPreview.Texture);
                 End();
                 break;
         }

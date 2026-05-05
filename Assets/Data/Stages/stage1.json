@@ -28,7 +28,7 @@
             },
             {
               "Class": "CircleShoot",
-              "Args": ["256", "8", "default", "true", ""]
+              "Args": ["256", "8", "pentabullet", "true", ""]
             },
             {
               "Class": "LinearRotate",
@@ -57,7 +57,7 @@
             },
             {
               "Class": "ShootIntoPlayer",
-              "Args": ["256", "240", "default"]
+              "Args": ["256", "240", "pentabullet"]
             }
           ],
           "Rotation": 45,
@@ -85,7 +85,7 @@
             },
             {
               "Class": "CircleShoot",
-              "Args": ["64", "16", "default", "true", ""]
+              "Args": ["64", "16", "pentabullet", "true", ""]
             },
             {
               "Class": "LinearRotate",
@@ -114,7 +114,7 @@
             },
             {
               "Class": "ShootIntoPlayer",
-              "Args": ["16", "240", "default"]
+              "Args": ["16", "240", "pentabullet"]
             }
           ],
           "Rotation": 45,

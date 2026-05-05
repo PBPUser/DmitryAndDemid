@@ -261,7 +261,23 @@ public static class Helper
         ? -(MathF.Pow(2, 20 * x - 10) * MathF.Sin((20 * x - 11.125f) * c5)) / 2
         : (MathF.Pow(2, -20 * x + 10) * MathF.Sin((20 * x - 11.125f) * c5)) / 2 + 1;
     }
+    
+    public static int Vector3ColorToInt(Vector3 vector)
+    {
+        int r = (int)(0xFF * vector.X);
+        int g = (int)(0xFF * vector.Y);
+        int b = (int)(0xFF * vector.Z);
+        return r << 16 | g << 8 | b;
+    }
 
+    public static Vector3 ColorIntToVector3(int color)
+    {
+        float r = (color >> 16) & 0xFF;
+        float g = (color >> 8) & 0xFF;
+        float b = color & 0xFF;
+        return new Vector3(r / 0xFF, g / 0xFF, b / 0xFF);
+    }
+    
     public static RenderTexture2D DrawTextScaled(string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, string shader = "shadow") => DrawText(s, 
         (int)(fontSize*Runtime.CurrentRuntime.Scale), 
         (int)(hPadding*Runtime.CurrentRuntime.Scale), 

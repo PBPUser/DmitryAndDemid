@@ -37,7 +37,8 @@ public class GameplayScreen : Screen
             "j",
             (int)(24 * Runtime.CurrentRuntime.ScaleF),
             0).X+(int)(2 * Runtime.CurrentRuntime.ScaleF));
-        
+        GameEffectsTextures[0] = LoadRenderTexture(384, 448);
+        GameEffectsTextures[1] = LoadRenderTexture(384, 448);
     }
 
     public int LetterWidth = 0;
@@ -49,9 +50,16 @@ public class GameplayScreen : Screen
     Rectangle DialogSource;
     Rectangle DialogDest;
 
+    private static Rectangle Fullscreen = Helper.GetFullscreenSource();
+    private static Rectangle BGSource = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["gameplay_background.png"]);
+    private static Rectangle DestEffect = new Rectangle(0, 0, 384, 448); 
+
     private Rectangle DifficultySource;
     private Rectangle DifficultyTargetStart;
     private Rectangle DifficultyTarget;
+    
+    RenderTexture2D[] GameEffectsTextures = new RenderTexture2D[2];
+    private int GameEffectTextureIndex = 1;
     
     public Game? Game;
 
@@ -85,6 +93,9 @@ public class GameplayScreen : Screen
 
     public override void TopUpdate()
     {
+        float time = Game.GetTime();
+        if (time < Game.GameStartedTimestamp)
+            return;
         Game!.ProcessInput();
         if ((IsKeyDown(KeyboardKey.Escape) ||
              Controller.IsButtonDown(Configuration.Config.PauseButton)) 
@@ -102,23 +113,33 @@ public class GameplayScreen : Screen
     
     public override void Render()
     {
-        float time = (float)Game.GetTime();
-        DrawBackground();
+        float time = Game.GetTime();
+        if (time < Game.GameStartedTimestamp-0.5)
+            return;
+        DrawTexturePro(Runtime.CurrentRuntime.Textures["gameplay_background.png"], BGSource,Fullscreen, Vector2.Zero, 0, Color.White);
         Game!.RenderGame();
-        if (Game.IsDied)
-        {
-            SetShaderValue(DieShader, LocationDieTime, (time- Game.DiedTimestamp) / Game.DieAnimationLength, ShaderUniformDataType.Float);
-            SetShaderValue(DieShader, LocationDiePosition, Game.DiePosition, ShaderUniformDataType.Vec2);
-            BeginShaderMode(Runtime.CurrentRuntime.Shaders["die"]);
-        }
+        BeginTextureMode(GameEffectsTextures[0]);
         DrawTexturePro(Game.Background.Texture,
-            Source, Dest,
+            Source, DestEffect,
             Vector2.Zero, 0, Color.White);
         DrawTexturePro(Game.Gameplay.Texture,
-            Source, Dest,
+            Source, DestEffect,
             Vector2.Zero, 0, Color.White);
-        if(Game.IsDied)
+        EndTextureMode();
+        GameEffectTextureIndex = 0;
+        foreach (GameplayScreenEffect gse in Game.GameplayScreenEffects)
+        {
+            GameEffectTextureIndex = (GameEffectTextureIndex + 1) % 2;
+            BeginTextureMode(GameEffectsTextures[GameEffectTextureIndex]);
+            ClearBackground(Color.Black with {A = 0});
+            gse.ApplyShading(time);
+            DrawTexturePro(GameEffectsTextures[(GameEffectTextureIndex+1) % 2].Texture,
+                Source, DestEffect, Vector2.Zero, 0, Color.White);
             EndShaderMode();
+            EndTextureMode();
+        }
+        DrawTexturePro(GameEffectsTextures[GameEffectTextureIndex].Texture,
+            Source, Dest, Vector2.Zero, 0, Color.White);
         DrawTexturePro(Game.Dialog.Texture,
             DialogSource, DialogDest,
             Vector2.Zero, 0, Color.White);
@@ -146,6 +167,8 @@ public class GameplayScreen : Screen
     public override void Unload()
     {
         Runtime.CurrentRuntime.SetScreenRenderingFrom(0);
+        UnloadRenderTexture(GameEffectsTextures[0]);
+        UnloadRenderTexture(GameEffectsTextures[1]);
         Game = null;
     }
 

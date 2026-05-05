@@ -109,6 +109,7 @@ public class PersonSelectScreen : MenuScreen
 
     void OpenNext()
     {
+        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["swap"]);
         string data = File.ReadAllText(Files[SelectedIndex]);
         var json = JsonSerializer.Deserialize<ProtogonistData>(data);
         if (json == null)
@@ -127,7 +128,12 @@ public class PersonSelectScreen : MenuScreen
             gamePlayScreen.Game.ContinueAfterStageEnds = true;
             Runtime.CurrentRuntime.AddScreen(gamePlayScreen);
         }
-                
-        
+
+        TiledLoadingScreen? tls = null;
+        tls = new TiledLoadingScreen(Game.LoadingTime, 0.5, () =>
+        {
+            Runtime.CurrentRuntime.RemoveScreen(tls);
+        }, true, 0);
+        Runtime.CurrentRuntime.AddScreen(tls);
     }
 }
