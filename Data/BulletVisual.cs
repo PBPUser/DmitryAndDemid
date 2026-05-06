@@ -10,33 +10,9 @@ namespace DmitryAndDemid.Data;
 public class BulletVisual
 {
     public static Dictionary<string, BulletVisual> Constants = new Dictionary<string, BulletVisual>();
-
     public static RenderTexture2D Rectangle384x448;
     
-    
-    static BulletVisual()
-    {
-        Rectangle384x448 = LoadRenderTexture(384, 448);
-        foreach (var file in Directory.GetFiles("Assets/Data/BulletVisuals", "*.json"))
-            Constants[Path.GetFileNameWithoutExtension(file)] = JsonSerializer.Deserialize<BulletVisual>(File.ReadAllText(file), new JsonSerializerOptions {IncludeFields= true});
-    }
-
     public bool LastShaderInvalid = false;
-
-    public static void FillRCPrerender()
-    {
-         BeginTextureMode(Rectangle384x448);
-         DrawRectangle(0,0,384,448,Color.White);
-         EndTextureMode();
-    }
-
-    public BulletVisual()
-    {
-        Bullets = LoadRenderTexture(8192, 8192);
-        if (RenderType == BulletVisualRenderType.FromShader)
-        {
-        }
-    }
     
     [JsonInclude] public string Texture = "";
     [JsonInclude] public BulletVisualRenderType RenderType = BulletVisualRenderType.FromSprite;
@@ -49,11 +25,33 @@ public class BulletVisual
     [JsonIgnore] public string ShaderText = "";
     [JsonIgnore] public int CurrentX = 0;
     [JsonIgnore] public int CurrentY = 0;
-    [JsonIgnore] Dictionary<int, Vector2> Positions = new();
-    [JsonIgnore] RenderTexture2D Bullets = new RenderTexture2D();
-    [JsonIgnore] Vector3 PreviousColor = -Vector3.One;
-    [JsonIgnore] private bool CustomShaderUsed = false;
+    [JsonIgnore] private Dictionary<int, Vector2> Positions = new();
+    [JsonIgnore] private RenderTexture2D Bullets;
+    [JsonIgnore] private Vector3 PreviousColor = -Vector3.One;
+    [JsonIgnore] private bool CustomShaderUsed;
     [JsonIgnore] private Shader CustomShader;
+    
+    static BulletVisual()
+    {
+        Rectangle384x448 = LoadRenderTexture(384, 448);
+        foreach (var file in Directory.GetFiles("Assets/Data/BulletVisuals", "*.json"))
+            Constants[Path.GetFileNameWithoutExtension(file)] = JsonSerializer.Deserialize<BulletVisual>(File.ReadAllText(file), new JsonSerializerOptions {IncludeFields= true});
+    }
+
+    public BulletVisual()
+    {
+        Bullets = LoadRenderTexture(8192, 8192);
+        if (RenderType == BulletVisualRenderType.FromShader)
+        {
+        }
+    }
+
+    public static void FillRCPrerender()
+    {
+         BeginTextureMode(Rectangle384x448);
+         DrawRectangle(0,0,384,448,Color.White);
+         EndTextureMode();
+    }
     
     public Texture2D GetTexture(Vector3 color)
     {
@@ -139,10 +137,4 @@ public class BulletVisual
         CustomShaderUsed = true;
     }    
 #endif
-}
-
-public enum BulletVisualRenderType
-{
-    FromShader = 0,
-    FromSprite = 1
 }

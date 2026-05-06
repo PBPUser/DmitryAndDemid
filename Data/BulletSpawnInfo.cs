@@ -7,6 +7,13 @@ namespace DmitryAndDemid.Data;
 public class BulletSpawnInfo : ChapterElement
 {
     public static Dictionary<string, BulletSpawnInfo> Prefabs = new();
+    
+    [JsonInclude] public string BulletVisual = "default";
+    [JsonInclude] public string BulletActionClass = "";
+    [JsonInclude] public string[] Args = [];
+    
+    [JsonInclude] public float Speed = 0;
+    [JsonInclude] public float Damage = 0;
 
     static BulletSpawnInfo()
     {
@@ -16,11 +23,4 @@ public class BulletSpawnInfo : ChapterElement
                 .Deserialize<BulletSpawnInfo>(File.ReadAllText(file));
         }
     }
-    
-    [JsonInclude] public string BulletVisual = "default";
-    [JsonInclude] public string BulletActionClass = "";
-    [JsonInclude] public string[] Args = [];
-    
-    [JsonInclude] public float Speed = 0;
-    [JsonInclude] public float Damage = 0;
 }

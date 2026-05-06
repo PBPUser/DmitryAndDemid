@@ -16,12 +16,9 @@ public class Configuration
             Config = JsonSerializer.Deserialize<Configuration>(File.ReadAllText("config.json")) ?? new Configuration();
     }
 
-    [JsonInclude]
-    public string Resolution = "1280x960";
-    [JsonInclude]
-    public FullScreenType FullScreenType = FullScreenType.Window;
-    [JsonInclude]
-    public bool AlwaysAsk = true;
+    [JsonInclude] public string Resolution = "1280x960";
+    [JsonInclude] public FullScreenType FullScreenType = FullScreenType.Window;
+    [JsonInclude] public bool AlwaysAsk = true;
     [JsonInclude] public float SFXVolume = 0.9f;
     [JsonInclude] public float MusicVolume = 1.0f;
     [JsonInclude] public bool FastLoading = false;
@@ -29,6 +26,7 @@ public class Configuration
     [JsonInclude] public GamepadButton BombButton = GamepadButton.RightFaceRight;
     [JsonInclude] public GamepadButton PauseButton = GamepadButton.RightTrigger1;
     [JsonInclude] public GamepadButton FocusButton = GamepadButton.RightFaceLeft;
+    [JsonInclude] public GamepadButton JumpButton = GamepadButton.RightTrigger2;
 
     public void Save()
     {

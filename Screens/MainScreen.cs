@@ -72,7 +72,7 @@ public class MainScreen : MenuScreen
     static Rectangle LogoSourceLeft = new Rectangle(0, 0, 260, 190);
     static Rectangle LogoSourceRight = new Rectangle(810, 0, 270, 105);
     static Rectangle LogoSourceCenter = new Rectangle(0, 0, 1000, 400);
-
+    public bool IsOnTop = false;
 
     Rectangle LogoTargetLeft;
     Rectangle LogoTargetRight;
@@ -89,11 +89,13 @@ public class MainScreen : MenuScreen
     {
         TimeAppearMenu = Math.Max(5.5, GetTime() - AppearTime);
         TimeDisappearMenu = 99999999999;
+        IsOnTop = true;
     }
 
     public override void Deactivated()
     {
         TimeDisappearMenu = GetTime() - AppearTime + 0.5;
+        IsOnTop = false;
     }
 
     public override void Render()
@@ -119,7 +121,7 @@ public class MainScreen : MenuScreen
         DrawTexturePro(Runtime.CurrentRuntime.Textures["game_logo.png"], LogoSourceCenter, Helper.Mix(LogoTargetCenter1, LogoTargetCenter2, Helper.EaseInOutElasticF(appear3)), Vector2.Zero, 0f, Color.White);
         CurrentX = (int)((16 - (Helper.Pow2F(1 - appear5) * 384)) * Runtime.CurrentRuntime.Scale);
 #if DEBUG
-        CurrentX = 0;
+        CurrentX = IsOnTop ? 0 : -10000;
 #endif
         DrawMenu();
         Helper.DrawWave(color1, MathF.Sin(time) + 1.5f, -0.7f - Helper.EaseInOutElasticF(appear1) * 1.5f, 1.5f, 1.5f, Runtime.CurrentRuntime.FullScreenRect);

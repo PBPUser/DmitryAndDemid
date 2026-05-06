@@ -1,4 +1,6 @@
+using System.Net.Mime;
 using System.Numerics;
+using System.Text.Json;
 using static Raylib_cs.Raylib;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
@@ -65,6 +67,13 @@ public class GameplayEditorScreen : Screen
     private bool LoadingShaderOverriden = false;
     private bool LoadingSwapShaderOverriden = false;
     private Texture2D LoadingTexture = Runtime.CurrentRuntime.Textures["loading.png"];
+    private string[] Endings = Directory.GetFiles("Assets/Data/Endings")
+        .Select(x => File.ReadAllText(x)).ToArray();
+    private string[] EndingNames = Directory.GetFiles("Assets/Data/Endings")
+        .Select(x => Path.GetFileNameWithoutExtension(x)).ToArray();
+    private int EndingIndex = 0;
+    private bool ShowError = false;
+    private string ErrorText = "";
 
     private Shader
         LoadingTileShader = Runtime.CurrentRuntime.Shaders["loading"],
@@ -112,6 +121,8 @@ public class GameplayEditorScreen : Screen
             Page = 1;
         if (MenuItem("Loading Screen test"))
             Page = 2;
+        if (MenuItem("Ending and staff roll tests"))
+            Page = 3;
         if (MenuItem("Exit"))
             Runtime.CurrentRuntime.RemoveScreen(this);
         EndMainMenuBar();
@@ -369,8 +380,46 @@ public class GameplayEditorScreen : Screen
                 rlImGui.Image(LoadingPreview.Texture);
                 End();
                 break;
+            case 3:
+                Begin("Ending tester");
+                ListBox("endings", ref EndingIndex, EndingNames, Endings.Length);
+                End();
+                Begin($"{EndingNames[EndingIndex]}.json - Ending Editor");
+                if (Button("Run"))
+                {
+                    try
+                    {
+                        Runtime.CurrentRuntime.AddScreen(new EndingScreen(0,  JsonSerializer.Deserialize<EndingInfo>(Endings[EndingIndex])!,false));
+                    }
+                    catch (Exception e)
+                    {
+                        Error(e.ToString());
+                    }
+                }
+                if (InputTextMultiline("text", ref Endings[EndingIndex], 65536, new Vector2(640, 480),
+                        ImGuiInputTextFlags.AllowTabInput))
+                {
+                    
+                }
+                End();
+                break;
+        }
+
+        if (ShowError)
+        {
+            Begin("Error");
+            Text(ErrorText);
+            if(Button("OK"))
+                ShowError = false;
+            End();
         }
         base.DrawImgui();
+    }
+
+    private void Error(string text)
+    {
+        ErrorText = text;
+        ShowError = true;
     }
 #endif
 

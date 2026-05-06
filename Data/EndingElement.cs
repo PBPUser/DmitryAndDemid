@@ -5,7 +5,7 @@ namespace DmitryAndDemid.Data;
 
 public abstract class EndingElement
 {
-    [JsonInclude] public int Index = 0;
+    [JsonInclude] public int ID = 0;
 
     public virtual void Apply(EndingScreen screen)
     {

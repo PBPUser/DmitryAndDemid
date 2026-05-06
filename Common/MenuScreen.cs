@@ -113,15 +113,19 @@ public abstract class MenuScreen : ScreenWithTitle
             Event = MenuItems[SelectedIndex].Action;
             ItemActivated = true;
         }
-        else if (AllowExitWithEscape && (IsKeyDown(KeyboardKey.Escape) || IsKeyDown(KeyboardKey.X) || Controller.IsButtonDown(GamepadButton.RightFaceRight)))
-        {
-            Exiting();
-            PreviousKeyTimestamp = GetTime();
-            Event = a => CurrentRuntime.RemoveScreen(this);
-            ItemActivated = true;
-        }
+        else if (AllowExitWithEscape && (IsKeyDown(KeyboardKey.Escape) || IsKeyDown(KeyboardKey.X) ||
+                                         Controller.IsButtonDown(GamepadButton.RightFaceRight)))
+            Exit();
     }
 
+    protected void Exit()
+    {
+        Exiting();
+        PreviousKeyTimestamp = GetTime();
+        Event = a => CurrentRuntime.RemoveScreen(this);
+        ItemActivated = true;
+    }
+    
     protected double ComputeAnimationIndex()
     {
         if(SelectedIndex > AnimationStartedIndex)

@@ -1,0 +1,41 @@
+{
+  "IsBad": true,
+  "AddTexts": [
+    {"ID": 1, "Text": "Alexey konb iz Berdyanska"},
+    {"ID": 2, "Text": "Master obshivki mebeli"},
+    {"ID": 3, "Text": "Znaet svoe delo otlichno"},
+    {"ID": 4, "Text": "Rabotaet s dushoy i vkucom"},
+    {"ID": 6, "Text": "Klienty ego ochen hvalyat"},
+    {"ID": 7, "Text": "Kachestvo na vysote vsegda"},
+    {"ID": 8, "Text": "Ceny priemlemie dlya vsekh"},
+    {"ID": 9, "Text": "Sroki soblyudaet tochno"},
+    {"ID": 11, "Text": "Materialy luchshie vybiraet"},
+    {"ID": 12, "Text": "Tkani prochnye i krasivye"},
+    {"ID": 13, "Text": "PoroLon tolko vysokogo"},
+    {"ID": 14, "Text": "kachestva ispolzuyet on"},
+    {"ID": 16, "Text": "Remontiruyet divany i"},
+    {"ID": 17, "Text": "kresla, stulya i kuschetki"},
+    {"ID": 18, "Text": "Lyubuyu mebel obnovit on"},
+    {"ID": 19, "Text": "Bystro, kachestvenno, horosho"},
+    {"ID": 21, "Text": "V Berdyanske znayut vse ego"},
+    {"ID": 22, "Text": "Kak luchshego mastera v gorode"},
+    {"ID": 23, "Text": "Zakazov mnogo u nego"},
+    {"ID": 24, "Text": "No vsyom uspivaet pomoch"},
+    {"ID": 26, "Text": "Alexey - professional svoy"},
+    {"ID": 27, "Text": "Rabotaet chestno i smelo"},
+    {"ID": 28, "Text": "Rezultat vsegda prekrasnyy"},
+    {"ID": 29, "Text": "Mebel kak novaya potom"}
+  ],
+  "ClearTexts": [
+    {"ID": 5},
+    {"ID": 10},
+    {"ID": 15},
+    {"ID": 20},
+    {"ID": 25}
+  ],
+  "PictureSwitchers": [
+    {"ID": 6, "Picture": "ending_illustration_3.png"},
+    {"ID": 11, "Picture": "ending_illustration_7.png"},
+    {"ID": 21, "Picture": "ending_illustration_12.png"}
+  ]
+}

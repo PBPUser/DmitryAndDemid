@@ -19,15 +19,21 @@ public class SettingsScreen : MenuScreen
         base.Exiting();
     }
 
+    public override void Deactivated()
+    {
+        TimeDisappear = (float)Raylib.GetTime() + 1f;
+        base.Deactivated();
+    }
+
     public override void CreateMenu()
     {
         SetTitle(Runtime.CurrentRuntime.Textures["settings.png"]);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
-        MenuItems.Add(new MenuItem("settings.sfx", "", a => {}));
-        MenuItems.Add(new MenuItem("settings.music", "", a => {}));
+        MenuItems.Add(new MenuItem("settings.sfx", $"{Configuration.Config.SFXVolume * 100:00}", a => {}));
+        MenuItems.Add(new MenuItem("settings.music", $"{Configuration.Config.MusicVolume * 100:00}", a => {}));
         MenuItems.Add(new MenuItem("settings.fullscreen", "", a => {}));
         MenuItems.Add(new MenuItem("settings.vsync", "", a => {}));
-        MenuItems.Add(new MenuItem("settings.controller", "", a => {}));
+        MenuItems.Add(new MenuItem("settings.controller", "", a => Runtime.CurrentRuntime.AddScreen(new GamepadSettingsScreen())));
         MenuItems.Add(new MenuItem("settings.default", "", a => {}));
         MenuItems.Add(new MenuItem("ingame.exit", "", a => {}));
         CurrentX = (int)(Runtime.CurrentRuntime.Scale * 32);
@@ -41,5 +47,44 @@ public class SettingsScreen : MenuScreen
         DrawBackground();
         DrawMenu();
         DrawTitle();
+    }
+
+    private double LastTimeShootSoundTestPlayed = 0;
+    private const double TimeShootSoundTestDelay = 0.75;
+    
+    public override void TopUpdate()
+    {
+        base.TopUpdate();
+        double time = Raylib.GetTime();
+        if (SelectedIndex == 0 && LastTimeShootSoundTestPlayed + TimeShootSoundTestDelay < time)
+        {
+            LastTimeShootSoundTestPlayed = time;
+            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["dead"]);
+        }
+
+        if (time > PreviousKeyTimestamp + MenuSwitchCooldown)
+        {
+            float delta = 0;
+            if (Controller.IsButtonDown(GamepadButton.LeftFaceLeft) || Raylib.IsKeyDown(KeyboardKey.Left))
+                delta -= .05f;
+            if (Controller.IsButtonDown(GamepadButton.LeftFaceRight) || Raylib.IsKeyDown(KeyboardKey.Right))
+                delta += .05f;
+            if (delta == 0)
+                return;
+            PreviousKeyTimestamp = time;
+            switch (SelectedIndex)
+            {
+                case 0:
+                    Runtime.CurrentRuntime.SFXVolume = Configuration.Config.SFXVolume = Math.Clamp(Runtime.CurrentRuntime.SFXVolume + delta, 0, 1);  
+                    MenuItems[0].Replace = $"{Configuration.Config.SFXVolume*100:00}";
+                    Configuration.Config.Save();
+                    break;
+                case 1:
+                    Runtime.CurrentRuntime.MusicVolume = Configuration.Config.MusicVolume = Math.Clamp(Runtime.CurrentRuntime.MusicVolume + delta, 0, 1);  
+                    MenuItems[1].Replace = $"{Configuration.Config.MusicVolume*100:00}";
+                    Configuration.Config.Save();
+                    break;
+            }
+        }
     }
 }

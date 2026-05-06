@@ -4,6 +4,7 @@ using System.Reflection;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay.Collectables;
+using DmitryAndDemid.Gameplay.PlayerWeapons;
 using DmitryAndDemid.Utils;
 using GLib;
 using Raylib_cs;
@@ -16,6 +17,11 @@ public class Player : RuntimeObject
     Action<Player, bool> BombAction;
     public ProtogonistData ProtogonistData;
     public PlayerControllerBase Controller;
+    public PlayerWeapon Weapon;
+    
+    public const float FocusedDifference = 8f;
+    public const float DefocusedDifference = 32f;
+    public const float FocusAnimationChangingLength = 0.25f;
 
     public float PointMagnetRadius => 
         PositionTo.Y < 100 || !CollisionEnabled ? 6000f : 24f;
@@ -31,16 +37,11 @@ public class Player : RuntimeObject
         else
             Console.WriteLine($"Player sprite ({data.Sprite}) not found!");
         SourceRect = new Rectangle(0, 0, 32, 32);
-        // FieldInfo? field = typeof(ShootBombScripts).GetField(data.WeaponScriptName);
-        // if (field == null)
-        //     throw new Exception();
-        // ShootAction = (Action<Player, bool>)field.GetRawConstantValue()!;
-        // field = typeof(ShootBombScripts).GetField(data.BombScriptName);
-        // if (field == null)
-        //     throw new Exception();
-        // BombAction = (Action<Player, bool>)field.GetRawConstantValue()!;
         Speed = data.Speed;
         FocusSpeed = data.FocusSpeed;
+        var type = Assembly.GetExecutingAssembly().GetTypes().FirstOrDefault(x => x.IsAssignableTo(typeof(PlayerWeapon)) && x.Name == data.WeaponClassName);
+        Weapon = (PlayerWeapon)type.GetConstructor([typeof(Player)]).Invoke([this]);
+        Weapon.UpdatePower();
     }
 
     public int Speed = 0;
@@ -63,38 +64,10 @@ public class Player : RuntimeObject
             CollisionEnabled = true;
         }
         Controller.Update(this, Game.CurrentTick);
-        float time = (float)Raylib.GetTime();
-        
-        BulletSourcePositionsCount = (Power / 100);
-        float dif = DefocusedDifference + (FocusedDifference - DefocusedDifference) * (float)Helper.ComputeObjectTime(Raylib.GetTime(), FocusTimestamp, FocusAnimationChangingLength,
-            DefocusTimestamp + FocusAnimationChangingLength, FocusAnimationChangingLength);
-        float angleStart = time * 2;
-        float angleDif = MathF.PI * 2 / BulletSourcePositionsCount;
-        for (int i = 0; i < BulletSourcePositionsCount; i++)
-            BulletSourcePositions[i] = PositionTo + (Helper.GetDirection(angleStart + (angleDif * i)) * dif);
-        
-        if (Game.CurrentTick % 20 != 0)
-            return;
+        Weapon.Update();
         if (!isShooting)
             return;
-        Bullet b;
-        float totalDamage = Power / 100f;
-        float singleDamage = totalDamage / BulletSourcePositionsCount;
-        for (int i = 0; i < BulletSourcePositionsCount; i++)
-        {
-            b = new Bullet(Game,new BulletSpawnInfo()
-            {
-                Damage = singleDamage,
-                Speed = 6f,
-                BulletVisual = "akob",
-                Rotation = MathF.PI,
-                Position = BulletSourcePositions[i],
-                BulletActionClass = "MoveByDirection",
-                Args = ["UseRotation"]
-            },0, false);
-            b.PlayerShoot = true;
-            Game.AddObject(b);
-        }
+        Weapon.Shoot();
     }
 
     public int HeartPoints
@@ -177,6 +150,7 @@ public class Player : RuntimeObject
             }
             power = newValue;
             Game.UpdateUI();
+            Weapon.UpdatePower();
         }
     }
 
@@ -192,16 +166,16 @@ public class Player : RuntimeObject
             isFocused = value;
             if (value)
             {
-                FocusTimestamp = (float)Raylib.GetTime() -
-                                 MathF.Max(FocusAnimationChangingLength + DefocusTimestamp - (float)Raylib.GetTime(),
-                                     0);
-                DefocusTimestamp = float.MaxValue;
+                Weapon.FocusTimestamp = Game.GetTime() -
+                                        MathF.Max(FocusAnimationChangingLength + Weapon.DefocusTimestamp - Game.GetTime(),
+                                            0);
+                Weapon.DefocusTimestamp = float.MaxValue;
             }
             else
             {
-                DefocusTimestamp = (float)Raylib.GetTime() -
-                                   MathF.Max(FocusAnimationChangingLength + FocusTimestamp - (float)Raylib.GetTime(),
-                                       0);
+                Weapon.DefocusTimestamp = Game.GetTime() -
+                                          MathF.Max(FocusAnimationChangingLength + Weapon.FocusTimestamp - Game.GetTime(),
+                                              0);
             }
         }
     }
@@ -247,50 +221,12 @@ public class Player : RuntimeObject
     private bool isBombing = false;
     private bool isShooting = false;
 
-    private int BulletSourcePositionsCount = 0;
-    
-    private const float FocusedDifference = 8f;
-    private const float DefocusedDifference = 32f;
-    
-    private float FocusTimestamp = 0;
-    private float DefocusTimestamp = 0;
-    private const float FocusAnimationChangingLength = 0.25f;
     
     private Vector2 CollisionDotPos;
-    private static Rectangle PlayerBottomLayerSource = new Rectangle(0, 64, 64, 64);
-    private static Rectangle PlayerTopLayerSource = new Rectangle(64, 64, 64, 64);
     
-    public void RenderBottomLayer()
-    {
-        float time = (float)Raylib.GetTime();
-        byte transparency = Helper.TimeToTransparency(.5 *
-            Helper.ComputeObjectTime(time, FocusTimestamp, FocusAnimationChangingLength,
-                DefocusTimestamp + FocusAnimationChangingLength, FocusAnimationChangingLength));
-        Raylib.DrawTexturePro(SourceTexture, PlayerBottomLayerSource, new Rectangle(PositionTo, new Vector2(64)), 
-            new Vector2(32), time*64, Color.White with {A=transparency} );
-        Raylib.DrawTexturePro(SourceTexture, PlayerBottomLayerSource, new Rectangle(PositionTo, new Vector2(64)), 
-            new Vector2(32), -time*64, Color.White with {A=transparency} );
-        
-    }
-
-    private static Rectangle AkobRectangleSource = new Rectangle(128, 64, 16, 16);
-    
-    public void RenderTopLayer()
-    {
-        for(int i = 0; i < BulletSourcePositionsCount; i++)
-            Raylib.DrawTexturePro(SourceTexture, AkobRectangleSource, new Rectangle(BulletSourcePositions[i],new Vector2(16)), new Vector2(8)
-                , 0, Color.White);
-        byte transparency = Helper.TimeToTransparency(
-            Helper.ComputeObjectTime(Raylib.GetTime(), FocusTimestamp, FocusAnimationChangingLength,
-                DefocusTimestamp + FocusAnimationChangingLength, FocusAnimationChangingLength));
-        Raylib.DrawTexturePro(SourceTexture, PlayerTopLayerSource, new Rectangle(PositionTo, new Vector2(64)), 
-            new Vector2(32), 0, Color.White with {A=transparency} );
-    }
-
     private const int RestoreInvincibilityLength = 300;
     private const int RestoreAnimationLength = 60;
     private int RestoreTick = 0;
-    public Vector2[] BulletSourcePositions = new Vector2[4];
     
     
     public void Die()
@@ -306,6 +242,6 @@ public class Player : RuntimeObject
         Game.SetDied();
         CollisionEnabled = false;
         RestoreTick = Game.CurrentTick + RestoreInvincibilityLength;
-        DefocusTimestamp = (float)Raylib.GetTime();
+        Weapon.DefocusTimestamp = (float)Raylib.GetTime();
     }
 }

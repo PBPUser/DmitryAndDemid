@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using DmitryAndDemid;
 
+Console.WriteLine(String.Join(' ', BitConverter.GetBytes(3l).Select(b => Convert.ToString(b, 2).PadLeft(8,'0'))));
 
 if (Configuration.Config.AlwaysAsk)
     new PreconfigWindow().Open();

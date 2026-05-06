@@ -662,7 +662,7 @@ public class Game : IDisposable
         #if DEBUG
         int vy = 0;
         #endif
-        Player.RenderBottomLayer();
+        Player.Weapon.DrawBottomLayer();
         float value = 0;
         foreach (var x in Objects)
         {
@@ -685,7 +685,7 @@ public class Game : IDisposable
             DrawTexturePro(x.SourceTexture, x.SourceRect, info.rc, Vector2.Zero, info.rotation, Color.White);
             EndShaderMode();
         }
-        Player.RenderTopLayer();
+        Player.Weapon.DrawTopLayer();
         Helper.DrawDeathPoints(RemovedBullets, "disappear_shoot");
         if (CurrentChapter != null)
         {

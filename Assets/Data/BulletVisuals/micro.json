@@ -1,0 +1,7 @@
+{
+  "Texture": "micro",
+  "RenderType": 0,
+  "RenderSize": { "X": 16, "Y": 16 },
+  "SourceSize": {"X": 16, "Y": 16 },
+  "Collision": {"X": 2, "Y": 2 }
+}

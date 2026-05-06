@@ -6,5 +6,7 @@ public class EndingInfo
 {
     [JsonInclude] public string ID;
     [JsonInclude] public bool IsBad = false;
-    [JsonInclude] public List<EndingElement> Elements;
+    [JsonInclude] public List<AddTextEndingElement> AddTexts = new();
+    [JsonInclude] public List<ClearTextEndingElement> ClearTexts = new();
+    [JsonInclude] public List<SwitchPictureEndingElement> PictureSwitchers = new();
 }

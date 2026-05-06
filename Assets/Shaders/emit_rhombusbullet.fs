@@ -19,14 +19,18 @@ const vec2 c = vec2(.5);
 const float padding = 2.5;
 
 float superElipse(float n, vec2 pos){
-	return pow(abs(pos.x), n) + pow(abs(pos.y), n);
+	return pow(abs(pos.x/.5), n) + pow(abs(pos.y/1.7), n);
 }
 
 void main(){
 	float angle = atan(fragTexCoord.y-.5, fragTexCoord.x-.5);
-    float d = superElipse((1.-pow(fragTexCoord.y,.35)) * 8., (fragTexCoord-vec2(0.5))/.37);
+	float ftcy = fragTexCoord.y;
+	if(ftcy < .5)
+		ftcy = 1-ftcy;
+    float d = superElipse((1.-pow(abs(ftcy),.4)) * 8., 
+		(fragTexCoord-vec2(0.5))/.7);
 	float transparency = smoothstep(-.2, 0.5, 1-d);
 	float colorness = smoothstep(1-d, 1., .73);
 	float grayColor = 1-(1-d)*.1;
     gl_FragColor = vec4(mix(vec3(grayColor), color, colorness), transparency);
-}
+} 
