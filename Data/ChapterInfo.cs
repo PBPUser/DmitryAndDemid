@@ -4,7 +4,7 @@ namespace DmitryAndDemid.Data;
 
 public class ChapterInfo : StageElement
 {
-    [JsonInclude] public ChapterType Type = ChapterType.NonBoss;
+    [JsonInclude] public ChapterType Type = ChapterType.Default;
     [JsonInclude] public string ChapterLabel = "";
     [JsonInclude] public string ChapterBossArt = "";
     [JsonInclude] public int ChapterLength = 25;

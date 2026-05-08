@@ -9,7 +9,9 @@
       "DmitryAndDemid/1.0.0": {
         "dependencies": {
           "GtkSharp": "3.24.24.95",
+          "LZMA-SDK": "22.1.1",
           "Raylib-cs": "7.0.2",
+          "System.CodeDom": "10.0.7",
           "rlImgui-cs": "3.2.0"
         },
         "runtime": {
@@ -119,6 +121,14 @@
           }
         }
       },
+      "LZMA-SDK/22.1.1": {
+        "runtime": {
+          "lib/netstandard2.0/SevenZip.dll": {
+            "assemblyVersion": "22.1.1.0",
+            "fileVersion": "22.1.1.0"
+          }
+        }
+      },
       "PangoSharp/3.24.24.95": {
         "dependencies": {
           "CairoSharp": "3.24.24.95",
@@ -175,6 +185,14 @@
           "lib/net6.0/rlImGui.dll": {
             "assemblyVersion": "3.2.0.0",
             "fileVersion": "3.2.0.0"
+          }
+        }
+      },
+      "System.CodeDom/10.0.7": {
+        "runtime": {
+          "lib/net10.0/System.CodeDom.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.726.21808"
           }
         }
       }
@@ -235,6 +253,13 @@
       "path": "imgui.net/1.91.6.1",
       "hashPath": "imgui.net.1.91.6.1.nupkg.sha512"
     },
+    "LZMA-SDK/22.1.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-lxG8/H53OCqebnDFlTStwzbgtmUN/DqnXN8kffa/ctHcSEHhIPDyEa3jLzpZxVX5F8bmJgvb1mna6gnhetykIw==",
+      "path": "lzma-sdk/22.1.1",
+      "hashPath": "lzma-sdk.22.1.1.nupkg.sha512"
+    },
     "PangoSharp/3.24.24.95": {
       "type": "package",
       "serviceable": true,
@@ -255,6 +280,13 @@
       "sha512": "sha512-FmVDFI+5PRWyQCIOMo3KQuEiwjiUxDcQmSY8YgBhxqdhT+MiW1lUZXDYdYG2Vla/nTbm546U8eqfUSOWnG5QIg==",
       "path": "rlimgui-cs/3.2.0",
       "hashPath": "rlimgui-cs.3.2.0.nupkg.sha512"
+    },
+    "System.CodeDom/10.0.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-bwKU+E9lAt6wRDtSdPnmcnKEev5hpUrQOPBIOVYXfN69GQPYJv9IxeifiBOm53QzYmARUjEKNwPlFALE9Ab53Q==",
+      "path": "system.codedom/10.0.7",
+      "hashPath": "system.codedom.10.0.7.nupkg.sha512"
     }
   }
 }

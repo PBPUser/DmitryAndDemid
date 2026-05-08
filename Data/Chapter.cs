@@ -29,7 +29,7 @@ public class Chapter : StageElement
     public double ChapterStartedAt = 0;  
     public Bullet[] Bullets;
     public Enemy[] Enemies;
-    public ChapterType Type = ChapterType.NonBoss;
+    public ChapterType Type = ChapterType.Default;
     public BossActionInfo[] BossActions;
 
     static Enemy[] GetEnemiesFromInfo(Game g, EnemySpawnInfo info)

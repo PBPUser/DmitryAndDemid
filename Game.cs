@@ -270,7 +270,7 @@ public class Game : IDisposable
             NextChapter();
         if (CurrentChapter != null)
         {
-            if (CurrentChapter.Type != ChapterType.NonBoss)
+            if (CurrentChapter.Type != ChapterType.Default)
             {
                 int j = CurrentChapter.ChapterLength - CurrentTick + TickChapterStart;
                 if (j == 0)
@@ -689,7 +689,7 @@ public class Game : IDisposable
         Helper.DrawDeathPoints(RemovedBullets, "disappear_shoot");
         if (CurrentChapter != null)
         {
-            if (CurrentChapter?.Type != ChapterType.NonBoss)
+            if (CurrentChapter?.Type != ChapterType.Default)
             {
                 DrawText(""+((CurrentChapter?.ChapterLength - CurrentTick) / 60), 0,0,24,Color.White);
             }

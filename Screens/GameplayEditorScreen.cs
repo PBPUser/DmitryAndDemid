@@ -74,7 +74,11 @@ public class GameplayEditorScreen : Screen
     private int EndingIndex = 0;
     private bool ShowError = false;
     private string ErrorText = "";
-
+    private string[] SpellCards = Directory.GetFiles("Assets/Data/SpellCards");
+    private string SpellcardFilename => SpellCards[SpellcardIndex];
+    private string CustomSpellcardFilename = "";
+    private int SpellcardIndex = 0;
+    
     private Shader
         LoadingTileShader = Runtime.CurrentRuntime.Shaders["loading"],
         LoadingSwapShader = Runtime.CurrentRuntime.Shaders["loading_swap"];
@@ -115,14 +119,16 @@ public class GameplayEditorScreen : Screen
     public override void DrawImgui()
     {   
         BeginMainMenuBar();
-        if (MenuItem("Bullet Viewer"))
+        if (MenuItem("BulletEdit"))
             Page = 0;
-        if (MenuItem("Gameplay Effect Viewer and Editor"))
+        if (MenuItem("GameEffect Editor"))
             Page = 1;
-        if (MenuItem("Loading Screen test"))
+        if (MenuItem("Loading Tester"))
             Page = 2;
-        if (MenuItem("Ending and staff roll tests"))
+        if (MenuItem("Ending/Staff Roll"))
             Page = 3;
+        if (MenuItem("SpellCards"))
+            Page = 4;
         if (MenuItem("Exit"))
             Runtime.CurrentRuntime.RemoveScreen(this);
         EndMainMenuBar();
@@ -400,6 +406,28 @@ public class GameplayEditorScreen : Screen
                         ImGuiInputTextFlags.AllowTabInput))
                 {
                     
+                }
+                End();
+                break;
+            case 4:
+                Begin("Load file");
+                if (ListBox("select file", ref SpellcardIndex, SpellCards, SpellCards.Length, 32))
+                    CustomSpellcardFilename = SpellcardFilename;
+                Text("Load: ");
+                InputText("File name", ref CustomSpellcardFilename, 64, ImGuiInputTextFlags.None);
+                if (Button(File.Exists($"Assets/Data/SpellCards/{CustomSpellcardFilename}.esc") ? "Load" : "Create"))
+                {
+                    EditableChapterInfo info;
+                    
+                    if (File.Exists($"Assets/Data/SpellCards/{CustomSpellcardFilename}.json"))
+                    {
+                        throw new NotImplementedException();
+                    }
+                    else
+                    {
+                        info = new EditableChapterInfo();
+                    }
+                    Runtime.CurrentRuntime.AddScreen(new SpellcardEditorScreen(info, CustomSpellcardFilename));
                 }
                 End();
                 break;

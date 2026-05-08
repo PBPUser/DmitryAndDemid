@@ -2,7 +2,8 @@ namespace DmitryAndDemid.Data;
 
 public enum ChapterType
 {
-    NonBoss = 0, 
-    NonSpell = 1, 
-    Spell = 2
+    Default = 0,
+    Continue = 1,
+    NonSpell = 2, 
+    Spell = 3
 }

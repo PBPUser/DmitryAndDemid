@@ -114,6 +114,19 @@
           }
         }
       },
+      "LZMA-SDK/22.1.1": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.0/SevenZip.dll": {
+            "related": ".deps.json;.xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/SevenZip.dll": {
+            "related": ".deps.json;.xml"
+          }
+        }
+      },
       "PangoSharp/3.24.24.95": {
         "type": "package",
         "dependencies": {
@@ -173,6 +186,22 @@
         },
         "runtime": {
           "lib/net6.0/rlImGui.dll": {}
+        }
+      },
+      "System.CodeDom/10.0.7": {
+        "type": "package",
+        "compile": {
+          "lib/net10.0/System.CodeDom.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net10.0/System.CodeDom.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
         }
       }
     }
@@ -280,6 +309,23 @@
         "runtimes/win-x86/native/cimgui.dll"
       ]
     },
+    "LZMA-SDK/22.1.1": {
+      "sha512": "lxG8/H53OCqebnDFlTStwzbgtmUN/DqnXN8kffa/ctHcSEHhIPDyEa3jLzpZxVX5F8bmJgvb1mna6gnhetykIw==",
+      "type": "package",
+      "path": "lzma-sdk/22.1.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "7z_rm01.jpg",
+        "lib/net20/SevenZip.dll",
+        "lib/net20/SevenZip.xml",
+        "lib/netstandard2.0/SevenZip.deps.json",
+        "lib/netstandard2.0/SevenZip.dll",
+        "lib/netstandard2.0/SevenZip.xml",
+        "lzma-sdk.22.1.1.nupkg.sha512",
+        "lzma-sdk.nuspec"
+      ]
+    },
     "PangoSharp/3.24.24.95": {
       "sha512": "H7JeyEvLsgvsbamGpRgoNtdvzPiGwwsUuoeTobN1C/JRjw1J8Snw0yf2WBr7CKx5GLwbrwpQYOb7N/HD17ME8A==",
       "type": "package",
@@ -328,12 +374,43 @@
         "rlimgui-cs.3.2.0.nupkg.sha512",
         "rlimgui-cs.nuspec"
       ]
+    },
+    "System.CodeDom/10.0.7": {
+      "sha512": "bwKU+E9lAt6wRDtSdPnmcnKEev5hpUrQOPBIOVYXfN69GQPYJv9IxeifiBOm53QzYmARUjEKNwPlFALE9Ab53Q==",
+      "type": "package",
+      "path": "system.codedom/10.0.7",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/net461/System.CodeDom.targets",
+        "buildTransitive/net462/_._",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/netcoreapp2.0/System.CodeDom.targets",
+        "lib/net10.0/System.CodeDom.dll",
+        "lib/net10.0/System.CodeDom.xml",
+        "lib/net462/System.CodeDom.dll",
+        "lib/net462/System.CodeDom.xml",
+        "lib/net8.0/System.CodeDom.dll",
+        "lib/net8.0/System.CodeDom.xml",
+        "lib/net9.0/System.CodeDom.dll",
+        "lib/net9.0/System.CodeDom.xml",
+        "lib/netstandard2.0/System.CodeDom.dll",
+        "lib/netstandard2.0/System.CodeDom.xml",
+        "system.codedom.10.0.7.nupkg.sha512",
+        "system.codedom.nuspec",
+        "useSharedDesignerContext.txt"
+      ]
     }
   },
   "projectFileDependencyGroups": {
     "net10.0": [
       "GtkSharp >= 3.24.24.95",
+      "LZMA-SDK >= 22.1.1",
       "Raylib-cs >= 7.0.2",
+      "System.CodeDom >= 10.0.7",
       "rlImgui-cs >= 3.2.0"
     ]
   },
@@ -384,9 +461,17 @@
             "target": "Package",
             "version": "[3.24.24.95, )"
           },
+          "LZMA-SDK": {
+            "target": "Package",
+            "version": "[22.1.1, )"
+          },
           "Raylib-cs": {
             "target": "Package",
             "version": "[7.0.2, )"
+          },
+          "System.CodeDom": {
+            "target": "Package",
+            "version": "[10.0.7, )"
           },
           "rlImgui-cs": {
             "target": "Package",

@@ -14,16 +14,36 @@ public class BitPackage
         Bytes = bytes;
     }
 
+    public static BitPackage GetStreamReadPackage(Stream stream)
+    {
+        BitPackage package = new();
+        package.Stream = stream;
+        return package;
+    }
+    
+
+    private Stream? Stream =null;
     private const byte ContinueByte = 0x80;
     private byte[] Bytes;
     private int Position = 0;
     private List<byte> BytesWrite;
     
     public byte[] Export() => BytesWrite.ToArray();
+    #if DEBUG
+    public void TransferDataToRead() => Bytes = BytesWrite.ToArray();
+    #endif
     
     #region Reader
     public byte[] Read(int count)
     {
+        if (Stream != null)
+        {
+            byte[] b = new byte[count];
+            int c = Stream.Read(b, 0, count);
+            if(c != count)
+                throw new EndOfStreamException();
+            return b;
+        }
         if (Bytes.Length < count + Position)
             throw new IndexOutOfRangeException();
         return Bytes.Skip(Position).Take(count).ToArray();
@@ -33,8 +53,8 @@ public class BitPackage
 
     public string ReadString()
     {
-        byte[] length = Read(4);
-        return "";
+        ulong bytesLength = ReadVarULong();
+        return Encoding.UTF8.GetString(Read((int)bytesLength));
     }
     
     public string ReadFixedString(int length)
@@ -50,16 +70,54 @@ public class BitPackage
         do
         {
             b = ReadByte();
-            value |= b;
-            value >>= 7;
+            value |= b % ContinueByte;
+            if((b & 0x80) == 0x80)
+                value <<= 7;
         } while ((b & 0x80) == 0x80);
+        return value;
+    }
 
-        return 0;
+    public float ReadFloat()
+    {
+        byte[] bytes = Read(4);
+        return BitConverter.ToSingle(bytes, 0);
+    }
+    
+    public ulong ReadVarULong()
+    {
+        ulong value = 0;
+        byte b;
+        do
+        {
+            b = ReadByte();
+            value |= (ulong)(b % ContinueByte);
+            if((b & 0x80) == 0x80)
+                value <<= 7;
+        } while ((b & 0x80) == 0x80);
+        return value;
+    }
+
+    public (int x, int y) ReadPosition()
+    {
+        byte[] bytes = Read(3);
+        int x = bytes[1];
+        int y = bytes[2];
+        if (0x80 == (bytes[0] & 0x80))
+            x += 0x100;
+        if(0x40==(bytes[0] & 0x40))
+            y += 0x100;
+        return (x, y);
     }
     #endregion
     #region Writer
     public void Write(byte[] bytes)
     {
+        if (Stream != null)
+            if (Stream.CanWrite)
+            {
+                Stream.Write(bytes, 0, bytes.Length);
+                return;
+            }
         BytesWrite.AddRange(bytes);
     }
 
@@ -72,8 +130,7 @@ public class BitPackage
     public void WriteString(string s)
     {
         byte[] bytes = Encoding.UTF8.GetBytes(s);
-        byte[] stringSize=BitConverter.GetBytes(bytes.Length);
-        Write(stringSize);
+        WriteVarULong((ulong)bytes.Length);
         Write(bytes);
     }
 
@@ -81,15 +138,60 @@ public class BitPackage
     {
         List<byte> bytes = new();
         byte c = 0;
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; value > 0; i++)
         {
-            c = (byte)(value % ContinueByte);
-            if(value != c)
-                c |= ContinueByte;
+            c = (byte)((value ^ ContinueByte) | ContinueByte);
             bytes.Add(c);
-            value <<= 7;
+            value >>>= 7;
         }
+        bytes.Reverse();
+        bytes[^1] ^= ContinueByte;
         Write(bytes.ToArray());
+    }
+    
+    public void WriteByte(byte value) => BytesWrite.Add(value);
+    
+    public void WriteVarULong(ulong value)
+    {
+        List<byte> bytes = new();
+        byte c = 0;
+        Console.WriteLine(String.Join(" ",BitConverter.GetBytes(value).Select(x => Convert.ToString(x, 2).PadLeft(8, '0'))));
+        for (int i = 0;; i++)
+        {
+            c = (byte)((value % ContinueByte) | ContinueByte);
+            bytes.Add(c);
+            value >>= 7;
+            Console.Write(Convert.ToString(c, 2).PadLeft(8, '0') + " ");
+            if (value == 0)
+                break;
+        }
+        Console.WriteLine();
+        bytes.Reverse();
+        bytes[^1] ^= ContinueByte;
+        Console.WriteLine(String.Join(" ",bytes.Select(x => Convert.ToString(x, 2).PadLeft(8, '0'))));
+        Write(bytes.ToArray());
+    }
+
+    public void WriteFloat(float value)
+    {
+        byte[] bytes = BitConverter.GetBytes(value);
+        Write(bytes);
+    }
+    
+    public void WritePlayAreaPosition((int x, int y) position)
+    {
+        position.x += 32;
+        position.y += 32;
+        byte mask = 0;
+        if (position.x > 0xff)
+            mask |= 0x80;
+        if (position.y > 0xff)
+            mask |= 0x40;
+        byte[] bytesx = BitConverter.GetBytes(position.x%0x100);
+        byte[] bytesy = BitConverter.GetBytes(position.y%0x100);
+        WriteByte(mask);
+        WriteByte(bytesx[0]);
+        WriteByte(bytesy[0]);
     }
     #endregion
 }

@@ -48,9 +48,17 @@
               "target": "Package",
               "version": "[3.24.24.95, )"
             },
+            "LZMA-SDK": {
+              "target": "Package",
+              "version": "[22.1.1, )"
+            },
             "Raylib-cs": {
               "target": "Package",
               "version": "[7.0.2, )"
+            },
+            "System.CodeDom": {
+              "target": "Package",
+              "version": "[10.0.7, )"
             },
             "rlImgui-cs": {
               "target": "Package",

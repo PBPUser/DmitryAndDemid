@@ -1,0 +1,21 @@
+** Chapter Information Specification **
+Header (Fixed length, 8): 
+[0x0] Bit Mask:
+0x0001 - Depends on 0x0002
+0x0002 - Type:
+if 0x0001 is 0 and 0x0002 is 0 - Default
+if 0x0001 is 0 and 0x0002 is 1 - Continue Chapter
+if 0x0001 is 1 and 0x0002 is 0 - Non-Spell Chapter
+if 0x0001 is 1 and 0x0002 is 1 - Spell Chapter
+0x0004 - Appears on easy difficulty
+0x0008 - Appears on normal difficulty
+0x0010 - Appears on hard difficulty
+0x0020 - Appears on max difficulty
+0x0040 - Appears on extra difficulty
+[ONLY IF SPELL]
+0x0100 - Timeout card
+0x0200 - Boss Invincible
+[0x1] - ID
+[0x2] - Length
+[0x3] - Spell Card Number
+[0x4] - Spell Card Background

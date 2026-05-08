@@ -542,4 +542,9 @@ public static class Helper
     {
         return new Vector2(texture.Width, texture.Height);
     }
+
+    public static void CreatePackage()
+    {
+        
+    }
 }

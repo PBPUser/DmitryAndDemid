@@ -1,0 +1,69 @@
+** Game Object Array Specification **
+Int array:
+[0] - Bit mask:
+[0]:0x0001 - Player will die if touch this thing
+[0]:0x0002 - Enemy will die if touch this thing
+[0]:0x0004 - Apply Shader
+[0]:0x0008 - Is Enemy (otherwise - will be bullet, even if this is fork)
+[0]:0x0010 - Clear Protected
+[0]:0x0020 - Use Create Script
+[0]:0x0040 - Use Remove Script
+[0]:0x0080 - Depends on some entity (dies if main entity will be died)
+[0]:0x0100 - Died
+[0]:0x0200 - Use Generated Texture (otherwise - pregenerated one)
+[0]:0x0400 - 
+[0]:0x0800 - 
+...
+[0x1] - Update Script Number
+[2, 3] - Position X,Y
+[3, 4] - Source Position X, Y
+[5, 6] - Render/Source Size
+[7] - Collision Size
+[8] - Spawn Tick
+[9] - Applied Shader Index
+[10] - Entity ID which this object depends on
+[11] - Remove Script Number
+[12] - Died Timestamp
+[13] - Source Texture or Shader // only in runtime
+[14] - Texture Color
+[15] - Entity ID
+
+Float array:
+[0, 1] - Render Scale
+[2] - Collision Scale
+[3] - Render Rotation
+[4] - Speed
+[5] - Position Z
+
+** Bullet Specification **
+[0] - Bit mask:
+[0]:0x1 - If Player's bullet - false, otherwise true
+[0]:0x1 - If Player's bullet - true, otherwise false
+[0]:0x8 - Always false
+...
+
+*** Enemy Specification ***
+Int:
+[0] - Bit mask:
+[0]:0x2000 - Is BOSS
+[0]:0x4000 - Use Die Script
+[0]:0x8000 - Use bad drop scenario
+...
+[16] - Bad drop scenario 
+[17] - Good drop scenario
+* Info about [16] & [17]
+[X]:0 - Large Power points
+[X]:1 - Power points
+[X]:2 - Score points
+[X]:3 - Bit mask
+[X]:3_0x1 - Drop Heart
+[X]:3_0x2 - Drop Heart Piece
+[X]:3_0x4 - Drop Star
+[X]:3_0x8 - Drop Star Piece
+[18] - Die Script Number
+[19] - Bullet Rate
+[20] - Boss ID
+Float:
+[6] - Spawnable bullet speed
+[7] - Bullet Spawn Facing
+[8] - Health

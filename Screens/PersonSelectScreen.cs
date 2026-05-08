@@ -55,17 +55,6 @@ public class PersonSelectScreen : MenuScreen
         }
     }
 
-    public override void Activated()
-    {
-        
-        base.Activated();
-    }
-    
-    public override void Deactivated()
-    {
-        base.Deactivated();
-    }
-
     public override void Render()
     {
         float appear = (float)Helper.ComputeObjectTime(Raylib.GetTime(), TimeAppear, .5f, TimeDisappear, .5f);
