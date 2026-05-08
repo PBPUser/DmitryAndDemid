@@ -15,9 +15,7 @@ public class EditableChapterInfo
     public bool Max = false;
     public bool Extra = false;
     public bool TimeoutCard = false;
-    public int Id = 0;
-    public int Length = 0;
-    public int CardNumber = 0;
+    public bool BossInvincible = false;
 
     public static EditableChapterInfo Load(string filename)
     {
@@ -27,13 +25,49 @@ public class EditableChapterInfo
         for (ulong i = 0; i < 8; i++)
             eci.Header[i] = (int)package.ReadVarLong();
         eci.Background = package.ReadString();
+        eci.Type = eci.Header[0] & ~0b1111_1100;
+        eci.Easy = (eci.Header[0] & 0x04) == 0x04;
+        eci.Normal = (eci.Header[0] & 0x08) == 0x08;
+        eci.Hard = (eci.Header[0] & 0x10) == 0x10;
+        eci.Max = (eci.Header[0] & 0x20) == 0x20;
+        eci.Extra = (eci.Header[0] & 0x40) == 0x40;
+        eci.TimeoutCard = (eci.Header[0] & 0x100) == 0x100;
+        eci.BossInvincible = (eci.Header[0] & 0x1000) == 0x1000;
         int length = (int)package.ReadVarLong();
         for (int i = 0; i < length; i++)
-        {
-            eci.GameObjects.Add(EditableGameObject.ReadFrom(package));
-        }
+            eci.GameObjects.Add(EditableGameObject.ReadFrom(ref package));
         stream.Close();
         return eci;
+    }
+
+    public void Save(string filename)
+    {
+        using var stream = File.OpenWrite(filename);
+        var package = BitPackage.GetStreamReadPackage(stream);
+        Header[0] = Type;
+        Header[0] |= Easy ? 0x0004 : 0;
+        Header[0] |= Normal ? 0x0008 : 0;
+        Header[0] |= Hard ? 0x0010 : 0;
+        Header[0] |= Max ? 0x0020 : 0;
+        Header[0] |= Extra ? 0x0040 : 0;
+        if(Type == 3)
+            Header[0] |= TimeoutCard ? 0x0100 : 0;
+        if(Type >= 2)
+            Header[0] |= BossInvincible ? 0x1000 : 0;
+        for (ulong i = 0; i < 8; i++)
+            package.WriteVarLong(Header[i]);
+        package.WriteString(Background);
+        package.WriteVarLong(GameObjects.Count);
+        foreach (var obj in GameObjects)
+            obj.WriteTo(ref package);
+        stream.Close();
+    }
+
+    public CompiledChapterInformation Export()
+    {
+        CompiledChapterInformation cci = new();
+        //cci.GameObjects = this.GameObjects.Select(x => x.Compile());
+        throw new NotImplementedException();
     }
     
     public ChapterType WChapterType

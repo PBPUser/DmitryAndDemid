@@ -31,5 +31,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+  
+  <ItemGroup>
+    <Folder Include="Assets\Data\SpellCards\" />
+  </ItemGroup>
 
 </Project>

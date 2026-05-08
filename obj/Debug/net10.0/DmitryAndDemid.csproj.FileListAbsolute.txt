@@ -187,4 +187,3 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/Endings/sugar_good.json
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/SevenZip.dll
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/System.CodeDom.dll
-/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Data/SpellCards/fheh.json

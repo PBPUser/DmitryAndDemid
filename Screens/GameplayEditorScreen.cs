@@ -74,7 +74,7 @@ public class GameplayEditorScreen : Screen
     private int EndingIndex = 0;
     private bool ShowError = false;
     private string ErrorText = "";
-    private string[] SpellCards = Directory.GetFiles("Assets/Data/SpellCards");
+    private string[] SpellCards => Directory.GetFiles("Assets/Data/SpellCards").Select(x => x.Split('/').Last()).ToArray();
     private string SpellcardFilename => SpellCards[SpellcardIndex];
     private string CustomSpellcardFilename = "";
     private int SpellcardIndex = 0;
@@ -415,19 +415,19 @@ public class GameplayEditorScreen : Screen
                     CustomSpellcardFilename = SpellcardFilename;
                 Text("Load: ");
                 InputText("File name", ref CustomSpellcardFilename, 64, ImGuiInputTextFlags.None);
-                if (Button(File.Exists($"Assets/Data/SpellCards/{CustomSpellcardFilename}.esc") ? "Load" : "Create"))
+                if (Button(File.Exists($"Assets/Data/SpellCards/{CustomSpellcardFilename}.eci") ? "Load" : "Create"))
                 {
                     EditableChapterInfo info;
                     
-                    if (File.Exists($"Assets/Data/SpellCards/{CustomSpellcardFilename}.json"))
+                    if (File.Exists($"Assets/Data/SpellCards/{CustomSpellcardFilename}.eci"))
                     {
-                        throw new NotImplementedException();
+                        info = EditableChapterInfo.Load($"Assets/Data/SpellCards/{CustomSpellcardFilename}.eci");
                     }
                     else
                     {
                         info = new EditableChapterInfo();
                     }
-                    Runtime.CurrentRuntime.AddScreen(new SpellcardEditorScreen(info, CustomSpellcardFilename));
+                    Runtime.CurrentRuntime.AddScreen(new SpellcardEditorScreen(info, $"Assets/Data/SpellCards/{CustomSpellcardFilename}.eci"));
                 }
                 End();
                 break;

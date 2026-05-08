@@ -164,7 +164,6 @@ public class EndingScreen : Screen
         }
         var element = Elements[Index];
         PreviousSwitch = Raylib.GetTime();
-        //TimeDisappear = (float)Raylib.GetTime() + .5f;
         element.Apply(this);
     }
 

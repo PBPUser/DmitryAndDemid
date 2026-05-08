@@ -1,3 +1,4 @@
+using DmitryAndDemid.Data;
 using Raylib_cs;
 
 namespace DmitryAndDemid;
@@ -11,7 +12,10 @@ public class GameBox
 
     public const int TargetTPS = 60;
 
-
+    public void LoadChapterInfo(CompiledChapterInformation chapterInfo)
+    {
+        
+    }
 
     #region Score
     private int score = 0;
@@ -25,7 +29,6 @@ public class GameBox
         get => score;
     }
     #endregion
-    
     #region TIME
     public float GetTime()
     {
