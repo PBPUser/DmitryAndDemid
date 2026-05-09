@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "CcennJxkdes=",
+  "dgSpecHash": "HI/i6SXgj+0=",
   "success": true,
   "projectFilePath": "/home/iwuwka/Documents/DmitryAndDemid/DmitryAndDemid.csproj",
   "expectedPackageFiles": [
@@ -11,7 +11,15 @@
     "/home/iwuwka/.nuget/packages/glibsharp/3.24.24.95/glibsharp.3.24.24.95.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/gtksharp/3.24.24.95/gtksharp.3.24.24.95.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/imgui.net/1.91.6.1/imgui.net.1.91.6.1.nupkg.sha512",
+    "/home/iwuwka/.nuget/packages/luacsharp/0.5.5/luacsharp.0.5.5.nupkg.sha512",
+    "/home/iwuwka/.nuget/packages/luacsharp.annotations/0.5.5/luacsharp.annotations.0.5.5.nupkg.sha512",
+    "/home/iwuwka/.nuget/packages/luacsharp.sourcegenerator/0.5.5/luacsharp.sourcegenerator.0.5.5.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/lzma-sdk/22.1.1/lzma-sdk.22.1.1.nupkg.sha512",
+    "/home/iwuwka/.nuget/packages/microsoft.codeanalysis.analyzers/5.3.0-2.25625.1/microsoft.codeanalysis.analyzers.5.3.0-2.25625.1.nupkg.sha512",
+    "/home/iwuwka/.nuget/packages/microsoft.codeanalysis.common/5.3.0/microsoft.codeanalysis.common.5.3.0.nupkg.sha512",
+    "/home/iwuwka/.nuget/packages/microsoft.codeanalysis.csharp/5.3.0/microsoft.codeanalysis.csharp.5.3.0.nupkg.sha512",
+    "/home/iwuwka/.nuget/packages/microsoft.codeanalysis.csharp.scripting/5.3.0/microsoft.codeanalysis.csharp.scripting.5.3.0.nupkg.sha512",
+    "/home/iwuwka/.nuget/packages/microsoft.codeanalysis.scripting.common/5.3.0/microsoft.codeanalysis.scripting.common.5.3.0.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/pangosharp/3.24.24.95/pangosharp.3.24.24.95.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/raylib-cs/7.0.2/raylib-cs.7.0.2.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/rlimgui-cs/3.2.0/rlimgui-cs.3.2.0.nupkg.sha512",

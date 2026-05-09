@@ -2,7 +2,7 @@ using System.Text;
 
 namespace DmitryAndDemid.Utils;
 
-public class BitPackage
+public class BitPackage : IDisposable, IAsyncDisposable
 {
     public BitPackage()
     {
@@ -21,6 +21,8 @@ public class BitPackage
         return package;
     }
     
+    public static BitPackage OpenStreamReadPackage(string file) => GetStreamReadPackage(File.OpenRead(file));
+    public static BitPackage OpenStreamWritePackage(string file) => GetStreamReadPackage(File.OpenWrite(file));
 
     private Stream? Stream =null;
     private const byte ContinueByte = 0x80;
@@ -246,4 +248,14 @@ public class BitPackage
     }
     
     #endregion
+
+    public void Dispose()
+    {
+        Stream?.Dispose();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (Stream != null) await Stream.DisposeAsync();
+    }
 }

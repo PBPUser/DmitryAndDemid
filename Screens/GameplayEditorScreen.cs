@@ -412,22 +412,23 @@ public class GameplayEditorScreen : Screen
             case 4:
                 Begin("Load file");
                 if (ListBox("select file", ref SpellcardIndex, SpellCards, SpellCards.Length, 32))
-                    CustomSpellcardFilename = SpellcardFilename;
+                    CustomSpellcardFilename = SpellcardFilename.Remove(SpellcardFilename.Length - 4, 4);
                 Text("Load: ");
                 InputText("File name", ref CustomSpellcardFilename, 64, ImGuiInputTextFlags.None);
-                if (Button(File.Exists($"Assets/Data/SpellCards/{CustomSpellcardFilename}.eci") ? "Load" : "Create"))
+                if (Button(File.Exists($"Assets/Data/SpellCards/{CustomSpellcardFilename}.sid") ? "Load" : "Create"))
                 {
-                    EditableChapterInfo info;
+                    FileStageInfo info;
                     
-                    if (File.Exists($"Assets/Data/SpellCards/{CustomSpellcardFilename}.eci"))
+                    if (File.Exists($"Assets/Data/SpellCards/{CustomSpellcardFilename}.sid"))
                     {
-                        info = EditableChapterInfo.Load($"Assets/Data/SpellCards/{CustomSpellcardFilename}.eci");
+                        BitPackage package = BitPackage.OpenStreamReadPackage($"Assets/Data/SpellCards/{CustomSpellcardFilename}.sid");
+                        info = FileStageInfo.Load(ref package);
                     }
                     else
                     {
-                        info = new EditableChapterInfo();
+                        info = new FileStageInfo();
                     }
-                    Runtime.CurrentRuntime.AddScreen(new SpellcardEditorScreen(info, $"Assets/Data/SpellCards/{CustomSpellcardFilename}.eci"));
+                    Runtime.CurrentRuntime.AddScreen(new StageEditorScreen(info, $"Assets/Data/SpellCards/{CustomSpellcardFilename}.sid"));
                 }
                 End();
                 break;

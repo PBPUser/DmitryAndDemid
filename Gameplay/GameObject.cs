@@ -10,10 +10,11 @@ public struct GameObject
     private static Rectangle SourceTemp = new();
     private static Rectangle TargetTemp = new();
     private static float Delta = 0f;
-    
+
+    public int Pointer = 0;
     public Texture2D Texture;
-    public int[] Variables = new int[48];
-    public float[] FloatingPoints = new float[48];
+    public int[] Variables = new int[72];
+    public float[] FloatingPoints = new float[72];
 
     public Rectangle SourceRectangle
     {
@@ -40,6 +41,7 @@ public struct GameObject
     }
 
     public Vector2 Position => new Vector2(Variables[1], Variables[2]);
+    public Vector2 Origin => new Vector2(Variables[5],  Variables[6]) / 2;
 
     public bool CheckCollision(GameObject other)
     {

@@ -9,14 +9,17 @@ public class EditableGameObject
     public Rectangle SourceRectangle;
     public Rectangle DestinationRectangle;
 
-    public int[] IntVariables = new int[48];
-    public float[] FPVariables = new float[48];
+    public int[] IntVariables = new int[72];
+    public float[] FPVariables = new float[72];
+    public int[] Instructions = new int[72];
 
     public string AppearScript = "";
     public string UpdateScript = "";
     public string DieScript = "";
     public string DisappearScript = "";
     public string Visual = "";
+    public string EntityID = "";
+    public string BossID = "";
     public bool DangerousForPlayer = false;
     public bool ApplyShader = false;
     public bool UseAppearScript = false;
@@ -33,9 +36,9 @@ public class EditableGameObject
     public static EditableGameObject ReadFrom(ref BitPackage package)
     {
         EditableGameObject gameObject = new EditableGameObject();
-        for(int i = 0; i < 48; i++)
+        for(int i = 0; i < 72; i++)
             gameObject.IntVariables[i] = (int)package.ReadVarLong();
-        for(int i = 0; i < 48; i++)
+        for(int i = 0; i < 72; i++)
             gameObject.FPVariables[i] = package.ReadFloat();
         gameObject.DangerousForPlayer = (gameObject.IntVariables[0] & 0x0001) == 0x0001;
         gameObject.ApplyShader = (gameObject.IntVariables[0] & 0x0004) == 0x0004;
@@ -57,7 +60,10 @@ public class EditableGameObject
             if(gameObject.UseDieScript)
                 gameObject.DieScript = package.ReadString();
         }
+        else if(gameObject.IsBoss)
+            gameObject.BossID = package.ReadString();
         gameObject.Visual = package.ReadString();
+        gameObject.EntityID = package.ReadString();
         return gameObject;
     }
 
@@ -73,19 +79,24 @@ public class EditableGameObject
         IntVariables[0] |= IsBoss ? 0x2000 : 0;
         IntVariables[0] |= UseDieScript ? 0x4000 : 0;
         IntVariables[0] |= UseBadDropScenario ? 0x8000 : 0;
-        for(int i = 0; i < 48; i++)
+        for(int i = 0; i < 72; i++)
             package.WriteVarLong(IntVariables[i]);
-        for(int i = 0; i < 48; i++)
+        for(int i = 0; i < 72; i++)
             package.WriteFloat(FPVariables[i]);
         if(UseAppearScript)
             package.WriteString(AppearScript);
         package.WriteString(UpdateScript);
         if(UseDisappearScript)
             package.WriteString(DisappearScript);
-        if(IsBullet)
+        if (IsBullet)
+        {
             if(UseDieScript)
                 package.WriteString(DieScript);
+        }
+        else if(IsBoss)
+            package.WriteString(BossID);
         package.WriteString(Visual);
+        package.WriteString(EntityID);
     }
 
     public GameObject Compile()

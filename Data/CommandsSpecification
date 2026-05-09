@@ -1,0 +1,42 @@
+[NAME] [ID/LENGTH] [ARGS...]
+[0 or any that doesn't exists in execution relay/ANY] - nothing
+[if_ieii] [0x0001/2] [int index1, int index2] - [int] if object[index1] equals object[index2] execute next
+[if_feii] [0x0002/2] [int index1, int index2] - [float] if object[index1] equals object[index2] execute next
+[if_ievi] [0x0003/2] [int value, int index] - [int] if value equals object[index] execute next
+[if_fevi] [0x0004/2] [float value, int index2] - [float] if value equals object[index] execute next 
+[if_igii] [0x0005/2] [int index1, int index2] - [int] if value on index1 greater than value on index2 execute next
+[if_isii] [0x0006/2] [int index1, int index2] - [int] if value on index1 smaller than value on index2 execute next
+[if_igvi] [0x0007/2] [int value, int index] - [int] if value greater than value on index execute next
+[if_isvi] [0x0008/2] [int value, int index] - [int] if value smaller than value on index execute next
+[if_fgii] [0x0009/2] [int index1, int index2] - [float] if value on index1 greater than value on index2 execute next
+[if_fsii] [0x000A/2] [int index1, int index2] - [float] if value on index1 smaller than value on index2 execute next
+[if_fgvi] [0x000B/2] [float value, int index] - [float] if value greater than value on index execute next
+[if_fsvi] [0x000C/2] [float value, int index] - [float] if value smaller than value on index execute next
+[stop] [0x000D/1] [int v] - Stop execution (aka. return), if v is set to 1 - remove entity
+[set_i] [0x000E/2] [int index, int value] - [int] Set Value[index] to static value
+[set_f] [0x000F/2] [int index, float value] - [float] Set Value[index] to static value
+[copy_i] [0x0010/2] [int index1, int index2] - [int] Set Value[index1] to Value[index2]
+[copy_f] [0x0011/2] [int index1, int index2] - [float] Set Value[index1] to Value[index2]
+[jump] [0x0012/1] [int position] - Jump Execution
+[set_b] [0x0013/2] [int index1, int index2, int value] - Set value to index2 on Value[index1]
+[get_b] [0x0014/3] [int index1, int index2, int output] - Set result of bit mask to index
+[transfer_if] [0x0015/2] [int indexInt, int indexFloat] - Transfer value from int to float
+[transfer_fi] [0x0016/2] [int indexFloat, int indexInt] - Transfer value from int to float
+[add_iii] [0x0017/2] [int index1, int index2] - [int] sum of value[index1] and value[index2]
+[add_fii] [0x0018/2] [int index1, int index2] - [float] sum of value[index1] and value[index2]
+[add_ivi] [0x0017/2] [int index, int value] - [int] sum of value[index1] and value[index2]
+[add_fvi] [0x0018/2] [int index, float value] - [float] sum of value[index1] and value[index2]
+[sub_iii] [0x0019/2] [int index1, int index2] - [int] sum of value[index1] and value[index2]
+[sub_fii] [0x001A/2] [int index1, int index2] - [float] sum of value[index1] and value[index2]
+[mul_iii] [0x001B/2] [int index1, int index2] - [int] sum of value[index1] and value[index2]
+[mul_fii] [0x001C/2] [int index1, int index2] - [float] sum of value[index1] and value[index2]
+[mul_ivi] [0x001D/2] [int index, int value] - [int] sum of value[index1] and value[index2]
+[mul_fvi] [0x001E/2] [int index, float value] - [float] sum of value[index1] and value[index2]
+[div_iii] [0x001F/2] [int index1, int index2] - [int] sum of value[index1] and value[index2]
+[div_fii] [0x0020/2] [int index1, int index2] - [float] sum of value[index1] and value[index2]
+[div_ivi] [0x0021/2] [int index, int value] - [int] sum of value[index1] and value[index2]
+[div_fvi] [0x0022/2] [int index, float value] - [float] sum of value[index1] and value[index2]
+[mod_iii] [0x0023/2] [int index1, int index2] - [int] sum of value[index1] and value[index2]
+[mod_fii] [0x0024/2] [int index1, int index2] - [float] sum of value[index1] and value[index2]
+[mod_ivi] [0x0025/2] [int index, int value] - [int] sum of value[index1] and value[index2]
+[mod_fvi] [0x0026/2] [int index, float value] - [float] sum of value[index1] and value[index2]
