@@ -13,6 +13,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
     private GameBox GameBox = new GameBox();
     private FileStageInfo Info = info;
     //private EditableChapterInfo EditableChapterInfo = editableChapterInfo;
+    private int TabItem = 0;
     private string FileName = fileName;
     private static string[] ChapterTypes = typeof(ChapterType).GetEnumNames();
     private string Question = "Are you sure to delete this object?";
@@ -41,6 +42,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
         {
             var s = BitPackage.GetStreamReadPackage(File.OpenRead(FileName));
             Info = FileStageInfo.Load(ref s);
+            s.Dispose();
         }
     }
     
@@ -48,41 +50,59 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
     public override void DrawImgui()
     {
         bool s = false;
-        BeginMainMenuBar();
+        Begin("Stage Editor", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.MenuBar);
+        BeginMenuBar();
         MenuItem("FPS: " + Raylib.GetFPS());
         if(MenuItem("Save"))
             Save();
         if(MenuItem("Reload"))
             Reload();
+        if (MenuItem("Info"))
+            TabItem = 0;
+        if (MenuItem("Scripts"))
+            TabItem = 1;
+        if (MenuItem("Entities"))
+            TabItem = 2;
+        if (MenuItem("Chapters"))
+            TabItem = 3;
+        if (MenuItem("Test"))
+            TabItem = 0;
         if(MenuItem("Exit"))
             Runtime.CurrentRuntime.RemoveScreen(this);
-        EndMainMenuBar();
-        Begin("Object Selector");
-        if (MenuItem("Add"))
+        EndMenuBar();
+        SetWindowPos("Stage Editor", new Vector2());
+        SetWindowSize("Stage Editor", new Vector2(Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height));
+        switch (TabItem)
         {
-            var newObj = new FileEntityInfo();
-            Array.Resize(ref Info.Entities, Info.Entities.Length + 1);
-            Info.Entities[^1] = newObj;
-        }
-        if (ListBox("objects", ref SelectedObjectIndex, Objects, Objects.Length, 32))
-        {
-            Color = SelectedObjectIndex == -1
-                ? Vector3.Zero
-                : Helper.ColorIntToVector3(Info.Entities[SelectedObjectIndex].Header[7]);
-            SelectedTextureIndex = SelectedObjectIndex == -1
-                ? -1
-                : Visuals.IndexOf(Info.Entities[SelectedObjectIndex].Visual);
-        }
-        if (MenuItem("Delete"))
-            if(SelectedObjectIndex != -1)
-                ShowQuestion("Are you sure to delete selected object?", () =>
+            case 0:
+                InputInt("Index", ref Info.Header[1], 1, 1);
+                InputInt("Music ID", ref Info.Header[2], 1, 1);
+                break;
+            case 3:
+                if(ShowCreate)
+                    break;
+                if (ShowChaptersList)
                 {
-                    var list = Info.Entities.ToList();
-                    list.RemoveAt(SelectedObjectIndex);
-                    Info.Entities = list.ToArray();
-                    if(SelectedObjectIndex == Info.Entities.Length)
-                        SelectedObjectIndex += -1;
-                });
+                    if(Button("Create new chapter"))
+                        ShowCreate = true;
+                    BeginChild("List", new Vector2(Runtime.CurrentRuntime.Width - 20, Runtime.CurrentRuntime.Height - 36), ImGuiChildFlags.Borders);
+                    Text("Items: ");
+                    if (ListBox("##list_select", ref SelectedObjectIndex, Info.Chapters.Select(x => x.Name).ToArray(),
+                            Info.Chapters.Length, Info.Chapters.Length))
+                        ShowChaptersList = false;
+                    EndChild();
+                }
+                else
+                {
+                    if(Button("Show Chapters List"))
+                        ShowChaptersList = true;
+                    
+                }
+                break;
+            default:
+                Text("Not implemented");
+                break;
+        }
         End();
         //Begin("Chapter Info Editor");
         //InputInt("Length", ref Info.Header[0x2], 1, 1);
@@ -100,7 +120,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
         //End();
         if (QuestionShown)
         {
-            Begin("Question");
+            Begin("Question", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.AlwaysAutoResize);
             Text(Question);
             if (Button("Cancel"))
                 QuestionShown = false;
@@ -112,6 +132,29 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
             End();
         }
 
+        if (ShowCreate)
+        {
+            Begin("Create new chapter");
+            InputText("Name", ref NewChapterName, 256, ImGuiInputTextFlags.AllowTabInput);
+            if (Button("Cancel"))
+                ShowCreate = false;
+            if (Button("OK"))
+            {
+                if (string.IsNullOrEmpty(NewChapterName))
+                    ShowQuestion("Please enter a name for the new chapter", () => {});
+                else if (Info.Chapters.Any(x => x.Name.ToLower().Equals(NewChapterName.ToLower())))
+                    ShowQuestion("Name of chapter should be unique.", () => {});
+                else
+                {
+                    ShowCreate = false;
+                    Array.Resize(ref Info.Chapters, Info.Chapters.Length + 1);
+                    Info.Chapters[^1] = new FileChapterInfo();
+                    Info.Chapters[^1].Name = NewChapterName;
+                    SelectedObjectIndex = Info.Chapters.Length - 1;
+                }
+            }
+            End();
+        }
         //if (SelectedObjectIndex != -1)
         //{
         //    Begin("Object Editor");
@@ -184,7 +227,13 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
         //}
         base.DrawImgui();
     }
-    #endif
+
+    public string NewChapterName = "";
+
+    public bool ShowCreate { get; set; }
+
+    public bool ShowChaptersList = true;
+#endif
 
     void ShowQuestion(string str, Action act)
     {

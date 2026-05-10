@@ -45,11 +45,26 @@ public class BitPackage : IDisposable, IAsyncDisposable
             int c = Stream.Read(b, 0, count);
             if(c != count)
                 throw new EndOfStreamException();
-            return b;
+            try
+            {
+                return b;
+            }
+            finally
+            {
+                if(!Stream.CanRead)
+                    Dispose();
+            }
         }
         if (Bytes.Length < count + Position)
             throw new IndexOutOfRangeException();
-        return Bytes.Skip(Position).Take(count).ToArray();
+        try
+        {
+            return Bytes.Skip(Position).Take(count).ToArray();
+        }
+        finally
+        {
+            Position += count;
+        }
     }
 
     public byte ReadByte() => Read(1)[0];

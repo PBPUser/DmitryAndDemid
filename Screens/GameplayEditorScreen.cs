@@ -423,6 +423,7 @@ public class GameplayEditorScreen : Screen
                     {
                         BitPackage package = BitPackage.OpenStreamReadPackage($"Assets/Data/SpellCards/{CustomSpellcardFilename}.sid");
                         info = FileStageInfo.Load(ref package);
+                        package.Dispose();
                     }
                     else
                     {
