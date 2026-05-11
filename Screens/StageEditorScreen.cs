@@ -10,12 +10,14 @@ namespace DmitryAndDemid.Screens;
 
 public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
 {
+    private string[] Difficulties = ["Easy", "Normal", "Hard", "Max", "Extra"];
     private GameBox GameBox = new GameBox();
     private FileStageInfo Info = info;
     //private EditableChapterInfo EditableChapterInfo = editableChapterInfo;
     private int TabItem = 0;
     private string FileName = fileName;
     private static string[] ChapterTypes = typeof(ChapterType).GetEnumNames();
+    private string[] Textures => Runtime.CurrentRuntime.Textures.Select(x => x.Key).ToArray();
     private string Question = "Are you sure to delete this object?";
     private bool QuestionShown = false;
     private Action? QuestionOKAction = null;
@@ -66,7 +68,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
         if (MenuItem("Chapters"))
             TabItem = 3;
         if (MenuItem("Test"))
-            TabItem = 0;
+            TabItem = 4;
         if(MenuItem("Exit"))
             Runtime.CurrentRuntime.RemoveScreen(this);
         EndMenuBar();
@@ -77,6 +79,31 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
             case 0:
                 InputInt("Index", ref Info.Header[1], 1, 1);
                 InputInt("Music ID", ref Info.Header[2], 1, 1);
+                break;
+            case 1:
+                if (ShowChaptersList)
+                {
+                    if (ListBox("##list_select", ref SelectedObjectIndex, Info.Scripts.Select(x => Info.Scripts.IndexOf(x)+"").ToArray(), Info.Scripts.Length, 32))
+                    {
+                        ShowChaptersList = false;
+                    }
+
+                    if (Button("Add Script"))
+                    {
+                        Array.Resize(ref Info.Scripts, Info.Scripts.Length + 1);
+                        Info.Scripts[^1] = "";
+                    }
+                }
+                else
+                {
+                    if (Button("Show Script List"))
+                        ShowChaptersList = true;
+                    if (Button("Test"))
+                    {
+                        
+                    }
+                    InputTextMultiline("##code", ref Info.Scripts[SelectedObjectIndex], 261144, new Vector2(800, 600));
+                }
                 break;
             case 3:
                 if(ShowCreate)
@@ -96,7 +123,77 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                 {
                     if(Button("Show Chapters List"))
                         ShowChaptersList = true;
-                    
+                    if (Info.Header[1] >= Info.Scripts.Length)
+                        Info.Header[1] = -1;
+                    if (Info.Header[10] >= Info.Scripts.Length)
+                        Info.Header[10] = -1;
+                    Combo("Script Create", ref Info.Header[10], Info.Scripts, Info.Scripts.Length);
+                    Combo("Script Update", ref Info.Header[1], Info.Scripts, Info.Scripts.Length);
+                    SliderInt("Length", ref Info.Header[2], 0, 2000);
+                    Combo("Difficulty", ref Info.Header[3], Difficulties, Difficulties.Length);
+                    Combo("Chapter Type", ref Info.Chapters[SelectedObjectIndex].Header[0], ChapterTypes, ChapterTypes.Length);
+                    if (Info.Chapters[SelectedObjectIndex].Header[0] > 1)
+                    {
+                        InputText("Boss Identifier" , ref Info.Chapters[SelectedObjectIndex].BossName, 255);
+                    }
+                    if (Info.Chapters[SelectedObjectIndex].Header[0] == 3)
+                    {
+                        Combo("Background", ref Info.Chapters[SelectedObjectIndex].Header[5], Textures, Textures.Length);
+                        InputText("Chapter name", ref Info.Chapters[SelectedObjectIndex].Name, 255);
+                        InputInt("Bonus max score", ref Info.Header[6], 1000, 10000);
+                        InputInt("Spell Card Index on practice menu", ref Info.Header[9], 1, 1);
+                        Checkbox("Boss Invincible", ref  Info.Chapters[SelectedObjectIndex].BossInvincible);
+                        Checkbox("Timeout card", ref  Info.Chapters[SelectedObjectIndex].TimeoutCard);
+                    }
+                    else
+                    {
+                        Checkbox("Has dialogs", ref Info.Chapters[SelectedObjectIndex].HasDialogs);
+                        if (Info.Chapters[SelectedObjectIndex].HasDialogs)
+                        {
+                            if (Button("Add"))
+                            {
+                                Array.Resize(ref Info.Chapters[SelectedObjectIndex].DialogInfo, Info.Chapters[SelectedObjectIndex].DialogInfo.Length + 1);
+                                Info.Chapters[SelectedObjectIndex].DialogInfo[^1] = new FileDialogInfo();
+                                SelectedTextureIndex = Info.Chapters[SelectedObjectIndex].DialogInfo.Length-1;
+                            }
+                            if (Button("Move Down"))
+                            {
+                                if (SelectedTextureIndex == Info.Chapters[SelectedObjectIndex].DialogInfo.Length - 1)
+                                    return;
+                                (Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex], Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex+1]) = 
+                                    (Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex+1], Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex]);
+                            }
+                            if (Button("Move Up"))
+                            {
+                                if (SelectedTextureIndex < 1)
+                                    return;
+                                (Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex], Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex-1]) = 
+                                    (Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex-1], Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex]);
+                            }
+
+                            ListBox("List", ref SelectedTextureIndex,
+                                Info.Chapters[SelectedObjectIndex].DialogInfo.Select(x => x.Text.Split("\n").Last())
+                                    .Select(x => x.Length > 16 ? x.Substring(0,16)+"..." : x).ToArray(), Info.Chapters[SelectedObjectIndex].DialogInfo.Length, 32);
+                            if (SelectedTextureIndex != -1)
+                            {
+                                if (Button("Remove"))
+                                    ShowQuestion("Do you want to remove this dialog?", () =>
+                                    {
+                                        var nArray = new FileDialogInfo[Info.Chapters[SelectedObjectIndex].DialogInfo.Length - 1];
+                                        Array.Copy(Info.Chapters[SelectedObjectIndex].DialogInfo, 0,  nArray, 0, SelectedTextureIndex);
+                                        Array.Copy(Info.Chapters[SelectedObjectIndex].DialogInfo, SelectedTextureIndex+1,  nArray, SelectedTextureIndex, Info.Chapters[SelectedObjectIndex].DialogInfo.Length-SelectedTextureIndex-1);
+                                        Info.Chapters[SelectedObjectIndex].DialogInfo = nArray;
+                                        SelectedTextureIndex = Math.Clamp(SelectedTextureIndex, -1,
+                                            Info.Chapters[SelectedObjectIndex].DialogInfo.Length - 1);
+                                    });
+                                InputTextMultiline("Dialog Text",
+                                    ref Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex].Text, 65536,
+                                    new Vector2(640, 480));
+                                
+                            }
+                        }
+                        
+                    }
                 }
                 break;
             default:

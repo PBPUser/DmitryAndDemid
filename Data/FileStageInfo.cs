@@ -12,7 +12,7 @@ public class FileStageInfo
         Backgrounds = new string[0];
     }
     
-    public int[] Header = new int[8];
+    public int[] Header = new int[16];
     public string[] Scripts;
     public FileChapterInfo[] Chapters;
     public FileEntityInfo[] Entities;
@@ -21,7 +21,7 @@ public class FileStageInfo
     public static FileStageInfo Load(ref BitPackage bitPackage)
     {
         FileStageInfo info = new FileStageInfo();
-        for (int i = 0; i < 8; i++)
+        for (int i = 0; i < 16; i++)
             info.Header[i] = (int)bitPackage.ReadVarLong();
         info.Scripts = new string[info.Header[0x3]];
         for(int i = 0; i < info.Header[0x3]; i++)
@@ -44,7 +44,7 @@ public class FileStageInfo
         Header[4] = Backgrounds.Length;
         Header[5] = Entities.Length;
         Header[6] = Chapters.Length;
-        for(int i = 0; i < 8; i++)
+        for(int i = 0; i < 16; i++)
             bitPackage.WriteVarLong(Header[i]);
         for(int i = 0; i < Scripts.Length; i++)
             bitPackage.WriteString(Scripts[i]);

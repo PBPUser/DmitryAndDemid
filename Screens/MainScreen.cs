@@ -129,6 +129,33 @@ public class MainScreen : MenuScreen
         DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceLeft, LogoTargetLeft, Vector2.Zero, 0f, Color.White with { A = Helper.TimeToTransparency(appear25) });
         DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceRight, LogoTargetRight, Vector2.Zero, 0f, Color.White with { A = Helper.TimeToTransparency(appear25) });
         DrawTexturePro(SelectedPerson, RCPersonSource, Helper.Mix(RCPersonTarget1, RCPersonTarget2, appear4), Vector2.Zero, 0f, Color.White);
+        var source = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["Version"]);
+        DrawTexturePro(
+            Runtime.CurrentRuntime.Textures["Copyright"],
+            source,
+            new Rectangle(
+                .5f * (Runtime.CurrentRuntime.Width - source.Width),
+                Runtime.CurrentRuntime.Height - source.Height * appear3,
+                source.Width,
+                source.Height
+            ),
+            Vector2.Zero,
+            0,
+            Color.White with {A = Helper.TimeToTransparency(appear3)}
+        );
+        DrawTexturePro(
+            Runtime.CurrentRuntime.Textures["Version"],
+             source,
+            new Rectangle(
+                Runtime.CurrentRuntime.Width - source.Width,
+                Runtime.CurrentRuntime.Height - source.Height - (MathF.Sin(time * 24) * 13 + 32) * Runtime.CurrentRuntime.ScaleF + 64 * Runtime.CurrentRuntime.ScaleF * (1-appear3),
+                source.Width,
+                source.Height
+                ),
+            Vector2.Zero,
+            MathF.Sin(time * 16) * 4 ,
+            Color.White with {A = Helper.TimeToTransparency(appear3)}
+            );
     }
     
 #if DEBUG

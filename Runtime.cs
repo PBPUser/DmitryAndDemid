@@ -22,6 +22,7 @@ public class Runtime
 
     }
 
+    public string VersionString = "0.01a";
     public double Time;
     public int Width;
     public int Height;
@@ -168,7 +169,10 @@ public class Runtime
             Textures[Path.GetFileName(x)] = LoadTexture(x);
         Textures["MenuItemSelectionGradient1"] = Helper.RenderSelectionBackground(200, 200, 0);
         Textures["MenuBackground"] = Helper.FillTextureWithColor(Color.Black with { A = 128 }, Width, Height).Texture;
+        Textures["Copyright"] = Helper.DrawTextScaled(")(U,2026 Konu9lnpaBa Caxap Ko.", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
+        Textures["Version"] = Helper.DrawTextScaled($"Beer {VersionString} (npo6Ha9l Bepcu9I)", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
     }
+
 
     void LoadShaders()
     {
@@ -335,7 +339,7 @@ public class Runtime
             return;
         if (IsKeyDown(KeyboardKey.Up))
         {
-            TextureId--;
+            TextureId = (TextureId + Textures.Count - 1) % Textures.Count;
             TextureViewerLastTimeKeyPressed = GetTime();
             return;
         }
