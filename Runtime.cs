@@ -82,9 +82,11 @@ public class Runtime
         FullScreenRect = new(0, 0, Width, Height);
         Scale = ((double)width) / 640d;
         ScaleF = (float)Scale;
-        InitWindow(width, height, "An AKOB Game 2: A story about Dmitry from Drochigin and Demid (Sergeevich)");
-        rlImGui_cs.rlImGui.Setup(true);
-        SetTargetFPS(240);
+        InitWindow(width, height, "AAG2: UcTopu9I o6 DmuTpuu u3 Dporu4uHa & DeMuDa CepreeBu4a");
+        rlImGui.Setup(true);
+        SetTargetFPS(Config.FrameCap);
+        if (Config.UseVSYNC)
+            SetWindowState(ConfigFlags.VSyncHint);
         SetExitKey(KeyboardKey.Null);
         Time = GetTime();
         double c = 0;
@@ -140,7 +142,7 @@ public class Runtime
                 {
                     if (IsKeyDown(KeyboardKey.J))
                     {
-                        ScreenLoading.SetADPText("User activated crash.", false);
+                        ScreenLoading.SetADPText("Kpajjj AKTUBUPOBAHblJ noJl3OBaTeJlEM..", false);
                         ADPTriggered = true;
                     }
                     else
@@ -280,6 +282,8 @@ public class Runtime
             Screens.LastOrDefault()?.Activated();
         }    }
 
+    public bool IsFrameCap240 = Config.FrameCap == 240;
+
     void Render()
     {
         BeginDrawing();
@@ -289,6 +293,10 @@ public class Runtime
         for (int i = UpdateRenderFrom; i < Screens.Count; i++)
             Screens[i].Render();
         DrawFPS(0, 0);
+        if (IsFrameCap240 == true)
+        {
+            DrawTexture(Textures["241fps.png"], 0,0,Color.White);
+        }
 #if DEBUG
         if (TextureViewerOpen)
             DrawTextureView();

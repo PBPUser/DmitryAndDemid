@@ -25,7 +25,9 @@ public abstract class ScreenWithTitle : Screen
     private Texture2D MenuTitleTexture;
     private static Rectangle MenuTextureSource = new Rectangle(0, 0, 1920, 270);
     private static Rectangle MenuTextureTarget;
-
+    protected float AppearingTime = .5f;
+    protected float DisappearingTime = .5f;
+    
     public override void Activated()
     {
         TimeAppearTitle = (float)GetTime();
@@ -35,20 +37,20 @@ public abstract class ScreenWithTitle : Screen
 
     public override void Deactivated()
     {
-        TimeDisappearTitle = (float)GetTime() + 0.5f;
+        TimeDisappearTitle = (float)GetTime() + DisappearingTime;
         base.Deactivated();
     }
 
     protected void DrawTitle()
     {
-        float appear = (float)ComputeObjectTime(Raylib.GetTime(), TimeAppearTitle, .5f, TimeDisappearTitle, .5f);
+        float appear = (float)ComputeObjectTime(Raylib.GetTime(), TimeAppearTitle, AppearingTime, TimeDisappearTitle, DisappearingTime);
         DrawTexturePro(MenuTitleTexture, MenuTextureSource, MenuTextureTarget with { Y = (1-Pow2F(appear)) * MenuTextureTarget.Height * -1 }, Vector2.Zero, 0, Color.White);
     }
     
     public virtual void Exiting()
     {
         Helper.PlaySound(Runtime.CurrentRuntime.Sounds["esc"]);
-        TimeDisappear = (float)GetTime() + 0.5f;
-        TimeDisappearTitle = (float)GetTime() + 0.5f;
+        TimeDisappear = (float)GetTime() + DisappearingTime;
+        TimeDisappearTitle = (float)GetTime() + DisappearingTime;
     }
 }

@@ -1,6 +1,6 @@
 using DmitryAndDemid.Utils;
 
-namespace DmitryAndDemid.Data;
+namespace DmitryAndDemid.Data.Archive;
 
 public class FileDialogInfo
 {

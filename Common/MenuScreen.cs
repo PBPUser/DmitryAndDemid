@@ -42,7 +42,7 @@ public abstract class MenuScreen : ScreenWithTitle
 
     static RenderTexture2D DrawMenuItem(string text)
     {
-        return Helper.DrawTextScaled(Helper.Translate(text), 16, 8, 4, 2, Runtime.CurrentRuntime.Fonts["newsreader"], "gradient");
+        return Helper.DrawTextScaled(Helper.Translate(text), 16, 8, 4, 2, Runtime.CurrentRuntime.Fonts["newsreader"], "outline");
     }
 
     public virtual void CreateMenu()

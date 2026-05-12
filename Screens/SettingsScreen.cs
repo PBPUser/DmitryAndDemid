@@ -31,8 +31,22 @@ public class SettingsScreen : MenuScreen
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
         MenuItems.Add(new MenuItem("settings.sfx", $"{Configuration.Config.SFXVolume * 100:00}", a => {}));
         MenuItems.Add(new MenuItem("settings.music", $"{Configuration.Config.MusicVolume * 100:00}", a => {}));
-        MenuItems.Add(new MenuItem("settings.fullscreen", "", a => {}));
-        MenuItems.Add(new MenuItem("settings.vsync", "", a => {}));
+        MenuItems.Add(new MenuItem("settings.fullscreen", $"{Configuration.Config.FullScreenType}", a => {}));
+        MenuItems.Add(new MenuItem("settings.vsync", $"{Configuration.Config.UseVSYNC}",
+            a =>
+            {
+                Configuration.Config.UseVSYNC = !Configuration.Config.UseVSYNC;
+                Configuration.Config.Save();
+                if(Configuration.Config.UseVSYNC)
+                    Raylib.SetWindowState(ConfigFlags.VSyncHint);
+                else
+                    Raylib.ClearWindowState(ConfigFlags.VSyncHint);
+                MenuItems[3].Replace = $"{Configuration.Config.UseVSYNC}";
+            }));
+        MenuItems.Add(new MenuItem("settings.framerate", $"{Configuration.Config.FrameCap}", a =>
+        {
+            
+        }));
         MenuItems.Add(new MenuItem("settings.controller", "", a => Runtime.CurrentRuntime.AddScreen(new GamepadSettingsScreen())));
         MenuItems.Add(new MenuItem("settings.default", "", a => {}));
         MenuItems.Add(new MenuItem("ingame.exit", "", a => {}));
@@ -71,7 +85,8 @@ public class SettingsScreen : MenuScreen
                 delta += .05f;
             if (delta == 0)
                 return;
-            PreviousKeyTimestamp = time;
+            AnimationStartedAt = PreviousKeyTimestamp = time;
+            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
             switch (SelectedIndex)
             {
                 case 0:
@@ -83,6 +98,18 @@ public class SettingsScreen : MenuScreen
                     Runtime.CurrentRuntime.MusicVolume = Configuration.Config.MusicVolume = Math.Clamp(Runtime.CurrentRuntime.MusicVolume + delta, 0, 1);  
                     MenuItems[1].Replace = $"{Configuration.Config.MusicVolume*100:00}";
                     Configuration.Config.Save();
+                    break;
+                case 4:
+                    delta *= 600;
+                    Configuration.Config.FrameCap = (int)(Configuration.Config.FrameCap + delta);
+                    if (Configuration.Config.FrameCap < 1)
+                        Configuration.Config.FrameCap = -1;
+                    else if(Configuration.Config.FrameCap > 1 && Configuration.Config.FrameCap < 30)
+                        Configuration.Config.FrameCap = 30;
+                    Raylib.SetTargetFPS(Configuration.Config.FrameCap);
+                    MenuItems[4].Replace = $"{Configuration.Config.FrameCap}";
+                    Configuration.Config.Save();
+                    Runtime.CurrentRuntime.IsFrameCap240 =  Configuration.Config.FrameCap == 240;
                     break;
             }
         }

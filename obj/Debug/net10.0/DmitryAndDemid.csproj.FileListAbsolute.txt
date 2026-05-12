@@ -245,3 +245,7 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/tr/Microsoft.CodeAnalysis.Scripting.resources.dll
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/zh-Hans/Microsoft.CodeAnalysis.Scripting.resources.dll
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/zh-Hant/Microsoft.CodeAnalysis.Scripting.resources.dll
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/outline.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/gradient_weird.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/241fps.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/241fps.png~

@@ -4,6 +4,7 @@ using System.Text.Json;
 using static Raylib_cs.Raylib;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
+using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Utils;
 using ImGuiNET;
 using Microsoft.VisualBasic.CompilerServices;
@@ -47,7 +48,6 @@ public class GameplayEditorScreen : Screen
     private RenderTexture2D TexturePreview, TexturePreview2, GameplayPreview, LoadingPreview, LoadingBuffer;
     private bool ShowFull = false;
     private bool HighlightCurrent = false;
-    public string ShaderText = "";
     public int EffectIndex = 0;
     private string[] Effects = Runtime.CurrentRuntime.Shaders.Keys.ToArray();
     private string[] EffectsFragmentShaderTexts;
@@ -62,6 +62,7 @@ public class GameplayEditorScreen : Screen
     private float LoadingScreenFade = 0.5f;
     private float LoadingScreenFadeState = 1f;
     private float LoadingFifoShowDelay = 2f;
+    private string SelectedShaderText = "";
     private string LoadingShaderText = File.ReadAllText("Assets/Shaders/loading.fs");
     private string LoadingSwapShaderText = File.ReadAllText("Assets/Shaders/loading_swap.fs");
     private bool LoadingShaderOverriden = false;
@@ -129,6 +130,8 @@ public class GameplayEditorScreen : Screen
             Page = 3;
         if (MenuItem("SpellCards"))
             Page = 4;
+        if (MenuItem("Text test"))
+            Page = 5;
         if (MenuItem("Exit"))
             Runtime.CurrentRuntime.RemoveScreen(this);
         EndMainMenuBar();
@@ -433,6 +436,44 @@ public class GameplayEditorScreen : Screen
                 }
                 End();
                 break;
+            case 5:
+                Begin("Text Shader Editor");
+                if (SliderFloat("Spacing", ref Spacing, 0f, 32f)) 
+                    RerenderPreviewText();
+                if (SliderFloat("HPadding", ref HPadding, 0f, 32f)) 
+                    RerenderPreviewText();
+                if (SliderFloat("VPadding", ref VPadding, 0f, 32f)) 
+                    RerenderPreviewText();
+                if (SliderFloat("Font Size", ref FontSize, 0f, 256f)) 
+                    RerenderPreviewText();
+                if (SliderFloat("Scale", ref BorderWidth, 0f, 32f)) 
+                    RerenderPreviewText();
+                if(InputText("Testing text", ref ShaderTestingText, 256))
+                    RerenderPreviewText();
+                if(Combo("Font", ref SelectedFontIndex, Fonts, Fonts.Length))
+                    RerenderPreviewText();
+                if (Combo("Shader", ref SelectedShaderIndex, Shaders, Shaders.Length))
+                {
+                    ShaderText = File.ReadAllText($"Assets/Shaders/{Shaders[SelectedShaderIndex]}.fs");
+                    RerenderPreviewText();
+                }
+                if (InputTextMultiline("Shader text", ref ShaderText, 65536, new Vector2(640, 480), ImGuiInputTextFlags.AllowTabInput))
+                {
+                    var sh = LoadShaderFromMemory(File.ReadAllText("Assets/Shaders/base.vs"), ShaderText);
+                    if (!IsShaderValid(sh))
+                    {   
+                        UnloadShader(sh);
+                        End();
+                        return;
+                    }
+                    UnloadShader(Runtime.CurrentRuntime.Shaders[Shaders[SelectedShaderIndex]]);
+                    Runtime.CurrentRuntime.Shaders[Shaders[SelectedShaderIndex]] = sh;
+                    RerenderPreviewText();
+                }
+                if(TextTestTexture != null)
+                    rlImGui.Image(TextTestTexture.Value.Texture);
+                End();
+                break;
         }
 
         if (ShowError)
@@ -450,6 +491,54 @@ public class GameplayEditorScreen : Screen
     {
         ErrorText = text;
         ShowError = true;
+    }
+
+    private RenderTexture2D? TextTestTexture = null;
+    private float FontSize = 14;
+    private float Spacing = 2;
+    private float BorderWidth = 1;
+    private string[] Fonts => Runtime.CurrentRuntime.Fonts.Keys.ToArray();
+    private int SelectedFontIndex = -1;
+    private Font SelectedFont => SelectedFontIndex == -1
+        ? GetFontDefault()
+        : Runtime.CurrentRuntime.Fonts[Fonts[SelectedFontIndex]];
+    private string[] Shaders => Runtime.CurrentRuntime.Shaders.Keys.ToArray();
+    private int SelectedShaderIndex = 0;
+    private float HPadding = 0;
+    private float VPadding = 0;
+    private string ShaderText = "";
+    private string ShaderTestingText = "";
+    
+    private void RerenderPreviewText()
+    {
+        if(TextTestTexture != null)
+            UnloadRenderTexture(TextTestTexture.Value);
+        var size = MeasureTextEx(SelectedFont, ShaderTestingText, FontSize, Spacing) + new Vector2(HPadding, VPadding) * 2;
+        TextTestTexture = LoadRenderTexture((int)size.X, (int)size.Y);
+        var temp = LoadRenderTexture((int)size.X, (int)size.Y);
+        BeginTextureMode(temp);
+        DrawTextEx(
+            SelectedFont, ShaderTestingText, new Vector2(HPadding, VPadding), FontSize, Spacing, Raylib_cs.Color.White
+            );
+        EndTextureMode();
+        BeginTextureMode(TextTestTexture.Value);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders[Shaders[SelectedShaderIndex]],
+            GetShaderLocation(Runtime.CurrentRuntime.Shaders[Shaders[SelectedShaderIndex]], "res"),
+            size, ShaderUniformDataType.Vec2);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders[Shaders[SelectedShaderIndex]],
+            GetShaderLocation(Runtime.CurrentRuntime.Shaders[Shaders[SelectedShaderIndex]], "border_width"),
+            BorderWidth, ShaderUniformDataType.Float);
+        BeginShaderMode(Runtime.CurrentRuntime.Shaders[Shaders[SelectedShaderIndex]]);
+        //ClearBackground(Raylib_cs.Color.Red);
+        DrawTexturePro(temp.Texture,
+            new Rectangle(0, TextTestTexture.Value.Texture.Height, 
+                TextTestTexture.Value.Texture.Width, TextTestTexture.Value.Texture.Height),
+            new Rectangle(0,0,TextTestTexture.Value.Texture.Width,TextTestTexture.Value.Texture.Height),
+            Vector2.Zero, 0, Raylib_cs.Color.White);
+        EndShaderMode();
+        EndTextureMode();
+        UnloadRenderTexture(temp);
+        
     }
 #endif
 

@@ -114,6 +114,73 @@ public static class Helper
         SetShaderValue(Runtime.CurrentRuntime.Shaders["contrast"], LocationContrastLevel, contrastLevel, ShaderUniformDataType.Float);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders["contrast"]);
     }
+
+    private const float BossTextFontSize = 6;
+    private const float ChapterTitleFontSize = 12;
+    private static Color BossTextColor = Color.Lime;
+    
+    public static Vector2 GetBossTextSize(string text)
+    {
+        string transliterate = Transliterate(text);
+        return Raylib.MeasureTextEx(GetFontDefault(),
+            transliterate,
+            BossTextFontSize * Runtime.CurrentRuntime.ScaleF,
+            Runtime.CurrentRuntime.ScaleF);
+    }
+
+    public static void DrawBossText(RenderTexture2D texture, string text)
+    {
+        string transliterate = Transliterate(text);
+        RenderTexture2D temp = Raylib.LoadRenderTexture(texture.Texture.Width,  texture.Texture.Height);
+        BeginTextureMode(temp);
+        DrawTextEx(GetFontDefault(),
+            transliterate,
+            Vector2.Zero,
+            BossTextFontSize * Runtime.CurrentRuntime.ScaleF,
+            Runtime.CurrentRuntime.ScaleF, BossTextColor);
+        EndTextureMode();
+        BeginTextureMode(texture);
+        Rectangle rc = new(0, 0, temp.Texture.Width, temp.Texture.Height);
+        Rectangle rc2 = new(0, temp.Texture.Height, temp.Texture.Width, temp.Texture.Height);
+        DrawTexturePro(temp.Texture, rc2,   rc, Vector2.Zero, 0, Color.White);
+        EndTextureMode();
+        UnloadRenderTexture(temp);
+    }
+
+    public static void DrawTitleText(RenderTexture2D texture, string text)
+    {
+        string transliterate = Transliterate(text);
+        RenderTexture2D temp = Raylib.LoadRenderTexture(texture.Texture.Width,  texture.Texture.Height);
+        BeginTextureMode(temp);
+        var b = GetTitleTextSize(text);
+        ClearBackground(Color.Lime);
+        DrawTextEx(Runtime.CurrentRuntime.Fonts["kodemono"],
+            transliterate,
+            new(b.X * 0.33f, 0),
+            ChapterTitleFontSize * Runtime.CurrentRuntime.ScaleF,
+            Runtime.CurrentRuntime.ScaleF, Color.White);
+        EndTextureMode();
+        BeginTextureMode(texture);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], GetShaderLocation(Runtime.CurrentRuntime.Shaders["outline"], "border_width"), 0.05f, ShaderUniformDataType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], GetShaderLocation(Runtime.CurrentRuntime.Shaders["outline"], "res"),
+            [b.X / 1.5f, b.Y / 1.5f], ShaderUniformDataType.Vec2);
+        BeginShaderMode(Runtime.CurrentRuntime.Shaders["outline"]);
+        Rectangle rc = new(0, 0, temp.Texture.Width, temp.Texture.Height);
+        Rectangle rc2 = new(0, temp.Texture.Height, temp.Texture.Width, temp.Texture.Height);
+        DrawTexturePro(temp.Texture, rc2,   rc, Vector2.Zero, 0, Color.White);
+        EndShaderMode();
+        EndTextureMode();
+        UnloadRenderTexture(temp);
+    }
+
+    public static Vector2 GetTitleTextSize(string text)
+    {
+        string transliterate = Transliterate(text);
+        return Raylib.MeasureTextEx(Runtime.CurrentRuntime.Fonts["kodemono"],
+            transliterate,
+            ChapterTitleFontSize * Runtime.CurrentRuntime.ScaleF,
+            Runtime.CurrentRuntime.ScaleF) * 1.5f;
+    }
     
     public static RenderTexture2D RenderTextureInCloud(Texture2D texture, float radius = 3f, float angle = -0.85f, float width = 0.35f, float size = 1.4f)
     {
@@ -349,8 +416,12 @@ public static class Helper
                 SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowResolution, new float[] { width, height }, ShaderUniformDataType.Vec2);
                 break;
             case "gradient":
-                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientBorderWidth, 2f, ShaderUniformDataType.Float);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientBorderWidth, scale * 2f, ShaderUniformDataType.Float);
                 SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientResoulution, new Vector2(width,height), ShaderUniformDataType.Vec2);
+                break;
+            case "outline":
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], LocationGradientBorderWidth, scale * 3f, ShaderUniformDataType.Float);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], GetShaderLocation(Runtime.CurrentRuntime.Shaders["outline"], "res"), new Vector2(width,height), ShaderUniformDataType.Vec2);
                 break;
         }
         BeginTextureMode(texture);

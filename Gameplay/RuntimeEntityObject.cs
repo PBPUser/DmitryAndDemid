@@ -1,5 +1,6 @@
 using System.Numerics;
 using DmitryAndDemid.Data;
+using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Utils;
 using Microsoft.CodeAnalysis.Scripting;
 using Raylib_cs;
@@ -33,6 +34,8 @@ public class RuntimeEntityObject
     public Vector2 Origin = new();
     public int[] Header = new int[128];
     public Texture2D Texture;
+    
+    
 
     public static RuntimeEntityObject LoadFromFile(FileEntityInfo info, ref Script<object>[] scripts)
     {

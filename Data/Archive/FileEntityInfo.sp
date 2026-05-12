@@ -8,14 +8,11 @@
     [0x20] Clear Protected
     [0x40] Dangerous for player
 }
-[0x1] Create Script Index
-[0x2] Update Script Index
-[0x3] Remove Script Index
-[0x4] Scaling
-[0x5] Group Id
-[0x6] Transparency
+[0x1] Group Id
+[0x2] Transparency
 # if bullet
-[0x7] Color
+[0x3] Color
+[0x4] Collectable Score Modifier
 # if entity
 [0x0] Bit mask: {
     [0x80] Use Bad Drop Scenario
@@ -23,13 +20,18 @@
     [0x200] Is boss
     [0x400] Use Die Script
 }
-[0x7] Bad Drop Scenario
-[0x8] Good Drop Scenario
-[0x9] Health
-[0xA] Appear Speed
-[0xB] Die Script Index
+[0x3] Bad Drop Scenario
+[0x4] Good Drop Scenario
 # if boss
-[0xC] Boss Id
+[0x5] Boss Id
+Floating Points:
+[0x0] Health
+[0x1] Appear Speed
+[0x2] Scaling
 # STRUCTURE
 HEADER
+FLOATING_POINTS
 VISUAL USED
+UPDATE SCRIPT
+CREATE SCRIPT
+REMOVE SCRIPT

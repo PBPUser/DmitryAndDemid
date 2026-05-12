@@ -22,6 +22,8 @@ public class Configuration
     [JsonInclude] public float SFXVolume = 0.9f;
     [JsonInclude] public float MusicVolume = 1.0f;
     [JsonInclude] public bool FastLoading = false;
+    [JsonInclude] public bool UseVSYNC = true;
+    [JsonInclude] public int FrameCap = -1;
     [JsonInclude] public GamepadButton ShootButton = GamepadButton.RightFaceDown;
     [JsonInclude] public GamepadButton BombButton = GamepadButton.RightFaceRight;
     [JsonInclude] public GamepadButton PauseButton = GamepadButton.RightTrigger1;

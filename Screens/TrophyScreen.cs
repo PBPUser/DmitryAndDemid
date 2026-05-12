@@ -43,6 +43,7 @@ public class TrophyScreen : ScreenWithTitle
                 "gradient");
         }
         Columns = (int)Math.Sqrt(Menu.Length)+1;
+        DisappearingTime = 1f;
     }
     
     public override void Render()
@@ -103,7 +104,7 @@ public class TrophyScreen : ScreenWithTitle
             IsItemTriggered = true;
             Exiting();
             ItemSwitchTime = time;
-            TimeDisappear = (float)GetTime() + 1f;
+            TimeDisappear = (float)GetTime() + DisappearingTime;
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["button"]);
             ItemTriggerTime = time;
             Action = () => Runtime.CurrentRuntime.RemoveScreen(this);
@@ -112,10 +113,10 @@ public class TrophyScreen : ScreenWithTitle
         {
             IsItemTriggered = true;
             Exiting();
-            TimeDisappear = (float)GetTime() + 1f;
+            TimeDisappear = (float)GetTime() + DisappearingTime;
             ItemSwitchTime = time;
             Action = () => Runtime.CurrentRuntime.RemoveScreen(this);
-            ItemTriggerTime = time;
+            ItemTriggerTime = time + DisappearingTime;
         }
     }
 }

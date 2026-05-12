@@ -57,7 +57,7 @@ public class MainScreen : MenuScreen
         int logoCenterX = (int)((Runtime.CurrentRuntime.Width - logoCenterWidth) * 0.45f);
         LogoTargetCenter1 = new Rectangle(logoCenterX, -logoCenterHeight, logoCenterWidth, logoCenterHeight * 0.7f);
         LogoTargetCenter2 = new Rectangle(logoCenterX, (int)(Runtime.CurrentRuntime.Scale * 32), logoCenterWidth, logoCenterHeight);
-        CurrentY = (int)(192 * Runtime.CurrentRuntime.Scale);
+        CurrentY = (int)(160 * Runtime.CurrentRuntime.Scale);
         MusicRoom = new MusicRoomScreen();
         SelectedItemOffset = new Vector2(8, 0) * Runtime.CurrentRuntime.ScaleF;
         SelectedItemScale = 1.2f;
@@ -175,18 +175,19 @@ public class MainScreen : MenuScreen
 
     public override void CreateMenu()
     {
+#if DEBUG
+        MenuItems.Add(new MenuItem("menu.editor", "", a => Runtime.CurrentRuntime.AddScreen(new GameplayEditorScreen())));
+#endif
         MenuItems.Add(new MenuItem("menu.start", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Default))));
         MenuItems.Add(new MenuItem("menu.extra", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Extra))));
         MenuItems.Add(new MenuItem("menu.practice", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Practice))));
         MenuItems.Add(new MenuItem("menu.spell", "", a => {}));
-        MenuItems.Add(new MenuItem("menu.stats", "", a => {}));
         MenuItems.Add(new MenuItem("menu.replay", "", a => {}));
-        MenuItems.Add(new MenuItem("menu.trophy", "", a => Runtime.CurrentRuntime.AddScreen(TrophyScreen)));
+        MenuItems.Add(new MenuItem("menu.stats", "", a => {}));
         MenuItems.Add(new MenuItem("menu.music", "", a => Runtime.CurrentRuntime.AddScreen(MusicRoom)));
-#if DEBUG
-        MenuItems.Add(new MenuItem("Gameplay Editor", "", a => Runtime.CurrentRuntime.AddScreen(new GameplayEditorScreen())));
-#endif
+        MenuItems.Add(new MenuItem("menu.trophy", "", a => Runtime.CurrentRuntime.AddScreen(TrophyScreen)));
         MenuItems.Add(new MenuItem("menu.settings", "", a => Runtime.CurrentRuntime.AddScreen(new SettingsScreen())));
+        MenuItems.Add(new MenuItem("menu.manual", "", a => Runtime.CurrentRuntime.AddScreen(MusicRoom)));
         MenuItems.Add(new MenuItem("menu.exit", "", a => Environment.Exit(0)));
     }
 

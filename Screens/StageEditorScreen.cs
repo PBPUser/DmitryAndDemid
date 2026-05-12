@@ -1,10 +1,17 @@
 using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
+using DmitryAndDemid.Data.Archive;
+using DmitryAndDemid.Gameplay;
+using DmitryAndDemid.Gameplay.RuntimeData;
 using DmitryAndDemid.Utils;
 using ImGuiNET;
+using Microsoft.CodeAnalysis.CSharp.Scripting;
+using Microsoft.CodeAnalysis.Scripting;
+using Pango;
 using Raylib_cs;
 using static ImGuiNET.ImGui;
+using Script = Pango.Script;
 
 namespace DmitryAndDemid.Screens;
 
@@ -24,8 +31,14 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
     private Vector3 Color;
     private int Time = 0;
     private int SelectedObjectIndex = -1;
-    private string[] Objects => Info.Entities.Select(x => Info.Entities.IndexOf(Info.Entities).ToString()).ToArray();
     private int SelectedTextureIndex = -1;
+    private int 
+        SelectedCreateScriptIndex = -1,
+        SelectedUpdateScriptIndex = -1;
+    private string[] Objects => Info.Entities.Select(x => Info.Entities.IndexOf(Info.Entities).ToString()).ToArray();
+
+    private string[] Scripts =>
+        TabItem == 3 ? ActionsScope.ChapterActions.Keys.ToArray() : ActionsScope.ObjectActions.Keys.ToArray();
 
     private string[] Visuals => 
         Info.Entities[SelectedObjectIndex].IsBullet ?
@@ -49,7 +62,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
     }
     
     #if DEBUG
-    public override void DrawImgui()
+    public override async void DrawImgui()
     {
         bool s = false;
         Begin("Stage Editor", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.MenuBar);
@@ -61,8 +74,6 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
             Reload();
         if (MenuItem("Info"))
             TabItem = 0;
-        if (MenuItem("Scripts"))
-            TabItem = 1;
         if (MenuItem("Entities"))
             TabItem = 2;
         if (MenuItem("Chapters"))
@@ -87,12 +98,11 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                     {
                         ShowChaptersList = false;
                     }
-
                     if (Button("Add Script"))
                     {
                         Array.Resize(ref Info.Scripts, Info.Scripts.Length + 1);
                         Info.Scripts[^1] = "";
-                    }
+                    } 
                 }
                 else
                 {
@@ -100,7 +110,28 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                         ShowChaptersList = true;
                     if (Button("Test"))
                     {
-                        
+                        try
+                        {
+                            var rsi = new RuntimeScriptInformation();
+                            var script = """
+                                         float sum = 0f;
+                                         foreach(var s in Array)
+                                            sum += s;
+                                         return sum;
+                                         """; 
+                            var j = 0;
+                            var globals = new ScriptTestingGlobals2 { X = 0.75f, Y = 0.5f };
+                            float scale = await CSharpScript.EvaluateAsync<float>("X+Y",
+                                ScriptOptions.Default
+                                    .AddReferences(typeof(ScriptTestingGlobals2).Assembly),
+                                globals: globals,
+                                globalsType: typeof(ScriptTestingGlobals2));
+                            ShowQuestion($"Ok! {scale}", () => {});
+                        }
+                        catch(Exception e)
+                        {
+                            ShowQuestion($"Failed to execute!\n{e.StackTrace}\n{e.Message}", () => {});
+                        }
                     }
                     InputTextMultiline("##code", ref Info.Scripts[SelectedObjectIndex], 261144, new Vector2(800, 600));
                 }
@@ -116,30 +147,47 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                     Text("Items: ");
                     if (ListBox("##list_select", ref SelectedObjectIndex, Info.Chapters.Select(x => x.Name).ToArray(),
                             Info.Chapters.Length, Info.Chapters.Length))
+                    {
                         ShowChaptersList = false;
+                        SelectedCreateScriptIndex = Scripts.IndexOf(Info.Chapters[SelectedObjectIndex].CreateScript);
+                        SelectedUpdateScriptIndex = Scripts.IndexOf(Info.Chapters[SelectedObjectIndex].UpdateScript);
+                        RerenderBossIdentifierTexture();
+                        RerenderChapterTitleTexture();
+                    }
                     EndChild();
                 }
                 else
                 {
-                    if(Button("Show Chapters List"))
+                    if(Button("Show Chapters"))
                         ShowChaptersList = true;
-                    if (Info.Header[1] >= Info.Scripts.Length)
-                        Info.Header[1] = -1;
-                    if (Info.Header[10] >= Info.Scripts.Length)
-                        Info.Header[10] = -1;
-                    Combo("Script Create", ref Info.Header[10], Info.Scripts, Info.Scripts.Length);
-                    Combo("Script Update", ref Info.Header[1], Info.Scripts, Info.Scripts.Length);
+
+                    Checkbox("Use create Script", ref Info.Chapters[SelectedObjectIndex].UseCreateScript);
+                    if(Info.Chapters[SelectedObjectIndex].UseCreateScript)
+                        if(Combo("Script Create", ref SelectedCreateScriptIndex, Scripts, Info.Scripts.Length))
+                            Info.Chapters[SelectedObjectIndex].CreateScript = Scripts[SelectedCreateScriptIndex];
+                    Checkbox("Use update Script", ref Info.Chapters[SelectedObjectIndex].UseUpdateScript);
+                    if (Info.Chapters[SelectedObjectIndex].UseUpdateScript)
+                        if (Combo("Script Update", ref SelectedUpdateScriptIndex, Scripts, Info.Scripts.Length))
+                            Info.Chapters[SelectedObjectIndex].UpdateScript = Scripts[SelectedUpdateScriptIndex];
+                    
                     SliderInt("Length", ref Info.Header[2], 0, 2000);
                     Combo("Difficulty", ref Info.Header[3], Difficulties, Difficulties.Length);
                     Combo("Chapter Type", ref Info.Chapters[SelectedObjectIndex].Header[0], ChapterTypes, ChapterTypes.Length);
                     if (Info.Chapters[SelectedObjectIndex].Header[0] > 1)
                     {
-                        InputText("Boss Identifier" , ref Info.Chapters[SelectedObjectIndex].BossName, 255);
+                        if (InputText("Boss Identifier", ref Info.Chapters[SelectedObjectIndex].BossName, 255))
+                            RerenderBossIdentifierTexture();
+                        if(BossTexturePreview != null)
+                            rlImGui_cs.rlImGui.Image(BossTexturePreview.Value.Texture);
+
                     }
                     if (Info.Chapters[SelectedObjectIndex].Header[0] == 3)
                     {
                         Combo("Background", ref Info.Chapters[SelectedObjectIndex].Header[5], Textures, Textures.Length);
-                        InputText("Chapter name", ref Info.Chapters[SelectedObjectIndex].Name, 255);
+                        if(InputText("Chapter name", ref Info.Chapters[SelectedObjectIndex].Name, 255))
+                            RerenderChapterTitleTexture();
+                        if(ChapterTexturePreview != null)
+                            rlImGui_cs.rlImGui.Image(ChapterTexturePreview.Value.Texture);
                         InputInt("Bonus max score", ref Info.Header[6], 1000, 10000);
                         InputInt("Spell Card Index on practice menu", ref Info.Header[9], 1, 1);
                         Checkbox("Boss Invincible", ref  Info.Chapters[SelectedObjectIndex].BossInvincible);
@@ -152,42 +200,42 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                         {
                             if (Button("Add"))
                             {
-                                Array.Resize(ref Info.Chapters[SelectedObjectIndex].DialogInfo, Info.Chapters[SelectedObjectIndex].DialogInfo.Length + 1);
-                                Info.Chapters[SelectedObjectIndex].DialogInfo[^1] = new FileDialogInfo();
-                                SelectedTextureIndex = Info.Chapters[SelectedObjectIndex].DialogInfo.Length-1;
+                                Array.Resize(ref Info.Chapters[SelectedObjectIndex].Dialogs, Info.Chapters[SelectedObjectIndex].Dialogs.Length + 1);
+                                Info.Chapters[SelectedObjectIndex].Dialogs[^1] = new FileDialogInfo();
+                                SelectedTextureIndex = Info.Chapters[SelectedObjectIndex].Dialogs.Length-1;
                             }
                             if (Button("Move Down"))
                             {
-                                if (SelectedTextureIndex == Info.Chapters[SelectedObjectIndex].DialogInfo.Length - 1)
+                                if (SelectedTextureIndex == Info.Chapters[SelectedObjectIndex].Dialogs.Length - 1)
                                     return;
-                                (Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex], Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex+1]) = 
-                                    (Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex+1], Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex]);
+                                (Info.Chapters[SelectedObjectIndex].Dialogs[SelectedTextureIndex], Info.Chapters[SelectedObjectIndex].Dialogs[SelectedTextureIndex+1]) = 
+                                    (Info.Chapters[SelectedObjectIndex].Dialogs[SelectedTextureIndex+1], Info.Chapters[SelectedObjectIndex].Dialogs[SelectedTextureIndex]);
                             }
                             if (Button("Move Up"))
                             {
                                 if (SelectedTextureIndex < 1)
                                     return;
-                                (Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex], Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex-1]) = 
-                                    (Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex-1], Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex]);
+                                (Info.Chapters[SelectedObjectIndex].Dialogs[SelectedTextureIndex], Info.Chapters[SelectedObjectIndex].Dialogs[SelectedTextureIndex-1]) = 
+                                    (Info.Chapters[SelectedObjectIndex].Dialogs[SelectedTextureIndex-1], Info.Chapters[SelectedObjectIndex].Dialogs[SelectedTextureIndex]);
                             }
 
                             ListBox("List", ref SelectedTextureIndex,
-                                Info.Chapters[SelectedObjectIndex].DialogInfo.Select(x => x.Text.Split("\n").Last())
-                                    .Select(x => x.Length > 16 ? x.Substring(0,16)+"..." : x).ToArray(), Info.Chapters[SelectedObjectIndex].DialogInfo.Length, 32);
+                                Info.Chapters[SelectedObjectIndex].Dialogs.Select(x => x.Text.Split("\n").Last())
+                                    .Select(x => x.Length > 16 ? x.Substring(0,16)+"..." : x).ToArray(), Info.Chapters[SelectedObjectIndex].Dialogs.Length, 32);
                             if (SelectedTextureIndex != -1)
                             {
                                 if (Button("Remove"))
                                     ShowQuestion("Do you want to remove this dialog?", () =>
                                     {
-                                        var nArray = new FileDialogInfo[Info.Chapters[SelectedObjectIndex].DialogInfo.Length - 1];
-                                        Array.Copy(Info.Chapters[SelectedObjectIndex].DialogInfo, 0,  nArray, 0, SelectedTextureIndex);
-                                        Array.Copy(Info.Chapters[SelectedObjectIndex].DialogInfo, SelectedTextureIndex+1,  nArray, SelectedTextureIndex, Info.Chapters[SelectedObjectIndex].DialogInfo.Length-SelectedTextureIndex-1);
-                                        Info.Chapters[SelectedObjectIndex].DialogInfo = nArray;
+                                        var nArray = new FileDialogInfo[Info.Chapters[SelectedObjectIndex].Dialogs.Length - 1];
+                                        Array.Copy(Info.Chapters[SelectedObjectIndex].Dialogs, 0,  nArray, 0, SelectedTextureIndex);
+                                        Array.Copy(Info.Chapters[SelectedObjectIndex].Dialogs, SelectedTextureIndex+1,  nArray, SelectedTextureIndex, Info.Chapters[SelectedObjectIndex].Dialogs.Length-SelectedTextureIndex-1);
+                                        Info.Chapters[SelectedObjectIndex].Dialogs = nArray;
                                         SelectedTextureIndex = Math.Clamp(SelectedTextureIndex, -1,
-                                            Info.Chapters[SelectedObjectIndex].DialogInfo.Length - 1);
+                                            Info.Chapters[SelectedObjectIndex].Dialogs.Length - 1);
                                     });
                                 InputTextMultiline("Dialog Text",
-                                    ref Info.Chapters[SelectedObjectIndex].DialogInfo[SelectedTextureIndex].Text, 65536,
+                                    ref Info.Chapters[SelectedObjectIndex].Dialogs[SelectedTextureIndex].Text, 65536,
                                     new Vector2(640, 480));
                                 
                             }
@@ -201,20 +249,6 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                 break;
         }
         End();
-        //Begin("Chapter Info Editor");
-        //InputInt("Length", ref Info.Header[0x2], 1, 1);
-        //if (Combo("type", ref Info.Header[0x1], ChapterTypes, ChapterTypes.Length))
-        //{
-        //}
-        //if (.Type == 3)
-        //{
-        //    InputInt("Spell card number", ref EditableChapterInfo.Header[3], 1, 1);
-        //    Checkbox("Timeout Card", ref EditableChapterInfo.TimeoutCard);
-        //}
-        //if(EditableChapterInfo.Type > 1)
-        //    Checkbox("Boss Invincible", ref EditableChapterInfo.BossInvincible);
-        //
-        //End();
         if (QuestionShown)
         {
             Begin("Question", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.AlwaysAutoResize);
@@ -325,6 +359,31 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
         base.DrawImgui();
     }
 
+    private RenderTexture2D? BossTexturePreview = null;
+    private RenderTexture2D? ChapterTexturePreview = null;
+    
+    private void RerenderBossIdentifierTexture()
+    {
+        if(BossTexturePreview != null)
+            Raylib.UnloadRenderTexture(BossTexturePreview.Value);
+        if (TabItem != 3 || SelectedObjectIndex == -1)
+            return;
+        var size = Helper.GetBossTextSize(Info.Chapters[SelectedObjectIndex].BossName);
+        BossTexturePreview = Raylib.LoadRenderTexture((int)size.X, (int)size.Y);
+        Helper.DrawBossText(BossTexturePreview.Value, Info.Chapters[SelectedObjectIndex].BossName);
+    }
+
+    void RerenderChapterTitleTexture()
+    {
+        if(ChapterTexturePreview != null)
+            Raylib.UnloadRenderTexture(ChapterTexturePreview.Value);
+        if (TabItem != 3 || SelectedObjectIndex == -1)
+            return;
+        var size = Helper.GetTitleTextSize(Info.Chapters[SelectedObjectIndex].Name);
+        ChapterTexturePreview = Raylib.LoadRenderTexture((int)size.X, (int)size.Y);
+        Helper.DrawTitleText(ChapterTexturePreview.Value, Info.Chapters[SelectedObjectIndex].Name);
+    }
+
     public string NewChapterName = "";
 
     public bool ShowCreate { get; set; }
@@ -337,5 +396,17 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
         Question = str;
         QuestionShown = true;
         QuestionOKAction = act;
+    }
+
+    public class ScriptTestingGlobals
+    {
+        public float X = 0;
+        public float Y = 0;
+    }
+
+    public class ScriptTestingGlobals2
+    {
+        public float X = 0;
+        public float Y = 0;
     }
 }
