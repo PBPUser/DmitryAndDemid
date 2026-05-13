@@ -33,8 +33,8 @@ public class ReplayController : PlayerController
         tickData >>= 1;
         positionChange.X -= tickData%2==1 ? speed:0;
         tickData >>= 1;
-        player.UpdateCollisionRender(player.PositionTo + positionChange,
-            0);
+        player.X += positionChange.X;
+        player.Y += positionChange.Y;
         base.Update(player, tick);
     }
 }

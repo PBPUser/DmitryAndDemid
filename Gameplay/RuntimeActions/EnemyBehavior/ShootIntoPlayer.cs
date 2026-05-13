@@ -18,17 +18,17 @@ public class ShootIntoPlayer : EnemyAction
             return;
         if ((enemy.Game.CurrentTick - enemy.SpawnTick) % Rate != 0)
             return;
-        enemy.Game.AddObject(new Bullet(enemy.Game, new BulletSpawnInfo()
-        {
-            Speed = enemy.BulletSpeed,
-            SpawnTick = enemy.Game.CurrentTick,
-            BulletActionClass = "MoveByDirection",
-            Args = ["UseRotationRad"],
-            EffectColor = new Vector3(0, 1, 0),
-            BulletVisual = Visual,
-            Position = enemy.PositionTo,
-            Rotation = Helper.FindAngle(enemy.PositionTo, enemy.Game.Player.PositionTo)
-        }, 0, true));
+        ///enemy.Game.AddObject(new Bullet(enemy.Game, new BulletSpawnInfo()
+        ///{
+        ///    Speed = enemy.BulletSpeed,
+        ///    SpawnTick = enemy.Game.CurrentTick,
+        ///    BulletActionClass = "MoveByDirection",
+        ///    Args = ["UseRotationRad"],
+        ///    EffectColor = new Vector3(0, 1, 0),
+        ///    BulletVisual = Visual,
+        ///    Position = enemy.PositionTo,
+        ///    Rotation = Helper.FindAngle(enemy.PositionTo, enemy.Game.Player.PositionTo)
+        ///}, 0, true));
     }
 
     public override void Init(string[] values, Game game, Enemy enemy)

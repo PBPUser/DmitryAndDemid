@@ -13,9 +13,11 @@
 [0x5] Good Drop
 [0x6] Bad Drop
 [0x7] SpellCard Index
+[0x8] SpellCard Practice group
 # STRUCTURE
+ID
 HEADER
-NAME
+SPELLCARD_NAME
 BOSS_NAME
 BACKGROUND
 DIALOGS

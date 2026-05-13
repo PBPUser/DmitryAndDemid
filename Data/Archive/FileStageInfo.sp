@@ -7,6 +7,7 @@
 [0x5] Group count
 [0x6] Entities count
 [0x7] Chapter count
+[0x8] Boss Music ID
 # STRUCTURE
 HEADER
 SCRIPTS

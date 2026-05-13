@@ -14,7 +14,7 @@ public class ScoreCollectable : Collectable
 
     protected override void Apply()
     {
-        Game.Score += (int)((448 - Game.Player.PositionTo.Y) * 100); 
+        //Game.Score += (int)((448 - Game.Player.PositionTo.Y) * 100); 
         base.Apply();
     }
     

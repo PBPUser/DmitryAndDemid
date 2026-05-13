@@ -51,7 +51,7 @@ public struct GameObject
 
     public bool CheckPlayerCollision(Player player)
     {
-        Delta = Raymath.Vector2Distance(Position, player.PositionTo);
+        Delta = Raymath.Vector2Distance(Position, new Vector2(player.X, player.Y));
         return Delta > Variables[7] * FloatingPoints[2];
     }
 

@@ -17,6 +17,7 @@ public class RuntimeChapter
     public readonly string CreateScript;
     public readonly string UpdateScript;
     public readonly int Length;
+    public readonly int StartedIndex;
     public readonly int LengthOffset = 0;
     public readonly int MaxScore = 0;
     public readonly Drop BadDrop;
@@ -26,6 +27,7 @@ public class RuntimeChapter
 
     public RuntimeChapter(FileChapterInfo chapterInfo)
     {
+        Length = chapterInfo.Header[2];
         TimeoutCard = chapterInfo.TimeoutCard;
         BossInvincible = chapterInfo.BossInvincible;
         HasDialogs = chapterInfo.HasDialogs;
@@ -43,7 +45,9 @@ public class RuntimeChapter
         if (Type == ChapterType.Spell)
         {
             MaxScore = chapterInfo.Header[4];
-            ChapterTitleTexture = null;
+            var size = Helper.GetTitleTextSize(chapterInfo.SpellcardTitle);
+            ChapterTitleTexture = Raylib.LoadRenderTexture((int)size.X, (int)size.Y);
+            Helper.DrawChapterTitleText(ChapterTitleTexture.Value, chapterInfo.SpellcardTitle);
         }
         if(UseCreateScript)
             CreateScript = chapterInfo.CreateScript;

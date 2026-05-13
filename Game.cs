@@ -108,8 +108,8 @@ public class Game : IDisposable
         RectangleDialogAntogonistInactive = Helper.Scale(new Rectangle(288, 288, 144, 192), Runtime.CurrentRuntime.Scale);
         RectangleDialogProtogonistPassive = Helper.Scale(new Rectangle(-32, 480, 144, 192), Runtime.CurrentRuntime.Scale);
         RectangleDialogAntogonistPassive = Helper.Scale(new Rectangle(288, 480, 144, 192), Runtime.CurrentRuntime.Scale);
-        Player = new Player(this, protogonistData, replay == null ? new PlayerController() : new ReplayController(replay, stageFrom));
-        Objects.Add(Player);
+        //Player = new Player(this, protogonistData, replay == null ? new PlayerController() : new ReplayController(replay, stageFrom));
+        //Objects.Add(Player);
         StageInfo = stage;
         Playing = true;
         CurrentScoreTexture = LoadRenderTexture((int)(200*Runtime.CurrentRuntime.ScaleF), (int)(40*Runtime.CurrentRuntime.ScaleF));
@@ -954,7 +954,7 @@ public class Game : IDisposable
     {
         CollectNextClearAll = false;
         IsDied = true;
-        DiePosition = Player.PositionTo;
+            //DiePosition = Player.PositionTo;
         DiedTimestamp = (float)GetTime();
         NextClearAllTick = CurrentTick + DieClearAllDelay;
         GameplayScreenEffects.Add(new GameplayScreenEffect(this, DiePosition, 10000, "die", DiedTimestamp, DiedTimestamp + 1.6f));

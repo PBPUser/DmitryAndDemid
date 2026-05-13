@@ -181,7 +181,7 @@ public class MainScreen : MenuScreen
         MenuItems.Add(new MenuItem("menu.start", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Default))));
         MenuItems.Add(new MenuItem("menu.extra", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Extra))));
         MenuItems.Add(new MenuItem("menu.practice", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Practice))));
-        MenuItems.Add(new MenuItem("menu.spell", "", a => {}));
+        MenuItems.Add(new MenuItem("menu.spell", "", a => Runtime.CurrentRuntime.AddScreen(new PersonSelectScreen(GameType.SpellPractice, 0))));
         MenuItems.Add(new MenuItem("menu.replay", "", a => {}));
         MenuItems.Add(new MenuItem("menu.stats", "", a => {}));
         MenuItems.Add(new MenuItem("menu.music", "", a => Runtime.CurrentRuntime.AddScreen(MusicRoom)));

@@ -10,9 +10,10 @@
 }
 [0x1] Group Id
 [0x2] Transparency
+[0x3] Spawn Id
 # if bullet
-[0x3] Color
-[0x4] Collectable Score Modifier
+[0x4] Color
+[0x5] Collectable Score Modifier
 # if entity
 [0x0] Bit mask: {
     [0x80] Use Bad Drop Scenario
@@ -20,10 +21,13 @@
     [0x200] Is boss
     [0x400] Use Die Script
 }
-[0x3] Bad Drop Scenario
-[0x4] Good Drop Scenario
+[0x4] Bad Drop Scenario
+[0x5] Good Drop Scenario
+[0x6] Added score when killed
 # if boss
-[0x5] Boss Id
+[0x7] Boss Id
+[0x8] Boss Health Bar Percent
+[0x9] Boss Attack Index
 Floating Points:
 [0x0] Health
 [0x1] Appear Speed

@@ -19,19 +19,19 @@ public class PauseMenu : MenuScreen
     {
         MenuItems.Add(new MenuItem("ingame.continue", "", a =>
         {
-            if (GameplayScreen.Game!.ForcedPause)
+            if (GameplayScreen.GameBox!.IsGameOver)
                 return;
             GameplayScreen.Resume();
             Runtime.CurrentRuntime.RemoveScreen(this);
         }));
         MenuItems.Add(new MenuItem("ingame.save", "", a =>
         {
-            IngameSaveReplayScreen replayScreen = new IngameSaveReplayScreen((GameplayScreen.Game!.Player.Controller as PlayerController)!, GameplayScreen);
+            IngameSaveReplayScreen replayScreen = new IngameSaveReplayScreen((GameplayScreen.GameBox!.Player.Controller as PlayerController)!, GameplayScreen);
             Runtime.CurrentRuntime.AddScreen(replayScreen);
         }));
         MenuItems.Add(new MenuItem("ingame.save_and_exit", "", a =>
         {
-            IngameSaveReplayScreen replayScreen = new IngameSaveReplayScreen((GameplayScreen.Game!.Player.Controller as PlayerController)!, GameplayScreen);
+            IngameSaveReplayScreen replayScreen = new IngameSaveReplayScreen((GameplayScreen.GameBox!.Player.Controller as PlayerController)!, GameplayScreen);
             Runtime.CurrentRuntime.AddScreen(replayScreen);
             replayScreen.ExitAfterSave = true;
         }));

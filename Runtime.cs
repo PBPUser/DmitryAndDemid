@@ -293,10 +293,6 @@ public class Runtime
         for (int i = UpdateRenderFrom; i < Screens.Count; i++)
             Screens[i].Render();
         DrawFPS(0, 0);
-        if (IsFrameCap240 == true)
-        {
-            DrawTexture(Textures["241fps.png"], 0,0,Color.White);
-        }
 #if DEBUG
         if (TextureViewerOpen)
             DrawTextureView();
@@ -307,6 +303,8 @@ public class Runtime
             rlImGui.End();
         }
 #endif
+        if (IsFrameCap240)
+            DrawTexture(Textures["241fps.png"], 0,0,Color.White);
         EndDrawing();
      }
     

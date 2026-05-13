@@ -16,13 +16,13 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
 
     public override void Update()
     {
-        float time = player.Game.CurrentTick / 60f;
+        float time = player.GameBox.CurrentTick / 60f;
         UpdateBulletSourcePositions(time);
     }
 
     public override void UpdatePower()
     {
-        float time = player.Game.CurrentTick / 60f;
+        float time = player.GameBox.CurrentTick / 60f;
         BulletSourcePositionsCount = (player.Power / 100);
         UpdateBulletSourcePositions(time);
     }
@@ -34,7 +34,7 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         float angleStart = time * 2;
         float angleDif = MathF.PI * 2 / BulletSourcePositionsCount;
         for (int i = 0; i < BulletSourcePositionsCount; i++)
-            BulletSourcePositions[i] = player.PositionTo + (Helper.GetDirection(angleStart + (angleDif * i)) * dif);
+            BulletSourcePositions[i] = new Vector2(Player.X, Player.Y) + Helper.GetDirection(angleStart + (angleDif * i)) * dif;
     }
 
     public override void DrawBottomLayer()
@@ -43,9 +43,9 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         byte transparency = Helper.TimeToTransparency(.5 *
                                                       Helper.ComputeObjectTime(time, FocusTimestamp, Player.FocusAnimationChangingLength,
                                                           DefocusTimestamp + Player.FocusAnimationChangingLength, Player.FocusAnimationChangingLength));
-        Raylib.DrawTexturePro(player.SourceTexture, PlayerBottomLayerSource, new Rectangle(player.PositionTo, new Vector2(64)), 
+        Raylib.DrawTexturePro(player.SourceTexture, PlayerBottomLayerSource, new Rectangle(new Vector2(Player.X, Player.Y), new Vector2(64)), 
             new Vector2(32), time*64, Color.White with {A=transparency} );
-        Raylib.DrawTexturePro(player.SourceTexture, PlayerBottomLayerSource, new Rectangle(player.PositionTo, new Vector2(64)), 
+        Raylib.DrawTexturePro(player.SourceTexture, PlayerBottomLayerSource, new Rectangle(new Vector2(Player.X, Player.Y), new Vector2(64)), 
             new Vector2(32), -time*64, Color.White with {A=transparency} );
     }
 
@@ -57,31 +57,31 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         byte transparency = Helper.TimeToTransparency(
             Helper.ComputeObjectTime(Raylib.GetTime(), FocusTimestamp, Player.FocusAnimationChangingLength,
                 DefocusTimestamp + Player.FocusAnimationChangingLength, Player.FocusAnimationChangingLength));
-        Raylib.DrawTexturePro(player.SourceTexture, PlayerTopLayerSource, new Rectangle(player.PositionTo, new Vector2(64)), 
+        Raylib.DrawTexturePro(player.SourceTexture, PlayerTopLayerSource, new Rectangle(new Vector2(Player.X, Player.Y), new Vector2(64)), 
             new Vector2(32), 0, Color.White with {A=transparency} );
     }
     
     public override void Shoot()
     {
-        if (Player.Game.CurrentTick % 20 != 0)
+        if (Player.GameBox.CurrentTick % 20 != 0)
             return;
         Bullet b;
         float totalDamage = Player.Power / 100f;
         float singleDamage = totalDamage / BulletSourcePositionsCount;
         for (int i = 0; i < BulletSourcePositionsCount; i++)
         {
-            b = new Bullet(Player.Game,new BulletSpawnInfo()
-            {
-                Damage = singleDamage,
-                Speed = 6f,
-                BulletVisual = "akob",
-                Rotation = MathF.PI,
-                Position = BulletSourcePositions[i],
-                BulletActionClass = "MoveByDirection",
-                Args = ["UseRotation"]
-            },0, false);
-            b.PlayerShoot = true;
-            Player.Game.AddObject(b);
+            //b = new Bullet(Player.GameBox, new BulletSpawnInfo()
+            //{
+            //    Damage = singleDamage,
+            //    Speed = 6f,
+            //    BulletVisual = "akob",
+            //    Rotation = MathF.PI,
+            //    Position = BulletSourcePositions[i],
+            //    BulletActionClass = "MoveByDirection",
+            //    Args = ["UseRotation"]
+            //},0, false);
+            //b.PlayerShoot = true;
+            //Player.GameBox.AddObject(b);
         }
     }
 }

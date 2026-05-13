@@ -4,9 +4,31 @@ namespace DmitryAndDemid.Data.Archive;
 
 public class FileChapterInfo
 {
+    public FileChapterInfo()
+    {
+        
+    }
+
+    public FileChapterInfo(FileChapterInfo other)
+    {
+        Header = other.Header;
+        Dialogs = other.Dialogs;
+        Id = other.Id;
+        SpellcardTitle = other.SpellcardTitle;
+        BossName = other.BossName;
+        CreateScript = other.CreateScript;
+        UpdateScript = other.UpdateScript;
+        TimeoutCard = other.TimeoutCard;
+        BossInvincible = other.BossInvincible;
+        HasDialogs = other.HasDialogs;
+        UseUpdateScript = other.UseUpdateScript;
+        UseCreateScript = other.UseCreateScript;
+    }
+    
     public int[] Header = new int[8];
     public FileDialogInfo[] Dialogs = [];
-    public string Name = "";
+    public string Id = "";
+    public string SpellcardTitle = "";
     public string BossName = "";
     public string CreateScript = "";
     public string UpdateScript = "";
@@ -19,6 +41,7 @@ public class FileChapterInfo
 
     public void Save(ref BitPackage package)
     {
+        package.WriteString(Id??"");
         Header[1] = TimeoutCard ? 1 : 0;
         Header[1] |= BossInvincible ? 0x2 : 0;
         Header[1] |= HasDialogs ? 0x4 : 0;
@@ -28,7 +51,7 @@ public class FileChapterInfo
             Header[4] = Dialogs.Length;
         for(int i =0;i<Header.Length;i++)
             package.WriteVarLong(Header[i]);
-        package.WriteString(Name);
+        package.WriteString(SpellcardTitle);
         if(Header[0]==3)
             package.WriteString(BossName);
         if(UseUpdateScript)
@@ -43,6 +66,7 @@ public class FileChapterInfo
     public static FileChapterInfo Load(ref BitPackage package)
     {
         FileChapterInfo chapterInfo = new();
+        chapterInfo.Id = package.ReadString();
         for (int i = 0; i < chapterInfo.Header.Length; i++)
             chapterInfo.Header[i] = (int)package.ReadVarLong();
         chapterInfo.TimeoutCard = (chapterInfo.Header[1] & 1) == 1;
@@ -50,7 +74,7 @@ public class FileChapterInfo
         chapterInfo.HasDialogs = (chapterInfo.Header[1] & 4) == 4;
         chapterInfo.UseUpdateScript = (chapterInfo.Header[1] & 8) == 8;
         chapterInfo.UseCreateScript = (chapterInfo.Header[1] & 16) == 16;
-        chapterInfo.Name = package.ReadString();
+        chapterInfo.SpellcardTitle = package.ReadString();
         if(chapterInfo.Header[0] == 3)
             chapterInfo.BossName = package.ReadString();
         if (chapterInfo.UseUpdateScript)

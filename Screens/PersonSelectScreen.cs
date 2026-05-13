@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
+using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Utils;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
@@ -25,6 +26,8 @@ public class PersonSelectScreen : MenuScreen
         ArtShift = (float)(Runtime.CurrentRuntime.Scale * 40f);
         DescriptionShift = (float)(Runtime.CurrentRuntime.Scale * 30f);
         SetTitle(Runtime.CurrentRuntime.Textures["hero_select.png"]);
+        if(gameType == GameType.SpellPractice)
+            SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
     }
 
     private static Rectangle RectangleSelectionSource = new Rectangle(0, 0, 200, 200);
@@ -41,7 +44,7 @@ public class PersonSelectScreen : MenuScreen
 
     public override void CreateMenu()
     {
-        Files = Directory.GetFiles("Assets/Data/PlayablePersons", "*.json");
+        Files = Directory.GetFiles("Assets/Data/PlayablePersons/", "*.json");
         ArtTextures = new Texture2D[Files.Length];
         DescriptionTextures = new Texture2D[Files.Length];
         int i = 0;
@@ -57,6 +60,7 @@ public class PersonSelectScreen : MenuScreen
 
     public override void Render()
     {
+        DrawBackground();
         float appear = (float)Helper.ComputeObjectTime(Raylib.GetTime(), TimeAppear, .5f, TimeDisappear, .5f);
         float invertedAppearElastic = Helper.EaseInOutElasticF(1 - appear);
         float index = (float)ComputeAnimationIndexLoop();
@@ -98,31 +102,39 @@ public class PersonSelectScreen : MenuScreen
 
     void OpenNext()
     {
-        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["swap"]);
         string data = File.ReadAllText(Files[SelectedIndex]);
-        var json = JsonSerializer.Deserialize<ProtogonistData>(data);
-        if (json == null)
+        var protogonistData = JsonSerializer.Deserialize<ProtogonistData>(data);
+        if (protogonistData == null)
             throw new Exception();
+        bool UseTLS = false;
         if (GameType == GameType.Practice)
-            Runtime.CurrentRuntime.AddScreen(new PracticeScreen(json, Difficulty));
+            Runtime.CurrentRuntime.AddScreen(new PracticeScreen(protogonistData, Difficulty));
         else if (GameType == GameType.Default)
         {
-            var gamePlayScreen = new GameplayScreen(json, Game.Stages[0], Difficulty);
-            gamePlayScreen.Game.ContinueAfterStageEnds = true;
+            string stagePath = Directory.GetFiles("Assets/Data/SpellCards")[0];
+            var bitPackage = BitPackage.OpenStreamReadPackage(stagePath);
+            UseTLS = true;
+            var gamePlayScreen = new GameplayScreen(protogonistData, Difficulty, FileStageInfo.Load(ref bitPackage), 0, false);
             Runtime.CurrentRuntime.AddScreen(gamePlayScreen);
+            bitPackage.Dispose();
         }
         else if (GameType == GameType.Extra)
         {
-            var gamePlayScreen = new GameplayScreen(json, Game.Stages[3], Difficulty);
-            gamePlayScreen.Game.ContinueAfterStageEnds = true;
-            Runtime.CurrentRuntime.AddScreen(gamePlayScreen);
+        }
+        else
+        {
+            Runtime.CurrentRuntime.AddScreen(SpellPracticeScreen.Instance);
         }
 
-        TiledLoadingScreen? tls = null;
-        tls = new TiledLoadingScreen(Game.LoadingTime, 0.5, () =>
+        if (UseTLS)
         {
-            Runtime.CurrentRuntime.RemoveScreen(tls);
-        }, true, 0);
-        Runtime.CurrentRuntime.AddScreen(tls);
+            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["swap"]);
+            TiledLoadingScreen? tls = null;
+            tls = new TiledLoadingScreen(Game.LoadingTime, 0.5, () =>
+            {
+                Runtime.CurrentRuntime.RemoveScreen(tls);
+            }, true, 0);
+            Runtime.CurrentRuntime.AddScreen(tls);
+        }
     }
 }

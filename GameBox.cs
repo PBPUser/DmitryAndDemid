@@ -1,5 +1,9 @@
+using DmitryAndDemid.Backgrounds;
+using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
+using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Gameplay;
+using DmitryAndDemid.Screens;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
 
@@ -7,34 +11,81 @@ namespace DmitryAndDemid;
 
 public class GameBox : IDisposable
 {
-    public GameBox()
+    private RuntimeStageInfo StageInfo;
+    public string ProtogonistId;
+    public int Difficulty;
+    public Player Player;
+    
+    public GameBox(GameplayScreen screen, ProtogonistData data, FileStageInfo stage, int chapter, int difficulty, bool practice)
     {
-        CountTimeFrom = Raylib.GetTime();
-        TargetTexture = Raylib.LoadRenderTexture(384, 448);
+        Player = new Player(this, data, new PlayerController());
+        ProtogonistId = data.ID;
+        Difficulty = difficulty;
+        PauseTimestamp = (float)(Raylib.GetTime() + 3);
+        Background = LoadRenderTexture(384, 448);
+        Box = LoadRenderTexture(384, 448);
+        LoadStage(stage, chapter, difficulty);
     }
 
-    public const int TargetTPS = 60;
-    public RenderTexture2D TargetTexture;
+    public const float TargetTPS = 60;
+    private float TickLength = 1f / TargetTPS;
+    private bool RequiresRefresh = false;
     private List<GameObject> 
         ObjectsAddQueue = new(),
         ObjectsRemoveQueue = new(),
-        ObjectsQueue = new(),
         BoxObjects = new();
     public int CurrentTick = 0;
-    private int CurrentTickCompute => (int)(GetTime() / TargetTPS);
+    private int CurrentTickCompute => (int)(GetTime() * TargetTPS);
     
-    public void LoadChapterInfo(CompiledChapterInformation chapterInfo)
+    #region Update
+    public void Update()
+    {
+        BoxUpdate();
+    }
+
+    public void ProcessInput()
     {
         
     }
+    #endregion
+    #region Managment
+    void BoxUpdate()
+    {
+        if (CurrentTick >= CurrentTickCompute)
+            return;
+        CurrentTick++;
+        
+    }
+    
+    public void AddObject(GameObject obj)
+    {
+        ObjectsAddQueue.Add(obj);
+        RequiresRefresh = true;
+    }
 
-    #region Update
+    public void RemoveObject(GameObject obj)
+    {
+        ObjectsRemoveQueue.Add(obj);
+        RequiresRefresh = true;
+    }
+    
+    public void LoadStage(FileStageInfo stage, int chapter, int difficulty)
+    {
+        StageInfo = RuntimeStageInfo.LoadFromFile(stage, difficulty);
+    }
     #endregion
     #region Render
+
+    private static StageBackground StageBackgroundObject = new DrogichinBackground();
+    private static Color Transparent = Color.Black with { A = 0 };
+    public List<GameplayScreenEffect> ScreenEffects = new();
+    public RenderTexture2D Background;
+    public RenderTexture2D Box;
     public void RenderBox()
     {
-        BeginTextureMode(TargetTexture);
-        ClearBackground(Color.Black with {A=0});
+        StageBackgroundObject.Draw(Background, CurrentTick);
+        BeginTextureMode(Box);
+        ClearBackground(Transparent);
         foreach (var obj in BoxObjects)
         {
             if (0x100 == (obj.Variables[0] & 0x100))
@@ -52,16 +103,21 @@ public class GameBox : IDisposable
         EndTextureMode();
     }
     #endregion
-    #region Score
+    #region UI
     private int score = 0;
     private int hiScore = 0;
     public byte Continue = 0;
     public RenderTexture2D ScoreTexture;
     public RenderTexture2D HiScoreTexture;
+    public Rectangle ScoreSrc, ScoreDest, HiScoreSrc, HiScoreDest;
     
     public int Score
     {
         get => score;
+    }
+    
+    public void UpdateUI()
+    {
     }
     #endregion
     #region Time
@@ -74,7 +130,7 @@ public class GameBox : IDisposable
         return (float)(Raylib.GetTime() - PauseTimestamp);
     }
 
-    private double CountTimeFrom = 0;
+    public double CountTimeFrom = 0;
     private float PauseTimestamp = 0;
     private float GameoverTimestamp = 0;
 
@@ -119,6 +175,9 @@ public class GameBox : IDisposable
 
     public void Dispose()
     {
-        Raylib.UnloadRenderTexture(TargetTexture);
+        UnloadRenderTexture(Background);
+        UnloadRenderTexture(ScoreTexture);
+        UnloadRenderTexture(HiScoreTexture);
+        UnloadRenderTexture(Box);
     }
 }

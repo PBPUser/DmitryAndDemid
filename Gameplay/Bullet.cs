@@ -18,7 +18,7 @@ public class Bullet : RuntimeObject
         Alpha = 128;
         InCollectableState = true;
         UseVelocity = true;
-        Velocity = -Helper.GetDirection(PositionTo, Game.Player.PositionTo) * 4f ;
+        //Velocity = -Helper.GetDirection(PositionTo, Game.Player.PositionTo) * 4f ;
     }
     
     public Bullet(Game game, BulletSpawnInfo info, int numberInStack, bool transferable) : this(game,
@@ -75,7 +75,7 @@ public class Bullet : RuntimeObject
             else
             {
                 Velocity = Raymath.Vector2MoveTowards(Velocity,
-                    Helper.GetDirection(PositionTo, Game.Player.PositionTo), TransferToCollectableStateSpeed);
+                    Helper.GetDirection(PositionTo, new Vector2(Game.Player.X, Game.Player.Y)), TransferToCollectableStateSpeed);
             }
             return;
         }

@@ -12,6 +12,15 @@ public class FileStageInfo
         Entities = new FileEntityInfo[0];
         Backgrounds = new string[0];
     }
+
+    public FileStageInfo(FileStageInfo other)
+    {
+        Scripts = other.Scripts;
+        Chapters = other.Chapters;
+        Entities = other.Entities;
+        Backgrounds = other.Backgrounds;
+        Header = other.Header;
+    }
     
     public int[] Header = new int[16];
     public string[] Scripts;

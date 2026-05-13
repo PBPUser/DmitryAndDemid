@@ -4,6 +4,13 @@ namespace DmitryAndDemid.Data.Archive;
 
 public class FileEntityInfo
 {
+    public FileEntityInfo()
+    {
+        Header[0] = 0b_0100_0000;
+        Header[2] = 255;
+        FloatingPoints[2] = 1f;
+    }
+    
     public int[] Header = new int[16];
     public float[] FloatingPoints = new float[16];
     public Drop BadDrop = new Drop();

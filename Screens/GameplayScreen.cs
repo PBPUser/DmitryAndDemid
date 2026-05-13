@@ -4,16 +4,18 @@ using DmitryAndDemid;
 using DmitryAndDemid.Data;
 using Raylib_cs;
 using System.Numerics;
+using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Utils;
+using ImGuiNET;
 
 namespace DmitryAndDemid.Screens;
 
 public class GameplayScreen : Screen
 {
-    public GameplayScreen(ProtogonistData data, Stage stage, int difficulty)
+    public GameplayScreen(ProtogonistData data, int difficulty, FileStageInfo stage, int chapter, bool practice)
     {
         SetBackground(Runtime.CurrentRuntime.Textures["gameplay_background.png"]);
-        Game = new Game(data, stage, this, difficulty);
+        //Game = new Game(data, stage, this, difficulty);
         Source = new Rectangle(0, 0, 384, -448);
         Dest = new Rectangle(32 * Runtime.CurrentRuntime.ScaleF, 16 * Runtime.CurrentRuntime.ScaleF, 384 * Runtime.CurrentRuntime.ScaleF, 448 * Runtime.CurrentRuntime.ScaleF);
         DialogDest = Helper.GetFullscreenSource();
@@ -39,6 +41,7 @@ public class GameplayScreen : Screen
             0).X+(int)(2 * Runtime.CurrentRuntime.ScaleF));
         GameEffectsTextures[0] = LoadRenderTexture(384, 448);
         GameEffectsTextures[1] = LoadRenderTexture(384, 448);
+        GameBox = new GameBox(this, data, stage, chapter, difficulty, practice);
     }
 
     public int LetterWidth = 0;
@@ -61,12 +64,10 @@ public class GameplayScreen : Screen
     RenderTexture2D[] GameEffectsTextures = new RenderTexture2D[2];
     private int GameEffectTextureIndex = 1;
     
-    public Game? Game;
-
-    public void Resume()
-    {
-        Game!.TogglePause(false);
-    }
+    //public Game? Game;
+    public GameBox GameBox;
+    
+    public void Resume() => GameBox.IsPaused = false;
 
     private bool paused;
     
@@ -77,7 +78,7 @@ public class GameplayScreen : Screen
         {
             if (paused == value)
                 return;
-            Game!.Playing = !value;
+            GameBox.IsPaused = value;
             paused = value;
             if (value)
                 Runtime.CurrentRuntime.AddScreen(PauseMenu);
@@ -88,18 +89,18 @@ public class GameplayScreen : Screen
     
     public override void PreRender(double f)
     {
-        Game!.Update();
+        GameBox.Update();
     }
 
     public override void TopUpdate()
     {
-        float time = Game.GetTime();
-        if (time < Game.GameStartedTimestamp)
+        float time = GameBox.GetTime();
+        if (time < GameBox.CountTimeFrom)
             return;
-        Game!.ProcessInput();
+        GameBox.ProcessInput();
         if ((IsKeyDown(KeyboardKey.Escape) ||
              Controller.IsButtonDown(Configuration.Config.PauseButton)) 
-            && !Game!.ForcedPause && GetTime() - MenuScreen.PreviousKeyTimestamp > MenuScreen.MenuSwitchCooldown)
+            && !GameBox.IsGameOver && GetTime() - MenuScreen.PreviousKeyTimestamp > MenuScreen.MenuSwitchCooldown)
         {
             MenuScreen.PreviousKeyTimestamp = GetTime();
             Paused = !Paused;
@@ -113,21 +114,21 @@ public class GameplayScreen : Screen
     
     public override void Render()
     {
-        float time = Game.GetTime();
-        if (time < Game.GameStartedTimestamp-0.5)
+        float time = GameBox.GetTime();
+        if (time < -.5)
             return;
         DrawTexturePro(Runtime.CurrentRuntime.Textures["gameplay_background.png"], BGSource,Fullscreen, Vector2.Zero, 0, Color.White);
-        Game!.RenderGame();
+        GameBox.RenderBox();
         BeginTextureMode(GameEffectsTextures[0]);
-        DrawTexturePro(Game.Background.Texture,
+        DrawTexturePro(GameBox.Background.Texture,
             Source, DestEffect,
             Vector2.Zero, 0, Color.White);
-        DrawTexturePro(Game.Gameplay.Texture,
+        DrawTexturePro(GameBox.Box.Texture,
             Source, DestEffect,
             Vector2.Zero, 0, Color.White);
         EndTextureMode();
         GameEffectTextureIndex = 0;
-        foreach (GameplayScreenEffect gse in Game.GameplayScreenEffects)
+        foreach (GameplayScreenEffect gse in GameBox.ScreenEffects)
         {
             GameEffectTextureIndex = (GameEffectTextureIndex + 1) % 2;
             BeginTextureMode(GameEffectsTextures[GameEffectTextureIndex]);
@@ -140,27 +141,31 @@ public class GameplayScreen : Screen
         }
         DrawTexturePro(GameEffectsTextures[GameEffectTextureIndex].Texture,
             Source, Dest, Vector2.Zero, 0, Color.White);
-        DrawTexturePro(Game.Dialog.Texture,
-            DialogSource, DialogDest,
-            Vector2.Zero, 0, Color.White);
+        //DrawTexturePro(Game.Dialog.Texture,
+        //    DialogSource, DialogDest,
+        //    Vector2.Zero, 0, Color.White);
         DrawTexturePro(Runtime.CurrentRuntime.Textures["difficulties_ingame.png"],
-            DifficultySource, DifficultyTarget with{ Height = (float)(Helper.ComputeObjectTimeStart(time,TimeAppear + 2f, .25f) * DifficultyTarget.Height) },
+            DifficultySource, DifficultyTarget with{ Height = (float)(Helper.ComputeObjectTimeStart(time,2f, .25f) * DifficultyTarget.Height) },
             Vector2.Zero, 0, Color.White);
-        DrawTexturePro(Game.CurrentScoreTexture.Texture,
-            Game.CurrentScoreSource, 
-            Game.CurrentScoreTarget, 
+        DrawTexturePro(GameBox.ScoreTexture.Texture,
+            GameBox.ScoreSrc, 
+            GameBox.ScoreDest, 
             Vector2.Zero, 0, Color.White);
-        DrawTexturePro(
-            Game.UITexture.Texture,
-            new Rectangle(0, Game.UITexture.Texture.Height, Game.UITexture.Texture.Width,
-                -Game.UITexture.Texture.Height),
-            new Rectangle(Game.UIPositionX, Game.UIPositionY, Game.UITexture.Texture.Width, Game.UITexture.Texture.Height),
+        DrawTexturePro(GameBox.ScoreTexture.Texture,
+            GameBox.ScoreSrc, 
+            GameBox.ScoreDest, 
             Vector2.Zero, 0, Color.White);
+        //DrawTexturePro(
+        //    Game.UITexture.Texture,
+        //    new Rectangle(0, Game.UITexture.Texture.Height, Game.UITexture.Texture.Width,
+        //        -Game.UITexture.Texture.Height),
+        //    new Rectangle(Game.UIPositionX, Game.UIPositionY, Game.UITexture.Texture.Width, Game.UITexture.Texture.Height),
+        //    Vector2.Zero, 0, Color.White);
         
         if (time - TimeAppear > 2f)
             return;
         DrawTexturePro(Runtime.CurrentRuntime.Textures["difficulties_ingame.png"],
-            DifficultySource, DifficultyTargetStart with{ Height = (float)((1-Helper.EaseInOutElasticF((float)Helper.ComputeObjectTimeStart(time,TimeAppear + 1.75f, .25f))) * DifficultyTarget.Height) },
+            DifficultySource, DifficultyTargetStart with{ Height = (float)((1-Helper.EaseInOutElasticF((float)Helper.ComputeObjectTimeStart(time,1.75f, .25f))) * DifficultyTarget.Height) },
             Vector2.Zero, 0, Color.White);
     }
     
@@ -169,14 +174,28 @@ public class GameplayScreen : Screen
         Runtime.CurrentRuntime.SetScreenRenderingFrom(0);
         UnloadRenderTexture(GameEffectsTextures[0]);
         UnloadRenderTexture(GameEffectsTextures[1]);
-        Game = null;
+        GameBox.Dispose();
     }
-
+    
+    #if DEBUG
+    public override void DrawImgui()
+    {
+        ImGui.Begin("Gameplay Screen Debug Info");
+        ImGui.Text("Tick: "+GameBox.CurrentTick);
+        ImGui.Text("Time: "+GameBox.GetTime());
+        ImGui.Text("TPS: "+GameBox.CurrentTick / GameBox.GetTime());
+        ImGui.End();
+        ImGui.Begin("Stage Info: ");
+        ImGui.End();
+        base.DrawImgui();
+    }
+#endif
+    
     protected override void Created()
     {
-        Game!.UpdateScoreFirstTime();
-        Game!.UpdateUI();
-        Runtime.CurrentRuntime.SetScreenRenderingFrom(Runtime.CurrentRuntime.GetScreenIndex(this));
+        //GameBox.UpdateScoreFirstTime();
+        //GameBox.UpdateUI();
+        //Runtime.CurrentRuntime.SetScreenRenderingFrom(Runtime.CurrentRuntime.GetScreenIndex(this));
         base.Created();
     }
     

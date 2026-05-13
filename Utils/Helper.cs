@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay;
 using Pango;
 using Raylib_cs;
@@ -147,21 +148,26 @@ public static class Helper
         UnloadRenderTexture(temp);
     }
 
-    public static void DrawTitleText(RenderTexture2D texture, string text)
+    public static void DrawChapterTitleText(RenderTexture2D texture, string text)
     {
         string transliterate = Transliterate(text);
         RenderTexture2D temp = Raylib.LoadRenderTexture(texture.Texture.Width,  texture.Texture.Height);
         BeginTextureMode(temp);
         var b = GetTitleTextSize(text);
-        ClearBackground(Color.Lime);
         DrawTextEx(Runtime.CurrentRuntime.Fonts["kodemono"],
             transliterate,
-            new(b.X * 0.33f, 0),
+            new(b.X * 0.33f, b.Y * 0.3f),
             ChapterTitleFontSize * Runtime.CurrentRuntime.ScaleF,
             Runtime.CurrentRuntime.ScaleF, Color.White);
         EndTextureMode();
         BeginTextureMode(texture);
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], GetShaderLocation(Runtime.CurrentRuntime.Shaders["outline"], "border_width"), 0.05f, ShaderUniformDataType.Float);
+        BeginShaderMode(Runtime.CurrentRuntime.Shaders["spellcard_title"]);
+        DrawTexturePro(BulletVisual.Rectangle384x448.Texture,
+            new Rectangle(0, 0, 384, 448),
+            new Rectangle(0, 0, b),
+            Vector2.Zero, 0, Color.White);
+        EndShaderMode();
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], GetShaderLocation(Runtime.CurrentRuntime.Shaders["outline"], "border_width"), Runtime.CurrentRuntime.ScaleF, ShaderUniformDataType.Float);
         SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], GetShaderLocation(Runtime.CurrentRuntime.Shaders["outline"], "res"),
             [b.X / 1.5f, b.Y / 1.5f], ShaderUniformDataType.Vec2);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders["outline"]);
@@ -540,6 +546,8 @@ public static class Helper
         return Raymath.Vector2Distance(rc1.Center, rc2.Center) < (rc1.Width + rc2.Width) / 2;
 #endif
     }
+    
+    
 
     
     public static double BossAppearCurve(double x, double pow)

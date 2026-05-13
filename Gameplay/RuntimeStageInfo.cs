@@ -16,7 +16,7 @@ public class RuntimeStageInfo
     RuntimeEntityObject[] Entities;
     RuntimeChapterInfo[] Chapters;
     
-    public static RuntimeStageInfo LoadFromFile(FileStageInfo stageInfo)
+    public static RuntimeStageInfo LoadFromFile(FileStageInfo stageInfo, int difficulty)
     {
         RuntimeStageInfo stage = new RuntimeStageInfo();
         stage.Index = stageInfo.Header[1];

@@ -46,8 +46,8 @@ public class PlayerController : PlayerControllerBase
             movement += 1;
         }
         movement <<= 1;
-        player.UpdateCollisionRender(player.PositionTo + positionChange,
-            0);
+        player.X += positionChange.X;
+        player.Y += positionChange.Y;
         player.IsFocused = Raylib.IsKeyDown(KeyboardKey.LeftShift) || Controller.IsButtonDown(Configuration.Config.FocusButton);
         if (player.IsFocused)
             movement += 1;

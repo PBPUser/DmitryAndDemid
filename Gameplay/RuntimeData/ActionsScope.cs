@@ -16,7 +16,7 @@ public static class ActionsScope
     public static void RebuildChapterActionsList()
     {
         var dictionary = new Dictionary<string, RuntimeChapterReferenceAction>();
-        dictionary["MoveByDirection"] = (ref chapter) =>
+        dictionary["_chapter!!!"] = (ref chapter) =>
         {
 
         };
@@ -26,7 +26,7 @@ public static class ActionsScope
     public static void RebuildObjectActionsList()
     {
         var dictionary = new Dictionary<string, RuntimeObjectReferenceAction>();
-        dictionary["MoveByDirection"] = (ref robj) =>
+        dictionary["__object!!!"] = (ref robj) =>
         {
 
         };

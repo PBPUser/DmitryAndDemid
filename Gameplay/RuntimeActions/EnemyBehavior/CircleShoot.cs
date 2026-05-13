@@ -16,22 +16,22 @@ public class CircleShoot : EnemyAction
     
     public override void Act(Enemy enemy)
     {
-        int tick = enemy.Game.CurrentTick - enemy.SpawnTick;
-        if ((enemy.Game.CurrentTick - enemy.SpawnTick) % Rate != 0)
-            return;
-        float angle = TargetPlayer ? Helper.FindAngle(enemy.PositionTo, enemy.Game.Player.PositionTo) : RotationStart;
-        float angleDif = MathF.PI * 2 / BulletsCount;
-        for(int i = 0; i < BulletsCount; i++)
-            enemy.Game.AddObject(new Bullet(enemy.Game, new BulletSpawnInfo()
-            {
-                Speed = enemy.BulletSpeed,
-                SpawnTick = enemy.Game.CurrentTick,
-                BulletActionClass = "MoveByDirection",
-                Args = ["UseRotationRad"],
-                BulletVisual = Visual,
-                Position = enemy.PositionTo,
-                Rotation = angle + angleDif * i
-            }, 0, true));
+        //int tick = enemy.Game.CurrentTick - enemy.SpawnTick;
+        //if ((enemy.Game.CurrentTick - enemy.SpawnTick) % Rate != 0)
+        //    return;
+        //float angle = TargetPlayer ? Helper.FindAngle(enemy.PositionTo, enemy.Game.Player.PositionTo) : RotationStart;
+        //float angleDif = MathF.PI * 2 / BulletsCount;
+        //for(int i = 0; i < BulletsCount; i++)
+        //    enemy.Game.AddObject(new Bullet(enemy.Game, new BulletSpawnInfo()
+        //    {
+        //        Speed = enemy.BulletSpeed,
+        //        SpawnTick = enemy.Game.CurrentTick,
+        //        BulletActionClass = "MoveByDirection",
+        //        Args = ["UseRotationRad"],
+        //        BulletVisual = Visual,
+        //        Position = enemy.PositionTo,
+        //        Rotation = angle + angleDif * i
+        //    }, 0, true));
     }
 
     public override void Init(string[] values, Game game, Enemy enemy)

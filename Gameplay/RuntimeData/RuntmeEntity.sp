@@ -11,30 +11,39 @@
 }
 [0x1] Group Id
 [0x2] Transparency
+[0x3] Spawn Id
 [0x10] Gamebox Position X
 [0x11] Gamebox Position Y
-[0x12] Source Position X
-[0x13] Source Position Y
-[0x14] Source Width
-[0x15] Source Height
+[0x12] Gamebox Position Z
+[0x13] Source Position X
+[0x14] Source Position Y
+[0x15] Source Width
+[0x16] Source Height
+[0x17] Appear Timestamp
 # if bullet
 [0x0] Bit mask: {
     [0x080] Grazed
     [0x100] In Collectable State
+    [0x200] Is Near To Player
 }
-[0x3] Color
-[0x4] Collectable Score Modifier
+[0x4] Color
+[0x5] Collectable Score Modifier
 # if entity
 [0x0] Bit mask: {
     [0x080] Use Bad Drop Scenario
     [0x100] Drop when cleared
     [0x200] Is boss
     [0x400] Use Die Script
+    [0x800] Is Died
 }
-[0x3] Bad Drop Scenario
-[0x4] Good Drop Scenario
+[0x4] Bad Drop Scenario
+[0x5] Good Drop Scenario
+[0x6] Added score when killed
+[0xA] Death Timestamp
 # if boss
-[0x5] Boss Id
+[0x7] Boss Id
+[0x8] Boss Health Bar Percent
+[0x9] Boss Attack Index
 Floating Points:
 [0x0] Health
 [0x1] Appear Speed

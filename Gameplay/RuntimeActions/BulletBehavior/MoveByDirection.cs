@@ -19,9 +19,9 @@ public class MoveByDirection : BulletAction
         switch (values[0])
         {
             case "WriteDirectionToPlayer":
-                var r = Raymath.Vector2Angle(bullet.PositionTo, bullet.Game.Player.PositionTo);
-                Direction = Helper.GetDirection(bullet.PositionTo, game.Player.PositionTo) * bullet.Speed;
-                bullet.UpdateCollisionRender(bullet.PositionTo, r);
+                //var r = Raymath.Vector2Angle(bullet.PositionTo, bullet.Game.Player.PositionTo);
+                //Direction = Helper.GetDirection(bullet.PositionTo, game.Player.PositionTo) * bullet.Speed;
+                //bullet.UpdateCollisionRender(bullet.PositionTo, r);
                 return;
             case "SetValue":
                 Direction = Helper.GetDirection(float.Parse(values[1])+MathF.PI/2) * bullet.Speed;

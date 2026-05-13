@@ -11,8 +11,12 @@ using Raylib_cs;
 
 namespace DmitryAndDemid.Gameplay;
 
-public class Player : RuntimeObject
+public class Player
 {
+    public float X = 192;
+    public float Y = 400;
+    public float CollisionRadius = 2f;
+    
     Action<Player, bool> ShootAction;
     Action<Player, bool> BombAction;
     public ProtogonistData ProtogonistData;
@@ -22,14 +26,18 @@ public class Player : RuntimeObject
     public const float FocusedDifference = 8f;
     public const float DefocusedDifference = 32f;
     public const float FocusAnimationChangingLength = 0.25f;
-
+    public bool CollisionEnabled = true;
+    public Texture2D SourceTexture;
+    public Rectangle SourceRect;
+    public GameBox GameBox;
+    
     public float PointMagnetRadius => 
-        PositionTo.Y < 100 || !CollisionEnabled ? 6000f : 24f;
+        Y < 100 || !CollisionEnabled ? 6000f : 24f;
 
-    public Player(Game game, ProtogonistData data, PlayerControllerBase controller) : base(game, new Vector2(192, 400), new Vector2(32, 32), Helper.GetSize(Runtime.CurrentRuntime.Textures[data.Sprite]), new Vector2(8), 0)
+    public Player(GameBox game, ProtogonistData data, PlayerControllerBase controller) 
     {
+        GameBox = game;
         Controller = controller;
-        ClearProtected = true;
         ProtogonistData = data;
         CollisionEnabled = false;
         if (Runtime.CurrentRuntime.Textures.ContainsKey(data.Sprite))
@@ -47,23 +55,25 @@ public class Player : RuntimeObject
     public int Speed = 0;
     public int FocusSpeed = 0;
     
-    public override void Update()
+    public void Update()
     {
-        if (RestoreTick > Game.CurrentTick)
+        if (RestoreTick > GameBox.CurrentTick)
         {
-            int j = Game.CurrentTick - RestoreTick + RestoreInvincibilityLength;
+            int j = GameBox.CurrentTick - RestoreTick + RestoreInvincibilityLength;
             if (j < RestoreAnimationLength)
             {
-                UpdateCollisionRender(new Vector2(192, 400) + new Vector2(0, 128) * (1-((float)j/(float)RestoreInvincibilityLength)), 0);
+                //UpdateCollisionRender(new Vector2(192, 400) + new Vector2(0, 128) * (1-((float)j/(float)RestoreInvincibilityLength)), 0);
+                X = 192;
+                Y = (int)(400 + 128 * (1 - ((float)j / (float)RestoreInvincibilityLength)));
                 return;
             }
         }
         else
         {
-            CollisionDotPos = PositionTo;
+            //CollisionDotPos = PositionTo;
             CollisionEnabled = true;
         }
-        Controller.Update(this, Game.CurrentTick);
+        //Controller.Update(this, Game.CurrentTick);
         Weapon.Update();
         if (!isShooting)
             return;
@@ -80,10 +90,10 @@ public class Player : RuntimeObject
             heartPoints = value;
             if (value < 0)
             {
-                Game.Playing = false;
-                Game.ForcedPause = true;
+                GameBox.IsPaused = true;
+                GameBox.IsGameOver = true;
             }
-            Game.UpdateUI();
+            GameBox.UpdateUI();
         }
     }
 
@@ -97,7 +107,7 @@ public class Player : RuntimeObject
             if (value > 4)
                 HeartPoints += value / 4;
             heartSpices = value % 4;
-            Game.UpdateUI();
+            GameBox.UpdateUI();
         }
     }
 
@@ -109,7 +119,7 @@ public class Player : RuntimeObject
             if (bombs == value)
                 return;
             bombs = value;
-            Game.UpdateUI();
+            GameBox.UpdateUI();
         }
     }
 
@@ -144,12 +154,12 @@ public class Player : RuntimeObject
                 if (newValue > 399)
                 {
                     // TODO: Play full power sound
-                    Game.SetFullPower();
+                    //GameBox.SetFullPower();
                 }
                 //TODO: Play next power level sound
             }
             power = newValue;
-            Game.UpdateUI();
+            GameBox.UpdateUI();
             Weapon.UpdatePower();
         }
     }
@@ -166,15 +176,15 @@ public class Player : RuntimeObject
             isFocused = value;
             if (value)
             {
-                Weapon.FocusTimestamp = Game.GetTime() -
-                                        MathF.Max(FocusAnimationChangingLength + Weapon.DefocusTimestamp - Game.GetTime(),
+                Weapon.FocusTimestamp = GameBox.GetTime() -
+                                        MathF.Max(FocusAnimationChangingLength + Weapon.DefocusTimestamp - GameBox.GetTime(),
                                             0);
                 Weapon.DefocusTimestamp = float.MaxValue;
             }
             else
             {
-                Weapon.DefocusTimestamp = Game.GetTime() -
-                                          MathF.Max(FocusAnimationChangingLength + Weapon.FocusTimestamp - Game.GetTime(),
+                Weapon.DefocusTimestamp = GameBox.GetTime() -
+                                          MathF.Max(FocusAnimationChangingLength + Weapon.FocusTimestamp - GameBox.GetTime(),
                                               0);
             }
         }
@@ -211,9 +221,11 @@ public class Player : RuntimeObject
             if (graze == value)
                 return;
             graze = value;
-            Game.UpdateUI();
+            GameBox.UpdateUI();
         }
     }
+
+    public Rectangle Collision => new Rectangle(X-CollisionRadius/2, Y-CollisionRadius/2, CollisionRadius, CollisionRadius);
 
     private int graze;
     
@@ -234,14 +246,14 @@ public class Player : RuntimeObject
         float angle = -MathF.PI / 7;
         for (int i = 0; i < 7; i++)
         {
-            Game.AddObject(new PowerCollectable(Game, PositionTo,
-                Helper.GetDirection(angle * i)));
+            //GameBox.AddObject(new PowerCollectable(Game, PositionTo,
+                //Helper.GetDirection(angle * i)));
         }
         Power -= 50;
         HeartPoints -= 1;
-        Game.SetDied();
+        //Game.SetDied();
         CollisionEnabled = false;
-        RestoreTick = Game.CurrentTick + RestoreInvincibilityLength;
+        //RestoreTick = Game.CurrentTick + RestoreInvincibilityLength;
         Weapon.DefocusTimestamp = (float)Raylib.GetTime();
     }
 }

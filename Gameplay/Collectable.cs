@@ -21,23 +21,23 @@ public class Collectable : RuntimeObject
     
     public override void Update()
     {
-        if (Helper.IsCollied(Game.Player.Collision, Collision))
-        {
-            Apply();
-            Game.RemoveObject(this);
-            return;
-        }
-        else if (Helper.IsCollied(Game.Player.Collision with { Width = Game.Player.PointMagnetRadius }, Collision))
-        {
-            Velocity = Raymath.Vector2MoveTowards(Velocity, Helper.GetDirection(PositionTo, Game.Player.PositionTo),
-                VelocityMagnetPerFrame);
-        }
-        else
-        {
-            Velocity.X *= VelocityXMP;
-            Velocity.Y += VelocityYC;
-        }
-        UpdateCollisionRender(PositionTo + (Velocity * VelocityXMP), 0);
+        //if (Helper.IsCollied(Game.Player.Collision, Collision))
+        //{
+        //    Apply();
+        //    Game.RemoveObject(this);
+        //    return;
+        //}
+        //else if (Helper.IsCollied(Game.Player.Collision with { Width = Game.Player.PointMagnetRadius }, Collision))
+        //{
+        //    Velocity = Raymath.Vector2MoveTowards(Velocity, Helper.GetDirection(PositionTo, Game.Player.PositionTo),
+        //        VelocityMagnetPerFrame);
+        //}
+        //else
+        //{
+        //    Velocity.X *= VelocityXMP;
+        //    Velocity.Y += VelocityYC;
+        //}
+        //UpdateCollisionRender(PositionTo + (Velocity * VelocityXMP), 0);
     }
 
     protected virtual void Apply()

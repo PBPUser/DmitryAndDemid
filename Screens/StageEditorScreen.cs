@@ -18,7 +18,7 @@ namespace DmitryAndDemid.Screens;
 public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
 {
     private string[] Difficulties = ["Easy", "Normal", "Hard", "Max", "Extra"];
-    private GameBox GameBox = new GameBox();
+    //private GameBox GameBox = new GameBox();
     private FileStageInfo Info = info;
     //private EditableChapterInfo EditableChapterInfo = editableChapterInfo;
     private int TabItem = 0;
@@ -29,12 +29,15 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
     private bool QuestionShown = false;
     private Action? QuestionOKAction = null;
     private Vector3 Color;
+    public bool SelectMode = false;
     private int Time = 0;
     private int SelectedObjectIndex = -1;
     private int SelectedTextureIndex = -1;
     private int 
         SelectedCreateScriptIndex = -1,
-        SelectedUpdateScriptIndex = -1;
+        SelectedUpdateScriptIndex = -1,
+        SelectedRemoveScriptIndex = -1,
+        SelectedDieScriptIndex = -1;
     private string[] Objects => Info.Entities.Select(x => Info.Entities.IndexOf(Info.Entities).ToString()).ToArray();
 
     private string[] Scripts =>
@@ -73,15 +76,33 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
         if(MenuItem("Reload"))
             Reload();
         if (MenuItem("Info"))
+        {
+            ShowChaptersList = true;
             TabItem = 0;
+            SelectedObjectIndex = -1;
+        }
         if (MenuItem("Entities"))
+        {
+            ShowChaptersList = true;
+            SelectedObjectIndex = -1;
             TabItem = 2;
+        }
+
         if (MenuItem("Chapters"))
+        {
+            ShowChaptersList = true;
+            SelectedObjectIndex = -1;
             TabItem = 3;
+        }
         if (MenuItem("Test"))
             TabItem = 4;
         if(MenuItem("Exit"))
             Runtime.CurrentRuntime.RemoveScreen(this);
+        if (MenuItem("Reload scripts"))
+        {
+            ActionsScope.RebuildChapterActionsList();
+            ActionsScope.RebuildObjectActionsList();
+        }
         EndMenuBar();
         SetWindowPos("Stage Editor", new Vector2());
         SetWindowSize("Stage Editor", new Vector2(Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height));
@@ -89,9 +110,11 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
         {
             case 0:
                 InputInt("Index", ref Info.Header[1], 1, 1);
-                InputInt("Music ID", ref Info.Header[2], 1, 1);
+                Combo("Stage Music", ref Info.Header[2], MusicInfo.MusicNames, MusicInfo.MusicNames.Length);
+                Combo("Boss Music", ref Info.Header[8], MusicInfo.MusicNames, MusicInfo.MusicNames.Length);
                 break;
             case 1:
+                
                 if (ShowChaptersList)
                 {
                     if (ListBox("##list_select", ref SelectedObjectIndex, Info.Scripts.Select(x => Info.Scripts.IndexOf(x)+"").ToArray(), Info.Scripts.Length, 32))
@@ -136,6 +159,94 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                     InputTextMultiline("##code", ref Info.Scripts[SelectedObjectIndex], 261144, new Vector2(800, 600));
                 }
                 break;
+            case 2:
+                if (ShowChaptersList)
+                {
+                    if (Button("Hide List"))
+                        ShowChaptersList = false;
+                    if (ListBox("##list_select", ref SelectedObjectIndex,
+                            Info.Entities.Select(x => x.Header[3].ToString() + (x.IsBoss && x.IsBullet ? $"BOSS ({x.Header[7]})" : "")).ToArray(),
+                            Info.Entities.Length, 32))
+                    {
+                        Color = Helper.ColorIntToVector3(Info.Entities[SelectedObjectIndex].Header[4]);
+                        SelectedTextureIndex = -1;
+                        VisualIndex = Visuals.IndexOf(Info.Entities[SelectedObjectIndex].Visual);
+                        SelectedCreateScriptIndex = Scripts.IndexOf(Info.Entities[SelectedObjectIndex].CreateScript);
+                        SelectedUpdateScriptIndex = Scripts.IndexOf(Info.Entities[SelectedObjectIndex].UpdateScript);
+                        SelectedRemoveScriptIndex = Scripts.IndexOf(Info.Entities[SelectedObjectIndex].RemoveScript);
+                        SelectedDieScriptIndex = Scripts.IndexOf(Info.Entities[SelectedObjectIndex].DieScript);
+                        ShowChaptersList = false;
+                    }
+
+                    if (Button("Add"))
+                    {
+                        Array.Resize(ref Info.Entities,  Info.Entities.Length + 1);
+                        Info.Entities[^1] = new FileEntityInfo();
+                    }
+                }
+                else
+                {
+                    if (Button("Show List"))
+                        ShowChaptersList = true;
+                    Checkbox("Is Bullet", ref Info.Entities[SelectedObjectIndex].IsBullet);
+                    Checkbox("Clear protected", ref Info.Entities[SelectedObjectIndex].ClearProtected);
+                    Checkbox("Dangerous for player when collided", ref Info.Entities[SelectedObjectIndex].DangerousForPlayer);
+                    InputInt("Spawn Id", ref Info.Entities[SelectedObjectIndex].Header[3]);
+                    SliderInt("Transparency", ref Info.Entities[SelectedObjectIndex].Header[2], 0, 255);
+                    if (!Info.Entities[SelectedObjectIndex].IsGroupChild &&
+                        !Info.Entities[SelectedObjectIndex].IsBullet)
+                        Checkbox("Group parent", ref Info.Entities[SelectedObjectIndex].IsGroupParent);
+                    if(!Info.Entities[SelectedObjectIndex].IsGroupParent)
+                        Checkbox("Group child", ref Info.Entities[SelectedObjectIndex].IsGroupChild);
+                    if(Info.Entities[SelectedObjectIndex].IsGroupParent || Info.Entities[SelectedObjectIndex].IsGroupChild)
+                        InputInt("Group Id", ref Info.Entities[SelectedObjectIndex].Header[1]);
+                    if (Combo("Visual", ref VisualIndex, Visuals, Visuals.Length)) 
+                        Info.Entities[SelectedObjectIndex].Visual = Visuals[VisualIndex];
+                    if (Info.Entities[SelectedObjectIndex].IsBullet)
+                    {
+                        if (ColorPicker3("Bullet Color", ref Color))
+                            Info.Entities[SelectedObjectIndex].Header[4] = Helper.Vector3ColorToInt(Color);
+                        InputInt("Collectable score moddifier", ref Info.Entities[SelectedObjectIndex].Header[5]);
+                    }
+                    else
+                    {
+                        Checkbox("Use bad drop scenario", ref Info.Entities[SelectedObjectIndex].UseBadDropScenario);
+                        if (Info.Entities[SelectedObjectIndex].UseBadDropScenario)
+                        {
+                        }
+                        Checkbox("Drop when cleared", ref Info.Entities[SelectedObjectIndex].DropWhenCleared);
+                        Checkbox("Is Boss", ref Info.Entities[SelectedObjectIndex].IsBoss);
+                        if (Info.Entities[SelectedObjectIndex].IsBoss)
+                        {
+                            InputInt("Boss ID", ref Info.Entities[SelectedObjectIndex].Header[7]);
+                            InputInt("Boss Health Bar Percent", ref Info.Entities[SelectedObjectIndex].Header[8]);
+                            InputInt("Boss Attack Index", ref Info.Entities[SelectedObjectIndex].Header[9]);
+                        }
+                        InputFloat("Health",  ref Info.Entities[SelectedObjectIndex].FloatingPoints[0]);
+                        
+                        InputInt("Score add when killed", ref Info.Entities[SelectedObjectIndex].Header[6]);
+                    }
+                    InputFloat("Appear Speed", ref Info.Entities[SelectedObjectIndex].FloatingPoints[1]);
+                    InputFloat("Scaling", ref Info.Entities[SelectedObjectIndex].FloatingPoints[2]);
+                    if (Combo("Update Script", ref SelectedUpdateScriptIndex, Scripts, Scripts.Length))
+                        Info.Entities[SelectedObjectIndex].UpdateScript = Scripts[SelectedUpdateScriptIndex];
+                    Checkbox("Use create script", ref Info.Entities[SelectedObjectIndex].UseCreateScript);
+                    if(Info.Entities[SelectedObjectIndex].UseCreateScript)
+                        if (Combo("Create Script", ref SelectedCreateScriptIndex, Scripts, Scripts.Length))
+                            Info.Entities[SelectedObjectIndex].CreateScript = Scripts[SelectedCreateScriptIndex];
+                    Checkbox("Use remove script", ref Info.Entities[SelectedObjectIndex].UseRemoveScript);
+                    if(Info.Entities[SelectedObjectIndex].UseRemoveScript)
+                        if (Combo("Remove Script", ref SelectedRemoveScriptIndex, Scripts, Scripts.Length))
+                            Info.Entities[SelectedObjectIndex].RemoveScript = Scripts[SelectedRemoveScriptIndex];
+                    if (!Info.Entities[SelectedObjectIndex].IsBullet)
+                    {
+                        Checkbox("Use Die Script", ref Info.Entities[SelectedObjectIndex].UseDieScript);
+                        if(Info.Entities[SelectedObjectIndex].UseDieScript)
+                            if (Combo("Die Script", ref SelectedDieScriptIndex, Scripts, Scripts.Length))
+                                Info.Entities[SelectedObjectIndex].DieScript = Scripts[SelectedDieScriptIndex];
+                    }
+                }
+                break;
             case 3:
                 if(ShowCreate)
                     break;
@@ -145,8 +256,8 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                         ShowCreate = true;
                     BeginChild("List", new Vector2(Runtime.CurrentRuntime.Width - 20, Runtime.CurrentRuntime.Height - 36), ImGuiChildFlags.Borders);
                     Text("Items: ");
-                    if (ListBox("##list_select", ref SelectedObjectIndex, Info.Chapters.Select(x => x.Name).ToArray(),
-                            Info.Chapters.Length, Info.Chapters.Length))
+                    if (ListBox("##list_select", ref SelectedObjectIndex, Info.Chapters.Select(x => x.Id).ToArray(),
+                            Info.Chapters.Length, Info.Chapters.Length) && !SelectMode)
                     {
                         ShowChaptersList = false;
                         SelectedCreateScriptIndex = Scripts.IndexOf(Info.Chapters[SelectedObjectIndex].CreateScript);
@@ -154,13 +265,54 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                         RerenderBossIdentifierTexture();
                         RerenderChapterTitleTexture();
                     }
+
+                    Checkbox("Select mode", ref SelectMode);
+                    if (Button("Move Down") && SelectedObjectIndex != -1 && SelectedObjectIndex != Info.Chapters.Length - 1)
+                    {                            
+                        (Info.Chapters[SelectedObjectIndex], Info.Chapters[SelectedObjectIndex + 1]) =
+                            (Info.Chapters[SelectedObjectIndex + 1], Info.Chapters[SelectedObjectIndex]);
+                        SelectedObjectIndex += 1;
+                    }
+
+                    if (Button("Move Up"))
+                    {
+                        if (SelectedObjectIndex > 0)
+                        {
+                            (Info.Chapters[SelectedObjectIndex], Info.Chapters[SelectedObjectIndex - 1]) =
+                                (Info.Chapters[SelectedObjectIndex - 1], Info.Chapters[SelectedObjectIndex]);
+                            SelectedObjectIndex -= 1;
+                        }
+                    }
+
+                    if (Button("Clone"))
+                    {
+                        var fileClone = new FileChapterInfo(Info.Chapters[SelectedObjectIndex]);
+                        var list = Info.Chapters.ToList();
+                        list.Insert(SelectedObjectIndex, fileClone);
+                        SelectedObjectIndex += 1;
+                        Info.Chapters =  list.ToArray();
+                    }
+
+                    if (Button("Delete"))
+                    {
+                        if(SelectedObjectIndex != -1 && Info.Chapters.Length != 0)
+                            ShowQuestion("Do you want to delete this chapter?", () =>
+                            {
+                                var list = Info.Chapters.ToList();
+                                list.RemoveAt(SelectedObjectIndex);
+                                if(SelectedObjectIndex > 0 || list.Count == 1)
+                                    SelectedObjectIndex -= 1;
+                                Info.Chapters =  list.ToArray();
+                            }, Skip);
+                    }
+                    Checkbox("Skip approval", ref Skip);
                     EndChild();
                 }
                 else
                 {
                     if(Button("Show Chapters"))
                         ShowChaptersList = true;
-
+                    InputText("Chapter Id", ref Info.Chapters[SelectedObjectIndex].Id, 255);
                     Checkbox("Use create Script", ref Info.Chapters[SelectedObjectIndex].UseCreateScript);
                     if(Info.Chapters[SelectedObjectIndex].UseCreateScript)
                         if(Combo("Script Create", ref SelectedCreateScriptIndex, Scripts, Info.Scripts.Length))
@@ -169,9 +321,8 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                     if (Info.Chapters[SelectedObjectIndex].UseUpdateScript)
                         if (Combo("Script Update", ref SelectedUpdateScriptIndex, Scripts, Info.Scripts.Length))
                             Info.Chapters[SelectedObjectIndex].UpdateScript = Scripts[SelectedUpdateScriptIndex];
-                    
-                    SliderInt("Length", ref Info.Header[2], 0, 2000);
-                    Combo("Difficulty", ref Info.Header[3], Difficulties, Difficulties.Length);
+                    SliderInt("Length", ref Info.Chapters[SelectedObjectIndex].Header[2], 0, 2000);
+                    Combo("Difficulty", ref Info.Chapters[SelectedObjectIndex].Header[3], Difficulties, Difficulties.Length);
                     Combo("Chapter Type", ref Info.Chapters[SelectedObjectIndex].Header[0], ChapterTypes, ChapterTypes.Length);
                     if (Info.Chapters[SelectedObjectIndex].Header[0] > 1)
                     {
@@ -184,7 +335,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                     if (Info.Chapters[SelectedObjectIndex].Header[0] == 3)
                     {
                         Combo("Background", ref Info.Chapters[SelectedObjectIndex].Header[5], Textures, Textures.Length);
-                        if(InputText("Chapter name", ref Info.Chapters[SelectedObjectIndex].Name, 255))
+                        if(InputText("SpellCard name", ref Info.Chapters[SelectedObjectIndex].SpellcardTitle, 255))
                             RerenderChapterTitleTexture();
                         if(ChapterTexturePreview != null)
                             rlImGui_cs.rlImGui.Image(ChapterTexturePreview.Value.Texture);
@@ -233,7 +384,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                                         Info.Chapters[SelectedObjectIndex].Dialogs = nArray;
                                         SelectedTextureIndex = Math.Clamp(SelectedTextureIndex, -1,
                                             Info.Chapters[SelectedObjectIndex].Dialogs.Length - 1);
-                                    });
+                                    }, Skip);
                                 InputTextMultiline("Dialog Text",
                                     ref Info.Chapters[SelectedObjectIndex].Dialogs[SelectedTextureIndex].Text, 65536,
                                     new Vector2(640, 480));
@@ -273,14 +424,14 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
             {
                 if (string.IsNullOrEmpty(NewChapterName))
                     ShowQuestion("Please enter a name for the new chapter", () => {});
-                else if (Info.Chapters.Any(x => x.Name.ToLower().Equals(NewChapterName.ToLower())))
+                else if (Info.Chapters.Any(x => x.SpellcardTitle.ToLower().Equals(NewChapterName.ToLower())))
                     ShowQuestion("Name of chapter should be unique.", () => {});
                 else
                 {
                     ShowCreate = false;
                     Array.Resize(ref Info.Chapters, Info.Chapters.Length + 1);
                     Info.Chapters[^1] = new FileChapterInfo();
-                    Info.Chapters[^1].Name = NewChapterName;
+                    Info.Chapters[^1].Id = NewChapterName;
                     SelectedObjectIndex = Info.Chapters.Length - 1;
                 }
             }
@@ -359,6 +510,8 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
         base.DrawImgui();
     }
 
+    public int VisualIndex = -1;
+
     private RenderTexture2D? BossTexturePreview = null;
     private RenderTexture2D? ChapterTexturePreview = null;
     
@@ -379,9 +532,9 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
             Raylib.UnloadRenderTexture(ChapterTexturePreview.Value);
         if (TabItem != 3 || SelectedObjectIndex == -1)
             return;
-        var size = Helper.GetTitleTextSize(Info.Chapters[SelectedObjectIndex].Name);
+        var size = Helper.GetTitleTextSize(Info.Chapters[SelectedObjectIndex].SpellcardTitle);
         ChapterTexturePreview = Raylib.LoadRenderTexture((int)size.X, (int)size.Y);
-        Helper.DrawTitleText(ChapterTexturePreview.Value, Info.Chapters[SelectedObjectIndex].Name);
+        Helper.DrawChapterTitleText(ChapterTexturePreview.Value, Info.Chapters[SelectedObjectIndex].SpellcardTitle);
     }
 
     public string NewChapterName = "";
@@ -389,10 +542,16 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
     public bool ShowCreate { get; set; }
 
     public bool ShowChaptersList = true;
+    private bool Skip;
 #endif
 
-    void ShowQuestion(string str, Action act)
+    void ShowQuestion(string str, Action act, bool skip = false)
     {
+        if (skip)
+        {
+            act.Invoke();
+            return;
+        }
         Question = str;
         QuestionShown = true;
         QuestionOKAction = act;

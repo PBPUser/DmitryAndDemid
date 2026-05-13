@@ -33,10 +33,10 @@ public class PracticeScreen : MenuScreen
 
     void OpenLevel(string json)
     {
-        Runtime.CurrentRuntime.RemoveScreen(this);
-        Runtime.CurrentRuntime.AddScreen(new GameplayScreen(Protogonist, JsonSerializer.Deserialize<Stage>(File.ReadAllText(FileNames[SelectedIndex]), new JsonSerializerOptions()
-        {
-            IncludeFields = true
-        }), Difficulty));
+        //Runtime.CurrentRuntime.RemoveScreen(this);
+        //Runtime.CurrentRuntime.AddScreen(new GameplayScreen(Protogonist, JsonSerializer.Deserialize<Stage>(File.ReadAllText(FileNames[SelectedIndex]), new JsonSerializerOptions()
+        //{
+        //    IncludeFields = true
+        //}), Difficulty));
     }
 }
