@@ -7,14 +7,14 @@ namespace DmitryAndDemid.Common;
 
 public class GameplayScreenEffect
 {
-    public GameplayScreenEffect(Game game, Vector2 position, int index, string shader, float timeAppear, float timeDisappear)
+    public GameplayScreenEffect(GameBox box, Vector2 position, int index, string shader, float timeAppear, float timeDisappear)
     {
         Shader = Runtime.CurrentRuntime.Shaders[shader];
         LocationPosition = GetShaderLocation(Shader, "position");
         LocationTime = GetShaderLocation(Shader, "time");
         TimeAppear = timeAppear;
         TimeDisappear = timeDisappear;
-        Game = game;
+        Box = box;
         Position = position;
         ZIndex = index;
     }
@@ -23,7 +23,7 @@ public class GameplayScreenEffect
     public int LocationTime;
     public int LocationPosition;
     public Shader Shader;
-    public Game Game;
+    public GameBox Box;
     public float TimeAppear = 0;
     public float TimeDisappear = 0;
     public int ZIndex = 0;
@@ -34,7 +34,7 @@ public class GameplayScreenEffect
     {
         if (time > TimeDisappear)
         {
-            Game.RemoveScreenEffect(this);
+            Box.RemoveScreenEffect(this);
         }
         SetShaderValue(Shader, LocationTime, State(time), ShaderUniformDataType.Float);
         SetShaderValue(Shader, LocationPosition, Position, ShaderUniformDataType.Vec2);

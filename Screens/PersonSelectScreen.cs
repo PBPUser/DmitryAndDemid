@@ -130,7 +130,7 @@ public class PersonSelectScreen : MenuScreen
         {
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["swap"]);
             TiledLoadingScreen? tls = null;
-            tls = new TiledLoadingScreen(Game.LoadingTime, 0.5, () =>
+            tls = new TiledLoadingScreen(3, 0.5, () =>
             {
                 Runtime.CurrentRuntime.RemoveScreen(tls);
             }, true, 0);

@@ -3,10 +3,6 @@ using System.Numerics;
 using System.Reflection;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
-using DmitryAndDemid.Gameplay.Collectables;
-using DmitryAndDemid.Gameplay.PlayerWeapons;
-using DmitryAndDemid.Utils;
-using GLib;
 using Raylib_cs;
 
 namespace DmitryAndDemid.Gameplay;
@@ -73,7 +69,12 @@ public class Player
             //CollisionDotPos = PositionTo;
             CollisionEnabled = true;
         }
-        //Controller.Update(this, Game.CurrentTick);
+        Controller.Update(this, GameBox.CurrentTick);
+        X = Math.Clamp(X, 8, 376);
+        Y = Math.Clamp(Y, 8, 440);
+        
+        if (GameBox.CurrentTick % 4 == 0)
+            SourceRect.X += 32;
         Weapon.Update();
         if (!isShooting)
             return;
@@ -255,5 +256,15 @@ public class Player
         CollisionEnabled = false;
         //RestoreTick = Game.CurrentTick + RestoreInvincibilityLength;
         Weapon.DefocusTimestamp = (float)Raylib.GetTime();
+    }
+
+    public void Draw()
+    {
+        Weapon.DrawBottomLayer();
+        Raylib.DrawTexturePro(
+            SourceTexture, SourceRect, new Rectangle(X-16, Y-16,32,32), 
+            Vector2.Zero, 0, Color.White
+            );
+        Weapon.DrawTopLayer();
     }
 }

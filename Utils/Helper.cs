@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay;
+using Microsoft.CSharp.RuntimeBinder;
 using Pango;
 using Raylib_cs;
 using static Raylib_cs.Raylib;
@@ -18,6 +19,8 @@ public static class Helper
     
     public static void LoadShaderAttribs()
     {
+        PrepareTimerRenderer();
+        
         LocationCloudRadius = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["cloud"], "radius");
         LocationCloudDimensions = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["cloud"], "dimenssions");
         LocationCloudAngle = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["cloud"], "angle");
@@ -116,7 +119,7 @@ public static class Helper
         BeginShaderMode(Runtime.CurrentRuntime.Shaders["contrast"]);
     }
 
-    private const float BossTextFontSize = 6;
+    private const float BossTextFontSize = 8;
     private const float ChapterTitleFontSize = 12;
     private static Color BossTextColor = Color.Lime;
     
@@ -167,8 +170,8 @@ public static class Helper
             new Rectangle(0, 0, b),
             Vector2.Zero, 0, Color.White);
         EndShaderMode();
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], GetShaderLocation(Runtime.CurrentRuntime.Shaders["outline"], "border_width"), Runtime.CurrentRuntime.ScaleF, ShaderUniformDataType.Float);
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], GetShaderLocation(Runtime.CurrentRuntime.Shaders["outline"], "res"),
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], LocationOutlineBorderwidth, Runtime.CurrentRuntime.ScaleF , ShaderUniformDataType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], LocationOutlineResolution,
             [b.X / 1.5f, b.Y / 1.5f], ShaderUniformDataType.Vec2);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders["outline"]);
         Rectangle rc = new(0, 0, temp.Texture.Width, temp.Texture.Height);
@@ -224,6 +227,55 @@ public static class Helper
         Raylib.BeginShaderMode(Runtime.CurrentRuntime.Shaders["wave"]);
         Raylib.DrawRectanglePro(target, Vector2.Zero, 0, Color.White);
         Raylib.EndShaderMode();
+    }
+
+    private static Shader OutlineShader;
+    private static float TimerFontSize = 24;
+    private static float TimerFontSpacing = 2;
+    private static RenderTexture2D TempTimerTexture, TempTimerTexture2;
+    private static Rectangle TimerRectangleSource, TimerRectangleTarget;
+    private static Font TimerFont = Runtime.CurrentRuntime.Fonts["kodemono"];
+    private static int LocationOutlineResolution;
+    private static int LocationOutlineBorderwidth;
+    public static Vector2 TimerTextureSize;
+    private static Vector2 TimerPos;
+    
+    static void PrepareTimerRenderer()
+    {
+        OutlineShader = Runtime.CurrentRuntime.Shaders["outline2"];
+        LocationOutlineBorderwidth = GetShaderLocation(OutlineShader, "border_width");
+        LocationOutlineResolution = GetShaderLocation(OutlineShader, "res");
+        TimerFontSize *= Runtime.CurrentRuntime.ScaleF;
+        TimerFontSpacing *= Runtime.CurrentRuntime.ScaleF;
+        TimerTextureSize = MeasureTextEx(TimerFont, "00",  TimerFontSize, TimerFontSpacing) * 1.2f;
+        TimerPos = TimerTextureSize / 12f; 
+        TempTimerTexture = LoadRenderTexture((int)TimerTextureSize.X, (int)TimerTextureSize.Y);
+        TempTimerTexture2 = LoadRenderTexture((int)TimerTextureSize.X, (int)TimerTextureSize.Y);
+        TimerRectangleSource = new Rectangle(0, (int)TimerTextureSize.Y, (int)TimerTextureSize.X, -(int)TimerTextureSize.Y);
+        TimerRectangleTarget = new Rectangle(0, 0, (int)TimerTextureSize.X, (int)TimerTextureSize.Y);
+    }
+
+    public static void PrepareTimer(int ticks)
+    {
+        string text = $"{Math.Clamp(ticks/60, 0, 99):00}";
+        BeginTextureMode(TempTimerTexture);
+        ClearBackground(Color.Black with {A=0});
+        DrawTextPro(TimerFont, text, TimerPos,
+            Vector2.Zero, 0, TimerFontSize, TimerFontSpacing, Color.White);
+        EndTextureMode();
+        SetShaderValue(OutlineShader, LocationOutlineBorderwidth, Runtime.CurrentRuntime.ScaleF * 4, ShaderUniformDataType.Float);
+        SetShaderValue(OutlineShader, LocationOutlineResolution, TimerTextureSize, ShaderUniformDataType.Vec2);
+        BeginTextureMode(TempTimerTexture2);
+        ClearBackground(Color.White with {A=0});
+        BeginShaderMode(OutlineShader);
+        DrawTexture(TempTimerTexture.Texture, 0, 0,Color.White);
+        EndShaderMode();
+        EndTextureMode();
+    }
+    
+    public static void DrawTimer(int x, int y)
+    {
+        DrawTexture(TempTimerTexture2.Texture, x,y,Color.White);
     }
 
     public static RenderTexture2D DrawDialog(string text, float angle)
@@ -508,18 +560,18 @@ public static class Helper
     private static int LocationDisappearShootPosition;
     private static int LocationDisappearShootTime;
     
-    public static void DrawDeathPoints(List<RemovedBullet> objects, string shader)
-    {
-        float time = (float)GetTime();
-        foreach (var obj in objects)
-        {
-            SetShaderValue(Runtime.CurrentRuntime.Shaders[shader], LocationDisappearShootTime, time - obj.Time, ShaderUniformDataType.Float);
-            SetShaderValue(Runtime.CurrentRuntime.Shaders[shader], LocationDisappearShootPosition, obj.Position, ShaderUniformDataType.Vec2);
-            BeginShaderMode(Runtime.CurrentRuntime.Shaders[shader]);
-            DrawRectangle(0,0,384,448,Color.White);
-            EndShaderMode();
-        }
-    }
+    //public static void DrawDeathPoints(List<RemovedBullet> objects, string shader)
+    //{
+    //    float time = (float)GetTime();
+    //    foreach (var obj in objects)
+    //    {
+    //        SetShaderValue(Runtime.CurrentRuntime.Shaders[shader], LocationDisappearShootTime, time - obj.Time, ShaderUniformDataType.Float);
+    //        SetShaderValue(Runtime.CurrentRuntime.Shaders[shader], LocationDisappearShootPosition, obj.Position, ShaderUniformDataType.Vec2);
+    //        BeginShaderMode(Runtime.CurrentRuntime.Shaders[shader]);
+    //        DrawRectangle(0,0,384,448,Color.White);
+    //        EndShaderMode();
+    //    }
+    //}
 
     public static Vector2 Half = Vector2.One / 2;
 
@@ -626,4 +678,12 @@ public static class Helper
     {
         
     }
+#if DEBUG
+    public static void ReprepareTimerShader()
+    {
+        OutlineShader = Runtime.CurrentRuntime.Shaders["outline"];
+        LocationOutlineBorderwidth = GetShaderLocation(OutlineShader, "border_width");
+        LocationOutlineResolution =  GetShaderLocation(OutlineShader, "res");
+    }
+    #endif
 }

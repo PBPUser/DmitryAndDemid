@@ -26,13 +26,17 @@ public static class ActionsScope
     public static void RebuildObjectActionsList()
     {
         var dictionary = new Dictionary<string, RuntimeObjectReferenceAction>();
-        dictionary["__object!!!"] = (ref robj) =>
+        dictionary["__object!!!"] = (robj) =>
         {
 
+        };
+        dictionary["AkobShoot"] = (obj) =>
+        {
+            obj.Y -= obj.Speed;
         };
         ObjectActions = dictionary.ToFrozenDictionary();
     }
 }
 
 public delegate void RuntimeChapterReferenceAction(ref RuntimeChapter chapter);
-public delegate void RuntimeObjectReferenceAction(ref RuntimeObject chapter);
+public delegate void RuntimeObjectReferenceAction(RuntimeObject obj);

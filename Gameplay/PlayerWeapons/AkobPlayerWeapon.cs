@@ -1,5 +1,7 @@
 using System.Numerics;
 using DmitryAndDemid.Data;
+using DmitryAndDemid.Data.Archive;
+using DmitryAndDemid.Gameplay.RuntimeData;
 using DmitryAndDemid.Utils;
 using Raylib_cs;
 
@@ -7,6 +9,17 @@ namespace DmitryAndDemid.Gameplay.PlayerWeapons;
 
 public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
 {
+    static AkobPlayerWeapon()
+    {
+        BulletFileInfo.Header[0] = 0b_0000_0001;
+        BulletFileInfo.Header[0] |= RuntimeObject.FlagUseUpdateScript;
+        BulletFileInfo.FloatingPoints[7] = 2f;
+        BulletFileInfo.Visual = "akob";
+        BulletFileInfo.UpdateScript = "AkobShoot";
+    }
+    
+    private static FileEntityInfo BulletFileInfo = new FileEntityInfo();
+    
     private static Rectangle PlayerBottomLayerSource = new Rectangle(0, 64, 64, 64);
     private static Rectangle PlayerTopLayerSource = new Rectangle(64, 64, 64, 64);
     private static Rectangle AkobRectangleSource = new Rectangle(128, 64, 16, 16);
@@ -65,23 +78,16 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
     {
         if (Player.GameBox.CurrentTick % 20 != 0)
             return;
-        Bullet b;
         float totalDamage = Player.Power / 100f;
         float singleDamage = totalDamage / BulletSourcePositionsCount;
         for (int i = 0; i < BulletSourcePositionsCount; i++)
         {
-            //b = new Bullet(Player.GameBox, new BulletSpawnInfo()
-            //{
-            //    Damage = singleDamage,
-            //    Speed = 6f,
-            //    BulletVisual = "akob",
-            //    Rotation = MathF.PI,
-            //    Position = BulletSourcePositions[i],
-            //    BulletActionClass = "MoveByDirection",
-            //    Args = ["UseRotation"]
-            //},0, false);
-            //b.PlayerShoot = true;
-            //Player.GameBox.AddObject(b);
+            RuntimeObject reo = RuntimeObject.LoadFromFile(BulletFileInfo, Player.GameBox);
+            reo.CreatedAt = Player.GameBox.CurrentTick;
+            reo.X = BulletSourcePositions[i].X;
+            reo.Y = BulletSourcePositions[i].Y;
+            Player.GameBox.AddObject(reo);
+            //TODO Play shoot sound 
         }
     }
 }

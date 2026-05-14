@@ -1,9 +1,10 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+using DmitryAndDemid.Data.Archive;
 using GLib;
 using Raylib_cs;
 
-namespace DmitryAndDemid.Gameplay;
+namespace DmitryAndDemid.Gameplay.RuntimeData;
 
 public struct GameObject
 {
@@ -55,8 +56,12 @@ public struct GameObject
         return Delta > Variables[7] * FloatingPoints[2];
     }
 
-    public GameObject(Texture2D texture)
+    public GameObject(FileEntityInfo entity)
     {
-        Texture = texture;
+        Texture = Runtime.CurrentRuntime.Textures[entity.Visual];
+        Variables = new int[72];
+        FloatingPoints = new float[72];
+        Array.Copy(entity.Header, Variables, entity.Header.Length);
+        Array.Copy(entity.FloatingPoints, FloatingPoints, entity.FloatingPoints.Length);
     }
 }

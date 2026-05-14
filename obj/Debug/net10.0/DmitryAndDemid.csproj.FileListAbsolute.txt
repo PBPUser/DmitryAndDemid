@@ -248,8 +248,6 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/outline.fs
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/gradient_weird.fs
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/241fps.png
-/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/241fps.png~
-/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/.241fps.png-autosave.kra
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/manual-1.png
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/manual-2.png
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/manual-3.png
@@ -262,5 +260,8 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/spellcard_title.fs
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/practice.png
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/spell_practice.png
-/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/spell_practice.png~
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Music/Descriptions/nikitosost.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/outline2.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/nikitos-spell-background.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/spellcard_nikitos.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/nikitos-spell-background-2.png

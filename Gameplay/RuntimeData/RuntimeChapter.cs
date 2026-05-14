@@ -10,6 +10,10 @@ public class RuntimeChapter
 {
     public readonly bool TimeoutCard;
     public readonly bool BossInvincible;
+    public readonly bool ApplyShader;
+    public readonly Shader? SpellShader;
+    public readonly int LocPosition;
+    public readonly int LocTime;
     public readonly bool HasDialogs;
     public readonly bool UseUpdateScript;
     public readonly bool UseCreateScript;
@@ -17,16 +21,18 @@ public class RuntimeChapter
     public readonly string CreateScript;
     public readonly string UpdateScript;
     public readonly int Length;
-    public readonly int StartedIndex;
+    public readonly int TickStart;
     public readonly int LengthOffset = 0;
     public readonly int MaxScore = 0;
     public readonly Drop BadDrop;
     public readonly Drop GoodDrop;
     public readonly RenderTexture2D? BossTitleTexture;
     public readonly RenderTexture2D? ChapterTitleTexture;
+    public readonly Texture2D? SpellcardTexture;
 
-    public RuntimeChapter(FileChapterInfo chapterInfo)
+    public RuntimeChapter(FileChapterInfo chapterInfo, int tickStart)
     {
+        TickStart = tickStart;
         Length = chapterInfo.Header[2];
         TimeoutCard = chapterInfo.TimeoutCard;
         BossInvincible = chapterInfo.BossInvincible;
@@ -44,6 +50,7 @@ public class RuntimeChapter
         }
         if (Type == ChapterType.Spell)
         {
+            SpellcardTexture = Runtime.CurrentRuntime.Textures[chapterInfo.SpellcardTexture];
             MaxScore = chapterInfo.Header[4];
             var size = Helper.GetTitleTextSize(chapterInfo.SpellcardTitle);
             ChapterTitleTexture = Raylib.LoadRenderTexture((int)size.X, (int)size.Y);
@@ -53,6 +60,13 @@ public class RuntimeChapter
             CreateScript = chapterInfo.CreateScript;
         if(UseUpdateScript)
             UpdateScript = chapterInfo.UpdateScript;
+        ApplyShader = chapterInfo.ApplyShader;
+        if (ApplyShader)
+        {
+            SpellShader = Runtime.CurrentRuntime.Shaders[chapterInfo.SpellcardShader];
+            LocPosition = Raylib.GetShaderLocation(SpellShader.Value, "pos");
+            LocTime = Raylib.GetShaderLocation(SpellShader.Value, "time");
+        }
     }
 
     public void Unload()

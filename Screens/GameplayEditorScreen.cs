@@ -38,7 +38,18 @@ public class GameplayEditorScreen : Screen
     private Vector2 ForkSize;
     private Texture2D ForkTexture = Runtime.CurrentRuntime.Textures["vilkaCut.png"];
     private bool UseEffect = false;
-    private int Item = 0; 
+    private int Item = 0;
+    private double TimeFrom = 0;
+
+    private RenderTexture2D BackgroundTestTexture =
+        LoadRenderTexture(384, 448);
+
+    private bool BackgroundTesterEnabled = false;
+    private string[] Textures => Runtime.CurrentRuntime.Textures.Keys.ToArray();
+    private int BackgroundTestIndex = -1;
+
+    private int BGTesterX = 192;
+    private int BGTesterY = 400;
     private int Page = 0;
     private float Zoom = 1;
     private float State = 1;
@@ -437,6 +448,30 @@ public class GameplayEditorScreen : Screen
                 End();
                 break;
             case 5:
+                Begin("Background tester");
+                Checkbox("Enabled", ref BackgroundTesterEnabled);
+                if (BackgroundTesterEnabled)
+                {
+                    SliderInt("X", ref BGTesterX, -32, 448);
+                    SliderInt("Y", ref BGTesterY, -32, 512);
+                    Combo("Background", ref BackgroundTestIndex, Textures, Textures.Length);
+                    if (BackgroundTestIndex != -1)
+                    {
+                        Vector2 s = new Vector2(BGTesterX, BGTesterY);
+                        var shader_ = Runtime.CurrentRuntime.Shaders[Shaders[SelectedShaderIndex]];
+                        SetShaderValue(shader_, GetShaderLocation(shader_, "time"), (float)(Raylib.GetTime() - TimeFrom) / 60, ShaderUniformDataType.Float);
+                        SetShaderValue(shader_, GetShaderLocation(shader_, "pos"), s, ShaderUniformDataType.Vec2);
+                        BeginTextureMode(BackgroundTestTexture);
+                        ClearBackground(Raylib_cs.Color.White);
+                        BeginShaderMode(shader_);
+                        DrawTexture(Runtime.CurrentRuntime.Textures[Textures[BackgroundTestIndex]],
+                            0, 0, Raylib_cs.Color.White);
+                        EndShaderMode();
+                        EndTextureMode();
+                        rlImGui.ImageRenderTexture(BackgroundTestTexture);
+                    }
+                }
+                End();
                 Begin("Text Shader Editor");
                 if (SliderFloat("Spacing", ref Spacing, 0f, 32f)) 
                     RerenderPreviewText();
@@ -468,11 +503,15 @@ public class GameplayEditorScreen : Screen
                     }
                     UnloadShader(Runtime.CurrentRuntime.Shaders[Shaders[SelectedShaderIndex]]);
                     Runtime.CurrentRuntime.Shaders[Shaders[SelectedShaderIndex]] = sh;
+                    Helper.ReprepareTimerShader();
                     RerenderPreviewText();
                 }
                 if(TextTestTexture != null)
                     rlImGui.Image(TextTestTexture.Value.Texture);
                 End();
+                
+                Helper.PrepareTimer((int)((Raylib.GetTime() * 60) % 6000));
+                Helper.DrawTimer(12, 36);
                 break;
         }
 

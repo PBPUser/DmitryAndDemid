@@ -173,12 +173,13 @@ public class Runtime
         Textures["MenuBackground"] = Helper.FillTextureWithColor(Color.Black with { A = 128 }, Width, Height).Texture;
         Textures["Copyright"] = Helper.DrawTextScaled(")(U,2026 Konu9lnpaBa Caxap Ko.", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
         Textures["Version"] = Helper.DrawTextScaled($"Beer {VersionString} (npo6Ha9l Bepcu9I)", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
+        Textures = Textures.OrderBy(x => x.Key).ToDictionary();
     }
 
 
     void LoadShaders()
     {
-        string[] fragmentShaders = Directory.GetFiles("Assets/Shaders", "*.fs");
+        string[] fragmentShaders = Directory.GetFiles("Assets/Shaders", "*.fs").OrderBy(x => x).ToArray();
         foreach (var x in fragmentShaders)
         {
             string vertexFile = x.Remove(x.Length - 3, 3) + ".vs";

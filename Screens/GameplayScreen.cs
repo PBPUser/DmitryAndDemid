@@ -17,6 +17,7 @@ public class GameplayScreen : Screen
         SetBackground(Runtime.CurrentRuntime.Textures["gameplay_background.png"]);
         //Game = new Game(data, stage, this, difficulty);
         Source = new Rectangle(0, 0, 384, -448);
+        UIAboveSource = new Rectangle(0, 0, 384 * Runtime.CurrentRuntime.ScaleF, -448 * Runtime.CurrentRuntime.ScaleF);
         Dest = new Rectangle(32 * Runtime.CurrentRuntime.ScaleF, 16 * Runtime.CurrentRuntime.ScaleF, 384 * Runtime.CurrentRuntime.ScaleF, 448 * Runtime.CurrentRuntime.ScaleF);
         DialogDest = Helper.GetFullscreenSource();
         DialogSource = Helper.GetFullscreenSource();
@@ -52,6 +53,7 @@ public class GameplayScreen : Screen
     Rectangle Dest;
     Rectangle DialogSource;
     Rectangle DialogDest;
+    private Rectangle UIAboveSource;
 
     private static Rectangle Fullscreen = Helper.GetFullscreenSource();
     private static Rectangle BGSource = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["gameplay_background.png"]);
@@ -117,8 +119,8 @@ public class GameplayScreen : Screen
         float time = GameBox.GetTime();
         if (time < -.5)
             return;
-        DrawTexturePro(Runtime.CurrentRuntime.Textures["gameplay_background.png"], BGSource,Fullscreen, Vector2.Zero, 0, Color.White);
         GameBox.RenderBox();
+        DrawTexturePro(Runtime.CurrentRuntime.Textures["gameplay_background.png"], BGSource,Fullscreen, Vector2.Zero, 0, Color.White);
         BeginTextureMode(GameEffectsTextures[0]);
         DrawTexturePro(GameBox.Background.Texture,
             Source, DestEffect,
@@ -155,6 +157,10 @@ public class GameplayScreen : Screen
             GameBox.ScoreSrc, 
             GameBox.ScoreDest, 
             Vector2.Zero, 0, Color.White);
+        DrawTexturePro(GameBox.UIAboveGameplay.Texture,
+            UIAboveSource,
+            Dest,
+            Vector2.Zero, 0, Color.White);
         //DrawTexturePro(
         //    Game.UITexture.Texture,
         //    new Rectangle(0, Game.UITexture.Texture.Height, Game.UITexture.Texture.Width,
@@ -185,7 +191,29 @@ public class GameplayScreen : Screen
         ImGui.Text("Time: "+GameBox.GetTime());
         ImGui.Text("TPS: "+GameBox.CurrentTick / GameBox.GetTime());
         ImGui.End();
-        ImGui.Begin("Stage Info: ");
+        if (GameBox.StageInfo != null)
+        {
+            ImGui.Begin($"Stage Info [{GameBox.StageInfo.Chapters.Length}]: ");
+            for(int i = 0; i < GameBox.StageInfo.Chapters.Length; i++)
+            {
+                if (GameBox.StageInfo.Chapters[i] == GameBox.ChapterInfo)
+                {
+                    ImGui.Text($"v Current chapter v");
+                }
+                ImGui.Text($"{i}. {GameBox.StageInfo.Chapters[i].Length}");
+                if (GameBox.StageInfo.Chapters[i] == GameBox.ChapterInfo)
+                {
+                    ImGui.Text($"^ Current chapter ^");
+                }
+            }
+            ImGui.End();
+        }
+
+        ImGui.Begin("Stage objects");
+        foreach (var obj in GameBox.BoxObjects)
+        {
+            ImGui.Text($"{obj.CreatedAt}, {obj.TargetRectangle}");
+        }
         ImGui.End();
         base.DrawImgui();
     }

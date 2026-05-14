@@ -23,6 +23,7 @@ public class FileChapterInfo
         HasDialogs = other.HasDialogs;
         UseUpdateScript = other.UseUpdateScript;
         UseCreateScript = other.UseCreateScript;
+        SpellcardTexture = other.SpellcardTexture;
     }
     
     public int[] Header = new int[8];
@@ -32,13 +33,16 @@ public class FileChapterInfo
     public string BossName = "";
     public string CreateScript = "";
     public string UpdateScript = "";
+    public string SpellcardTexture = "";
+    public string SpellcardShader = "";
 
     public bool TimeoutCard = false;
     public bool BossInvincible = false;
     public bool HasDialogs = false;
     public bool UseUpdateScript = true;
     public bool UseCreateScript = false;
-
+    public bool ApplyShader = false;
+    
     public void Save(ref BitPackage package)
     {
         package.WriteString(Id??"");
@@ -47,12 +51,13 @@ public class FileChapterInfo
         Header[1] |= HasDialogs ? 0x4 : 0;
         Header[1] |= UseUpdateScript ? 0x8 : 0;
         Header[1] |= UseCreateScript ? 0x10 : 0;
+        Header[1] |= ApplyShader ? 0x20 : 0;
         if(HasDialogs && Header[0] != 3)
             Header[4] = Dialogs.Length;
         for(int i =0;i<Header.Length;i++)
             package.WriteVarLong(Header[i]);
         package.WriteString(SpellcardTitle);
-        if(Header[0]==3)
+        if(Header[0]>1)
             package.WriteString(BossName);
         if(UseUpdateScript)
             package.WriteString(UpdateScript);
@@ -61,6 +66,10 @@ public class FileChapterInfo
         if (Header[0] != 3 && HasDialogs)
             for(int i = 0; i < Dialogs.Length; i++)
                 Dialogs[i].Save(ref package);
+        if(Header[0] == 3)
+            package.WriteString(SpellcardTexture);
+        if(ApplyShader)
+            package.WriteString(SpellcardShader);
     }
 
     public static FileChapterInfo Load(ref BitPackage package)
@@ -74,8 +83,9 @@ public class FileChapterInfo
         chapterInfo.HasDialogs = (chapterInfo.Header[1] & 4) == 4;
         chapterInfo.UseUpdateScript = (chapterInfo.Header[1] & 8) == 8;
         chapterInfo.UseCreateScript = (chapterInfo.Header[1] & 16) == 16;
+        chapterInfo.ApplyShader = (chapterInfo.Header[1] & 32) == 32;
         chapterInfo.SpellcardTitle = package.ReadString();
-        if(chapterInfo.Header[0] == 3)
+        if(chapterInfo.Header[0]  > 1)
             chapterInfo.BossName = package.ReadString();
         if (chapterInfo.UseUpdateScript)
             chapterInfo.UpdateScript = package.ReadString();
@@ -87,6 +97,10 @@ public class FileChapterInfo
             for(int i = 0; i < chapterInfo.Header[4]; i++)
                 chapterInfo.Dialogs[i] = FileDialogInfo.Load(ref package);
         }
+        if(chapterInfo.Header[0] == 3)
+            chapterInfo.SpellcardTexture = package.ReadString();
+        if(chapterInfo.ApplyShader)
+            chapterInfo.SpellcardShader = package.ReadString();
         return chapterInfo;
     }
 }

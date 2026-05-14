@@ -25,6 +25,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
     private string FileName = fileName;
     private static string[] ChapterTypes = typeof(ChapterType).GetEnumNames();
     private string[] Textures => Runtime.CurrentRuntime.Textures.Select(x => x.Key).ToArray();
+    private string[] Shaders => Runtime.CurrentRuntime.Shaders.Select(x => x.Key).ToArray();
     private string Question = "Are you sure to delete this object?";
     private bool QuestionShown = false;
     private Action? QuestionOKAction = null;
@@ -33,6 +34,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
     private int Time = 0;
     private int SelectedObjectIndex = -1;
     private int SelectedTextureIndex = -1;
+    private int SelectedShaderIndex = -1;
     private int 
         SelectedCreateScriptIndex = -1,
         SelectedUpdateScriptIndex = -1,
@@ -114,7 +116,6 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                 Combo("Boss Music", ref Info.Header[8], MusicInfo.MusicNames, MusicInfo.MusicNames.Length);
                 break;
             case 1:
-                
                 if (ShowChaptersList)
                 {
                     if (ListBox("##list_select", ref SelectedObjectIndex, Info.Scripts.Select(x => Info.Scripts.IndexOf(x)+"").ToArray(), Info.Scripts.Length, 32))
@@ -135,7 +136,6 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                     {
                         try
                         {
-                            var rsi = new RuntimeScriptInformation();
                             var script = """
                                          float sum = 0f;
                                          foreach(var s in Array)
@@ -259,13 +259,14 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                     if (ListBox("##list_select", ref SelectedObjectIndex, Info.Chapters.Select(x => x.Id).ToArray(),
                             Info.Chapters.Length, Info.Chapters.Length) && !SelectMode)
                     {
+                        SelectedTextureIndex = Textures.IndexOf(Info.Chapters[SelectedObjectIndex].SpellcardTexture);
                         ShowChaptersList = false;
                         SelectedCreateScriptIndex = Scripts.IndexOf(Info.Chapters[SelectedObjectIndex].CreateScript);
                         SelectedUpdateScriptIndex = Scripts.IndexOf(Info.Chapters[SelectedObjectIndex].UpdateScript);
                         RerenderBossIdentifierTexture();
                         RerenderChapterTitleTexture();
+                        SelectedShaderIndex = Shaders.IndexOf(Info.Chapters[SelectedObjectIndex].SpellcardShader);
                     }
-
                     Checkbox("Select mode", ref SelectMode);
                     if (Button("Move Down") && SelectedObjectIndex != -1 && SelectedObjectIndex != Info.Chapters.Length - 1)
                     {                            
@@ -324,6 +325,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                     SliderInt("Length", ref Info.Chapters[SelectedObjectIndex].Header[2], 0, 2000);
                     Combo("Difficulty", ref Info.Chapters[SelectedObjectIndex].Header[3], Difficulties, Difficulties.Length);
                     Combo("Chapter Type", ref Info.Chapters[SelectedObjectIndex].Header[0], ChapterTypes, ChapterTypes.Length);
+                    
                     if (Info.Chapters[SelectedObjectIndex].Header[0] > 1)
                     {
                         if (InputText("Boss Identifier", ref Info.Chapters[SelectedObjectIndex].BossName, 255))
@@ -334,7 +336,14 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                     }
                     if (Info.Chapters[SelectedObjectIndex].Header[0] == 3)
                     {
-                        Combo("Background", ref Info.Chapters[SelectedObjectIndex].Header[5], Textures, Textures.Length);
+                        if(Combo("Background", ref SelectedTextureIndex, Textures, Textures.Length))
+                            Info.Chapters[SelectedObjectIndex].SpellcardTexture =  Textures[SelectedTextureIndex];
+                        Checkbox("Apply Shader", ref Info.Chapters[SelectedObjectIndex].ApplyShader);
+                        if (Info.Chapters[SelectedObjectIndex].ApplyShader)
+                        {
+                            if(Combo("Select shader", ref SelectedShaderIndex, Shaders, Shaders.Length))
+                                Info.Chapters[SelectedObjectIndex].SpellcardShader = Shaders[SelectedShaderIndex];
+                        }
                         if(InputText("SpellCard name", ref Info.Chapters[SelectedObjectIndex].SpellcardTitle, 255))
                             RerenderChapterTitleTexture();
                         if(ChapterTexturePreview != null)

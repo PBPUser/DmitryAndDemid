@@ -12,9 +12,6 @@
 [0x1] Group Id
 [0x2] Transparency
 [0x3] Spawn Id
-[0x10] Gamebox Position X
-[0x11] Gamebox Position Y
-[0x12] Gamebox Position Z
 [0x13] Source Position X
 [0x14] Source Position Y
 [0x15] Source Width
@@ -25,6 +22,7 @@
     [0x080] Grazed
     [0x100] In Collectable State
     [0x200] Is Near To Player
+    [0x400] Dangerous for Enemies
 }
 [0x4] Color
 [0x5] Collectable Score Modifier
@@ -54,3 +52,6 @@ Floating Points:
 [0x6] In-Script Rotation
 [0x7] Speed
 [0x8] Speed Modifier
+[0x10] GameBox Position X
+[0x11] GameBox Position Y
+[0x12] GameBox Position Z
