@@ -9,15 +9,15 @@ public abstract class StageBackground
         
     }
 
-    protected virtual void Render(RenderTexture2D texture, int tick)
+    protected virtual void Render(RenderTexture2D texture, int tick, float delta)
     {
         
     }
     
-    public void Draw(RenderTexture2D texture, int tick)
+    public void Draw(RenderTexture2D texture, int tick, float delta)
     {
         Raylib.BeginTextureMode(texture);
-        Render(texture, tick);
+        Render(texture, tick, delta);
         Raylib.EndTextureMode();
     }
 }

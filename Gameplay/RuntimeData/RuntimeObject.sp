@@ -7,7 +7,7 @@
     [0x00010] Use Remove Script
     [0x00020] Clear Protected
     [0x00040] Dangerous for player
-    [0x10000] Is Collectable 
+    [0x10000] Is Collectable
 }
 [0x1] Group Id
 [0x2] Transparency
@@ -23,6 +23,7 @@
     [0x100] In Collectable State
     [0x200] Is Near To Player
     [0x400] Dangerous for Enemies
+    [0x800] Is Used
 }
 [0x4] Color
 [0x5] Collectable Score Modifier
@@ -52,6 +53,12 @@ Floating Points:
 [0x6] In-Script Rotation
 [0x7] Speed
 [0x8] Speed Modifier
+[0x9] Damage
 [0x10] GameBox Position X
 [0x11] GameBox Position Y
 [0x12] GameBox Position Z
+[0x13] Collision
+[0x20] GameBox Position X Delta
+[0x21] GameBox Position Y Delta
+[0x22] GameBox Position Z Delta
+[0x23] GameBox Rotation Delta

@@ -123,7 +123,7 @@ public class IngameSaveReplayScreen : Screen
             LetterIndex = 0;
             Current = "";
             var time = DateTime.Now;
-            CurrentFormat = $"No. {Index:00} %s {(time.Year%100):00}/{time.Month:00}/{time.Day:00} {time.Hour:00}:{time.Minute:00} {GameplayScreen.GameBox.ProtogonistId,7} {Helper.DifficultyIds[GameplayScreen.GameBox.Difficulty]} All 0.0%";
+            CurrentFormat = $"No. {Index:00} %s {time.Year%100:00}/{time.Month:00}/{time.Day:00} {time.Hour:00}:{time.Minute:00} {GameplayScreen.GameBox.ProtogonistId,7} {Helper.DifficultyIds[GameplayScreen.GameBox.Difficulty]} All 0.0%";
             var rJson = new Replay.ReplayJson();
             rJson.Timestamp = time;
             rJson.Person = GameplayScreen.GameBox.ProtogonistId;

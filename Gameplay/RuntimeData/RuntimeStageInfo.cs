@@ -14,22 +14,26 @@ public class RuntimeStageInfo
     Script<object>[] Scripts;
     string[] Groups;
     public Texture2D[] Backgrounds;
-    RuntimeObject[] Entities;
+    public FileEntityInfo[] Entities;
     public RuntimeChapter[] Chapters;
     
-    public static RuntimeStageInfo LoadFromFile(FileStageInfo stageInfo, int difficulty)
+    public static RuntimeStageInfo LoadFromFile(FileStageInfo stageInfo, int difficulty, GameBox box)
     {
         RuntimeStageInfo stage = new RuntimeStageInfo();
         stage.Index = stageInfo.Header[1];
         stage.MusicID = stageInfo.Header[2];
         stage.Scripts = stageInfo.Scripts.Select(x => CSharpScript.Create<object>(x)).ToArray();
         stage.Backgrounds = stageInfo.Backgrounds.Select(x => Runtime.CurrentRuntime.Textures[x]).ToArray();
-        //stage.Entities = stageInfo.Entities.Select(x => RuntimeEntityObject.LoadFromFile(x)).ToArray();
         int tick = 0;
         stage.Chapters = new RuntimeChapter[stageInfo.Chapters.Length];
+        stage.Entities = new FileEntityInfo[stageInfo.Entities.Length];
+        foreach (var i in stageInfo.Entities)
+        {
+            stage.Entities[i.Header[3]] = i;
+        }
         for (int i = 0; i < stage.Chapters.Length; i++)
         {
-            stage.Chapters[i] = new RuntimeChapter(stageInfo.Chapters[i], tick);
+            stage.Chapters[i] = new RuntimeChapter(stageInfo.Chapters[i], tick, box);
             tick += stage.Chapters[i].Length + GameBox.DelayBetweenChapters;
         }
         return stage;

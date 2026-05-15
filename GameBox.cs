@@ -72,6 +72,7 @@ public class GameBox : IDisposable
     #region Managment
     private int ChapterIndex = -1;
     private bool ChapterScoreShown = false;
+    public const int Deathlength = 15;
     
     void BoxUpdate()
     {
@@ -91,6 +92,8 @@ public class GameBox : IDisposable
                 NextChapter();
             }
         }
+        else
+            ChapterInfo.UpdateScript?.Invoke(ChapterInfo);
         if (RequiresRefresh)
         {
             ScreenEffects.AddRange(ScreenEffectsToAdd);
@@ -104,12 +107,82 @@ public class GameBox : IDisposable
             RequiresRefresh = false;
         }
 
+        float x, y, z, r;
+        
         foreach(var  obj in BoxObjects)
         {
+            var bitMask = obj.Header[0];
+            if ((bitMask & RuntimeObject.FlagIsDied) == RuntimeObject.FlagIsDied)
+            {
+                if (obj.Header[0xA] + Deathlength < CurrentTick)
+                    RemoveObject(obj);
+                continue;
+            }
+            if ((bitMask & RuntimeObject.FlagIsUsed) == RuntimeObject.FlagIsUsed)
+            {
+                if (obj.Header[0xA] + Deathlength < CurrentTick)
+                    RemoveObject(obj);
+                continue;
+            }
+
+            x = obj.FloatingPoints[0x10];
+            y = obj.FloatingPoints[0x11];
+            z = obj.FloatingPoints[0x12];
+            r = obj.FloatingPoints[0x5];
             obj.Update();
+            obj.FloatingPoints[0x20] = obj.FloatingPoints[0x10] - x;
+            obj.FloatingPoints[0x21] = obj.FloatingPoints[0x11] - y;
+            obj.FloatingPoints[0x22] = obj.FloatingPoints[0x12] - z;
+            obj.FloatingPoints[0x23] = obj.FloatingPoints[0x5] - r;
             if (obj.X < -32 || obj.Y < -32 || obj.X > 416 || obj.Y > 480)
             {
                 RemoveObject(obj);
+                continue;
+            }
+            if ((bitMask & RuntimeObject.FlagDangerousRelatedToEnemy) ==
+                RuntimeObject.FlagDangerousRelatedToEnemy)
+            {
+                bool broken = false;
+                foreach (var obj2 in BoxObjects)
+                {
+                    if ((obj2.Header[0] & RuntimeObject.FlagIsBullet) == RuntimeObject.FlagIsBullet)
+                        continue;
+                    if (Raymath.Vector2Distance(obj.Position, obj2.Position) <
+                        (obj.CollisionScale * obj.FloatingPoints[0x13] +
+                         obj2.CollisionScale * obj2.FloatingPoints[0x13]) / 2)
+                    {
+                        obj.Header[0] |= RuntimeObject.FlagIsDied;
+                        obj.Header[0xa] = CurrentTick;
+                        obj2.FloatingPoints[0] -= obj.FloatingPoints[0x20];
+                        if (obj2.FloatingPoints[0] <= 0)
+                        {
+                            obj2.Header[0] |=  RuntimeObject.FlagIsUsed;
+                            obj2.Header[0xa] = CurrentTick;
+                        }
+                        broken = true;
+                        break;
+                    }
+                }
+                if (broken)
+                    continue;
+            }
+            if(!Player.CollisionEnabled)
+                continue;
+            if ((bitMask & RuntimeObject.FlagDangerousRelatedToPlayer) ==
+                RuntimeObject.FlagDangerousRelatedToPlayer)
+            {
+                var distance = Raymath.Vector2Distance(new(Player.X, Player.Y), obj.Position);
+                var collision = Player.CollisionRadius + obj.CollisionScale * obj.FloatingPoints[0x13];
+                if (distance < collision / 2)
+                    Player.Die();
+                if ((bitMask & RuntimeObject.FlagIsBullet) != RuntimeObject.FlagIsBullet)
+                    continue;
+                if ((bitMask & RuntimeObject.FlagIsGrazed) != RuntimeObject.FlagIsGrazed)
+                    continue;
+                if (distance > collision)
+                    continue;
+                Player.Graze++;
+                obj.Header[0] |= RuntimeObject.FlagIsGrazed;
             }
         }
         Player.Update();
@@ -146,7 +219,7 @@ public class GameBox : IDisposable
     
     public void LoadStage(FileStageInfo stage, int chapter, int difficulty)
     {
-        StageInfo = RuntimeStageInfo.LoadFromFile(stage, difficulty);
+        StageInfo = RuntimeStageInfo.LoadFromFile(stage, difficulty, this);
         NextChapter();
     }
 
@@ -163,6 +236,7 @@ public class GameBox : IDisposable
             }
             else
             {
+                
                 
             }
             return;
@@ -186,6 +260,7 @@ public class GameBox : IDisposable
             RenderBossTitle = true;
         }
         InChapterDelay = false;
+        ChapterInfo.CreateScript?.Invoke(ChapterInfo);
     }
 
     void ShowChapterScore()
@@ -213,7 +288,8 @@ public class GameBox : IDisposable
         int typeI = ChapterInfo != null ? (int)ChapterInfo!.Type : 0;
         if(typeI > 1 && !InChapterDelay)
             Helper.PrepareTimer(ChapterInfo!.TickStart + ChapterInfo!.Length - CurrentTick);
-        StageBackgroundObject.Draw(Background, CurrentTick);
+        float tickDelta = GetTime() - (CurrentTick / TargetTPS);
+        StageBackgroundObject.Draw(Background, CurrentTick, tickDelta);
         BeginTextureMode(Background);
         if (typeI == 3 && !InChapterDelay)
         {
@@ -231,13 +307,25 @@ public class GameBox : IDisposable
         ClearBackground(Transparent);
         foreach (var obj in BoxObjects)
         {
-            DrawRectangle((int)obj.TargetRectangle.X, (int)obj.TargetRectangle.Y, (int)obj.TargetRectangle.Width,
-                (int)obj.TargetRectangle.Height, Color.Beige);
+            #if DEBUG
+            if(IsKeyDown(KeyboardKey.A))
+                DrawRectangle((int)(obj.TargetRectangle.X-obj.Origin.X), (int)(obj.TargetRectangle.Y-obj.Origin.X), (int)obj.TargetRectangle.Width,
+                    (int)obj.TargetRectangle.Height, Color.Magenta with {A = 64});
+            #endif
+            if ((obj.Header[0] & RuntimeObject.FlagApplyShader) == RuntimeObject.FlagApplyShader)
+            {
+                SetShaderValue(obj.Shader, obj.Header[0x40], obj.CreatedAt, ShaderUniformDataType.Int);
+                SetShaderValue(obj.Shader, obj.Header[0x41], CurrentTick, ShaderUniformDataType.Int);
+                SetShaderValue(obj.Shader, obj.Header[0x42], obj.TexturePosition, ShaderUniformDataType.Vec2); //3
+                SetShaderValue(obj.Shader, obj.Header[0x43], obj.TextureSize, ShaderUniformDataType.Vec2); //6,32
+                SetShaderValue(obj.Shader, obj.Header[0x44], obj.TotalTextureSize, ShaderUniformDataType.Vec2); //128
+                BeginShaderMode(obj.Shader);
+            }
             DrawTexturePro(
                 obj.Texture,
                 obj.SourceRectangle,
-                obj.TargetRectangle,
-                obj.Origin, obj.RenderRotation, Color.White
+                obj.TargetRectangle with { X = obj.TargetRectangle.X + obj.FloatingPoints[0x20] * tickDelta, Y = obj.TargetRectangle.Y + obj.FloatingPoints[0x21] * tickDelta },
+                obj.Origin, obj.RenderRotation + obj.FloatingPoints[0x23]*tickDelta, Color.White
             );
             EndShaderMode();
         }
@@ -355,5 +443,13 @@ public class GameBox : IDisposable
         UnloadRenderTexture(HiScoreTexture);
         UnloadRenderTexture(Box);
         UnloadRenderTexture(UIAboveGameplay);
+    }
+
+    public RuntimeObject SpawnObject(int i)
+    {
+        var x = RuntimeObject.LoadFromFile(StageInfo.Entities[i], this);
+        x.Header[0x17] = CurrentTick;
+        AddObject(x);
+        return x;
     }
 }

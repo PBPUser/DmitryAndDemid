@@ -26,7 +26,7 @@ public class SpellPracticeScreen : MenuScreen
     {
         CurrentX = (int)(Runtime.CurrentRuntime.ScaleF * 410);
         CurrentY = (int)(Runtime.CurrentRuntime.ScaleF * 160);
-        this.DrawBackground();
+        DrawBackground();
         DrawMenu();
         DrawTitle();
         base.Render();

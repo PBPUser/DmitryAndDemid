@@ -165,7 +165,7 @@ public static class Helper
         EndTextureMode();
         BeginTextureMode(texture);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders["spellcard_title"]);
-        DrawTexturePro(BulletVisual.Rectangle384x448.Texture,
+        DrawTexturePro(Runtime.CurrentRuntime.Textures["384x448"],
             new Rectangle(0, 0, 384, 448),
             new Rectangle(0, 0, b),
             Vector2.Zero, 0, Color.White);
@@ -556,6 +556,7 @@ public static class Helper
     public static Vector2 GetDirection(Vector2 v1, Vector2 v2) => GetDirection(FindAngle(v1, v2));
     
     public static Vector2 GetDirection(float angle) => new(MathF.Cos(angle), MathF.Sin(angle));
+    public static Vector2 GetDirection2(float angle) => GetDirection(angle + MathF.PI / 2);
 
     private static int LocationDisappearShootPosition;
     private static int LocationDisappearShootTime;

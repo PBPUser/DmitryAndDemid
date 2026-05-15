@@ -3,8 +3,8 @@ namespace DmitryAndDemid.Gameplay;
 public abstract class PlayerWeapon(Player player)
 {
     protected Player Player = player;
-    public float FocusTimestamp = 0;
-    public float DefocusTimestamp = 0;
+    public int FocusTimestamp = 0;
+    public int DefocusTimestamp = 0;
 
     public virtual void Update()
     {

@@ -265,3 +265,6 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/nikitos-spell-background.png
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/spellcard_nikitos.fs
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/nikitos-spell-background-2.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/akob_bullet.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/basic_bullet_shader.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Music/Descriptions/titleost.json

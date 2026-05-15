@@ -21,7 +21,7 @@ public class Player
     
     public const float FocusedDifference = 8f;
     public const float DefocusedDifference = 32f;
-    public const float FocusAnimationChangingLength = 0.25f;
+    public const int FocusAnimationChangingLength = 15;
     public bool CollisionEnabled = true;
     public Texture2D SourceTexture;
     public Rectangle SourceRect;
@@ -177,15 +177,15 @@ public class Player
             isFocused = value;
             if (value)
             {
-                Weapon.FocusTimestamp = GameBox.GetTime() -
-                                        MathF.Max(FocusAnimationChangingLength + Weapon.DefocusTimestamp - GameBox.GetTime(),
+                Weapon.FocusTimestamp = GameBox.CurrentTick -
+                                        Math.Max(FocusAnimationChangingLength + Weapon.DefocusTimestamp - GameBox.CurrentTick,
                                             0);
-                Weapon.DefocusTimestamp = float.MaxValue;
+                Weapon.DefocusTimestamp = int.MaxValue;
             }
             else
             {
-                Weapon.DefocusTimestamp = GameBox.GetTime() -
-                                          MathF.Max(FocusAnimationChangingLength + Weapon.FocusTimestamp - GameBox.GetTime(),
+                Weapon.DefocusTimestamp = GameBox.CurrentTick -
+                                          Math.Max(FocusAnimationChangingLength + Weapon.FocusTimestamp - GameBox.CurrentTick,
                                               0);
             }
         }
@@ -227,7 +227,7 @@ public class Player
     }
 
     public Rectangle Collision => new Rectangle(X-CollisionRadius/2, Y-CollisionRadius/2, CollisionRadius, CollisionRadius);
-
+    
     private int graze;
     
     private bool isFocused = false;
@@ -255,7 +255,7 @@ public class Player
         //Game.SetDied();
         CollisionEnabled = false;
         //RestoreTick = Game.CurrentTick + RestoreInvincibilityLength;
-        Weapon.DefocusTimestamp = (float)Raylib.GetTime();
+        Weapon.DefocusTimestamp = GameBox.CurrentTick;
     }
 
     public void Draw()

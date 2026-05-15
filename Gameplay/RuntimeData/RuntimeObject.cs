@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.Intrinsics.X86;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Gameplay.RuntimeData;
@@ -25,7 +26,8 @@ public class RuntimeObject
         FlagIsGrazed = 0x0201,
         FlagUseDieScript = 0x0400,
         FlagDangerousRelatedToEnemy = 0x0400,
-        FlagApplyShader = 0x0800,
+        FlagIsUsed = 0x0800,
+        FlagApplyShader = 0x8000,
         FlagIsDied = 0x1000,
         FlagUseRenderRotation = 0x2000,
         FlagUseUpdateScript = 0x4000;
@@ -41,6 +43,8 @@ public class RuntimeObject
     public RuntimeObjectReferenceAction? UpdateAction;
     public RuntimeObjectReferenceAction? DieAction;
     public RuntimeObjectReferenceAction? RemoveAction;
+    public Shader Shader;
+    public Vector2 TexturePosition, TextureSize, TotalTextureSize;
 
     public static RuntimeObject LoadFromFile(FileEntityInfo info, GameBox box)
     {
@@ -48,15 +52,44 @@ public class RuntimeObject
         entity.Box = box;
         Array.Copy(info.Header, entity.Header, info.Header.Length);
         Array.Copy(info.FloatingPoints, entity.FloatingPoints, info.FloatingPoints.Length);
+        entity.Header[0] |= FlagUseUpdateScript;
         if ((entity.Header[0] & FlagUseUpdateScript) == FlagUseUpdateScript)
             entity.UpdateAction = ActionsScope.ObjectActions[info.UpdateScript];
         if ((entity.Header[0] & FlagIsBullet) == FlagIsBullet)
         {
-            BulletVisual v = BulletVisual.Constants[info.Visual];
-            entity.Texture = v.GetTexture(Helper.ColorIntToVector3(info.Header[4]));
-            entity.Source = new Rectangle(v.GetSourcePosition(Helper.ColorIntToVector3(info.Header[4])), v.GetSourceSize());
-            entity.Target.Size = v.RenderSize;
+            BulletRenderingInfo bulletRenderInfo = Runtime.CurrentRuntime.BulletVisualPresets[info.Visual];
+            var shader = Runtime.CurrentRuntime.Shaders[bulletRenderInfo.Effect == "" ? "basic_bullet_shader" : bulletRenderInfo.Effect];
+            entity.Texture = bulletRenderInfo.GetTexture(info.Header[4]);
+            var spPos = bulletRenderInfo.GetSpritePosition(info.Header[4]);
+            entity.Source = new(
+                spPos - new Vector2(32),
+                bulletRenderInfo.SourceSize + new Vector2(64)
+            );
+            entity.Target.Size = entity.Source.Size;
+            entity.Origin = entity.Source.Size / 2;
+            entity.Header[0] |= FlagApplyShader;
+            entity.Shader = shader;
+            if (bulletRenderInfo.Effect == "")
+            {
+                entity.Header[0x40] = Raylib.GetShaderLocation(shader, "created_at");
+                entity.Header[0x41] = Raylib.GetShaderLocation(shader, "time");
+                entity.Header[0x42] = Raylib.GetShaderLocation(shader, "position");
+                entity.Header[0x43] = Raylib.GetShaderLocation(shader, "resolution");
+                entity.Header[0x44] = Raylib.GetShaderLocation(shader, "output_resolution");
+            }
+            else
+            {
+                entity.Header[0x40] = bulletRenderInfo.LocFXCreatedAt;
+                entity.Header[0x41] = bulletRenderInfo.LocFXTime;
+                entity.Header[0x42] = bulletRenderInfo.LocFXPosition;
+                entity.Header[0x43] = bulletRenderInfo.LocFXResolution;
+                entity.Header[0x44] = bulletRenderInfo.LocFXOutputResolution;
+            }
+            entity.TexturePosition = spPos;
+            entity.TextureSize = bulletRenderInfo.SourceSize;
+            entity.TotalTextureSize = Helper.GetSize(entity.Texture);
         }
+
         return entity;
     }
 
@@ -156,6 +189,12 @@ public class RuntimeObject
         set => Header[0x17] = value;
     }
 
+    public Vector2 Position
+    {
+        get => new(FloatingPoints[0x10],  FloatingPoints[0x11]);
+    }
+
+
     void UpdateSourceRectangle()
     {
         Source = new Rectangle(Header[3], Header[4], Header[1], Header[2]);
@@ -171,7 +210,7 @@ public class RuntimeObject
 
     void UpdateOrigin()
     {
-        Origin = new Vector2(RenderScaleX * Header[1] / 2,  RenderScaleY * Header[2] / 2);
+        //Origin = new Vector2(RenderScaleX * Header[1] / 2,  RenderScaleY * Header[2] / 2);
     }
 
     public void Update()

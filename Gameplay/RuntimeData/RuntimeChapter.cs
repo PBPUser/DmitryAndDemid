@@ -18,8 +18,8 @@ public class RuntimeChapter
     public readonly bool UseUpdateScript;
     public readonly bool UseCreateScript;
     public readonly ChapterType Type;
-    public readonly string CreateScript;
-    public readonly string UpdateScript;
+    public readonly RuntimeChapterReferenceAction? CreateScript;
+    public readonly RuntimeChapterReferenceAction? UpdateScript;
     public readonly int Length;
     public readonly int TickStart;
     public readonly int LengthOffset = 0;
@@ -29,9 +29,12 @@ public class RuntimeChapter
     public readonly RenderTexture2D? BossTitleTexture;
     public readonly RenderTexture2D? ChapterTitleTexture;
     public readonly Texture2D? SpellcardTexture;
+    public readonly GameBox GameBox;
+    public int[] Header = new int[128];
 
-    public RuntimeChapter(FileChapterInfo chapterInfo, int tickStart)
+    public RuntimeChapter(FileChapterInfo chapterInfo, int tickStart, GameBox box)
     {
+        GameBox = box;
         TickStart = tickStart;
         Length = chapterInfo.Header[2];
         TimeoutCard = chapterInfo.TimeoutCard;
@@ -56,10 +59,10 @@ public class RuntimeChapter
             ChapterTitleTexture = Raylib.LoadRenderTexture((int)size.X, (int)size.Y);
             Helper.DrawChapterTitleText(ChapterTitleTexture.Value, chapterInfo.SpellcardTitle);
         }
-        if(UseCreateScript)
-            CreateScript = chapterInfo.CreateScript;
-        if(UseUpdateScript)
-            UpdateScript = chapterInfo.UpdateScript;
+        if(UseCreateScript && ActionsScope.ChapterActions.ContainsKey(chapterInfo.CreateScript))
+            CreateScript = ActionsScope.ChapterActions[chapterInfo.CreateScript];
+        if(UseUpdateScript && ActionsScope.ChapterActions.ContainsKey(chapterInfo.UpdateScript))
+            UpdateScript = ActionsScope.ChapterActions[chapterInfo.UpdateScript];
         ApplyShader = chapterInfo.ApplyShader;
         if (ApplyShader)
         {

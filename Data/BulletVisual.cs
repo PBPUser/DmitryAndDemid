@@ -9,7 +9,7 @@ namespace DmitryAndDemid.Data;
 
 public class BulletVisual
 {
-    public static Dictionary<string, BulletVisual> Constants = new Dictionary<string, BulletVisual>();
+//public static Dictionary<string, BulletVisual> Constants = new Dictionary<string, BulletVisual>();
     public static RenderTexture2D Rectangle384x448;
     
     public bool LastShaderInvalid = false;
@@ -20,7 +20,19 @@ public class BulletVisual
     [JsonInclude] public Vector2 RenderSize;
     [JsonInclude] public Vector2 SourcePosition = new Vector2(0, 0);
     [JsonInclude] public Vector2? SourceSize = null;
-    [JsonInclude] public string Effect = "";
+
+    [JsonInclude]
+    public string Effect
+    {
+        get => _effect;
+        set
+        {
+            _effect = value;
+            
+        }
+    }
+
+    private string _effect;
     
     [JsonIgnore] public string ShaderText = "";
     [JsonIgnore] public int CurrentX = 0;
@@ -34,8 +46,8 @@ public class BulletVisual
     static BulletVisual()
     {
         Rectangle384x448 = LoadRenderTexture(384, 448);
-        foreach (var file in Directory.GetFiles("Assets/Data/BulletVisuals", "*.json"))
-            Constants[Path.GetFileNameWithoutExtension(file)] = JsonSerializer.Deserialize<BulletVisual>(File.ReadAllText(file), new JsonSerializerOptions {IncludeFields= true});
+        //foreach (var file in Directory.GetFiles("Assets/Data/BulletVisuals", "*.json"))
+            //Constants[Path.GetFileNameWithoutExtension(file)] = JsonSerializer.Deserialize<BulletVisual>(File.ReadAllText(file), new JsonSerializerOptions {IncludeFields= true});
     }
 
     public BulletVisual()

@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using static Raylib_cs.Raylib;
 using static DmitryAndDemid.Configuration;
 using Gtk;
@@ -45,6 +46,7 @@ public class Runtime
     public Dictionary<string, Texture2D> Textures = new();
     public Dictionary<string, Sound> Sounds = new();
     public Dictionary<string, Font> Fonts = new();
+    public Dictionary<string, BulletRenderingInfo> BulletVisualPresets = new();
     public int GamepadCount = 0;
 
     public async Task Start()
@@ -80,9 +82,9 @@ public class Runtime
         SFXVolume = Config.SFXVolume;
         MusicVolume = Config.MusicVolume;
         FullScreenRect = new(0, 0, Width, Height);
-        Scale = ((double)width) / 640d;
+        Scale = width / 640d;
         ScaleF = (float)Scale;
-        InitWindow(width, height, "AAG2: UcTopu9I o6 DmuTpuu u3 Dporu4uHa & DeMuDa CepreeBu4a");
+        InitWindow(width, height, "AAG2 ~ UcTopu9I o6 DmuTpuu u3 Dporu4uHa & DeMuDa CepreeBu4a");
         rlImGui.Setup(true);
         SetTargetFPS(Config.FrameCap);
         if (Config.UseVSYNC)
@@ -92,7 +94,6 @@ public class Runtime
         double c = 0;
         ScreenLoading = new LoadingScreen();
         AddScreen(ScreenLoading);
-        BulletVisual.FillRCPrerender();
         await Load();
         while (!WindowShouldClose() || DisableClose)
         {
@@ -101,7 +102,7 @@ public class Runtime
             Render();
             Time = c;
         }
-        Raylib.CloseWindow();
+        CloseWindow();
     }
 
     LoadingScreen ScreenLoading;
@@ -128,8 +129,8 @@ public class Runtime
         LoadShaders();
         LoadFonts();
         LoadTextures();
+        LoadBullets();
         Helper.LoadShaderAttribs();
-        var thread = Thread.CurrentThread;
         LoadAudio();
         #if DEBUG
         Task.Delay(500).ContinueWith(_ =>
@@ -173,9 +174,20 @@ public class Runtime
         Textures["MenuBackground"] = Helper.FillTextureWithColor(Color.Black with { A = 128 }, Width, Height).Texture;
         Textures["Copyright"] = Helper.DrawTextScaled(")(U,2026 Konu9lnpaBa Caxap Ko.", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
         Textures["Version"] = Helper.DrawTextScaled($"Beer {VersionString} (npo6Ha9l Bepcu9I)", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
+        Textures["384x448"] = Helper.FillTextureWithColor(Color.White, 384, 448).Texture;
         Textures = Textures.OrderBy(x => x.Key).ToDictionary();
     }
 
+    void LoadBullets()
+    {
+        var jso = new JsonSerializerOptions()
+        {
+            IncludeFields = true
+        };
+        foreach (var x in Directory.GetFiles("Assets/Data/BulletVisuals"))
+            BulletVisualPresets[Path.GetFileNameWithoutExtension(x)] =
+                JsonSerializer.Deserialize<BulletRenderingInfo>(File.ReadAllText(x), jso);
+    }
 
     void LoadShaders()
     {

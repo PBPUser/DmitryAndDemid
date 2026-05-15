@@ -42,6 +42,10 @@ public class MusicRoomScreen : MenuScreen
         for (int i = 0; i < files.Length; i++)
         {
             Infos[i] = JsonSerializer.Deserialize<MusicInfo>(File.ReadAllText(files[i]));
+        }
+        Infos = Infos.OrderBy(x => x.Number).ToArray();
+        for (int i = 0; i < Infos.Length; i++)
+        {
             Descriptions[i] = Helper.DrawText(Helper.Transliterate(Infos[i].Description), FontSize, 4, 2, 2, font, "gradient", Runtime.CurrentRuntime.ScaleF);
             MenuItems.Add(new MenuItem(Infos[i].Title, "", a => PlayMusic()));
         }

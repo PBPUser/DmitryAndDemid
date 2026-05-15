@@ -38,17 +38,17 @@ public class DrogichinBackground : StageBackground
     private static Rectangle Source;
     private Rectangle Dest;
 
-    DrogichinPoint Get(int tick)
+    DrogichinPoint Get(int tick, float delta)
     {
         var p1 = Points.Where(x => x.Tick <= (tick%LastTick)).Last();
         var p2 = Points[(Points.IndexOf(p1) + 1 % Points.Length)];
         
-        return DrogichinPoint.GetPointBetween(p1, p2, tick%LastTick);
+        return DrogichinPoint.GetPointBetween(p1, p2, tick%LastTick, delta);
     }
     
-    protected override void Render(RenderTexture2D texture, int tick)
+    protected override void Render(RenderTexture2D texture, int tick, float delta)
     {
-        var point = Get(tick);
+        var point = Get(tick, delta);
         //DrawTexture(Runtime.CurrentRuntime.Textures["drogichinmap.png"], 0, 0, Color.White);
         DrawTexturePro(
             Runtime.CurrentRuntime.Textures["drogichinmap.png"],
@@ -70,9 +70,9 @@ public class DrogichinBackground : StageBackground
             Rotation = rotation;
         }
 
-        public static DrogichinPoint GetPointBetween(DrogichinPoint a, DrogichinPoint b, int tick)
+        public static DrogichinPoint GetPointBetween(DrogichinPoint a, DrogichinPoint b, int tick, float delta)
         {
-            float s = ((float)tick - a.Tick) / (float)(b.Tick - a.Tick);
+            float s = ((float)tick - a.Tick) / (float)(b.Tick - a.Tick) + delta;
             int X = (int)(s * (b.X - a.X) + a.X);
             int Y = (int)(s * (b.Y - a.Y) + a.Y);
             float rotation = s * (b.Rotation - a.Rotation) + a.Rotation;

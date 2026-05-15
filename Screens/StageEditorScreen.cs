@@ -18,9 +18,7 @@ namespace DmitryAndDemid.Screens;
 public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
 {
     private string[] Difficulties = ["Easy", "Normal", "Hard", "Max", "Extra"];
-    //private GameBox GameBox = new GameBox();
     private FileStageInfo Info = info;
-    //private EditableChapterInfo EditableChapterInfo = editableChapterInfo;
     private int TabItem = 0;
     private string FileName = fileName;
     private static string[] ChapterTypes = typeof(ChapterType).GetEnumNames();
@@ -47,7 +45,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
 
     private string[] Visuals => 
         Info.Entities[SelectedObjectIndex].IsBullet ?
-        BulletVisual.Constants.Keys.ToArray() :
+        Runtime.CurrentRuntime.BulletVisualPresets.Keys.ToArray() :
         EntityVisual.Visuals.Keys.ToArray();
     void Save()
     {
@@ -316,11 +314,11 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                     InputText("Chapter Id", ref Info.Chapters[SelectedObjectIndex].Id, 255);
                     Checkbox("Use create Script", ref Info.Chapters[SelectedObjectIndex].UseCreateScript);
                     if(Info.Chapters[SelectedObjectIndex].UseCreateScript)
-                        if(Combo("Script Create", ref SelectedCreateScriptIndex, Scripts, Info.Scripts.Length))
+                        if(Combo("Script Create", ref SelectedCreateScriptIndex, Scripts, Scripts.Length))
                             Info.Chapters[SelectedObjectIndex].CreateScript = Scripts[SelectedCreateScriptIndex];
                     Checkbox("Use update Script", ref Info.Chapters[SelectedObjectIndex].UseUpdateScript);
                     if (Info.Chapters[SelectedObjectIndex].UseUpdateScript)
-                        if (Combo("Script Update", ref SelectedUpdateScriptIndex, Scripts, Info.Scripts.Length))
+                        if (Combo("Script Update", ref SelectedUpdateScriptIndex, Scripts, Scripts.Length))
                             Info.Chapters[SelectedObjectIndex].UpdateScript = Scripts[SelectedUpdateScriptIndex];
                     SliderInt("Length", ref Info.Chapters[SelectedObjectIndex].Header[2], 0, 2000);
                     Combo("Difficulty", ref Info.Chapters[SelectedObjectIndex].Header[3], Difficulties, Difficulties.Length);

@@ -13,7 +13,7 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
     {
         BulletFileInfo.Header[0] = 0b_0000_0001;
         BulletFileInfo.Header[0] |= RuntimeObject.FlagUseUpdateScript;
-        BulletFileInfo.FloatingPoints[7] = 2f;
+        BulletFileInfo.FloatingPoints[7] = 8f;
         BulletFileInfo.Visual = "akob";
         BulletFileInfo.UpdateScript = "AkobShoot";
     }
@@ -42,7 +42,7 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
 
     void UpdateBulletSourcePositions(float time)
     {
-        float dif = Player.DefocusedDifference + (Player.FocusedDifference - Player.DefocusedDifference) * (float)Helper.ComputeObjectTime(Raylib.GetTime(), FocusTimestamp, Player.FocusAnimationChangingLength,
+        float dif = Player.DefocusedDifference + (Player.FocusedDifference - Player.DefocusedDifference) * Helper.ComputeObjectTime(time, FocusTimestamp, Player.FocusAnimationChangingLength,
             DefocusTimestamp + Player.FocusAnimationChangingLength, Player.FocusAnimationChangingLength);
         float angleStart = time * 2;
         float angleDif = MathF.PI * 2 / BulletSourcePositionsCount;
@@ -52,9 +52,9 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
 
     public override void DrawBottomLayer()
     {
-        float time = (float)Raylib.GetTime();
+        float time = Player.GameBox.CurrentTick;
         byte transparency = Helper.TimeToTransparency(.5 *
-                                                      Helper.ComputeObjectTime(time, FocusTimestamp, Player.FocusAnimationChangingLength,
+                                                      Helper.ComputeObjectTime(Player.GameBox.CurrentTick, FocusTimestamp, Player.FocusAnimationChangingLength,
                                                           DefocusTimestamp + Player.FocusAnimationChangingLength, Player.FocusAnimationChangingLength));
         Raylib.DrawTexturePro(player.SourceTexture, PlayerBottomLayerSource, new Rectangle(new Vector2(Player.X, Player.Y), new Vector2(64)), 
             new Vector2(32), time*64, Color.White with {A=transparency} );
@@ -68,26 +68,27 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
             Raylib.DrawTexturePro(player.SourceTexture, AkobRectangleSource, new Rectangle(BulletSourcePositions[i],new Vector2(16)), new Vector2(8)
                 , 0, Color.White);
         byte transparency = Helper.TimeToTransparency(
-            Helper.ComputeObjectTime(Raylib.GetTime(), FocusTimestamp, Player.FocusAnimationChangingLength,
+            Helper.ComputeObjectTime(Player.GameBox.CurrentTick, FocusTimestamp, Player.FocusAnimationChangingLength,
                 DefocusTimestamp + Player.FocusAnimationChangingLength, Player.FocusAnimationChangingLength));
         Raylib.DrawTexturePro(player.SourceTexture, PlayerTopLayerSource, new Rectangle(new Vector2(Player.X, Player.Y), new Vector2(64)), 
             new Vector2(32), 0, Color.White with {A=transparency} );
     }
+
+    private int NextBulletPositionIndex = 0;
     
     public override void Shoot()
     {
-        if (Player.GameBox.CurrentTick % 20 != 0)
+        if (Player.GameBox.CurrentTick % (20/BulletSourcePositionsCount) != 0)
             return;
         float totalDamage = Player.Power / 100f;
         float singleDamage = totalDamage / BulletSourcePositionsCount;
-        for (int i = 0; i < BulletSourcePositionsCount; i++)
-        {
-            RuntimeObject reo = RuntimeObject.LoadFromFile(BulletFileInfo, Player.GameBox);
-            reo.CreatedAt = Player.GameBox.CurrentTick;
-            reo.X = BulletSourcePositions[i].X;
-            reo.Y = BulletSourcePositions[i].Y;
-            Player.GameBox.AddObject(reo);
+        
+        RuntimeObject reo = RuntimeObject.LoadFromFile(BulletFileInfo, Player.GameBox);
+        reo.CreatedAt = Player.GameBox.CurrentTick;
+        reo.X = BulletSourcePositions[NextBulletPositionIndex].X;
+        reo.Y = BulletSourcePositions[NextBulletPositionIndex].Y;
+        Player.GameBox.AddObject(reo);
+        NextBulletPositionIndex = (NextBulletPositionIndex + 1) % BulletSourcePositionsCount;
             //TODO Play shoot sound 
-        }
     }
 }
