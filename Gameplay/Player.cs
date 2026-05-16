@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Reflection;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
+using DmitryAndDemid.Utils;
 using Raylib_cs;
 
 namespace DmitryAndDemid.Gameplay;
@@ -252,9 +253,12 @@ public class Player
         }
         Power -= 50;
         HeartPoints -= 1;
-        //Game.SetDied();
+        GameBox.AddScreenEffect(new GameplayScreenEffect(
+                GameBox, new Vector2(GameBox.Player.X, GameBox.Player.Y), 0, "die", GameBox.GetTime(), GameBox.GetTime() + 1.5f
+            ));
         CollisionEnabled = false;
         //RestoreTick = Game.CurrentTick + RestoreInvincibilityLength;
+        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["dead"]);
         Weapon.DefocusTimestamp = GameBox.CurrentTick;
     }
 
@@ -265,6 +269,5 @@ public class Player
             SourceTexture, SourceRect, new Rectangle(X-16, Y-16,32,32), 
             Vector2.Zero, 0, Color.White
             );
-        Weapon.DrawTopLayer();
     }
 }

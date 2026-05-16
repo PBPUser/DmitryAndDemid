@@ -352,6 +352,13 @@ public static class Helper
         return timeAppear * timeDisappear;
     }
 
+    public static float ComputeObjectTime(int time, int start, int appearLength, int end, int disappearLength)
+    {
+        float timeAppear = Clamp((time - start) / (float)appearLength, 0, 1);
+        float timeDisappear = Clamp((end - time) / (float)disappearLength, 0, 1);
+        return timeAppear * timeDisappear;
+    }
+
     public static float ComputeObjectTime0To2(float time, float start, float appearLength, float end,
         float disappearLength)
     {

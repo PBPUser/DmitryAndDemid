@@ -42,8 +42,8 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
 
     void UpdateBulletSourcePositions(float time)
     {
-        float dif = Player.DefocusedDifference + (Player.FocusedDifference - Player.DefocusedDifference) * Helper.ComputeObjectTime(time, FocusTimestamp, Player.FocusAnimationChangingLength,
-            DefocusTimestamp + Player.FocusAnimationChangingLength, Player.FocusAnimationChangingLength);
+        float dif = Player.DefocusedDifference + (Player.FocusedDifference - Player.DefocusedDifference) * Helper.ComputeObjectTime(time, FocusTimestamp / 60f, Player.FocusAnimationChangingLength/60f,
+            (DefocusTimestamp + Player.FocusAnimationChangingLength)/60f, Player.FocusAnimationChangingLength/60f);
         float angleStart = time * 2;
         float angleDif = MathF.PI * 2 / BulletSourcePositionsCount;
         for (int i = 0; i < BulletSourcePositionsCount; i++)
@@ -67,9 +67,10 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         for(int i = 0; i < BulletSourcePositionsCount; i++)
             Raylib.DrawTexturePro(player.SourceTexture, AkobRectangleSource, new Rectangle(BulletSourcePositions[i],new Vector2(16)), new Vector2(8)
                 , 0, Color.White);
-        byte transparency = Helper.TimeToTransparency(
-            Helper.ComputeObjectTime(Player.GameBox.CurrentTick, FocusTimestamp, Player.FocusAnimationChangingLength,
-                DefocusTimestamp + Player.FocusAnimationChangingLength, Player.FocusAnimationChangingLength));
+        var objTime = Helper.ComputeObjectTime(Player.GameBox.CurrentTick, FocusTimestamp,
+            Player.FocusAnimationChangingLength,
+            DefocusTimestamp + Player.FocusAnimationChangingLength, Player.FocusAnimationChangingLength);
+        byte transparency = Helper.TimeToTransparency(objTime);
         Raylib.DrawTexturePro(player.SourceTexture, PlayerTopLayerSource, new Rectangle(new Vector2(Player.X, Player.Y), new Vector2(64)), 
             new Vector2(32), 0, Color.White with {A=transparency} );
     }
@@ -87,6 +88,7 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         reo.CreatedAt = Player.GameBox.CurrentTick;
         reo.X = BulletSourcePositions[NextBulletPositionIndex].X;
         reo.Y = BulletSourcePositions[NextBulletPositionIndex].Y;
+        reo.FloatingPoints[9] = singleDamage;
         Player.GameBox.AddObject(reo);
         NextBulletPositionIndex = (NextBulletPositionIndex + 1) % BulletSourcePositionsCount;
             //TODO Play shoot sound 

@@ -23,13 +23,13 @@ public static class ActionsScope
         };
         dictionary["nikitos#spell1#easy"] = c =>
         {
-            if ((c.GameBox.CurrentTick - c.TickStart) % 6 == 0)
+            if ((c.GameBox.CurrentTick - c.TickStart) % 3 == 0)
             {
                 c.Header[0]++;
                 var rain = c.GameBox.SpawnObject(0);
-                rain.X = 72+48*(c.Header[0] % 5);
+                rain.X = 36+56*(c.Header[0] % 5);
                 rain.Y = -16;
-                rain.Speed = 2f;
+                rain.Speed = .25f;
                 rain.FacingRotation = rain.RenderRotation = (c.Header[0] % 5 - 3) * -10;
             }
         };
@@ -50,8 +50,8 @@ public static class ActionsScope
         dictionary["RainShoot"] = obj =>
         {
             var dir = Helper.GetDirection2(obj.FloatingPoints[6]);
-            obj.FloatingPoints[0x7] *= 65f / 60f;
-            obj.FloatingPoints[0x6] *= 59f / 60f;
+            obj.FloatingPoints[0x7] *= 61f / 60f;
+            obj.FloatingPoints[0x6] *= 45f / 60f;
             obj.FloatingPoints[0x5] = obj.FloatingPoints[0x6];
             obj.X += dir.X * obj.Speed;
             obj.Y += dir.Y * obj.Speed;

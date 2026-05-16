@@ -4,6 +4,7 @@ using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Gameplay;
+using DmitryAndDemid.Gameplay.Effects;
 using DmitryAndDemid.Gameplay.RuntimeData;
 using DmitryAndDemid.Screens;
 using DmitryAndDemid.Utils;
@@ -19,11 +20,13 @@ public class GameBox : IDisposable
     public string ProtogonistId;
     public int Difficulty;
     public Player Player;
+    private GameplayScreen GameplayScreen;
     bool Practice;
     private bool SpellPractice;
     
     public GameBox(GameplayScreen screen, ProtogonistData data, FileStageInfo stage, int chapter, int difficulty, bool practice)
     {
+        GameplayScreen = screen;
         Practice = practice;
         Player = new Player(this, data, new PlayerController());
         ProtogonistId = data.ID;
@@ -36,6 +39,14 @@ public class GameBox : IDisposable
             (int)(Runtime.CurrentRuntime.ScaleF * 448f)
         );
         LoadStage(stage, chapter, difficulty);
+        AddScreenEffect(new GameplayScreenEffect(this, new Vector2(192, 192), 4, "boss_background_distortion", 0, float.MaxValue)
+        {
+            Layer = GameplayScreenEffect.EffectLayer.BackgroundOnly,
+            TimeAppear = GetTime(),
+            TimeDisappear = GetTime()+50,
+            StepLength = 1,
+            UseSteps =  true
+        });
     }
 
     public const float TargetTPS = 60;
@@ -76,6 +87,8 @@ public class GameBox : IDisposable
     
     void BoxUpdate()
     {
+        if (IsPaused)
+            return;
         if (CurrentTick >= CurrentTickCompute)
             return;
         CurrentTick++;
@@ -97,7 +110,7 @@ public class GameBox : IDisposable
         if (RequiresRefresh)
         {
             ScreenEffects.AddRange(ScreenEffectsToAdd);
-            ScreenEffectsToRemove.RemoveAll(x => ScreenEffectsToRemove.Contains(x));
+            ScreenEffects.RemoveAll(x => ScreenEffectsToRemove.Contains(x));
             BoxObjects.AddRange(ObjectsAddQueue);
             BoxObjects.RemoveAll(x => ObjectsRemoveQueue.Contains(x));
             ObjectsAddQueue.Clear();
@@ -106,7 +119,10 @@ public class GameBox : IDisposable
             ScreenEffectsToRemove.Clear();
             RequiresRefresh = false;
         }
-
+        
+        if(IsKeyDown(KeyboardKey.F))
+            if(!ScreenEffects.Any(x => x is BossDeathScreenEffect))
+                ScreenEffects.Add(new BossDeathScreenEffect(this, new Vector2(Player.X, Player.Y), 40, GetTime(), GetTime()+4));
         float x, y, z, r;
         
         foreach(var  obj in BoxObjects)
@@ -174,7 +190,11 @@ public class GameBox : IDisposable
                 var distance = Raymath.Vector2Distance(new(Player.X, Player.Y), obj.Position);
                 var collision = Player.CollisionRadius + obj.CollisionScale * obj.FloatingPoints[0x13];
                 if (distance < collision / 2)
+                {
                     Player.Die();
+                    RemoveObject(obj);
+                    continue;
+                }
                 if ((bitMask & RuntimeObject.FlagIsBullet) != RuntimeObject.FlagIsBullet)
                     continue;
                 if ((bitMask & RuntimeObject.FlagIsGrazed) != RuntimeObject.FlagIsGrazed)
@@ -210,6 +230,14 @@ public class GameBox : IDisposable
     {
         ScreenEffectsToRemove.Add(effect);
         RequiresRefresh = true;
+    }
+
+    public RuntimeObject SpawnObject(int i)
+    {
+        var x = RuntimeObject.LoadFromFile(StageInfo.Entities[i], this);
+        x.Header[0x17] = CurrentTick;
+        AddObject(x);
+        return x;
     }
 
     public void ClearAll(bool drop)
@@ -305,6 +333,7 @@ public class GameBox : IDisposable
         EndTextureMode();
         BeginTextureMode(Box);
         ClearBackground(Transparent);
+        Player.Draw();
         foreach (var obj in BoxObjects)
         {
             #if DEBUG
@@ -329,7 +358,7 @@ public class GameBox : IDisposable
             );
             EndShaderMode();
         }
-        Player.Draw();
+        Player.Weapon.DrawTopLayer();
         EndTextureMode();
         BeginTextureMode(UIAboveGameplay);
         float appearTimer = (float)Helper.ComputeObjectTime(time,TimerAppear, .5f, TimerDisappear, .5);
@@ -387,7 +416,7 @@ public class GameBox : IDisposable
         if (IsGameOver)
             return GameoverTimestamp;
         if (IsPaused)
-            return PauseTimestamp;
+            return (float)(PauseTimestamp - CountTimeFrom);
         return (float)(Raylib.GetTime() - PauseTimestamp);
     }
 
@@ -405,6 +434,7 @@ public class GameBox : IDisposable
             if (value == isPaused)
                 return;
             isPaused = value;
+            GameplayScreen.Paused = value;
             if(value)
                 PauseTimestamp = (float)Raylib.GetTime();
             else
@@ -423,6 +453,7 @@ public class GameBox : IDisposable
             if (value)
             {
                 IsPaused = true;
+                
                 GameoverTimestamp = GetTime();
             }
             else if(Continue < 5)
@@ -444,12 +475,8 @@ public class GameBox : IDisposable
         UnloadRenderTexture(Box);
         UnloadRenderTexture(UIAboveGameplay);
     }
-
-    public RuntimeObject SpawnObject(int i)
-    {
-        var x = RuntimeObject.LoadFromFile(StageInfo.Entities[i], this);
-        x.Header[0x17] = CurrentTick;
-        AddObject(x);
-        return x;
-    }
+    
+#if DEBUG
+    public List<string> DebugStrings = new();
+#endif
 }

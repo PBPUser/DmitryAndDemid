@@ -1,6 +1,9 @@
+using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Utils;
+using ImGuiNET;
+using Raylib_cs;
 using static Raylib_cs.Raylib;
 
 namespace DmitryAndDemid.Screens;
@@ -57,7 +60,43 @@ public class PauseMenu : MenuScreen
     public override void Render()
     {
         float time = (float)GetTime();
-        CurrentX = (int)((160f - 64f * Helper.ComputeObjectTime(time, TimeAppear, 0.25, TimeDisappear + 0.25, 0.25)) * Runtime.CurrentRuntime.ScaleF);
+        var z = (float)Helper.ComputeObjectTime(time, TimeAppear, 0.25, TimeDisappear, 0.25);
+        var textureFork = Runtime.CurrentRuntime.Textures["vilkaCut.png"];
+        var texturePause = Runtime.CurrentRuntime.Textures["pause.png"];
+        var forkPosition = new Vector2(100, 320) * Runtime.CurrentRuntime.ScaleF;
+        var pausePosition = new Vector2(130, 220) * Runtime.CurrentRuntime.ScaleF;
+        var forkPositionHidden = new Vector2(-100, 320) * Runtime.CurrentRuntime.ScaleF;
+        var pausePositionHidden = new Vector2(-100, 160) * Runtime.CurrentRuntime.ScaleF;
+        var forkSize = Helper.GetSize(textureFork);
+        var pauseSize = Helper.GetSize(texturePause);
+        var forkSizeTarget = forkSize / 4 * Runtime.CurrentRuntime.ScaleF;
+        var pauseSizeTarget = pauseSize / 4 * Runtime.CurrentRuntime.ScaleF;
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["fork_tint"], GetShaderLocation(Runtime.CurrentRuntime.Shaders["fork_tint"], "color"), new Vector3(0,1,.2f), ShaderUniformDataType.Vec3);
+        BeginShaderMode(Runtime.CurrentRuntime.Shaders["fork_tint"]);
+        DrawTexturePro(textureFork,
+            new Rectangle(0, 0, forkSize),
+            new Rectangle(forkPosition * z + forkPositionHidden*(1-z), forkSizeTarget),
+            forkSizeTarget / 2, MathF.Sin(time * 3) * 6, Color.White);
+        EndShaderMode();
+        DrawTexturePro(texturePause,
+            new Rectangle(0, 0, pauseSize),
+            new Rectangle(pausePosition * MathF.Pow(z,2) + pausePositionHidden*(1-MathF.Pow(z,2)), pauseSizeTarget),
+            pauseSizeTarget / 2, 0, Color.White);
+        CurrentX = (int)((160f - 64f * z) * Runtime.CurrentRuntime.ScaleF);
+        
         DrawMenu();
     }
+    
+#if DEBUG
+    public override void DrawImgui()
+    {
+        ImGui.Begin("Debug Strings");
+        foreach (var s in GameplayScreen.GameBox.DebugStrings)
+        {
+            ImGui.Text(s);
+        }
+        ImGui.End();
+        GameplayScreen.GameBox.DebugStrings.Clear();
+    }
+#endif
 }

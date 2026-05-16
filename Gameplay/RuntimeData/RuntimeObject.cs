@@ -69,6 +69,7 @@ public class RuntimeObject
             entity.Origin = entity.Source.Size / 2;
             entity.Header[0] |= FlagApplyShader;
             entity.Shader = shader;
+            entity.FloatingPoints[0x13] = bulletRenderInfo.Collision;
             if (bulletRenderInfo.Effect == "")
             {
                 entity.Header[0x40] = Raylib.GetShaderLocation(shader, "created_at");

@@ -7,6 +7,7 @@ using System.Numerics;
 using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Utils;
 using ImGuiNET;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DmitryAndDemid.Screens;
 
@@ -42,12 +43,20 @@ public class GameplayScreen : Screen
             0).X+(int)(2 * Runtime.CurrentRuntime.ScaleF));
         GameEffectsTextures[0] = LoadRenderTexture(384, 448);
         GameEffectsTextures[1] = LoadRenderTexture(384, 448);
+        GameEffectsTextures[2] = LoadRenderTexture(384, 448);
+        GameEffectsTextures[3] = LoadRenderTexture(384, 448);
         GameBox = new GameBox(this, data, stage, chapter, difficulty, practice);
+
+        PauseEffect = new GameplayScreenEffect(GameBox, new Vector2(), int.MaxValue, "pause", float.MaxValue, float.MaxValue)
+        {
+            UseSteps = true,
+            StepLength = .25f,
+            UseRealTime = true
+        };
     }
 
     public int LetterWidth = 0;
     public PauseMenu PauseMenu;
-
     
     Rectangle Source;
     Rectangle Dest;
@@ -62,8 +71,10 @@ public class GameplayScreen : Screen
     private Rectangle DifficultySource;
     private Rectangle DifficultyTargetStart;
     private Rectangle DifficultyTarget;
+
+    public GameplayScreenEffect PauseEffect;
     
-    RenderTexture2D[] GameEffectsTextures = new RenderTexture2D[2];
+    RenderTexture2D[] GameEffectsTextures = new RenderTexture2D[4];
     private int GameEffectTextureIndex = 1;
     
     //public Game? Game;
@@ -80,12 +91,21 @@ public class GameplayScreen : Screen
         {
             if (paused == value)
                 return;
-            GameBox.IsPaused = value;
             paused = value;
+            GameBox.IsPaused = value;
             if (value)
+            {
                 Runtime.CurrentRuntime.AddScreen(PauseMenu);
+                GameBox.ScreenEffects.Add(PauseEffect);
+                PauseEffect.TimeAppear = (float)Raylib.GetTime();
+                PauseEffect.TimeDisappear = float.MaxValue;
+            }
             else
+            {
                 Runtime.CurrentRuntime.RemoveScreen(PauseMenu);
+                GameBox.RemoveScreenEffect(PauseEffect);
+                PauseEffect.TimeDisappear = (float)(Raylib.GetTime()+1);
+            }
         }
     }
     
@@ -120,17 +140,40 @@ public class GameplayScreen : Screen
         if (time < -.5)
             return;
         GameBox.RenderBox();
-        DrawTexturePro(Runtime.CurrentRuntime.Textures["gameplay_background.png"], BGSource,Fullscreen, Vector2.Zero, 0, Color.White);
         BeginTextureMode(GameEffectsTextures[0]);
         DrawTexturePro(GameBox.Background.Texture,
+            Source, DestEffect,
+            Vector2.Zero, 0, Color.White);
+        EndTextureMode();
+        GameEffectTextureIndex = 0;
+        foreach (var gse in GameBox.ScreenEffects.Where(x => x.Layer == GameplayScreenEffect.EffectLayer.BackgroundOnly))
+        {
+            GameEffectTextureIndex = (GameEffectTextureIndex + 1) % 2;
+            BeginTextureMode(GameEffectsTextures[GameEffectTextureIndex]);
+            ClearBackground(Color.Black with {A = 0});
+            gse.ApplyShading(time);
+            DrawTexturePro(GameEffectsTextures[(GameEffectTextureIndex+1) % 2].Texture,
+                Source, DestEffect, Vector2.Zero, 0, Color.White);
+            EndShaderMode();
+            EndTextureMode();
+        }
+        BeginTextureMode(GameEffectsTextures[2]);
+        ClearBackground(Color.Black with {A = 0});
+        DrawTexturePro(GameEffectsTextures[GameEffectTextureIndex].Texture,
+            Source, DestEffect, Vector2.Zero, 0, Color.White);
+        EndTextureMode();
+        GameEffectTextureIndex = 0;
+        DrawTexturePro(Runtime.CurrentRuntime.Textures["gameplay_background.png"], BGSource,Fullscreen, Vector2.Zero, 0, Color.White);
+        BeginTextureMode(GameEffectsTextures[0]);
+        ClearBackground(Color.Black with {A = 0});
+        DrawTexturePro(GameEffectsTextures[2].Texture,
             Source, DestEffect,
             Vector2.Zero, 0, Color.White);
         DrawTexturePro(GameBox.Box.Texture,
             Source, DestEffect,
             Vector2.Zero, 0, Color.White);
         EndTextureMode();
-        GameEffectTextureIndex = 0;
-        foreach (GameplayScreenEffect gse in GameBox.ScreenEffects)
+        foreach (GameplayScreenEffect gse in GameBox.ScreenEffects.Where(x => x.Layer == GameplayScreenEffect.EffectLayer.BackgroundAndGameplay))
         {
             GameEffectTextureIndex = (GameEffectTextureIndex + 1) % 2;
             BeginTextureMode(GameEffectsTextures[GameEffectTextureIndex]);
@@ -180,6 +223,8 @@ public class GameplayScreen : Screen
         Runtime.CurrentRuntime.SetScreenRenderingFrom(0);
         UnloadRenderTexture(GameEffectsTextures[0]);
         UnloadRenderTexture(GameEffectsTextures[1]);
+        UnloadRenderTexture(GameEffectsTextures[2]);
+        UnloadRenderTexture(GameEffectsTextures[3]);
         GameBox.Dispose();
     }
     
@@ -190,6 +235,8 @@ public class GameplayScreen : Screen
         ImGui.Text("Tick: "+GameBox.CurrentTick);
         ImGui.Text("Time: "+GameBox.GetTime());
         ImGui.Text("TPS: "+GameBox.CurrentTick / GameBox.GetTime());
+        ImGui.Text("Paused: "+GameBox.IsPaused);
+        ImGui.Text("Game Over: "+GameBox.IsGameOver);
         ImGui.End();
         if (GameBox.StageInfo != null)
         {
@@ -215,6 +262,13 @@ public class GameplayScreen : Screen
             ImGui.Text($"{obj.CreatedAt}, {obj.TargetRectangle}");
         }
         ImGui.End();
+        ImGui.Begin("Debug Strings");
+        foreach (var debugString in GameBox.DebugStrings)
+        {
+            ImGui.Text(debugString);
+        }
+        ImGui.End();
+        GameBox.DebugStrings.Clear();
         base.DrawImgui();
     }
 #endif

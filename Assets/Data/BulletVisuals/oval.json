@@ -4,5 +4,5 @@
   "RenderSize": { "X": 32, "Y": 64 },
   "SpritePosition": { "X": 0, "Y": 0 },
   "SourceSize": {"X": 32, "Y": 64 },
-  "Collision": 4
+  "Collision": 16
 }
