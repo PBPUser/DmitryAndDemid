@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics.X86;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Data.Archive;
@@ -90,7 +91,23 @@ public class RuntimeObject
             entity.TextureSize = bulletRenderInfo.SourceSize;
             entity.TotalTextureSize = Helper.GetSize(entity.Texture);
         }
-
+        else
+        {
+            EntityVisual visual = EntityVisual.Visuals[info.Visual];
+            if (!info.OverrideDeathColor)
+            {
+                entity.Header[0xB] = visual.DeathCircleColor;
+                entity.Header[0xC] = visual.DeathParticleGlowColor;
+            }
+            entity.Texture = Runtime.CurrentRuntime.Textures[visual.Texture];
+            entity.Source = new(
+                visual.SourcePosition,
+                visual.RenderSize
+            );
+            entity.Target.Size = entity.Source.Size;
+            entity.Origin = entity.Source.Size / 2;
+            entity.FloatingPoints[0x13] = visual.Collision;
+        }
         return entity;
     }
 
@@ -122,8 +139,8 @@ public class RuntimeObject
     
     public float FacingRotation
     {
-        get => BitConverter.ToSingle(BitConverter.GetBytes(Header[0x0E]), 0);
-        set => Header[0x0E] = BitConverter.ToInt32(BitConverter.GetBytes(value), 0);
+        get => FloatingPoints[0x6];
+        set => FloatingPoints[0x6] = value;
     }
     
     public float RenderScaleX
@@ -150,8 +167,8 @@ public class RuntimeObject
 
     public float CollisionScale
     {
-        get => BitConverter.ToSingle(BitConverter.GetBytes(Header[0x0B]), 0);
-        set => Header[0x0B] = BitConverter.ToInt32(BitConverter.GetBytes(value), 0);
+        get => FloatingPoints[2];
+        set => FloatingPoints[2] = value;
     }
 
     public byte Transparency

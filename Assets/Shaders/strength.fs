@@ -65,23 +65,20 @@ float angle(vec2 p1, vec2 p2){
 }
 
 vec4 circle(vec2 uv, float size){
-  float d = distance(uv * res, position) / size;
-  float p = smoothstep(1.4, 0., d);
-  float p2 = smoothstep(0., 1.4, d);
-  float p3 = smoothstep(1., 0.9, d);
-  float p4 = smoothstep(0.8, 0.9, d);
-  float a = angle(uv, position / res);
-  vec4 border = vec4(vec3(1), clamp(p4*p3,0.,1.)*(.25 * (abs(tan(a*16.*sin(a+sin(d*4.+time)))) * 0.25)) + 0.);
-  vec4 fColor = circleColor * p * p2;
-  return (border + fColor + circleColor * (pow(p, 5.))) * clamp(1.-time,0.,1.);
+  float xtime = 2.;
+  float d = distance(uv * res, position) / max(size, 0.);
+  float p3 = smoothstep(0.81, 0.8, d);
+  vec4 borderColor = circleColor * p3;
+  borderColor[3] *= .25;
+  return borderColor;
 }
 
-void main(){ 
+void main(){
   gl_FragColor = texture(texture0, fragTexCoord);
-  float rTime = time;
+  float rTime = 1. - time;
   vec2 ftc = vec2(fragTexCoord.x, 1-fragTexCoord.y);
   vec4 c1 = circle(ftc, rTime * 96);
-  gl_FragColor = mix(gl_FragColor, vec4(c1.rgb,1), c1[3]);
+  gl_FragColor = mix(gl_FragColor, c1, c1[3]);
   ivec2 tSize = textureSize(textureLeaves, 0);
   vec2 texel = vec2(1)/vec2(tSize.y,tSize.x);
   vec2 texel2 = vec2(1)/vec2(tSize);
@@ -91,7 +88,7 @@ void main(){
   float fAngle, tTime, fOpacity;
   vec2 pp = position / res;
   float overlayOpacity = 1 - (max(0, rTime-0.75) * 4);
-  for(float i = 0; i < 16; i++){
+  for(float i = 0; i < 64; i++){
     tTime = max(rTime - pseudoRandom(i-5.7) * 2,0);
     fOpacity = tTime * 10; 
     if(tTime > 0){

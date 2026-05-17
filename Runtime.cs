@@ -23,6 +23,7 @@ public class Runtime
 
     }
 
+    public static string BaseVertexShader = File.ReadAllText("Assets/Shaders/base.vs");
     public string VersionString = "0.01a";
     public double Time;
     public int Width;

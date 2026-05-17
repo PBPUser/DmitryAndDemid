@@ -20,10 +20,13 @@
     [0x100] Drop when cleared
     [0x200] Is boss
     [0x400] Use Die Script
+    [0x800] Override Visual Death Color
 }
 [0x4] Bad Drop Scenario
 [0x5] Good Drop Scenario
 [0x6] Added score when killed
+[0xB] Rounds Die Color
+[0xC] Particles Die Color
 # if boss
 [0x7] Boss Id
 [0x8] Boss Health Bar Percent

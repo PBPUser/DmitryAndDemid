@@ -259,7 +259,7 @@ public class GameplayScreen : Screen
         ImGui.Begin("Stage objects");
         foreach (var obj in GameBox.BoxObjects)
         {
-            ImGui.Text($"{obj.CreatedAt}, {obj.TargetRectangle}");
+            ImGui.Text($"{obj.CreatedAt}, {obj.FloatingPoints[0x13]}");
         }
         ImGui.End();
         ImGui.Begin("Debug Strings");

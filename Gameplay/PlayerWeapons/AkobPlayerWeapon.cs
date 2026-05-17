@@ -1,4 +1,5 @@
 using System.Numerics;
+using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Gameplay.RuntimeData;
@@ -13,6 +14,7 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
     {
         BulletFileInfo.Header[0] = 0b_0000_0001;
         BulletFileInfo.Header[0] |= RuntimeObject.FlagUseUpdateScript;
+        BulletFileInfo.Header[0] |= RuntimeObject.FlagDangerousRelatedToEnemy;
         BulletFileInfo.FloatingPoints[7] = 8f;
         BulletFileInfo.Visual = "akob";
         BulletFileInfo.UpdateScript = "AkobShoot";
@@ -92,5 +94,10 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         Player.GameBox.AddObject(reo);
         NextBulletPositionIndex = (NextBulletPositionIndex + 1) % BulletSourcePositionsCount;
             //TODO Play shoot sound 
+    }
+
+    public override void SpawnDistortionEffect(int x, int y)
+    {
+        Player.GameBox.AddScreenEffect(new GameplayScreenEffect(Player.GameBox, new Vector2(x,y), 45, "akob_bullet_distortion", Player.GameBox.GetTime(), Player.GameBox.GetTime()+0.25f));
     }
 }

@@ -2,5 +2,7 @@
   "Texture": "enemies.png",
   "RenderSize": { "X": 48, "Y": 48 },
   "SourcePosition": { "X": 80, "Y": 0 },
-  "Collision": {"X": 24, "Y": 24 }
+  "Collision": 24,
+  "DeathCircleColor": 5847044,
+  "DeathParticleGlowColor": 16766976
 }

@@ -239,7 +239,7 @@ public class GameplayEditorScreen : Screen
                     if (InputTextMultiline("Text of shader", ref EffectsFragmentShaderTexts[EffectIndex], 65536,
                             new Vector2(640, 480), ImGuiInputTextFlags.AllowTabInput))
                     {
-                        var sh = LoadShaderFromMemory(BulletVisual.BaseVS, EffectsFragmentShaderTexts[EffectIndex]);
+                        var sh = LoadShaderFromMemory(Runtime.BaseVertexShader, EffectsFragmentShaderTexts[EffectIndex]);
                         if (IsShaderValid(sh))
                         {
                             if(EffectsOverride[EffectIndex])
@@ -337,7 +337,7 @@ public class GameplayEditorScreen : Screen
                 if (InputTextMultiline("Text of shader", ref EffectsFragmentShaderTexts[EffectIndex], 65536,
                         new Vector2(640, 480), ImGuiInputTextFlags.AllowTabInput))
                 {
-                    var sh = LoadShaderFromMemory(BulletVisual.BaseVS, EffectsFragmentShaderTexts[EffectIndex]);
+                    var sh = LoadShaderFromMemory(Runtime.BaseVertexShader, EffectsFragmentShaderTexts[EffectIndex]);
                     if (IsShaderValid(sh))
                     {
                         if(EffectsOverride[EffectIndex])
@@ -392,7 +392,7 @@ public class GameplayEditorScreen : Screen
                 if (InputTextMultiline("Text", ref LoadingShaderText, 65536, new Vector2(640, 480),
                         ImGuiInputTextFlags.AllowTabInput))
                 {
-                    var sh =  LoadShaderFromMemory(BulletVisual.BaseVS, LoadingShaderText);
+                    var sh =  LoadShaderFromMemory(Runtime.BaseVertexShader, LoadingShaderText);
                     if (IsShaderValid(sh))
                     {
                         if(LoadingShaderOverriden)
@@ -408,7 +408,7 @@ public class GameplayEditorScreen : Screen
                 if (InputTextMultiline("Text", ref LoadingSwapShaderText, 65536, new Vector2(640, 480),
                         ImGuiInputTextFlags.AllowTabInput))
                 {
-                    var sh =  LoadShaderFromMemory(BulletVisual.BaseVS, LoadingSwapShaderText);
+                    var sh =  LoadShaderFromMemory(Runtime.BaseVertexShader, LoadingSwapShaderText);
                     if (IsShaderValid(sh))
                     {
                         if (LoadingSwapShaderOverriden)

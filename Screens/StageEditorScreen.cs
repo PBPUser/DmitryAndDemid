@@ -27,7 +27,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
     private string Question = "Are you sure to delete this object?";
     private bool QuestionShown = false;
     private Action? QuestionOKAction = null;
-    private Vector3 Color;
+    private Vector3 Color, DeathParticlesColor, DeathRoundsColor;
     public bool SelectMode = false;
     private int Time = 0;
     private int SelectedObjectIndex = -1;
@@ -174,6 +174,8 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                         SelectedRemoveScriptIndex = Scripts.IndexOf(Info.Entities[SelectedObjectIndex].RemoveScript);
                         SelectedDieScriptIndex = Scripts.IndexOf(Info.Entities[SelectedObjectIndex].DieScript);
                         ShowChaptersList = false;
+                        DeathRoundsColor = Helper.ColorIntToVector3(Info.Entities[SelectedObjectIndex].Header[0xB]);
+                        DeathParticlesColor = Helper.ColorIntToVector3(Info.Entities[SelectedObjectIndex].Header[0xC]);
                     }
 
                     if (Button("Add"))
@@ -221,8 +223,17 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                             InputInt("Boss Attack Index", ref Info.Entities[SelectedObjectIndex].Header[9]);
                         }
                         InputFloat("Health",  ref Info.Entities[SelectedObjectIndex].FloatingPoints[0]);
-                        
                         InputInt("Score add when killed", ref Info.Entities[SelectedObjectIndex].Header[6]);
+                        Checkbox("Override Visual's Death Color",
+                            ref Info.Entities[SelectedObjectIndex].OverrideDeathColor);
+                        if (Info.Entities[SelectedObjectIndex].OverrideDeathColor)
+                        {
+                            if (ColorEdit3("Death Particles Color", ref DeathParticlesColor))
+                                Info.Entities[SelectedObjectIndex].Header[0xC] = Helper.Vector3ColorToInt(DeathParticlesColor);
+                            if (ColorEdit3("Death Rounds Color", ref DeathRoundsColor))
+                                Info.Entities[SelectedObjectIndex].Header[0xB] = Helper.Vector3ColorToInt(DeathRoundsColor);
+                        }
+                        
                     }
                     InputFloat("Appear Speed", ref Info.Entities[SelectedObjectIndex].FloatingPoints[1]);
                     InputFloat("Scaling", ref Info.Entities[SelectedObjectIndex].FloatingPoints[2]);

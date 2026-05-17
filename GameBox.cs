@@ -121,8 +121,8 @@ public class GameBox : IDisposable
         }
         
         if(IsKeyDown(KeyboardKey.F))
-            if(!ScreenEffects.Any(x => x is BossDeathScreenEffect))
-                ScreenEffects.Add(new BossDeathScreenEffect(this, new Vector2(Player.X, Player.Y), 40, GetTime(), GetTime()+4));
+            if(!ScreenEffects.Any(x => x is StrengthScreenEffect && GetTime() - x.TimeAppear < 0.05))
+                ScreenEffects.Add(new StrengthScreenEffect(this, new Vector2(Player.X, Player.Y), 40, GetTime(), GetTime()+0.75f, 0x11bb2a, 0x11bb2a));
         float x, y, z, r;
         
         foreach(var  obj in BoxObjects)
@@ -170,11 +170,16 @@ public class GameBox : IDisposable
                         obj.Header[0] |= RuntimeObject.FlagIsDied;
                         obj.Header[0xa] = CurrentTick;
                         obj2.FloatingPoints[0] -= obj.FloatingPoints[0x20];
+                        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["damage"]);
+                        Player.Weapon.SpawnDistortionEffect((int)obj.X, (int)obj.Y);
                         if (obj2.FloatingPoints[0] <= 0)
                         {
                             obj2.Header[0] |=  RuntimeObject.FlagIsUsed;
                             obj2.Header[0xa] = CurrentTick;
+                            RemoveObject(obj2);
+                            ScreenEffects.Add(new EntityDeathScreenEffect(this, new Vector2(obj.X, obj.Y), 40, GetTime(), GetTime()+0.75f, obj2.Header[0xC], obj2.Header[0xB]));
                         }
+                        RemoveObject(obj);
                         broken = true;
                         break;
                     }

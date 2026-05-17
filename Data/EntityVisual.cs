@@ -20,5 +20,7 @@ public class EntityVisual
     [JsonInclude] public string Texture;
     [JsonInclude] public Vector2 SourcePosition;
     [JsonInclude] public Vector2 RenderSize;
-    [JsonInclude] public Vector2 Collision;
+    [JsonInclude] public float Collision;
+    [JsonInclude] public int DeathCircleColor;
+    [JsonInclude] public int DeathParticleGlowColor;
 }

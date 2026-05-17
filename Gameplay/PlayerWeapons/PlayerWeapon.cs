@@ -30,4 +30,9 @@ public abstract class PlayerWeapon(Player player)
     {
         
     }
+
+    public virtual void SpawnDistortionEffect(int x, int y)
+    {
+        
+    }
 }

@@ -31,6 +31,7 @@ public class FileEntityInfo
     public bool UseBadDropScenario = false;
     public bool DropWhenCleared = false;
     public bool UseDieScript = false;
+    public bool OverrideDeathColor = false;
     
     public string Visual = "";
 
@@ -57,8 +58,9 @@ public class FileEntityInfo
             fileEntityInfo.DropWhenCleared = (fileEntityInfo.Header[0] & 0x100) == 0x100;
             fileEntityInfo.IsBoss = (fileEntityInfo.Header[0] & 0x200) == 0x200;
             fileEntityInfo.UseDieScript = (fileEntityInfo.Header[0] & 0x400) == 0x400;
-            fileEntityInfo.BadDrop = new Drop(fileEntityInfo.Header[3]);
-            fileEntityInfo.GoodDrop = new Drop(fileEntityInfo.Header[4]);
+            fileEntityInfo.OverrideDeathColor = (fileEntityInfo.Header[0] & 0x800) == 0x800;
+            fileEntityInfo.BadDrop = new Drop(fileEntityInfo.Header[4]);
+            fileEntityInfo.GoodDrop = new Drop(fileEntityInfo.Header[5]);
         }
         
         if(fileEntityInfo.UseCreateScript)
@@ -85,8 +87,9 @@ public class FileEntityInfo
             Header[0] |= DropWhenCleared ? 0x100 : 0;
             Header[0] |= IsBoss ? 0x200 : 0;
             Header[0] |= UseDieScript ? 0x400 : 0;
-            Header[3] = BadDrop.ToInt32();
-            Header[4] = GoodDrop.ToInt32();
+            Header[0] |= OverrideDeathColor ? 0x800 : 0;
+            Header[4] = BadDrop.ToInt32();
+            Header[5] = GoodDrop.ToInt32();
         }
         for(int i = 0; i < 16; i++)
             bitPackage.WriteVarLong(Header[i]);
