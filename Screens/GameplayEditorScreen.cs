@@ -557,7 +557,7 @@ public class GameplayEditorScreen : Screen
                 End();
                 
                 Helper.PrepareTimer((int)((Raylib.GetTime() * 60) % 6000));
-                Helper.DrawTimer(12, 36);
+                Helper.DrawTimer(12, 36, false);
                 break;
         }
 

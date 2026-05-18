@@ -273,9 +273,9 @@ public static class Helper
         EndTextureMode();
     }
     
-    public static void DrawTimer(int x, int y)
+    public static void DrawTimer(int x, int y, bool isTimingOut)
     {
-        DrawTexture(TempTimerTexture2.Texture, x,y,Color.White);
+        DrawTexture(TempTimerTexture2.Texture, x,y,isTimingOut ? Color.Red : Color.White);
     }
 
     public static RenderTexture2D DrawDialog(string text, float angle)

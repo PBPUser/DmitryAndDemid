@@ -119,6 +119,11 @@ public class GameBox : IDisposable
             ScreenEffectsToRemove.Clear();
             RequiresRefresh = false;
         }
+
+        if (ChapterInfo.Type == ChapterType.Spell)
+        {
+            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["timeout.ogg"]);
+        }
         
         if(IsKeyDown(KeyboardKey.F))
             if(!ScreenEffects.Any(x => x is StrengthScreenEffect && GetTime() - x.TimeAppear < 0.05))
@@ -287,6 +292,7 @@ public class GameBox : IDisposable
             RenderChapterTitle = true;
             ChapterTitleAppear = GetTime();
             ChapterTitleDisappear = float.MaxValue;
+            AddScreenEffect(new SpellCardAttackScreenEffect(this, Vector2.Zero, 0, GetTime(), GetTime()+2));
         }
         else if (ChapterInfo.Type == ChapterType.NonSpell)
         {
@@ -384,9 +390,9 @@ public class GameBox : IDisposable
         }
 
         if (RenderBossTitle)
-            DrawTexture(ChapterInfo.BossTitleTexture.Value.Texture, (int)(Runtime.CurrentRuntime.ScaleF * 4),(int)(Runtime.CurrentRuntime.ScaleF * 4),Color.White);
+            DrawTexture(ChapterInfo!.BossTitleTexture!.Value.Texture, (int)(Runtime.CurrentRuntime.ScaleF * 4),(int)(Runtime.CurrentRuntime.ScaleF * 4),Color.White);
         if(typeI > 1 && !InChapterDelay)
-            Helper.DrawTimer((int)(UIAboveGameplay.Texture.Width - (appearTimer)*Helper.TimerTextureSize.X), 0);
+            Helper.DrawTimer((int)(UIAboveGameplay.Texture.Width - (appearTimer)*Helper.TimerTextureSize.X), 0, (ChapterInfo!.Length - CurrentTick) < (ChapterInfo!.Length > 600 ? 300 : 600));
         EndTextureMode();
     }
     #endregion
