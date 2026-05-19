@@ -23,6 +23,5 @@ void main()
     float d = distance(uv_offset*screen_size, pos)/448.;
     float alpha = 1.-smoothstep(u_time, u_time, d*4.);
     float alphax = clamp(1.-(u_time * 2.), 0., 1.);
-    //gl_FragColor = vec4(color, alpha*alphax);
     gl_FragColor = vec4(color, alphax*alpha);
 }

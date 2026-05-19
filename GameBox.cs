@@ -122,7 +122,12 @@ public class GameBox : IDisposable
 
         if (ChapterInfo.Type == ChapterType.Spell)
         {
-            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["timeout.ogg"]);
+            if((CurrentTick - ChapterInfo.TickStart) % TargetTPS == 0 && !InChapterDelay)
+                Helper.PlaySound(Runtime.CurrentRuntime.Sounds["pre-timeout"]);
+            if (CurrentTick - ChapterInfo.TickStart == ChapterInfo.Length)
+            {
+                Helper.PlaySound(Runtime.CurrentRuntime.Sounds["fault"]);
+            }
         }
         
         if(IsKeyDown(KeyboardKey.F))
@@ -212,6 +217,7 @@ public class GameBox : IDisposable
                 if (distance > collision)
                     continue;
                 Player.Graze++;
+                AddScreenEffect(new GrazeScreenEffect(this, new Vector2(obj.X, obj.Y), 0, GetTime(), GetTime()+1f, -Helper.FindAngle(new Vector2(Player.X, Player.Y), new Vector2(obj.X, obj.Y))));
                 obj.Header[0] |= RuntimeObject.FlagIsGrazed;
             }
         }
@@ -241,7 +247,7 @@ public class GameBox : IDisposable
         ScreenEffectsToRemove.Add(effect);
         RequiresRefresh = true;
     }
-
+    
     public RuntimeObject SpawnObject(int i)
     {
         var x = RuntimeObject.LoadFromFile(StageInfo.Entities[i], this);
@@ -249,6 +255,8 @@ public class GameBox : IDisposable
         AddObject(x);
         return x;
     }
+    
+    
 
     public void ClearAll(bool drop)
     {
