@@ -13,9 +13,15 @@ public abstract class StageBackground
     {
         
     }
+
+    protected virtual void Update(int tick, float delta)
+    {
+        
+    }
     
     public void Draw(RenderTexture2D texture, int tick, float delta)
     {
+        Update(tick, delta);
         Raylib.BeginTextureMode(texture);
         Render(texture, tick, delta);
         Raylib.EndTextureMode();

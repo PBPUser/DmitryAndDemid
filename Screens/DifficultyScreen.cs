@@ -18,12 +18,9 @@ public class DifficultyScreen : MenuScreen
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
         LoopList = false;
         GameType = gameType;
-
         HorizontalDirectionNavigation = true;
-
         RectangleSelectionTarget = Helper.Scale(new Rectangle(310, 220, 220, 120), Runtime.CurrentRuntime.Scale);
         TargetHeight = RectangleSelectionTarget.Height;
-
         RectangleDestinationDifficultySelect = Helper.Scale(new Rectangle(200, 170, 240, 120), Runtime.CurrentRuntime.Scale);
         RectangleDestinationDifficultySelected = Helper.Scale(new Rectangle(220, 400, 160, 80), Runtime.CurrentRuntime.Scale);
         RectangleShift = new Vector2(300, 40) * (float)Runtime.CurrentRuntime.Scale;

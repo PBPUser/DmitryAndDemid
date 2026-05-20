@@ -24,6 +24,8 @@ public class GameplayEditorScreen : Screen
         GameplayPreview = LoadRenderTexture(384, 448);
         LoadingPreview = LoadRenderTexture(640, 480);
         LoadingBuffer = LoadRenderTexture(640, 480);
+        SplashTimeTexture = LoadRenderTexture((int)(128 * Runtime.CurrentRuntime.ScaleF),
+            (int)(96 * Runtime.CurrentRuntime.ScaleF));
         EffectsFragmentShaderTexts = new string[Effects.Length];
         EffectsOverride = new bool[Effects.Length];
         EffectsShadersOverrides = new Shader[Effects.Length];
@@ -33,6 +35,7 @@ public class GameplayEditorScreen : Screen
             EffectsFragmentShaderTexts[i] = File.ReadAllText($"Assets/Shaders/{Effects[i]}.fs");
         }
         ForkSize =  new Vector2(ForkTexture.Width, ForkTexture.Height);
+        RedrawTimer();
     }
 
     private Vector2 ForkSize;
@@ -95,6 +98,10 @@ public class GameplayEditorScreen : Screen
     private int TickStart = 0;
     private int CurrentTick = 0;
     private RenderTexture2D? TextureEffectTest;
+
+    private int TickTest = 0;
+    private float TimeTest = 0;
+    private RenderTexture2D? SplashTimeTexture;
     
     
     private Shader
@@ -147,8 +154,10 @@ public class GameplayEditorScreen : Screen
             Page = 3;
         if (MenuItem("SpellCards"))
             Page = 4;
-        if (MenuItem("Text test"))
+        if (MenuItem("Text"))
             Page = 5;
+        if (MenuItem("Timer"))
+            Page = 6;
         if (MenuItem("Exit"))
             Runtime.CurrentRuntime.RemoveScreen(this);
         EndMainMenuBar();
@@ -559,6 +568,23 @@ public class GameplayEditorScreen : Screen
                 Helper.PrepareTimer((int)((Raylib.GetTime() * 60) % 6000));
                 Helper.DrawTimer(12, 36, false);
                 break;
+            case 6:
+                Begin("Test Splash");
+                if(SliderFloat("Time", ref TimeTest, 0f, 1000f) || SliderInt("Ticks", ref TickTest, 0, 6000))
+                    RedrawTimer();
+                End();
+                if (SplashTimeTexture != null)
+                {
+                    Begin("Image");
+                    var jv = Helper.GetFullSourceRenderTexture(SplashTimeTexture.Value);
+                    Text($"Rectangle: {jv}");
+                    rlImGui.ImageRect(SplashTimeTexture.Value.Texture, 
+                        SplashTimeTexture.Value.Texture.Width, 
+                        SplashTimeTexture.Value.Texture.Height, 
+                        jv);
+                    End();
+                }
+                break;
         }
 
         if (ShowError)
@@ -652,6 +678,11 @@ public class GameplayEditorScreen : Screen
         );
         EndShaderMode();
         EndTextureMode();
+    }
+    
+    public void RedrawTimer()
+    {
+        Helper.DrawTimerSplash(SplashTimeTexture.Value, TickTest, TimeTest);
     }
 #endif
     

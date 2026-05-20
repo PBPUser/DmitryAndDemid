@@ -24,10 +24,12 @@ vec2 zoom(vec2 coord, vec2 pivot, float strength){
 void main(){
     vec2 texelSize = vec2(1)/res;
     vec2 ftc = fragTexCoord;
+    vec2 pos = position;
+    pos.y = res.y - pos.y;
     vec2 ftcR = ftc * res;
     float tt = time > 1 ? 2-time : time;
-    float d = clamp(1-(distance(ftcR, position)/(size*tt)), 0, 1);
+    float d = clamp(1-(distance(ftcR, pos)/(size*tt)), 0, 1);
     ftcR *= vec2(1) + vec2(sin(realTime * 2 +  (uv.y* 5+realTime*2) ), cos(realTime * 2 + (realTime*2+uv.x* 5))) * 0.05 * d;
-    gl_FragColor = texture(texture0, zoom(ftcR, position, 1 - pow(d, 4) * .25) / res);
-    gl_FragColor = mix(gl_FragColor,colorOverlay,0.4*d);
+    gl_FragColor = texture(texture0, zoom(ftcR, pos, 1 - pow(d, 4) * .25) / res);
+    gl_FragColor = mix(gl_FragColor,colorOverlay, .4 * d);
 }

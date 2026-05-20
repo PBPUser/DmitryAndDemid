@@ -30,7 +30,6 @@ public class EndingScreen : Screen
         Elements.AddRange(info.PictureSwitchers);
         Elements = Elements.OrderBy(x => x.ID).ToList();
         Y = Runtime.CurrentRuntime.Height / 4 * 3;
-        
     }
     
     public int Index = -1;

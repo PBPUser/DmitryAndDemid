@@ -254,6 +254,12 @@ public class GameplayScreen : Screen
                 }
             }
             ImGui.End();
+            ImGui.Begin($"Overlay Info [{GameBox.GameplayOverlays.Count}]: ");
+            for(int i = 0; i < GameBox.GameplayOverlays.Count; i++)
+            {
+                ImGui.Text($"{i}. {GameBox.GameplayOverlays[i].GetType()}");
+            }
+            ImGui.End();
         }
 
         ImGui.Begin("Stage objects");

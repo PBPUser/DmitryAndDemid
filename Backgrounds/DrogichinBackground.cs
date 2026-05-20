@@ -21,7 +21,8 @@ public class DrogichinBackground : StageBackground
         new DrogichinPoint(2258, 255, 800, -90-Helper.FindAngleDegrees(new Vector2(2258,255), new Vector2(2258,255))),
         
     };
-
+    
+    private static Shader DrogichinCloudsShader;
     private static int LastTick = 0;
     
     static DrogichinBackground()
@@ -32,9 +33,15 @@ public class DrogichinBackground : StageBackground
     
     public DrogichinBackground()
     {
+        Temp = LoadRenderTexture(384, 448);
+        DrogichinCloudsShader = Runtime.CurrentRuntime.Shaders["drogichin_clouds"];
+        LocationDrogichinCloudsTime = GetShaderLocation(DrogichinCloudsShader, "time");
+        LocationDrogichinCloudsTime = GetShaderLocation(DrogichinCloudsShader, "rotation");
         Dest = new Rectangle(192, 224, Source.Width, Source.Height);
     }
 
+    private int LocationDrogichinCloudsTime;
+    private int LocationDrogichinCloudsRotation;
     private static Rectangle Source;
     private Rectangle Dest;
 
@@ -45,14 +52,29 @@ public class DrogichinBackground : StageBackground
         
         return DrogichinPoint.GetPointBetween(p1, p2, tick%LastTick, delta);
     }
+
+    private RenderTexture2D Temp;
     
-    protected override void Render(RenderTexture2D texture, int tick, float delta)
+    protected override void Update(int tick, float delta)
     {
         var point = Get(tick, delta);
-        //DrawTexture(Runtime.CurrentRuntime.Textures["drogichinmap.png"], 0, 0, Color.White);
+        Rotation = point.Rotation;
+        BeginTextureMode(Temp);
         DrawTexturePro(
             Runtime.CurrentRuntime.Textures["drogichinmap.png"],
             Source, Dest, new Vector2(point.X, point.Y), point.Rotation, Color.White);
+        EndTextureMode();
+    }
+
+    private float Rotation;
+
+    protected override void Render(RenderTexture2D texture, int tick, float delta)
+    {
+        SetShaderValue(DrogichinCloudsShader, LocationDrogichinCloudsRotation, Rotation, ShaderUniformDataType.Float);
+        SetShaderValue(DrogichinCloudsShader, LocationDrogichinCloudsTime, tick / 60f + delta, ShaderUniformDataType.Float);
+        BeginShaderMode(DrogichinCloudsShader);
+        DrawTexturePro(Temp.Texture, Helper.GetFullSourceRenderTexture(Temp), new Rectangle(0,0,384,448),Vector2.Zero, 0, Color.White);
+        EndShaderMode();
     }
 
     class DrogichinPoint
@@ -73,10 +95,10 @@ public class DrogichinBackground : StageBackground
         public static DrogichinPoint GetPointBetween(DrogichinPoint a, DrogichinPoint b, int tick, float delta)
         {
             float s = ((float)tick - a.Tick) / (float)(b.Tick - a.Tick) + delta;
-            int X = (int)(s * (b.X - a.X) + a.X);
-            int Y = (int)(s * (b.Y - a.Y) + a.Y);
+            int x = (int)(s * (b.X - a.X) + a.X);
+            int y = (int)(s * (b.Y - a.Y) + a.Y);
             float rotation = s * (b.Rotation - a.Rotation) + a.Rotation;
-            return new DrogichinPoint(X, Y, tick, rotation);
+            return new DrogichinPoint(x, y, tick, rotation);
         }
     }
 }

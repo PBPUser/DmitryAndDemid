@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics.X86;
+using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Gameplay.RuntimeData;
@@ -46,6 +47,7 @@ public class RuntimeObject
     public RuntimeObjectReferenceAction? RemoveAction;
     public Shader Shader;
     public Vector2 TexturePosition, TextureSize, TotalTextureSize;
+    public GameplayScreenEffect BackgroundDistortionEffect;
 
     public static RuntimeObject LoadFromFile(FileEntityInfo info, GameBox box)
     {
@@ -108,7 +110,33 @@ public class RuntimeObject
             entity.Origin = entity.Source.Size / 2;
             entity.FloatingPoints[0x13] = visual.Collision;
         }
+
+        if (info.IsBoss)
+        {
+            entity.BackgroundDistortionEffect = new GameplayScreenEffect(box, 
+                new Vector2(192, 192), 
+                4, 
+                "boss_background_distortion", 
+                box.GetTime(), 
+                float.MaxValue)
+            {
+                Layer = GameplayScreenEffect.EffectLayer.BackgroundOnly,
+                StepLength = 1,
+                UseSteps = true
+            };
+            box.AddScreenEffect(entity.BackgroundDistortionEffect);
+        }
         return entity;
+    }
+
+    public void LoadAnotherFile(FileEntityInfo info)
+    {
+        CreateAction = info.UseCreateScript ? ActionsScope.ObjectActions[info.CreateScript] : null;
+        UpdateAction = ActionsScope.ObjectActions[info.UpdateScript];
+        CreatedAt = Box.CurrentTick;
+        RemoveAction = info.UseRemoveScript ? ActionsScope.ObjectActions[info.RemoveScript] : null;
+        if(!info.IsBullet)
+            DieAction = info.UseDieScript ? ActionsScope.ObjectActions[info.DieScript] : null;
     }
 
     public RuntimeObject CloneWithPositionSpawnTick(int x, int y, int tick)
@@ -186,13 +214,23 @@ public class RuntimeObject
     public float X
     {
         get => FloatingPoints[0x10];
-        set => FloatingPoints[0x10] = value;
+        set
+        {
+            FloatingPoints[0x10] = value;
+            if (0 != (Header[0] & FlagIsBoss))
+                BackgroundDistortionEffect.Position.X = value;
+        }
     }
 
     public float Y
     {
         get =>  FloatingPoints[0x11];
-        set => FloatingPoints[0x11] = value;
+        set
+        {
+            FloatingPoints[0x11] = value;
+            if (0 != (Header[0] & FlagIsBoss))
+                BackgroundDistortionEffect.Position.Y = value;
+        }
     }
 
     public float Z
@@ -212,6 +250,8 @@ public class RuntimeObject
         get => new(FloatingPoints[0x10],  FloatingPoints[0x11]);
     }
 
+    public int SpawnId => Header[2];
+    public int BossId => Header[7];
 
     void UpdateSourceRectangle()
     {

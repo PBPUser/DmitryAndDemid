@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using DmitryAndDemid.Backgrounds;
 using DmitryAndDemid.Common;
@@ -5,6 +6,7 @@ using DmitryAndDemid.Data;
 using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Gameplay.Effects;
+using DmitryAndDemid.Gameplay.GameplayOverlays;
 using DmitryAndDemid.Gameplay.RuntimeData;
 using DmitryAndDemid.Screens;
 using DmitryAndDemid.Utils;
@@ -39,14 +41,7 @@ public class GameBox : IDisposable
             (int)(Runtime.CurrentRuntime.ScaleF * 448f)
         );
         LoadStage(stage, chapter, difficulty);
-        AddScreenEffect(new GameplayScreenEffect(this, new Vector2(192, 192), 4, "boss_background_distortion", 0, float.MaxValue)
-        {
-            Layer = GameplayScreenEffect.EffectLayer.BackgroundOnly,
-            TimeAppear = GetTime(),
-            TimeDisappear = GetTime()+50,
-            StepLength = 1,
-            UseSteps =  true
-        });
+        
     }
 
     public const float TargetTPS = 60;
@@ -58,11 +53,18 @@ public class GameBox : IDisposable
         ObjectsRemoveQueue = new();
 
     List<GameplayScreenEffect>
-        ScreenEffets = new(),
         ScreenEffectsToAdd = new(),
         ScreenEffectsToRemove = new();
 
     public List<RuntimeObject>  BoxObjects = new();
+
+    public List<GameplayOverlay> 
+        GameplayOverlays = new();
+
+    List<GameplayOverlay> 
+        GameplayOverlaysToAdd = new(),
+        GameplayOverlaysToRemove = new();
+
     public int CurrentTick = 0;
     public bool InChapterDelay = false;
     private int CurrentTickCompute => (int)(GetTime() * TargetTPS);
@@ -83,6 +85,7 @@ public class GameBox : IDisposable
     #region Managment
     private int ChapterIndex = -1;
     private bool ChapterScoreShown = false;
+    private Stopwatch? SpellcardStopwatch = null;
     public const int Deathlength = 15;
     
     void BoxUpdate()
@@ -113,26 +116,35 @@ public class GameBox : IDisposable
             ScreenEffects.RemoveAll(x => ScreenEffectsToRemove.Contains(x));
             BoxObjects.AddRange(ObjectsAddQueue);
             BoxObjects.RemoveAll(x => ObjectsRemoveQueue.Contains(x));
+            GameplayOverlays.AddRange(GameplayOverlaysToAdd);
+            GameplayOverlays.RemoveAll(x => GameplayOverlaysToRemove.Contains(x));
             ObjectsAddQueue.Clear();
             ObjectsRemoveQueue.Clear();
             ScreenEffectsToAdd.Clear();
             ScreenEffectsToRemove.Clear();
+            GameplayOverlaysToAdd.Clear();
+            GameplayOverlaysToRemove.Clear();
             RequiresRefresh = false;
         }
 
         if (ChapterInfo.Type == ChapterType.Spell)
         {
-            if((CurrentTick - ChapterInfo.TickStart) % TargetTPS == 0 && !InChapterDelay)
+            if((CurrentTick - ChapterInfo.TickStart) % TargetTPS == 0 && !InChapterDelay && (ChapterInfo!.Length - CurrentTick) < (ChapterInfo!.Length > 600 ? 300 : 600))
                 Helper.PlaySound(Runtime.CurrentRuntime.Sounds["pre-timeout"]);
             if (CurrentTick - ChapterInfo.TickStart == ChapterInfo.Length)
             {
+                AddOverlay(new TimerGameplayOverlay(this, "bonus-failed.png", ChapterInfo.Length, SpellcardStopwatch!.Elapsed.TotalSeconds, 0.5f, 3f));
                 Helper.PlaySound(Runtime.CurrentRuntime.Sounds["fault"]);
+                SpellcardStopwatch!.Stop();
+                SpellcardStopwatch = null;
             }
         }
-        
+        if(IsKeyDown(KeyboardKey.G))
+            if(!GameplayOverlays.Any(x => x is BasicGameplayOverlay && GetTime() - x.TimeAppear < 0.05))
+                AddOverlay(new BasicGameplayOverlay(this, "full-power.png", 0.5f, 3f));
         if(IsKeyDown(KeyboardKey.F))
             if(!ScreenEffects.Any(x => x is StrengthScreenEffect && GetTime() - x.TimeAppear < 0.05))
-                ScreenEffects.Add(new StrengthScreenEffect(this, new Vector2(Player.X, Player.Y), 40, GetTime(), GetTime()+0.75f, 0x11bb2a, 0x11bb2a));
+                AddScreenEffect(new StrengthScreenEffect(this, new Vector2(Player.X, Player.Y), 40, GetTime(), GetTime()+0.75f, 0x11bb2a, 0x11bb2a));
         float x, y, z, r;
         
         foreach(var  obj in BoxObjects)
@@ -247,9 +259,33 @@ public class GameBox : IDisposable
         ScreenEffectsToRemove.Add(effect);
         RequiresRefresh = true;
     }
+
+    public void AddOverlay(GameplayOverlay overlay)
+    {
+        GameplayOverlaysToAdd.Add(overlay);
+        RequiresRefresh = true;
+    }
+
+    public void RemoveOverlay(GameplayOverlay overlay)
+    {
+        GameplayOverlaysToRemove.Add(overlay);
+        RequiresRefresh = true;
+    }
     
     public RuntimeObject SpawnObject(int i)
     {
+        if(!StageInfo.Entities[i].IsBullet)
+            if (!StageInfo.Entities[i].IsBoss)
+            {
+                var bossList = BoxObjects.Where(x => x.BossId == i);
+                if (bossList.Count() > 0)
+                {
+                    var boss = bossList.First();
+                    boss.LoadAnotherFile(StageInfo.Entities[i]);
+                    boss.CreateAction?.Invoke(boss);
+                    return boss;
+                }
+            }
         var x = RuntimeObject.LoadFromFile(StageInfo.Entities[i], this);
         x.Header[0x17] = CurrentTick;
         AddObject(x);
@@ -296,6 +332,8 @@ public class GameBox : IDisposable
         RenderBossTitle = false;
         if (ChapterInfo.Type == ChapterType.Spell)
         {
+            SpellcardStopwatch = new Stopwatch();
+            SpellcardStopwatch.Start();
             RenderBossTitle = true;
             RenderChapterTitle = true;
             ChapterTitleAppear = GetTime();
@@ -396,7 +434,8 @@ public class GameBox : IDisposable
                 0, scaling,
                 Color.White with {A = Helper.TimeToTransparency(appear1)});
         }
-
+        foreach (var overlay in GameplayOverlays)
+            overlay.DrawOverlay();
         if (RenderBossTitle)
             DrawTexture(ChapterInfo!.BossTitleTexture!.Value.Texture, (int)(Runtime.CurrentRuntime.ScaleF * 4),(int)(Runtime.CurrentRuntime.ScaleF * 4),Color.White);
         if(typeI > 1 && !InChapterDelay)

@@ -95,6 +95,7 @@ public class Player
                 GameBox.IsPaused = true;
                 GameBox.IsGameOver = true;
             }
+            
             GameBox.UpdateUI();
         }
     }

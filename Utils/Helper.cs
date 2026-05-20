@@ -255,6 +255,75 @@ public static class Helper
         TimerRectangleTarget = new Rectangle(0, 0, (int)TimerTextureSize.X, (int)TimerTextureSize.Y);
     }
 
+    private const float SplashTimerSize = 20;
+    private const float SplashTimerMillsSize = 16;
+    
+    public static void DrawTimerSplash(RenderTexture2D renderTexture, int ticks, double time)
+    {
+        var secondsFontSize = (int)(SplashTimerSize * Runtime.CurrentRuntime.ScaleF);
+        var millsFonsSize = (int)(SplashTimerMillsSize * Runtime.CurrentRuntime.ScaleF);
+        var padding = 2 * Runtime.CurrentRuntime.ScaleF;
+        var texture = Runtime.CurrentRuntime.Textures["timer-prerender.png"];
+        var source = GetFullSource(texture);
+        string gameSecondsStr = $"{Math.Floor((float)ticks/60):000}";
+        string gameMillsStr = $".{ticks * 100 / 60 % 100:00}bl";
+        string realSecondsStr = $"{Math.Floor(time):000}";
+        string realMillsStr = $".{Math.Floor(time * 100 % 100):00}bl";
+        var gameSecondsSize = MeasureTextEx(TimerFont, gameSecondsStr, secondsFontSize, 0);
+        var gameMillsSize = MeasureTextEx(TimerFont, gameMillsStr,millsFonsSize, 0);
+        var realSecondsSize = MeasureTextEx(TimerFont, realSecondsStr, secondsFontSize, 0);
+        var realMillsSize = MeasureTextEx(TimerFont, realMillsStr, millsFonsSize, 0);
+        var gameTexture = LoadRenderTexture(
+            (int)(gameSecondsSize.X + gameMillsSize.X + padding * 2),
+            (int)(gameSecondsSize.Y + padding * 2)
+        );
+        var gameTextureApply = LoadRenderTexture(gameTexture.Texture.Width, gameTexture.Texture.Height);
+        var realTexture = LoadRenderTexture(
+            (int)(realSecondsSize.X + realMillsSize.X + padding * 2),
+            (int)(realSecondsSize.Y + padding * 2));
+        var realTextureApply = LoadRenderTexture(
+            (int)(realSecondsSize.X + realMillsSize.X + padding * 2),
+            (int)(realSecondsSize.Y + padding * 2));
+        var gameSource = GetFullSourceRenderTexture(gameTexture);
+        var realSource = GetFullSourceRenderTexture(realTexture);
+        BeginTextureMode(gameTexture);
+        DrawTextPro(TimerFont, gameSecondsStr, new Vector2(padding), Vector2.Zero, 0, secondsFontSize, 0, Color.White);
+        DrawTextPro(TimerFont, gameMillsStr, new Vector2(padding +gameSecondsSize.X, (padding*.75f)-gameMillsSize.Y+gameSecondsSize.Y), Vector2.Zero, 0, millsFonsSize, 0, Color.White);
+        EndTextureMode();
+        BeginTextureMode(realTexture);
+        DrawTextPro(TimerFont, realSecondsStr, new Vector2(padding), Vector2.Zero, 0, secondsFontSize, 0, Color.White);
+        DrawTextPro(TimerFont, realMillsStr, new Vector2(padding +realSecondsSize.X, (padding*.75f)-realMillsSize.Y+realSecondsSize.Y), Vector2.Zero, 0, millsFonsSize, 0, Color.White);
+        EndTextureMode();
+        BeginTextureMode(gameTextureApply);
+        ClearBackground(Color.Black with {A=0});
+        SetShaderValue(OutlineShader, LocationOutlineResolution, gameSource.Size * new Vector2(1,1), ShaderUniformDataType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineBorderwidth, Runtime.CurrentRuntime.ScaleF * 4f, ShaderUniformDataType.Float);
+        SetShaderValue(OutlineShader, LocationOutlineResolution, realSource.Size * new Vector2(1,-1), ShaderUniformDataType.Vec2);
+        BeginShaderMode(OutlineShader);
+        DrawTexture(gameTexture.Texture, 0, 0, Color.White);
+        EndShaderMode();
+        EndTextureMode();
+        BeginTextureMode(realTextureApply);
+        ClearBackground(Color.Black with {A=0});
+        SetShaderValue(OutlineShader, LocationOutlineResolution, realSource.Size * new Vector2(1,-1), ShaderUniformDataType.Vec2);
+        BeginShaderMode(OutlineShader);
+        DrawTexture(realTexture.Texture, 0, 0, Color.White);
+        EndShaderMode();
+        EndTextureMode();
+        BeginTextureMode(renderTexture);
+        ClearBackground(Color.Black with {A=0});
+        DrawTexture(gameTextureApply.Texture, renderTexture.Texture.Width-gameTextureApply.Texture.Width, (int)(10 * Runtime.CurrentRuntime.ScaleF), Color.White);
+        DrawTexture(realTextureApply.Texture, renderTexture.Texture.Width-realTextureApply.Texture.Width, (int)(60 * Runtime.CurrentRuntime.ScaleF), Color.White);
+        DrawTexturePro(texture, source, new Rectangle(
+            0, 0, source.Size / 4 * Runtime.CurrentRuntime.ScaleF
+            ), Vector2.Zero, 0, Color.White);
+        EndTextureMode();
+        UnloadRenderTexture(gameTexture);
+        UnloadRenderTexture(gameTextureApply);
+        UnloadRenderTexture(realTexture);
+        UnloadRenderTexture(realTextureApply);
+    }
+
     public static void PrepareTimer(int ticks)
     {
         string text = $"{Math.Clamp(ticks/60, 0, 99):00}";

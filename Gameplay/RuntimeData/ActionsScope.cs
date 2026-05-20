@@ -21,6 +21,16 @@ public static class ActionsScope
         {
 
         };
+        dictionary["nikitos#spell1#easy_create"] = c =>
+        {
+            var nPerson = c.GameBox.SpawnObject(2);
+            nPerson.X = 192;
+            nPerson.Y = 48;
+            nPerson.Header[0x50] = 15;
+            nPerson.Header[0x51] = 120;
+            nPerson.Header[0x5B] = 1;
+
+        };
         dictionary["nikitos#spell1#easy"] = c =>
         {
             //if ((c.GameBox.CurrentTick - c.TickStart) % 3 == 0)
@@ -32,7 +42,6 @@ public static class ActionsScope
             //    rain.Speed = MathF.Abs(MathF.Sin((c.GameBox.CurrentTick - c.TickStart)));
             //    rain.FacingRotation = rain.RenderRotation = (c.Header[0] % 5 - 3) * -10;
             //}
-
             if ((c.GameBox.CurrentTick - c.TickStart) % 15 == 0)
             {
                 var obj = c.GameBox.SpawnObject(1);
@@ -70,6 +79,30 @@ public static class ActionsScope
             var d = Helper.GetDirection2(obj.FloatingPoints[0x6]);
             obj.X += obj.Speed * d.X;
             obj.Y += obj.Speed * d.Y;
+        };
+        dictionary["nikitos#spell1"] = c =>
+        {
+            var time = c.Box.CurrentTick - c.CreatedAt + c.Header[0x5A];
+            if (time % c.Header[0x50] == 0 && time > 0)
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    
+                }
+            }
+
+            if (time % c.Header[0x51] == 0 && time > 0)
+            {
+                
+            }
+
+            if (time == 300)
+            {
+                c.Header[0x5B]++;
+                c.Header[0x5A] += 360;
+                // TODO: Spawn Spell Strength Effect
+                Helper.PlaySound(Runtime.CurrentRuntime.Sounds["boss-appear"]);
+            }
         };
         ObjectActions = dictionary.ToFrozenDictionary();
     }
