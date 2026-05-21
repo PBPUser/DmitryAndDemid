@@ -138,9 +138,13 @@ vec2 rotate(vec2 pos, vec2 pivot, float angle){
     return (pos - pivot) * m + pivot;
 }
 
+vec2 zoom(vec2 pos, vec2 pivot, float strength){
+    return (pos - pivot) / strength + pivot;
+}
+
 void main()
 {
-    gl_FragColor = texture(texture0, fragTexCoord);
+    gl_FragColor = texture(texture0, zoom(fragTexCoord, vec2(.5), (1-pow(1-distance(fragTexCoord,vec2(.5, 1.5)), 4))) * .25 + .75);
     gl_FragColor = mix(gl_FragColor, vec4(.3, .7, 1,1), pow(distance((fragTexCoord + vec2(0,-1)) * res, vec2(.5, .5) * res) / 448, 3));
 	vec4 c = renderClouds(rotate((fragTexCoord + vec2(0,time)) * res, vec2(0.5, -0.5 + time) * res, rotation), skyColor1, time);
 	vec4 c2 = renderClouds(rotate((fragTexCoord + vec2(0, time*0.75)) * res, vec2(192, 224), rotation), skyColor2, time*2.);

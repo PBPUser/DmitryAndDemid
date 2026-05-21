@@ -1,0 +1,26 @@
+using System.Numerics;
+using DmitryAndDemid.Common;
+using Raylib_cs;
+using static Raylib_cs.Raylib;
+
+namespace DmitryAndDemid.Gameplay.Effects;
+
+public class BossCircleScreenEffect : GameplayScreenEffect
+{
+    public BossCircleScreenEffect(GameBox box, Vector2 position, int index, float timeAppear, float timeDisappear) 
+        : base(box, position, index, "boss_cursor", timeAppear, timeDisappear)
+    {
+        Layer = EffectLayer.BackgroundOnly;
+        CursorTexture = Runtime.CurrentRuntime.Textures["cursosor2.png"];
+        LocationTexture = GetShaderLocation(Shader, "textureCursor");
+        SetShaderValueTexture(Shader, LocationTexture, CursorTexture);
+    }
+
+    private int LocationTexture;
+    Texture2D CursorTexture;
+
+    public override void ApplyShading(float gameTime)
+    {
+        base.ApplyShading(gameTime);
+    }
+}

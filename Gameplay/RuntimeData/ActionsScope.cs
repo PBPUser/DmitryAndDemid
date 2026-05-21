@@ -25,7 +25,7 @@ public static class ActionsScope
         {
             var nPerson = c.GameBox.SpawnObject(2);
             nPerson.X = 192;
-            nPerson.Y = 48;
+            nPerson.Y = 192;
             nPerson.Header[0x50] = 15;
             nPerson.Header[0x51] = 120;
             nPerson.Header[0x5B] = 1;

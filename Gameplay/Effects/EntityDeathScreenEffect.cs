@@ -14,6 +14,7 @@ public class EntityDeathScreenEffect : GameplayScreenEffect
         LocationCircleColor = Raylib.GetShaderLocation(Shader, "circleColor");
         LocationLeaves = Raylib.GetShaderLocation(Shader, "textureLeaves");
         LocationTimeStarted = Raylib.GetShaderLocation(Shader, "timeStarted");
+        Raylib.SetShaderValueTexture(Shader, LocationLeaves, Runtime.CurrentRuntime.Textures["vilkaCut.png"]);
         Layer = EffectLayer.BackgroundAndGameplay;
         TimeCreated = box.GetTime();
         ParticlesColor = Helper.ColorIntToVector3(particlesColor).AsVector4().WithElement(3, 1);
@@ -30,7 +31,6 @@ public class EntityDeathScreenEffect : GameplayScreenEffect
         Raylib.SetShaderValue(Shader, LocationParticlesColor, ParticlesColor, ShaderUniformDataType.Vec4);
         Raylib.SetShaderValue(Shader, LocationCircleColor, CircleColor, ShaderUniformDataType.Vec4);
         Raylib.SetShaderValue(Shader, LocationTimeStarted, TimeCreated, ShaderUniformDataType.Float);
-        Raylib.SetShaderValueTexture(Shader, LocationLeaves, Runtime.CurrentRuntime.Textures["vilkaCut.png"]);
         base.ApplyShading(gameTime);
     }
 }

@@ -41,7 +41,7 @@ public class GameBox : IDisposable
             (int)(Runtime.CurrentRuntime.ScaleF * 448f)
         );
         LoadStage(stage, chapter, difficulty);
-        
+        AddOverlay(new ItemGetBorderLineOverlay(this));
     }
 
     public const float TargetTPS = 60;

@@ -4,6 +4,7 @@ using System.Runtime.Intrinsics.X86;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Data.Archive;
+using DmitryAndDemid.Gameplay.Effects;
 using DmitryAndDemid.Gameplay.RuntimeData;
 using DmitryAndDemid.Utils;
 using Microsoft.CodeAnalysis.Scripting;
@@ -47,7 +48,8 @@ public class RuntimeObject
     public RuntimeObjectReferenceAction? RemoveAction;
     public Shader Shader;
     public Vector2 TexturePosition, TextureSize, TotalTextureSize;
-    public GameplayScreenEffect BackgroundDistortionEffect;
+    public GameplayScreenEffect? BackgroundDistortionEffect;
+    public BossCircleScreenEffect? BossCircleEffect;
 
     public static RuntimeObject LoadFromFile(FileEntityInfo info, GameBox box)
     {
@@ -124,7 +126,9 @@ public class RuntimeObject
                 StepLength = 1,
                 UseSteps = true
             };
+            entity.BossCircleEffect = new BossCircleScreenEffect(box, Vector2.Zero, 0, box.GetTime(), float.MaxValue);
             box.AddScreenEffect(entity.BackgroundDistortionEffect);
+            box.AddScreenEffect(entity.BossCircleEffect);
         }
         return entity;
     }
@@ -218,7 +222,9 @@ public class RuntimeObject
         {
             FloatingPoints[0x10] = value;
             if (0 != (Header[0] & FlagIsBoss))
-                BackgroundDistortionEffect.Position.X = value;
+                BackgroundDistortionEffect.Position.X =
+                    BossCircleEffect.Position.X = 
+                    value;
         }
     }
 
@@ -229,7 +235,9 @@ public class RuntimeObject
         {
             FloatingPoints[0x11] = value;
             if (0 != (Header[0] & FlagIsBoss))
-                BackgroundDistortionEffect.Position.Y = value;
+                BackgroundDistortionEffect.Position.Y =
+                    BossCircleEffect.Position.Y = 
+                        value;
         }
     }
 

@@ -10,6 +10,7 @@ public class BossDeathScreenEffect : GameplayScreenEffect
         : base(box, position, index, "entity_die", timeAppear, timeDisappear)
     {
         LocationLeaves = Raylib.GetShaderLocation(Shader, "textureLeaves");
+        Raylib.SetShaderValueTexture(Shader, LocationLeaves, Runtime.CurrentRuntime.Textures["vilkaCut.png"]);
         Layer = EffectLayer.BackgroundAndGameplay;
     }
 
@@ -17,7 +18,6 @@ public class BossDeathScreenEffect : GameplayScreenEffect
 
     public override void ApplyShading(float gameTime)
     {
-        Raylib.SetShaderValueTexture(Shader, LocationLeaves, Runtime.CurrentRuntime.Textures["vilkaCut.png"]);
         base.ApplyShading(gameTime);
     }
 }

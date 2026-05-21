@@ -4,8 +4,6 @@ using Microsoft.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 
-
-
 namespace DmitryAndDemid.Utils;
 
 public class CompileHelper
