@@ -10,7 +10,7 @@ public abstract class GameplayOverlay(GameBox box, float animationLength, float 
     private float Length = length;
     private float AnimationLength = animationLength;
     public float TimeAppear = box.GetTime();
-    private GameBox Box = box;
+    protected GameBox Box = box;
     
     protected virtual void Draw()
     {
@@ -18,6 +18,11 @@ public abstract class GameplayOverlay(GameBox box, float animationLength, float 
     }
 
     protected virtual void Unload()
+    {
+        
+    }
+
+    public virtual void Update()
     {
         
     }

@@ -100,6 +100,17 @@ public class Player
         }
     }
 
+    public int Signal
+    {
+        get => signal;
+        set
+        {
+            if (signal.Equals(value))
+                return;
+            signal = value;
+        }
+    }
+
     public int HeartSpices
     {
         get => heartSpices;
@@ -143,6 +154,7 @@ public class Player
     private int bombsSpices = 0;
     private int heartSpices = 0;
     private int heartPoints = 2;
+    private int signal = 0;
     
     public int Power
     {

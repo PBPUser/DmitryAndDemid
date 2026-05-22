@@ -25,6 +25,7 @@ public class GameBox : IDisposable
     private GameplayScreen GameplayScreen;
     bool Practice;
     private bool SpellPractice;
+    private SignalGameplayOverlay SignalGameplayOverlay;
     
     public GameBox(GameplayScreen screen, ProtogonistData data, FileStageInfo stage, int chapter, int difficulty, bool practice)
     {
@@ -41,6 +42,8 @@ public class GameBox : IDisposable
             (int)(Runtime.CurrentRuntime.ScaleF * 448f)
         );
         LoadStage(stage, chapter, difficulty);
+        SignalGameplayOverlay = new SignalGameplayOverlay(this);
+        AddOverlay(SignalGameplayOverlay);
         AddOverlay(new ItemGetBorderLineOverlay(this));
     }
 
@@ -374,6 +377,8 @@ public class GameBox : IDisposable
         if(typeI > 1 && !InChapterDelay)
             Helper.PrepareTimer(ChapterInfo!.TickStart + ChapterInfo!.Length - CurrentTick);
         float tickDelta = GetTime() - (CurrentTick / TargetTPS);
+        foreach (var overlay in GameplayOverlays)
+            overlay.Update();
         StageBackgroundObject.Draw(Background, CurrentTick, tickDelta);
         BeginTextureMode(Background);
         if (typeI == 3 && !InChapterDelay)

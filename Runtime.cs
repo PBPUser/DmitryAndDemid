@@ -24,6 +24,8 @@ public class Runtime
     }
 
     public static string BaseVertexShader = File.ReadAllText("Assets/Shaders/base.vs");
+    public static Color TransparentWhite = Color.White with { A = 0 };
+    public static Color TransparentBlack = Color.Black with { A = 0 };
     public string VersionString = "0.01a";
     public double Time;
     public int Width;
@@ -85,8 +87,18 @@ public class Runtime
         FullScreenRect = new(0, 0, Width, Height);
         Scale = width / 640d;
         ScaleF = (float)Scale;
+        var size = 100 * ScaleF;
         InitWindow(width, height, "AAG2 ~ UcTopu9I o6 DmuTpuu u3 Dporu4uHa & DeMuDa CepreeBu4a");
+        var sugarTexture = LoadTexture("Assets/Textures/sugar_logo.png");
         rlImGui.Setup(true);
+        BeginDrawing();
+        ClearBackground(Color.Black);
+        DrawTexturePro(sugarTexture,
+            new Rectangle(Vector2.Zero, 400, 400),
+            new Rectangle((Width - size) / 2, (Height - size) / 2, size, size), 
+            Vector2.Zero, 0, Color.White);
+        EndDrawing();
+        UnloadTexture(sugarTexture);
         SetTargetFPS(Config.FrameCap);
         if (Config.UseVSYNC)
             SetWindowState(ConfigFlags.VSyncHint);
