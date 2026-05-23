@@ -2,7 +2,7 @@ using Raylib_cs;
 
 namespace DmitryAndDemid.Common;
 
-public abstract class GameplayOverlay(GameBox box, float animationLength, float length)
+public abstract class GameplayOverlay(GameBox box, float animationLength, float length) : IDisposable
 {
     protected float State => 
         Raymath.Clamp((Box.GetTime() - TimeAppear) / AnimationLength, 0, 1) * Raymath.Clamp((TimeAppear + Length - Box.GetTime()) / AnimationLength, 0, 1);
@@ -25,6 +25,11 @@ public abstract class GameplayOverlay(GameBox box, float animationLength, float 
     public virtual void Update()
     {
         
+    }
+
+    public void Dispose()
+    {
+        Unload();
     }
 
     public void DrawOverlay()

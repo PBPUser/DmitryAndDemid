@@ -53,6 +53,11 @@ public class GameplayScreen : Screen
             StepLength = .25f,
             UseRealTime = true
         };
+        UILeftSource  = Helper.GetFullSourceRenderTexture(GameBox.UILeft);
+        LeftDest = new Rectangle(
+            Runtime.CurrentRuntime.ScaleF * 416,
+            0, UILeftSource.Size
+        );
     }
 
     public int LetterWidth = 0;
@@ -62,6 +67,8 @@ public class GameplayScreen : Screen
     Rectangle Dest;
     Rectangle DialogSource;
     Rectangle DialogDest;
+    private Rectangle LeftDest;
+    private Rectangle UILeftSource;
     private Rectangle UIAboveSource;
 
     private static Rectangle Fullscreen = Helper.GetFullscreenSource();
@@ -186,9 +193,6 @@ public class GameplayScreen : Screen
         }
         DrawTexturePro(GameEffectsTextures[GameEffectTextureIndex].Texture,
             Source, Dest, Vector2.Zero, 0, Color.White);
-        //DrawTexturePro(Game.Dialog.Texture,
-        //    DialogSource, DialogDest,
-        //    Vector2.Zero, 0, Color.White);
         DrawTexturePro(Runtime.CurrentRuntime.Textures["difficulties_ingame.png"],
             DifficultySource, DifficultyTarget with{ Height = (float)(Helper.ComputeObjectTimeStart(time,2f, .25f) * DifficultyTarget.Height) },
             Vector2.Zero, 0, Color.White);
@@ -204,13 +208,10 @@ public class GameplayScreen : Screen
             UIAboveSource,
             Dest,
             Vector2.Zero, 0, Color.White);
-        //DrawTexturePro(
-        //    Game.UITexture.Texture,
-        //    new Rectangle(0, Game.UITexture.Texture.Height, Game.UITexture.Texture.Width,
-        //        -Game.UITexture.Texture.Height),
-        //    new Rectangle(Game.UIPositionX, Game.UIPositionY, Game.UITexture.Texture.Width, Game.UITexture.Texture.Height),
-        //    Vector2.Zero, 0, Color.White);
-        
+        DrawTexturePro(GameBox.UILeft.Texture,
+            UILeftSource,
+            LeftDest,
+            Vector2.Zero, 0, Color.White);
         if (time - TimeAppear > 2f)
             return;
         DrawTexturePro(Runtime.CurrentRuntime.Textures["difficulties_ingame.png"],

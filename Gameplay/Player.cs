@@ -118,7 +118,9 @@ public class Player
         {
             if (value == heartSpices)
                 return;
-            if (value > 4)
+            if (value < 0)
+                return;
+            if (value > 3)
                 HeartPoints += value / 4;
             heartSpices = value % 4;
             GameBox.UpdateUI();

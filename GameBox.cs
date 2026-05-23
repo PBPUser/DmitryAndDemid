@@ -41,10 +41,13 @@ public class GameBox : IDisposable
             (int)(Runtime.CurrentRuntime.ScaleF * 384f),
             (int)(Runtime.CurrentRuntime.ScaleF * 448f)
         );
+        UILeft = LoadRenderTexture((int)(Runtime.CurrentRuntime.ScaleF * 224),
+            (int)(Runtime.CurrentRuntime.ScaleF * 240));
         LoadStage(stage, chapter, difficulty);
         SignalGameplayOverlay = new SignalGameplayOverlay(this);
         AddOverlay(SignalGameplayOverlay);
         AddOverlay(new ItemGetBorderLineOverlay(this));
+        UpdateUI();
     }
 
     public const float TargetTPS = 60;
@@ -370,6 +373,7 @@ public class GameBox : IDisposable
     public RenderTexture2D Background;
     public RenderTexture2D Box;
     public RenderTexture2D UIAboveGameplay;
+    public RenderTexture2D UILeft;
     public void RenderBox()
     {
         float time = GetTime();
@@ -399,6 +403,16 @@ public class GameBox : IDisposable
         foreach (var obj in BoxObjects)
         {
             #if DEBUG
+            if(IsKeyDown(KeyboardKey.S))
+                UpdateUI();
+            if (IsKeyDown(KeyboardKey.D))
+                Player.HeartPoints++;
+            if (IsKeyDown(KeyboardKey.F))
+                Player.HeartPoints--;
+            if (IsKeyDown(KeyboardKey.G))
+                Player.HeartSpices++;
+            if (IsKeyDown(KeyboardKey.H))
+                Player.HeartSpices--;
             if(IsKeyDown(KeyboardKey.A))
                 DrawRectangle((int)(obj.TargetRectangle.X-obj.Origin.X), (int)(obj.TargetRectangle.Y-obj.Origin.X), (int)obj.TargetRectangle.Width,
                     (int)obj.TargetRectangle.Height, Color.Magenta with {A = 64});
@@ -463,6 +477,14 @@ public class GameBox : IDisposable
     public RenderTexture2D ScoreTexture;
     public RenderTexture2D HiScoreTexture;
     public Rectangle ScoreSrc, ScoreDest, HiScoreSrc, HiScoreDest;
+    private static Rectangle HeartBombSource = new Rectangle(0, 0, 96, 96);
+    private Rectangle HeartBombDest = new(0, 0, new Vector2(12 * Runtime.CurrentRuntime.ScaleF));
+    float BombsY = 135 * Runtime.CurrentRuntime.ScaleF;
+    float SizeOfRes = 12 * Runtime.CurrentRuntime.ScaleF;
+    float ResX = 97 * Runtime.CurrentRuntime.ScaleF;
+    float HeartsY = 97 * Runtime.CurrentRuntime.ScaleF;
+    private Texture2D StaffTexture = Runtime.CurrentRuntime.Textures["ingame-stuff.png"];
+    
     
     public int Score
     {
@@ -471,6 +493,29 @@ public class GameBox : IDisposable
     
     public void UpdateUI()
     {
+        BeginTextureMode(UILeft);
+        ClearBackground(Transparent);
+        for (int i = 0; i < 8; i++)
+        {
+            DrawTexturePro(StaffTexture, HeartBombSource with { Y = 96, 
+                    X = 
+                    i > Player.Bombs ? 384 : 
+                    i < Player.Bombs ? 0 :
+                    384 - (Player.BombsSpices * 96)
+                },
+                HeartBombDest with {Y = BombsY, X = ResX + SizeOfRes * i },
+                Vector2.Zero, 0, Color.White);
+            DrawTexturePro(StaffTexture, HeartBombSource with {  X = 
+                    i > Player.HeartPoints ? 384 : 
+                    i < Player.HeartPoints ? 0 :
+                    384 - (Player.HeartSpices * 96)
+                },
+                HeartBombDest with {Y = HeartsY, X = ResX + SizeOfRes * i },
+                Vector2.Zero, 0, Color.White);
+        }
+        DrawText($"hearts: {Player.HeartPoints}", 0, 0, 24, Color.White);
+        DrawText($"hearts_pieces: {Player.HeartSpices}", 0, 24, 24, Color.White);
+        EndTextureMode();
     }
     #endregion
     #region Time
@@ -537,6 +582,9 @@ public class GameBox : IDisposable
         UnloadRenderTexture(HiScoreTexture);
         UnloadRenderTexture(Box);
         UnloadRenderTexture(UIAboveGameplay);
+        UnloadRenderTexture(UILeft);
+        foreach (var overlay in GameplayOverlays)
+            overlay.Dispose();
     }
     
 #if DEBUG
