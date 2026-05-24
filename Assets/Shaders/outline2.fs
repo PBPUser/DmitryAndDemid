@@ -6,6 +6,8 @@ uniform sampler2D texture0;
 uniform vec4 colDiffuse;
 uniform float border_width;
 uniform vec2 res;
+uniform vec2 fres;
+uniform vec2 pos;
 const vec3 from_color = vec3(1.);
 const vec3 to_color = vec3(.6);
 const vec4 border_color = vec4(0.,0.,0.,1.);
@@ -14,10 +16,9 @@ vec2 zoom(float factor, vec2 pos, vec2 center){
 	return (pos-center)/factor+center;
 }
 
-vec4 textureA(sampler2D t, vec2 pos){
-	if(pos.x < 0 || pos.x > 1 || pos.y < 0 || pos.y > 1)
-		return vec4(0);
-	return texture(t,pos);
+vec4 textureA(sampler2D t, vec2 position){
+	vec2 p = (position * fres - pos) / res;
+	return texture(t,position);
 }
 
 void main(){
@@ -42,5 +43,5 @@ void main(){
 	float s = textureA(texture0, zoom(
 		border_width, fragTexCoord, p1
 	))[3];
-	gl_FragColor[3] = clamp(gl_FragColor[3] + s, 0,1) ;
+	gl_FragColor[3] = clamp(gl_FragColor[3] + s, 0,1);
 }

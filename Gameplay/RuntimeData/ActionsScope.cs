@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using DmitryAndDemid.Gameplay.Effects;
 using DmitryAndDemid.Utils;
 
 namespace DmitryAndDemid.Gameplay.RuntimeData;
@@ -100,7 +101,7 @@ public static class ActionsScope
             {
                 c.Header[0x5B]++;
                 c.Header[0x5A] += 360;
-                // TODO: Spawn Spell Strength Effect
+                c.Box.AddScreenEffect(new StrengthScreenEffect(c.Box, c.Position, 50, c.Box.GetTime(), c.Box.GetTime()+1, 0x00FF34, 0x00EE69));
                 Helper.PlaySound(Runtime.CurrentRuntime.Sounds["boss-appear"]);
             }
         };

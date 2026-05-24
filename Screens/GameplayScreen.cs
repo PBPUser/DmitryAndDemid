@@ -261,6 +261,12 @@ public class GameplayScreen : Screen
                 ImGui.Text($"{i}. {GameBox.GameplayOverlays[i].GetType()}");
             }
             ImGui.End();
+            ImGui.Begin($"Effect Info [{GameBox.ScreenEffects.Count}]: ");
+            for(int i = 0; i < GameBox.ScreenEffects.Count; i++)
+            {
+                ImGui.Text($"{i}. {GameBox.ScreenEffects[i]}");
+            }
+            ImGui.End();
         }
 
         ImGui.Begin("Stage objects");

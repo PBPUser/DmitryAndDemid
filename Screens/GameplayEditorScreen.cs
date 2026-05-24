@@ -36,6 +36,7 @@ public class GameplayEditorScreen : Screen
         }
         ForkSize =  new Vector2(ForkTexture.Width, ForkTexture.Height);
         RedrawTimer();
+        RerenderSpellText();
     }
 
     private Vector2 ForkSize;
@@ -158,6 +159,8 @@ public class GameplayEditorScreen : Screen
             Page = 5;
         if (MenuItem("Timer"))
             Page = 6;
+        if (MenuItem("Spell"))
+            Page = 7;
         if (MenuItem("Exit"))
             Runtime.CurrentRuntime.RemoveScreen(this);
         EndMainMenuBar();
@@ -585,6 +588,14 @@ public class GameplayEditorScreen : Screen
                     End();
                 }
                 break;
+            case 7:
+                Begin("Test Spell Splash");
+                if (InputText("Score", ref ScoreText, 40))
+                    RerenderSpellText();
+                if(TextureTestScore != null)
+                    rlImGui.ImageRenderTexture(TextureTestScore!.Value);
+                End();
+                break;
         }
 
         if (ShowError)
@@ -619,6 +630,17 @@ public class GameplayEditorScreen : Screen
     private float VPadding = 0;
     private string ShaderText = "";
     private string ShaderTestingText = "";
+    private RenderTexture2D? TextureTestScore = null;
+    private float LetterWidthScore = 0;
+    private float PaddingScore = 0;
+    private string ScoreText = "";
+    
+    void RerenderSpellText()
+    {
+        if(TextureTestScore != null)
+            UnloadRenderTexture(TextureTestScore.Value);
+        //Helper.DrawSpellScore(ScoreText, ref TextureTestScore, out LetterWidthScore, out PaddingScore);
+    }
     
     private void RerenderPreviewText()
     {
@@ -640,7 +662,6 @@ public class GameplayEditorScreen : Screen
             GetShaderLocation(Runtime.CurrentRuntime.Shaders[Shaders[SelectedShaderIndex]], "border_width"),
             BorderWidth, ShaderUniformDataType.Float);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders[Shaders[SelectedShaderIndex]]);
-        //ClearBackground(Raylib_cs.Color.Red);
         DrawTexturePro(temp.Texture,
             new Rectangle(0, TextTestTexture.Value.Texture.Height, 
                 TextTestTexture.Value.Texture.Width, TextTestTexture.Value.Texture.Height),

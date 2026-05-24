@@ -60,7 +60,7 @@ void main(){
     vec2 tSize = vec2(textureSize(textureCursor, 0));
     vec2 ftc=vec2(fragTexCoord.x, 1-fragTexCoord.y);
     vec2 p = (((ftc * res) - position) / size) * vec2(res.x/res.y * tSize.y/tSize.x,1) + vec2(.5);
-    p = rotate(p, vec2(.5), sin(realTime * 2) * 0.3, cos(realTime * 2) * 0.3, realTime*2);
+    p = rotate(p, vec2(.5), sin(cos(realTime) * 2) * 0.3, cos(realTime * 2 + sin(ftc.x * 20 * cos(realTime)) * 0.1) * 0.3, realTime*2);
     p = zoom(p, vec2(.5), 1 + sin(realTime * 1.25) * 0.15);
     gl_FragColor = mix(gl_FragColor, color, bloom(p));
 }

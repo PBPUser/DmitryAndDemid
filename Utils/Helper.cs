@@ -236,6 +236,8 @@ public static class Helper
     private static Rectangle TimerRectangleSource, TimerRectangleTarget;
     private static Font TimerFont = Runtime.CurrentRuntime.Fonts["kodemono"];
     private static int LocationOutlineResolution;
+    private static int LocationOutlineFullResolution;
+    private static int LocationOutlinePosition;
     private static int LocationOutlineBorderwidth;
     public static Vector2 TimerTextureSize;
     private static Vector2 TimerPos;
@@ -245,6 +247,8 @@ public static class Helper
         OutlineShader = Runtime.CurrentRuntime.Shaders["outline2"];
         LocationOutlineBorderwidth = GetShaderLocation(OutlineShader, "border_width");
         LocationOutlineResolution = GetShaderLocation(OutlineShader, "res");
+        LocationOutlineFullResolution = GetShaderLocation(OutlineShader, "fres");
+        LocationOutlinePosition = GetShaderLocation(OutlineShader, "pos");
         TimerFontSize *= Runtime.CurrentRuntime.ScaleF;
         TimerFontSpacing *= Runtime.CurrentRuntime.ScaleF;
         TimerTextureSize = MeasureTextEx(TimerFont, "00",  TimerFontSize, TimerFontSpacing) * 1.2f;
@@ -296,9 +300,10 @@ public static class Helper
         EndTextureMode();
         BeginTextureMode(gameTextureApply);
         ClearBackground(Color.Black with {A=0});
+        SetShaderValue(OutlineShader, LocationOutlinePosition, [0,0], ShaderUniformDataType.Vec2);
         SetShaderValue(OutlineShader, LocationOutlineResolution, gameSource.Size * new Vector2(1,1), ShaderUniformDataType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineFullResolution, gameSource.Size * new Vector2(1,1), ShaderUniformDataType.Vec2);
         SetShaderValue(OutlineShader, LocationOutlineBorderwidth, Runtime.CurrentRuntime.ScaleF * 4f, ShaderUniformDataType.Float);
-        SetShaderValue(OutlineShader, LocationOutlineResolution, realSource.Size * new Vector2(1,-1), ShaderUniformDataType.Vec2);
         BeginShaderMode(OutlineShader);
         DrawTexture(gameTexture.Texture, 0, 0, Color.White);
         EndShaderMode();
@@ -306,6 +311,7 @@ public static class Helper
         BeginTextureMode(realTextureApply);
         ClearBackground(Color.Black with {A=0});
         SetShaderValue(OutlineShader, LocationOutlineResolution, realSource.Size * new Vector2(1,-1), ShaderUniformDataType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineFullResolution, realSource.Size * new Vector2(1,-1), ShaderUniformDataType.Vec2);
         BeginShaderMode(OutlineShader);
         DrawTexture(realTexture.Texture, 0, 0, Color.White);
         EndShaderMode();
@@ -324,6 +330,35 @@ public static class Helper
         UnloadRenderTexture(realTextureApply);
     }
 
+    public static void DrawSpellScore(string scoreText, ref RenderTexture2D renderTexture2D, out float letterWidth, out float textWidth)
+    {
+        var fontSize = (int)(SplashTimerSize * Runtime.CurrentRuntime.ScaleF);
+        var measure = MeasureTextEx(TimerFont, scoreText, fontSize, 0);
+        textWidth = measure.X;
+        letterWidth = measure.X / scoreText.Length;
+        var tmp = LoadRenderTexture(
+            (int)(measure.X + 32), 
+            (int)(measure.Y + 32)
+            );
+        var fullSource = GetFullSource(tmp.Texture);
+        var fullSource2 = GetFullSource(renderTexture2D.Texture);
+        Vector2 v = new((renderTexture2D.Texture.Width - fullSource.Width) / 2,
+            (128 * Runtime.CurrentRuntime.ScaleF));
+        BeginTextureMode(tmp);
+        DrawTextPro(TimerFont, scoreText, new Vector2(16), Vector2.Zero, 0, fontSize, 0, Color.White);
+        EndTextureMode();
+        SetShaderValue(OutlineShader, LocationOutlineFullResolution, fullSource2.Size, ShaderUniformDataType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineResolution, fullSource.Size, ShaderUniformDataType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlinePosition, v, ShaderUniformDataType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineBorderwidth, Runtime.CurrentRuntime.ScaleF * 4f, ShaderUniformDataType.Float);
+        BeginTextureMode(renderTexture2D);
+        BeginShaderMode(OutlineShader);
+        DrawTexturePro(tmp.Texture, GetFullSourceRenderTexture(tmp), fullSource with { X = v.X, Y = v.Y }, Vector2.Zero, 0, Color.White);
+        EndTextureMode();
+        EndShaderMode();
+        UnloadRenderTexture(tmp);
+    }
+
     public static void PrepareTimer(int ticks)
     {
         string text = $"{Math.Clamp(ticks/60, 0, 99):00}";
@@ -332,8 +367,10 @@ public static class Helper
         DrawTextPro(TimerFont, text, TimerPos,
             Vector2.Zero, 0, TimerFontSize, TimerFontSpacing, Color.White);
         EndTextureMode();
+        SetShaderValue(OutlineShader, LocationOutlinePosition, [0,0], ShaderUniformDataType.Vec2);
         SetShaderValue(OutlineShader, LocationOutlineBorderwidth, Runtime.CurrentRuntime.ScaleF * 4, ShaderUniformDataType.Float);
         SetShaderValue(OutlineShader, LocationOutlineResolution, TimerTextureSize, ShaderUniformDataType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineFullResolution, TimerTextureSize, ShaderUniformDataType.Vec2);
         BeginTextureMode(TempTimerTexture2);
         ClearBackground(Color.White with {A=0});
         BeginShaderMode(OutlineShader);

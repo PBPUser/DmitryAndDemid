@@ -89,6 +89,9 @@ public class GameBox : IDisposable
     }
     #endregion
     #region Managment
+    #if DEBUG
+    private Vector2 DarkStrengthPos;
+    #endif
     private int ChapterIndex = -1;
     private bool ChapterScoreShown = false;
     private Stopwatch? SpellcardStopwatch = null;
@@ -145,12 +148,30 @@ public class GameBox : IDisposable
                 SpellcardStopwatch = null;
             }
         }
-        if(IsKeyDown(KeyboardKey.G))
-            if(!GameplayOverlays.Any(x => x is BasicGameplayOverlay && GetTime() - x.TimeAppear < 0.05))
-                AddOverlay(new BasicGameplayOverlay(this, "full-power.png", 0.5f, 3f));
-        if(IsKeyDown(KeyboardKey.F))
-            if(!ScreenEffects.Any(x => x is StrengthScreenEffect && GetTime() - x.TimeAppear < 0.05))
-                AddScreenEffect(new StrengthScreenEffect(this, new Vector2(Player.X, Player.Y), 40, GetTime(), GetTime()+0.75f, 0x11bb2a, 0x11bb2a));
+        #if DEBUG
+        if (IsKeyDown(KeyboardKey.LeftControl))
+        {
+            if(IsKeyDown(KeyboardKey.B))
+                if(!GameplayOverlays.Any(x => x is ScoreGameplayOverlay && GetTime() - x.TimeAppear < 0.5))
+                    AddOverlay(new ScoreGameplayOverlay(this, GetRandomValue(0, int.MaxValue), 600, 1.4, .5f, 3f));
+        }
+        else if (IsKeyDown(KeyboardKey.LeftAlt))
+        {
+            if (IsKeyDown(KeyboardKey.Z))
+                DarkStrengthPos = new Vector2(Player.X, Player.Y);
+            if (IsKeyDown(KeyboardKey.X))
+                if (!ScreenEffects.Any(x => x is DarkStrengthScreenEffect && GetTime() - x.TimeAppear < 1.5))
+                {
+                    var pos = new Vector2(Player.X, Player.Y);
+                    var offset = DarkStrengthPos - pos;
+                    offset *= new Vector2(Raymath.Sign(offset.X), Raymath.Sign(offset.Y));
+                    AddScreenEffect(new DarkStrengthScreenEffect(this, offset, pos, 0b0000_1111, 20, GetTime(), GetTime()+2f));
+                }
+            if(IsKeyDown(KeyboardKey.C))
+                if(!ScreenEffects.Any(x => x is StrengthScreenEffect && GetTime() - x.TimeAppear < 0.05))
+                    AddScreenEffect(new StrengthScreenEffect(this, new Vector2(Player.X, Player.Y), 40, GetTime(), GetTime()+0.75f, 0x11bb2a, 0x11bb2a));
+        }
+        #endif
         float x, y, z, r;
         
         foreach(var  obj in BoxObjects)
