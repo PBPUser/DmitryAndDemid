@@ -30,19 +30,13 @@ public class Runtime
     public double Time;
     public int Width;
     public int Height;
-
     public float SFXVolume = 1.0f;
     public float MusicVolume = 1.0f;
-
     public bool DisableClose = false;
     bool ADPTriggered = false;
     public Rectangle FullScreenRect;
-    
-    
     private Rectangle CurrentScoreSource;
     Rectangle CurrentScoreTarget;
-
-
     public double Scale = 1;
     public float ScaleF = 1;
     public Dictionary<string, Shader> Shaders = new();
@@ -231,9 +225,10 @@ public class Runtime
 
     void LoadFonts()
     {
+        int fSize = (int)(64 * ScaleF);
         foreach (var font in Directory.GetFiles("Assets/Fonts"))
         {
-            Fonts[Path.GetFileNameWithoutExtension(font)] = LoadFont(font);
+            Fonts[Path.GetFileNameWithoutExtension(font)] = LoadFontEx(font, fSize, [], 0);
         }
     }
 
@@ -443,7 +438,7 @@ public class Runtime
             ImageOffset += GetMouseDelta();
         }
     }
-
+    
     void DrawTextureView()
     {
         rlImGui.Begin();

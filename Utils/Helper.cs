@@ -230,6 +230,8 @@ public static class Helper
     }
 
     private static Shader OutlineShader;
+    private static Shader TextGradientShader;
+    private static Shader AAShader;
     private static float TimerFontSize = 24;
     private static float TimerFontSpacing = 2;
     private static RenderTexture2D TempTimerTexture, TempTimerTexture2;
@@ -239,12 +241,19 @@ public static class Helper
     private static int LocationOutlineFullResolution;
     private static int LocationOutlinePosition;
     private static int LocationOutlineBorderwidth;
+    private static int LocationAAResolution;
+    private static int LocationAAScale;
     public static Vector2 TimerTextureSize;
     private static Vector2 TimerPos;
+    private const float SplashTimerSize = 20;
+    private const float SplashTimerMillsSize = 16;
+    private const float BonusCountSize = 10;
     
     static void PrepareTimerRenderer()
     {
+        AAShader = Runtime.CurrentRuntime.Shaders["font_antialias"];
         OutlineShader = Runtime.CurrentRuntime.Shaders["outline2"];
+        TextGradientShader = Runtime.CurrentRuntime.Shaders["text_gradient"];
         LocationOutlineBorderwidth = GetShaderLocation(OutlineShader, "border_width");
         LocationOutlineResolution = GetShaderLocation(OutlineShader, "res");
         LocationOutlineFullResolution = GetShaderLocation(OutlineShader, "fres");
@@ -257,10 +266,136 @@ public static class Helper
         TempTimerTexture2 = LoadRenderTexture((int)TimerTextureSize.X, (int)TimerTextureSize.Y);
         TimerRectangleSource = new Rectangle(0, (int)TimerTextureSize.Y, (int)TimerTextureSize.X, -(int)TimerTextureSize.Y);
         TimerRectangleTarget = new Rectangle(0, 0, (int)TimerTextureSize.X, (int)TimerTextureSize.Y);
+        LocationAAResolution = GetShaderLocation(AAShader, "resolution");
+        LocationAAScale = GetShaderLocation(AAShader, "scale");
+    }
+    
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="renderTexture2D"></param>
+    /// <param name="score"></param>
+    /// <param name="total"></param>
+    /// <param name="success"></param>
+    /// <returns>Used Texture Width</returns>
+    public static int DrawBonusCount(RenderTexture2D renderTexture2D, int score, int total, int success)
+    {
+        float fontSize = BonusCountSize * Runtime.CurrentRuntime.ScaleF;
+        string bonusTitle = Translate("spell.bonus");
+        string bonusValue = score == -1 ? Translate("spell.failed") : score.ToString();
+        string spellTitle = Translate("spell.attempt");
+        string spellValue = success > 99 ? Transliterate("spell.master") : $"{success:00}/{(total > 99 ? "99+" : $"{total:00}")}";
+        var padding = Runtime.CurrentRuntime.ScaleF * 4;
+        DrawTextOutline(out var temp, TimerFont, fontSize, bonusTitle, Color.Blue, padding);
+        var rectangle = GetFullSourceRenderTexture(temp);
+        var rectangle2 = GetFullSource(temp.Texture);
+        BeginTextureMode(renderTexture2D);
+        ClearBackground(Runtime.TransparentWhite);
+        DrawTexturePro(temp.Texture, rectangle, rectangle2, Vector2.Zero, 0, Color.White);
+        var x = temp.Texture.Width;
+        UnloadRenderTexture(temp);
+        EndTextureMode();
+        DrawTextOutline(out temp, TimerFont, fontSize, bonusValue, Color.White, padding);
+        BeginTextureMode(renderTexture2D);
+        rectangle = GetFullSourceRenderTexture(temp);
+        rectangle2 = GetFullSource(temp.Texture);
+        DrawTexturePro(temp.Texture, rectangle, rectangle2 with {X = x }, Vector2.Zero, 0, Color.White);
+        x += temp.Texture.Width;
+        UnloadRenderTexture(temp);
+        EndTextureMode();
+        DrawTextOutline(out temp, TimerFont, fontSize, spellTitle, Color.Blue, padding);
+        BeginTextureMode(renderTexture2D);
+        rectangle = GetFullSourceRenderTexture(temp);
+        rectangle2 = GetFullSource(temp.Texture);
+        DrawTexturePro(temp.Texture, rectangle, rectangle2 with {X = x }, Vector2.Zero, 0, Color.White);
+        x += temp.Texture.Width;
+        UnloadRenderTexture(temp);
+        EndTextureMode();
+        DrawTextOutline(out temp, TimerFont, fontSize, spellValue, Color.White, padding);
+        BeginTextureMode(renderTexture2D);
+        rectangle = GetFullSourceRenderTexture(temp);
+        rectangle2 = GetFullSource(temp.Texture);
+        DrawTexturePro(temp.Texture, rectangle, rectangle2 with {X = x }, Vector2.Zero, 0, Color.White);
+        x += temp.Texture.Width;
+        UnloadRenderTexture(temp);
+        EndTextureMode();
+        return 0;
     }
 
-    private const float SplashTimerSize = 20;
-    private const float SplashTimerMillsSize = 16;
+    public static void DrawTextOutline(out RenderTexture2D texture, Font font, float fontSize, string text, Color color, float padding)
+    {
+        DrawTextAliasedA(out var temp, font, fontSize, text, color);
+        texture = LoadRenderTexture((int)(temp.Texture.Width + padding * 2),
+            (int)(temp.Texture.Height + padding * 2));
+        var s = GetFullSource(texture.Texture);
+        var temp2 = LoadRenderTexture(texture.Texture.Width, texture.Texture.Height);
+        SetShaderValue(OutlineShader, LocationOutlinePosition, [0f, 0f], ShaderUniformDataType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineFullResolution, s.Size, ShaderUniformDataType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineResolution, s.Size, ShaderUniformDataType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineBorderwidth, 4 * Runtime.CurrentRuntime.ScaleF, ShaderUniformDataType.Float);
+        BeginTextureMode(temp2);
+        DrawTexturePro(temp.Texture, 
+            new Rectangle(0, 0, temp.Texture.Width, temp.Texture.Height),
+            new Rectangle(padding, padding, temp.Texture.Width, temp.Texture.Height),
+            Vector2.Zero, 0, Color.White);
+        EndTextureMode();
+        BeginTextureMode(texture);
+        BeginShaderMode(OutlineShader);
+        DrawTexturePro(temp2.Texture,
+            new Rectangle(0, 0, temp2.Texture.Width, temp2.Texture.Height),
+            new Rectangle(0, 0, texture.Texture.Width, texture.Texture.Height),
+            Vector2.Zero, 0, Color.White);
+        EndShaderMode();
+        EndTextureMode();
+        UnloadRenderTexture(temp);
+        UnloadRenderTexture(temp2);
+    }
+
+    public static void DrawTextGradient(out RenderTexture2D texture, Font font, float fontSize, string text,
+        Color color, float padding)
+    {
+        DrawTextOutline(out var temp, font, fontSize, text, color, padding);
+        texture = LoadRenderTexture(temp.Texture.Width, temp.Texture.Height);
+        BeginTextureMode(texture);
+        BeginShaderMode(TextGradientShader);
+        DrawTexture(temp.Texture, 0, 0, Color.White);
+        EndShaderMode();
+        EndTextureMode();
+        UnloadRenderTexture(temp);
+    }
+
+    public static void DrawTextAliased(out RenderTexture2D texture, 
+        #if DEBUG
+        out RenderTexture2D unscaled,
+        #endif
+        Font font, float fontSize, string text, Color color)
+    {
+        var measure = MeasureTextEx(font, text, fontSize * 4, 0);
+        var tmp = LoadRenderTexture((int)measure.X, (int)measure.Y);
+        SetShaderValue(AAShader, LocationAAResolution, measure, ShaderUniformDataType.Vec2);
+        SetShaderValue(AAShader, LocationAAScale, 4, ShaderUniformDataType.Int);
+        BeginTextureMode(tmp);
+        DrawTextEx(font, text, Vector2.Zero, fontSize * 4, 0, color);
+        EndTextureMode();
+        texture = LoadRenderTexture((int)measure.X / 4, (int)measure.Y / 4);
+        BeginTextureMode(texture);
+        BeginShaderMode(AAShader);
+        DrawTexture(tmp.Texture, 0, 0, Color.White);
+        EndShaderMode();
+        EndTextureMode();
+        #if DEBUG
+        unscaled = tmp;
+        #else
+        UnloadRenderTexture(tmp);
+        #endif
+    }
+
+    public static void DrawTextAliasedA(out RenderTexture2D texture, Font font, float fontSize, string text, Color color)
+    {
+        RenderTexture2D unscaled = new RenderTexture2D();
+        DrawTextAliased(out texture, out unscaled, font, fontSize, text, color);
+        UnloadRenderTexture(unscaled);
+    }
     
     public static void DrawTimerSplash(RenderTexture2D renderTexture, int ticks, double time)
     {
@@ -339,7 +474,7 @@ public static class Helper
         var tmp = LoadRenderTexture(
             (int)(measure.X + 32), 
             (int)(measure.Y + 32)
-            );
+        );
         var fullSource = GetFullSource(tmp.Texture);
         var fullSource2 = GetFullSource(renderTexture2D.Texture);
         Vector2 v = new((renderTexture2D.Texture.Width - fullSource.Width) / 2,
@@ -700,11 +835,7 @@ public static class Helper
     {
         #if DEBUG
         if (rc1.X > rc2.X)
-        {
-            var temp = rc2.X;
-            rc2.X = rc1.X;
-            rc1.X = temp;
-        }
+            (rc2.X, rc1.X) = (rc1.X, rc2.X);
         var vecDistance = MathF.Abs(Raymath.Vector2Distance(rc1.Center, rc2.Center));
         var wDistance = (rc1.Width + rc2.Width) / 2;
         return vecDistance < wDistance;
@@ -712,9 +843,6 @@ public static class Helper
         return Raymath.Vector2Distance(rc1.Center, rc2.Center) < (rc1.Width + rc2.Width) / 2;
 #endif
     }
-    
-    
-
     
     public static double BossAppearCurve(double x, double pow)
     {
@@ -754,11 +882,14 @@ public static class Helper
     static Dictionary<string, string> TranslationDictionary = 
         JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText("Assets/Data/translation.json"));
 
-    public static string Translate(string i18n)
+    public static string Translate(string j57v)
     {
-        if(TranslationDictionary.ContainsKey(i18n))
-            return Transliterate(TranslationDictionary[i18n]);
-        return Transliterate(i18n);
+        if (TranslationDictionary.ContainsKey(j57v))
+        {
+            var translitions = TranslationDictionary[j57v].Split(";");
+            return Transliterate(translitions[GetRandomValue(0, translitions.Length - 1)]);
+        }
+        return Transliterate(j57v);
     }
     
     public static string Transliterate(string text)

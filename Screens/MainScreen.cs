@@ -175,7 +175,9 @@ public class MainScreen : MenuScreen
 
     public override void CreateMenu()
     {
+        int j = 1;
 #if DEBUG
+        j++;
         MenuItems.Add(new MenuItem("menu.editor", "", a => Runtime.CurrentRuntime.AddScreen(new GameplayEditorScreen())));
 #endif
         MenuItems.Add(new MenuItem("menu.start", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Default))));
@@ -189,6 +191,9 @@ public class MainScreen : MenuScreen
         MenuItems.Add(new MenuItem("menu.settings", "", a => Runtime.CurrentRuntime.AddScreen(new SettingsScreen())));
         MenuItems.Add(new MenuItem("menu.manual", "", a => Runtime.CurrentRuntime.AddScreen(MusicRoom)));
         MenuItems.Add(new MenuItem("menu.exit", "", a => Environment.Exit(0)));
+        MenuItems[j].Enabled = PlayerData.Instance.IsExtraUnlocked;
+        MenuItems[j + 1].Enabled = PlayerData.Instance.IsStageUnlocked(0);
+        MenuItems[j + 2].Enabled = PlayerData.Instance.Persons.Any(x => x.Value.MainScoreRecords.Length > 0);
     }
 
     public override void PreRender(double delta)

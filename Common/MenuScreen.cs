@@ -82,10 +82,14 @@ public abstract class MenuScreen : ScreenWithTitle
             AnimationStartedAt = GetTime();
             if (MenuItems.Count == 0)
                 return;
-            if(LoopList)
-                SelectedIndex = (SelectedIndex - 1 + MenuItems.Count()) % MenuItems.Count();
-            else
-                SelectedIndex = Math.Clamp(SelectedIndex - 1, 0, MenuItems.Count() - 1);
+            int z = 0;
+            do
+            {
+                if(LoopList)
+                    SelectedIndex = (SelectedIndex - 1 + MenuItems.Count()) % MenuItems.Count();
+                else
+                    SelectedIndex = Math.Clamp(SelectedIndex - 1, 0, MenuItems.Count() - 1);
+            } while (z < MenuItems.Count && !MenuItems[SelectedIndex].Enabled);
         }
         else if (
             ((IsKeyDown(KeyboardKey.Down)) || Controller.IsButtonDown(GamepadButton.LeftFaceDown)) && VerticalDirectionNavigation ||
@@ -99,10 +103,15 @@ public abstract class MenuScreen : ScreenWithTitle
             AnimationStartedAt = GetTime();
             if (MenuItems.Count == 0)
                 return;
-            if(LoopList)
-                SelectedIndex = (SelectedIndex + 1) % MenuItems.Count();
-            else
-                SelectedIndex = Math.Clamp(SelectedIndex + 1, 0, MenuItems.Count() - 1);
+            int z = 0;
+            do
+            {
+                if (LoopList)
+                    SelectedIndex = (SelectedIndex + 1) % MenuItems.Count();
+                else
+                    SelectedIndex = Math.Clamp(SelectedIndex + 1, 0, MenuItems.Count() - 1);
+                z++;
+            } while (z < MenuItems.Count && !MenuItems[SelectedIndex].Enabled);
         }
         else if (IsKeyDown(KeyboardKey.Enter) || IsKeyDown(KeyboardKey.Z) || Controller.IsButtonDown(GamepadButton.RightFaceDown))
         {
@@ -172,9 +181,9 @@ public abstract class MenuScreen : ScreenWithTitle
             }
             scale = SelectedItemScale * offsetState + 1f * (1 - offsetState);
             DrawTextureEx(x.Texture, new Vector2(CurrentX + offset.X, y + offset.Y), 0, scale, 
-                index == SelectedIndex ? Helper.Mix(Color.Yellow, Color.White, MathF.Abs((t * 
+                (index == SelectedIndex ? Helper.Mix(Color.Yellow, Color.White, MathF.Abs((t * 
                         (ItemActivated ? 30 : 2)
-                        ) % 2 - 1)) : Color.White);
+                        ) % 2 - 1)) : Color.White) with { A = (byte)(x.Enabled ? 255 : 128) });
             y += (int)(x.Texture.Height * scale);
             index++;
         }
@@ -198,7 +207,8 @@ public abstract class MenuScreen : ScreenWithTitle
         public Action<int>? Action;
         public Texture2D Texture =>  texture.Texture;
         private RenderTexture2D texture = new RenderTexture2D();
-
+        public bool Enabled = true;
+        
         public static void AddToRender(MenuItem item)
         {
             if (RenderItemQueue.Contains(item))
@@ -219,7 +229,15 @@ public abstract class MenuScreen : ScreenWithTitle
         {
             if(texture.Id != 0)
                 UnloadRenderTexture(texture);
-            texture=Helper.DrawTextScaled(Helper.Translate(text).Replace("%s", Helper.Translate(replace)), 16, 8, 4, 2, Runtime.CurrentRuntime.Fonts["newsreader"], "gradient");
+            Helper.DrawTextGradient(
+                out texture,
+                CurrentRuntime.Fonts["newsreader"],
+                16 * CurrentRuntime.ScaleF,
+                Helper.Translate(text).Replace("%s", Helper.Translate(replace)),
+                Color.White,
+                4 * CurrentRuntime.ScaleF
+                );
+            //texture=Helper.DrawTextScaled(, 16, 8, 4, 2, Runtime.CurrentRuntime.Fonts["newsreader"], "gradient");
         }
         
         public string Text

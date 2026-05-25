@@ -291,3 +291,6 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/.ingame-stuff.png-autosave.kra
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/score_jump.fs
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/dark_strength.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/font_antialias.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/text_gradient.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/boss_health_bar.fs

@@ -328,6 +328,7 @@ public class GameBox : IDisposable
     
     public void LoadStage(FileStageInfo stage, int chapter, int difficulty)
     {
+        PlayerData.Instance.SetStageUnlocked(stage.Header[1], true);
         StageInfo = RuntimeStageInfo.LoadFromFile(stage, difficulty, this);
         NextChapter();
     }

@@ -161,6 +161,10 @@ public class GameplayEditorScreen : Screen
             Page = 6;
         if (MenuItem("Spell"))
             Page = 7;
+        if (MenuItem("Alias"))
+            Page = 8;
+        if (MenuItem("Bonus"))
+            Page = 9;
         if (MenuItem("Exit"))
             Runtime.CurrentRuntime.RemoveScreen(this);
         EndMainMenuBar();
@@ -592,8 +596,24 @@ public class GameplayEditorScreen : Screen
                 Begin("Test Spell Splash");
                 if (InputText("Score", ref ScoreText, 40))
                     RerenderSpellText();
-                if(TextureTestScore != null)
-                    rlImGui.ImageRenderTexture(TextureTestScore!.Value);
+                if(IsRenderTextureValid(SpellTestTexture))
+                    rlImGui.ImageRenderTexture(SpellTestTexture);
+                End();
+                break;
+            case 8:
+                Begin("Text Testing Window");
+                if(InputText("text", ref FontTextTest, 65536))
+                    RedrawFontTest();
+                if(Combo("font", ref SelectedFontIndex, Fonts, Fonts.Length))
+                    RedrawFontTest();
+                if(SliderFloat("font size", ref FontSize1, 8, 64))
+                    RedrawFontTest();
+                End();
+                Begin("Preview");
+                if(IsRenderTextureValid(FontTestTexture))
+                    rlImGui.Image(FontTestTexture.Texture);
+                if(IsRenderTextureValid(FontTestTexture2))
+                    rlImGui.Image(FontTestTexture2.Texture);
                 End();
                 break;
         }
@@ -615,7 +635,25 @@ public class GameplayEditorScreen : Screen
         ShowError = true;
     }
 
+    private void RedrawFontTest()
+    {
+        if (SelectedFontIndex == -1)
+            return;
+        if(IsRenderTextureValid(FontTestTexture))
+            UnloadRenderTexture(FontTestTexture);
+        if(IsRenderTextureValid(FontTestTexture2))
+            UnloadRenderTexture(FontTestTexture2);
+        Helper.DrawTextAliased(out FontTestTexture,out FontTestTexture2,
+            Runtime.CurrentRuntime.Fonts[Fonts[SelectedFontIndex]],
+            FontSize1, FontTextTest, Raylib_cs.Color.White);
+    }
+
+    private string FontTextTest = "";
     private RenderTexture2D? TextTestTexture = null;
+    private RenderTexture2D SpellTestTexture = new RenderTexture2D();
+    private RenderTexture2D FontTestTexture = new RenderTexture2D();
+    private RenderTexture2D FontTestTexture2 = new RenderTexture2D();
+    private float FontSize1 = 10;
     private float FontSize = 14;
     private float Spacing = 2;
     private float BorderWidth = 1;
@@ -639,7 +677,17 @@ public class GameplayEditorScreen : Screen
     {
         if(TextureTestScore != null)
             UnloadRenderTexture(TextureTestScore.Value);
-        //Helper.DrawSpellScore(ScoreText, ref TextureTestScore, out LetterWidthScore, out PaddingScore);
+        Helper.DrawSpellScore(ScoreText, ref SpellTestTexture, out LetterWidthScore, out PaddingScore);
+    }
+
+    private RenderTexture2D TextureTestBonus = LoadRenderTexture(8192,8192);
+    private int Score = -1;
+    private int TotalAttempts = 0;
+    private int SuccessAttempts = 0;
+    
+    void RerenderBonusCount()
+    {
+        Helper.DrawBonusCount(TextureTestBonus, Score, TotalAttempts, SuccessAttempts);
     }
     
     private void RerenderPreviewText()

@@ -5,6 +5,7 @@ using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Gameplay.Effects;
+using DmitryAndDemid.Gameplay.GameplayOverlays;
 using DmitryAndDemid.Gameplay.RuntimeData;
 using DmitryAndDemid.Utils;
 using Microsoft.CodeAnalysis.Scripting;
@@ -129,6 +130,7 @@ public class RuntimeObject
             entity.BossCircleEffect = new BossCircleScreenEffect(box, Vector2.Zero, 0, box.GetTime(), float.MaxValue);
             box.AddScreenEffect(entity.BackgroundDistortionEffect);
             box.AddScreenEffect(entity.BossCircleEffect);
+            box.AddOverlay(new BossHealthOverlay(box, entity));
         }
         return entity;
     }
