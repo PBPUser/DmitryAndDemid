@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Numerics;
 using DmitryAndDemid.Gameplay.Effects;
 using DmitryAndDemid.Utils;
 
@@ -30,7 +31,15 @@ public static class ActionsScope
             nPerson.Header[0x50] = 15;
             nPerson.Header[0x51] = 120;
             nPerson.Header[0x5B] = 1;
-
+        };
+        dictionary["nikitos#spell2#easy_create"] = c =>
+        {
+            var nPerson = c.GameBox.SpawnObject(3);
+            nPerson.X = 192;
+            nPerson.Y = 192;
+            nPerson.Header[0x50] = 15;
+            nPerson.Header[0x51] = 120;
+            nPerson.Header[0x5B] = 1;
         };
         dictionary["nikitos#spell1#easy"] = c =>
         {
@@ -43,14 +52,18 @@ public static class ActionsScope
             //    rain.Speed = MathF.Abs(MathF.Sin((c.GameBox.CurrentTick - c.TickStart)));
             //    rain.FacingRotation = rain.RenderRotation = (c.Header[0] % 5 - 3) * -10;
             //}
-            if ((c.GameBox.CurrentTick - c.TickStart) % 15 == 0)
-            {
-                var obj = c.GameBox.SpawnObject(1);
-                obj.X = -16;
-                obj.Y = 64;
-                obj.FacingRotation = -MathF.PI / 2;
-                obj.Speed = 2f;
-            }
+            // if ((c.GameBox.CurrentTick - c.TickStart) % 15 == 0)
+            // {
+            //     var obj = c.GameBox.SpawnObject(1);
+            //     obj.X = -16;
+            //     obj.Y = 64;
+            //     obj.FacingRotation = -MathF.PI / 2;
+            //     obj.Speed = 2f;
+            // }
+        };
+        dictionary["nikitos#spell2#easy"] = c =>
+        {
+            
         };
         ChapterActions = dictionary.ToFrozenDictionary();
     }
@@ -86,9 +99,14 @@ public static class ActionsScope
             var time = c.Box.CurrentTick - c.CreatedAt + c.Header[0x5A];
             if (time % c.Header[0x50] == 0 && time > 0)
             {
+                var angle = Helper.FindAngle(c.Position, new Vector2(c.Box.Player.X, c.Box.Player.Y));
                 for (int i = 0; i < 3; i++)
                 {
-                    
+                    var d = c.Box.SpawnObject(0);
+                    d.FacingRotation = d.RenderRotation = -2.5f + 2.5f * i;
+                    d.X = c.X;
+                    d.Y = c.Y;
+                    d.Speed = 2f;
                 }
             }
 
@@ -104,6 +122,10 @@ public static class ActionsScope
                 c.Box.AddScreenEffect(new StrengthScreenEffect(c.Box, c.Position, 50, c.Box.GetTime(), c.Box.GetTime()+1, 0x00FF34, 0x00EE69));
                 Helper.PlaySound(Runtime.CurrentRuntime.Sounds["boss-appear"]);
             }
+        };
+        dictionary["nikitos#spell2"] = c =>
+        {
+            
         };
         ObjectActions = dictionary.ToFrozenDictionary();
     }

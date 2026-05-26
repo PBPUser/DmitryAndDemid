@@ -183,6 +183,12 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                         Array.Resize(ref Info.Entities,  Info.Entities.Length + 1);
                         Info.Entities[^1] = new FileEntityInfo();
                     }
+                    if(SelectedObjectIndex != -1)
+                        if (Button("Clone"))
+                        {
+                            Array.Resize(ref Info.Entities,  Info.Entities.Length + 1);
+                            Info.Entities[^1] = Info.Entities[SelectedObjectIndex].Clone();
+                        }
                 }
                 else
                 {
@@ -221,6 +227,8 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                             InputInt("Boss ID", ref Info.Entities[SelectedObjectIndex].Header[7]);
                             InputInt("Boss Health Bar Percent", ref Info.Entities[SelectedObjectIndex].Header[8]);
                             InputInt("Boss Attack Index", ref Info.Entities[SelectedObjectIndex].Header[9]);
+                            Checkbox("Is Final Chapter Boss",
+                                ref Info.Entities[SelectedObjectIndex].IsFinalChapterBoss);
                         }
                         InputFloat("Health",  ref Info.Entities[SelectedObjectIndex].FloatingPoints[0]);
                         InputInt("Score add when killed", ref Info.Entities[SelectedObjectIndex].Header[6]);
@@ -331,7 +339,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                     if (Info.Chapters[SelectedObjectIndex].UseUpdateScript)
                         if (Combo("Script Update", ref SelectedUpdateScriptIndex, Scripts, Scripts.Length))
                             Info.Chapters[SelectedObjectIndex].UpdateScript = Scripts[SelectedUpdateScriptIndex];
-                    SliderInt("Length", ref Info.Chapters[SelectedObjectIndex].Header[2], 0, 2000);
+                    SliderInt("Length", ref Info.Chapters[SelectedObjectIndex].Header[2], 0, 6000);
                     Combo("Difficulty", ref Info.Chapters[SelectedObjectIndex].Header[3], Difficulties, Difficulties.Length);
                     Combo("Chapter Type", ref Info.Chapters[SelectedObjectIndex].Header[0], ChapterTypes, ChapterTypes.Length);
                     

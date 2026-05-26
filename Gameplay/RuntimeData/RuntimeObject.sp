@@ -43,17 +43,21 @@
 [0x7] Boss Id
 [0x8] Boss Health Bar Percent
 [0x9] Boss Attack Index
+[0x0] Bit mask: {
+    [0x100000] Is Final
+}
 Floating Points:
 [0x0] Health
 [0x1] Appear Speed
-[0x2] Collision Scaling
+[0x2] Collision Scaling / Collectable State Velocity X
 [0x3] Rendering Scaling X
 [0x4] Rendering Scaling Y
 [0x5] Rendering Rotation
-[0x6] In-Script Rotation
+[0x6] In-Script Rotation / Collectable State Velocity Y
 [0x7] Speed
 [0x8] Speed Modifier
 [0x9] Damage
+[0xA] Max Health
 [0x10] GameBox Position X
 [0x11] GameBox Position Y
 [0x12] GameBox Position Z

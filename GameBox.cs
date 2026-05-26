@@ -53,6 +53,7 @@ public class GameBox : IDisposable
     public const float TargetTPS = 60;
     private float TickLength = 1f / TargetTPS;
     private bool RequiresRefresh = false;
+    private bool IsFailed = false;
 
     private List<RuntimeObject> 
         ObjectsAddQueue = new(),
@@ -74,6 +75,7 @@ public class GameBox : IDisposable
     public int CurrentTick = 0;
     public bool InChapterDelay = false;
     private int CurrentTickCompute => (int)(GetTime() * TargetTPS);
+    public int TickOffset = 0;
     
     #region Update
 
@@ -104,7 +106,7 @@ public class GameBox : IDisposable
         if (CurrentTick >= CurrentTickCompute)
             return;
         CurrentTick++;
-        if (CurrentTick >= ChapterInfo.TickStart + ChapterInfo.Length)
+        if (CurrentTick + TickOffset >= ChapterInfo.TickStart + ChapterInfo.Length)
         {
             if (!ChapterScoreShown)
             {
@@ -112,7 +114,7 @@ public class GameBox : IDisposable
                 ClearAll(false);
                 ChapterTitleDisappear = GetTime();
             }
-            if (CurrentTick >= ChapterInfo.TickStart + ChapterInfo.Length + DelayBetweenChapters)
+            if (CurrentTick + TickOffset >= ChapterInfo.TickStart + ChapterInfo.Length + DelayBetweenChapters)
             {
                 NextChapter();
             }
@@ -138,9 +140,9 @@ public class GameBox : IDisposable
 
         if (ChapterInfo.Type == ChapterType.Spell)
         {
-            if((CurrentTick - ChapterInfo.TickStart) % TargetTPS == 0 && !InChapterDelay && (ChapterInfo!.Length - CurrentTick) < (ChapterInfo!.Length > 600 ? 300 : 600))
+            if((CurrentTick + TickOffset - ChapterInfo.TickStart) % TargetTPS == 0 && !InChapterDelay && (ChapterInfo!.Length - CurrentTick) < (ChapterInfo!.Length > 600 ? 300 : 600))
                 Helper.PlaySound(Runtime.CurrentRuntime.Sounds["pre-timeout"]);
-            if (CurrentTick - ChapterInfo.TickStart == ChapterInfo.Length)
+            if (CurrentTick + TickOffset - ChapterInfo.TickStart == ChapterInfo.Length)
             {
                 AddOverlay(new TimerGameplayOverlay(this, "bonus-failed.png", ChapterInfo.Length, SpellcardStopwatch!.Elapsed.TotalSeconds, 0.5f, 3f));
                 Helper.PlaySound(Runtime.CurrentRuntime.Sounds["fault"]);
@@ -155,8 +157,16 @@ public class GameBox : IDisposable
                 if(!GameplayOverlays.Any(x => x is ScoreGameplayOverlay && GetTime() - x.TimeAppear < 0.5))
                     AddOverlay(new ScoreGameplayOverlay(this, GetRandomValue(0, int.MaxValue), 600, 1.4, .5f, 3f));
         }
-        else if (IsKeyDown(KeyboardKey.LeftAlt))
+        else if (IsKeyDown(KeyboardKey.RightShift) && CurrentTick % TargetTPS == 0)
         {
+            if (IsKeyDown(KeyboardKey.D))
+                Player.HeartPoints++;
+            if (IsKeyDown(KeyboardKey.F))
+                Player.HeartPoints--;
+            if (IsKeyDown(KeyboardKey.G))
+                Player.HeartSpices++;
+            if (IsKeyDown(KeyboardKey.H))
+                Player.HeartSpices--;
             if (IsKeyDown(KeyboardKey.Z))
                 DarkStrengthPos = new Vector2(Player.X, Player.Y);
             if (IsKeyDown(KeyboardKey.X))
@@ -204,6 +214,9 @@ public class GameBox : IDisposable
                 RemoveObject(obj);
                 continue;
             }
+
+            if (InChapterDelay)
+                continue;
             if ((bitMask & RuntimeObject.FlagDangerousRelatedToEnemy) ==
                 RuntimeObject.FlagDangerousRelatedToEnemy)
             {
@@ -218,15 +231,33 @@ public class GameBox : IDisposable
                     {
                         obj.Header[0] |= RuntimeObject.FlagIsDied;
                         obj.Header[0xa] = CurrentTick;
-                        obj2.FloatingPoints[0] -= obj.FloatingPoints[0x20];
+                        obj2.FloatingPoints[0] -= obj.FloatingPoints[0x9];
                         Helper.PlaySound(Runtime.CurrentRuntime.Sounds["damage"]);
                         Player.Weapon.SpawnDistortionEffect((int)obj.X, (int)obj.Y);
                         if (obj2.FloatingPoints[0] <= 0)
                         {
-                            obj2.Header[0] |=  RuntimeObject.FlagIsUsed;
-                            obj2.Header[0xa] = CurrentTick;
-                            RemoveObject(obj2);
-                            ScreenEffects.Add(new EntityDeathScreenEffect(this, new Vector2(obj.X, obj.Y), 40, GetTime(), GetTime()+0.75f, obj2.Header[0xC], obj2.Header[0xB]));
+                            bool shouldDie = true;
+                            if ((obj2.Header[0] & RuntimeObject.FlagIsBoss) == RuntimeObject.FlagIsBoss)
+                            {
+                                shouldDie = (obj2.Header[0] & RuntimeObject.FlagIsFinalBossChapter) ==
+                                            RuntimeObject.FlagIsFinalBossChapter;
+                                TickOffset += (ChapterInfo.TickStart+ChapterInfo.Length-CurrentTick);
+                                int ticks = CurrentTick+TickOffset-ChapterInfo.TickStart;
+                                if (IsFailed)
+                                    AddOverlay(new TimerGameplayOverlay(this, "bonus-failed.png", ticks, SpellcardStopwatch!.Elapsed.TotalSeconds, 0.5f, 3f));
+                                else
+                                    AddOverlay(new ScoreGameplayOverlay(this, 0, ticks, SpellcardStopwatch!.Elapsed.TotalSeconds, .5f, 3));
+                                SpellcardStopwatch = null;
+                                if(shouldDie)
+                                    AddScreenEffect(new BossDeathScreenEffect(this, obj2.Position, 70, GetTime(), GetTime()+0.75f));
+                            }
+                            if(shouldDie)
+                            {
+                                obj2.Header[0] |=  RuntimeObject.FlagIsUsed;
+                                obj2.Header[0xa] = CurrentTick;
+                                RemoveObject(obj2);
+                                ScreenEffects.Add(new EntityDeathScreenEffect(this, new Vector2(obj.X, obj.Y), 40, GetTime(), GetTime()+0.75f, obj2.Header[0xC], obj2.Header[0xB]));
+                            }
                         }
                         RemoveObject(obj);
                         broken = true;
@@ -246,6 +277,7 @@ public class GameBox : IDisposable
                 if (distance < collision / 2)
                 {
                     Player.Die();
+                    IsFailed = true;
                     RemoveObject(obj);
                     continue;
                 }
@@ -302,9 +334,9 @@ public class GameBox : IDisposable
     public RuntimeObject SpawnObject(int i)
     {
         if(!StageInfo.Entities[i].IsBullet)
-            if (!StageInfo.Entities[i].IsBoss)
+            if (StageInfo.Entities[i].IsBoss)
             {
-                var bossList = BoxObjects.Where(x => x.BossId == i);
+                var bossList = BoxObjects.Where(x => x.BossId == StageInfo.Entities[i].Header[0x7] && (x.Header[0] & 0x200) == 0x200);
                 if (bossList.Count() > 0)
                 {
                     var boss = bossList.First();
@@ -323,7 +355,27 @@ public class GameBox : IDisposable
 
     public void ClearAll(bool drop)
     {
-        
+        foreach (var obj in BoxObjects)
+        {
+            var bm = obj.Header[0];
+            if ((bm & RuntimeObject.FlagIsBoss) != RuntimeObject.FlagIsBoss)
+            {
+                
+            }
+            else
+            {
+                if (drop)
+                {
+                    if ((bm & RuntimeObject.FlagIsBullet) != RuntimeObject.FlagIsBullet)
+                        obj.Header[0] |= RuntimeObject.FlagIsCollectableBullet;
+                }
+                else
+                {
+                    // TODO: Add objects removal shader
+                }
+                RemoveObject(obj);
+            }
+        }
     }
     
     public void LoadStage(FileStageInfo stage, int chapter, int difficulty)
@@ -336,9 +388,8 @@ public class GameBox : IDisposable
     public void NextChapter()
     {
         ChapterIndex++;
-        if(ChapterInfo!=null)
-            ChapterInfo.Unload();
-        if (StageInfo.Chapters.Length <= ChapterIndex)
+        ChapterInfo?.Unload();
+        if (StageInfo!.Chapters.Length <= ChapterIndex)
         {
             if (Practice)
             {
@@ -346,7 +397,6 @@ public class GameBox : IDisposable
             }
             else
             {
-                
                 
             }
             return;
@@ -366,6 +416,7 @@ public class GameBox : IDisposable
             RenderChapterTitle = true;
             ChapterTitleAppear = GetTime();
             ChapterTitleDisappear = float.MaxValue;
+            IsFailed = false;
             AddScreenEffect(new SpellCardAttackScreenEffect(this, Vector2.Zero, 0, GetTime(), GetTime()+2));
         }
         else if (ChapterInfo.Type == ChapterType.NonSpell)
@@ -374,6 +425,7 @@ public class GameBox : IDisposable
         }
         InChapterDelay = false;
         ChapterInfo.CreateScript?.Invoke(ChapterInfo);
+        
     }
 
     void ShowChapterScore()
@@ -401,7 +453,7 @@ public class GameBox : IDisposable
         float time = GetTime();
         int typeI = ChapterInfo != null ? (int)ChapterInfo!.Type : 0;
         if(typeI > 1 && !InChapterDelay)
-            Helper.PrepareTimer(ChapterInfo!.TickStart + ChapterInfo!.Length - CurrentTick);
+            Helper.PrepareTimer(ChapterInfo!.TickStart + ChapterInfo!.Length - CurrentTick - TickOffset);
         float tickDelta = GetTime() - (CurrentTick / TargetTPS);
         foreach (var overlay in GameplayOverlays)
             overlay.Update();
@@ -427,14 +479,6 @@ public class GameBox : IDisposable
             #if DEBUG
             if(IsKeyDown(KeyboardKey.S))
                 UpdateUI();
-            if (IsKeyDown(KeyboardKey.D))
-                Player.HeartPoints++;
-            if (IsKeyDown(KeyboardKey.F))
-                Player.HeartPoints--;
-            if (IsKeyDown(KeyboardKey.G))
-                Player.HeartSpices++;
-            if (IsKeyDown(KeyboardKey.H))
-                Player.HeartSpices--;
             if(IsKeyDown(KeyboardKey.A))
                 DrawRectangle((int)(obj.TargetRectangle.X-obj.Origin.X), (int)(obj.TargetRectangle.Y-obj.Origin.X), (int)obj.TargetRectangle.Width,
                     (int)obj.TargetRectangle.Height, Color.Magenta with {A = 64});
@@ -480,7 +524,7 @@ public class GameBox : IDisposable
         if (RenderBossTitle)
             DrawTexture(ChapterInfo!.BossTitleTexture!.Value.Texture, (int)(Runtime.CurrentRuntime.ScaleF * 4),(int)(Runtime.CurrentRuntime.ScaleF * 4),Color.White);
         if(typeI > 1 && !InChapterDelay)
-            Helper.DrawTimer((int)(UIAboveGameplay.Texture.Width - (appearTimer)*Helper.TimerTextureSize.X), 0, (ChapterInfo!.Length - CurrentTick) < (ChapterInfo!.Length > 600 ? 300 : 600));
+            Helper.DrawTimer((int)(UIAboveGameplay.Texture.Width - (appearTimer)*Helper.TimerTextureSize.X), 0, (ChapterInfo!.Length - CurrentTick - TickOffset) < (ChapterInfo!.Length > 600 ? 300 : 600));
         EndTextureMode();
     }
     #endregion

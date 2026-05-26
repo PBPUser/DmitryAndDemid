@@ -32,9 +32,38 @@ public class FileEntityInfo
     public bool DropWhenCleared = false;
     public bool UseDieScript = false;
     public bool OverrideDeathColor = false;
+    public bool IsFinalChapterBoss = false;
     
     public string Visual = "";
 
+    public FileEntityInfo Clone()
+    {
+        FileEntityInfo f =  new FileEntityInfo();
+        f.Header = Header.ToArray();
+        f.FloatingPoints = FloatingPoints.ToArray();
+        f.BadDrop = new Drop(BadDrop.ToInt32());
+        f.GoodDrop = new Drop(BadDrop.ToInt32());
+        f.CreateScript = CreateScript;
+        f.UpdateScript = UpdateScript;
+        f.RemoveScript = RemoveScript;
+        f.DieScript = DieScript;
+        f.IsBullet = IsBullet;
+        f.IsGroupChild = IsGroupChild;
+        f.IsGroupParent = IsGroupParent;
+        f.IsFinalChapterBoss = IsFinalChapterBoss;
+        f.UseCreateScript = UseCreateScript;
+        f.UseRemoveScript = UseRemoveScript;
+        f.ClearProtected = ClearProtected;
+        f.DangerousForPlayer = DangerousForPlayer;
+        f.IsBoss = IsBoss;
+        f.UseBadDropScenario =  UseBadDropScenario;
+        f.DropWhenCleared = DropWhenCleared;
+        f.UseDieScript = UseDieScript;
+        f.OverrideDeathColor = OverrideDeathColor;
+        f.Visual = Visual;
+        return f;
+    }
+    
     public static FileEntityInfo Load(ref BitPackage bitPackage)
     {
         FileEntityInfo fileEntityInfo = new FileEntityInfo();
@@ -61,8 +90,9 @@ public class FileEntityInfo
             fileEntityInfo.OverrideDeathColor = (fileEntityInfo.Header[0] & 0x800) == 0x800;
             fileEntityInfo.BadDrop = new Drop(fileEntityInfo.Header[4]);
             fileEntityInfo.GoodDrop = new Drop(fileEntityInfo.Header[5]);
+            if (fileEntityInfo.IsBoss)
+                fileEntityInfo.IsFinalChapterBoss = (fileEntityInfo.Header[0] & 0x100000) == 0x100000;
         }
-        
         if(fileEntityInfo.UseCreateScript)
             fileEntityInfo.CreateScript = bitPackage.ReadString();
         if(fileEntityInfo.UseRemoveScript)
@@ -90,6 +120,7 @@ public class FileEntityInfo
             Header[0] |= OverrideDeathColor ? 0x800 : 0;
             Header[4] = BadDrop.ToInt32();
             Header[5] = GoodDrop.ToInt32();
+            Header[0] |= IsFinalChapterBoss ? 0x100000 : 0;  
         }
         for(int i = 0; i < 16; i++)
             bitPackage.WriteVarLong(Header[i]);

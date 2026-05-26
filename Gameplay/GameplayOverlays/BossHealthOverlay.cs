@@ -7,7 +7,7 @@ namespace DmitryAndDemid.Gameplay.GameplayOverlays;
 
 public class BossHealthOverlay : GameplayOverlay
 {
-    public BossHealthOverlay(GameBox box, RuntimeObject boss) : base(box, 0, 99999)
+    public BossHealthOverlay(GameBox box, RuntimeObject boss) : base(box, 0.5f, 99999)
     {
         Boss = boss;
         LocationPosition = GetShaderLocation(BossHealthOverlayShader, "position");
@@ -24,7 +24,7 @@ public class BossHealthOverlay : GameplayOverlay
     protected override void Draw()
     {
         SetShaderValue(BossHealthOverlayShader, LocationPosition, new Vector2(Boss.X, Boss.Y), ShaderUniformDataType.Vec2);
-        SetShaderValue(BossHealthOverlayShader, LocationProgress, * Boss.Header[], ShaderUniformDataType.Float);
+        SetShaderValue(BossHealthOverlayShader, LocationProgress, (Boss.FloatingPoints[0] / Boss.FloatingPoints[0xa]) * State, ShaderUniformDataType.Float);
         BeginShaderMode(BossHealthOverlayShader);
         DrawTexturePro(Runtime.CurrentRuntime.Textures["384x448"], new Rectangle(0,0,384,-448), new Rectangle(0,0,new Vector2(384,448) * Runtime.CurrentRuntime.ScaleF), Vector2.Zero, 0, Color.White);
         EndShaderMode();

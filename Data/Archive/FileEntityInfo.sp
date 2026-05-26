@@ -31,6 +31,9 @@
 [0x7] Boss Id
 [0x8] Boss Health Bar Percent
 [0x9] Boss Attack Index
+[0x0] Bit mask: {
+    [0x100000] Is Final
+}
 Floating Points:
 [0x0] Health
 [0x1] Appear Speed

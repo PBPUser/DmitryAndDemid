@@ -30,11 +30,13 @@ public class RuntimeObject
         FlagIsGrazed = 0x0201,
         FlagUseDieScript = 0x0400,
         FlagDangerousRelatedToEnemy = 0x0400,
+        FlagIsCollectableBullet = 0x100001,
         FlagIsUsed = 0x0800,
         FlagApplyShader = 0x8000,
         FlagIsDied = 0x1000,
         FlagUseRenderRotation = 0x2000,
-        FlagUseUpdateScript = 0x4000;
+        FlagUseUpdateScript = 0x4000,
+        FlagIsFinalBossChapter = 0x100000;
     
     private Rectangle Source = new();
     private Rectangle Target = new();
@@ -131,6 +133,7 @@ public class RuntimeObject
             box.AddScreenEffect(entity.BackgroundDistortionEffect);
             box.AddScreenEffect(entity.BossCircleEffect);
             box.AddOverlay(new BossHealthOverlay(box, entity));
+            entity.FloatingPoints[0xa] = entity.FloatingPoints[0];
         }
         return entity;
     }
@@ -143,6 +146,8 @@ public class RuntimeObject
         RemoveAction = info.UseRemoveScript ? ActionsScope.ObjectActions[info.RemoveScript] : null;
         if(!info.IsBullet)
             DieAction = info.UseDieScript ? ActionsScope.ObjectActions[info.DieScript] : null;
+        Array.Copy(info.Header, Header, info.Header.Length);
+        Array.Copy(info.FloatingPoints, FloatingPoints,info.FloatingPoints.Length);
     }
 
     public RuntimeObject CloneWithPositionSpawnTick(int x, int y, int tick)
@@ -215,6 +220,16 @@ public class RuntimeObject
     {
         get => FloatingPoints[7];
         set => FloatingPoints[7] = value;
+    }
+
+    public Vector2 CollectableVelocity
+    {
+        get => new(FloatingPoints[2],  FloatingPoints[6]);
+        set
+        {
+            FloatingPoints[2] = value[0];
+            FloatingPoints[6] = value[1];
+        }
     }
 
     public float X

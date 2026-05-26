@@ -83,7 +83,7 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
     {
         if (Player.GameBox.CurrentTick % (20/BulletSourcePositionsCount) != 0)
             return;
-        float totalDamage = Player.Power / 100f;
+        float totalDamage = Player.Power / 100f * 8;
         float singleDamage = totalDamage / BulletSourcePositionsCount;
         
         RuntimeObject reo = RuntimeObject.LoadFromFile(BulletFileInfo, Player.GameBox);
