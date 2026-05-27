@@ -31,22 +31,25 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
 
     public override void Update()
     {
-        float time = player.GameBox.CurrentTick / 60f;
-        UpdateBulletSourcePositions(time);
+        UpdateBulletSourcePositions(player.GameBox.CurrentTick);
     }
 
     public override void UpdatePower()
     {
-        float time = player.GameBox.CurrentTick / 60f;
         BulletSourcePositionsCount = (player.Power / 100);
-        UpdateBulletSourcePositions(time);
+        UpdateBulletSourcePositions(player.GameBox.CurrentTick);
     }
 
-    void UpdateBulletSourcePositions(float time)
+    void UpdateBulletSourcePositions(int time)
     {
-        float dif = Player.DefocusedDifference + (Player.FocusedDifference - Player.DefocusedDifference) * Helper.ComputeObjectTime(time, FocusTimestamp / 60f, Player.FocusAnimationChangingLength/60f,
-            (DefocusTimestamp + Player.FocusAnimationChangingLength)/60f, Player.FocusAnimationChangingLength/60f);
+        float dif = Player.DefocusedDifference + (Player.FocusedDifference - Player.DefocusedDifference) * Helper.ComputeObjectTime(time, FocusTimestamp, Player.FocusAnimationChangingLength,
+            (DefocusTimestamp + Player.FocusAnimationChangingLength), Player.FocusAnimationChangingLength);
+        if (Player.IsFocused)
+        {
+            
+        }
         float angleStart = time * 2;
+        angleStart /= GameBox.TargetTPS;
         float angleDif = MathF.PI * 2 / BulletSourcePositionsCount;
         for (int i = 0; i < BulletSourcePositionsCount; i++)
             BulletSourcePositions[i] = new Vector2(Player.X, Player.Y) + Helper.GetDirection(angleStart + (angleDif * i)) * dif;

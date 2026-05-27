@@ -3,7 +3,9 @@ using System.Numerics;
 using System.Reflection;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
+using DmitryAndDemid.Gameplay.GameplayOverlays;
 using DmitryAndDemid.Utils;
+using Gtk;
 using Raylib_cs;
 
 namespace DmitryAndDemid.Gameplay;
@@ -89,13 +91,17 @@ public class Player
         {
             if (heartPoints == value)
                 return;
+            if (value > heartPoints)
+            {
+                //TODO: Play extend sound
+                GameBox.AddOverlay(new BasicGameplayOverlay(GameBox, "extend.png", .5f, 3));
+            }
             heartPoints = value;
             if (value < 0)
             {
                 GameBox.IsPaused = true;
                 GameBox.IsGameOver = true;
             }
-            
             GameBox.UpdateUI();
         }
     }
@@ -134,6 +140,10 @@ public class Player
         {
             if (bombs == value)
                 return;
+            if (bombs < value)
+            {
+                // TODO: Play Extend Sound
+            }
             bombs = value;
             GameBox.UpdateUI();
         }
@@ -171,7 +181,7 @@ public class Player
                 if (newValue > 399)
                 {
                     // TODO: Play full power sound
-                    //GameBox.SetFullPower();
+                    GameBox.AddOverlay(new BasicGameplayOverlay(GameBox, "full-power.png", .5f, 3));
                 }
                 //TODO: Play next power level sound
             }

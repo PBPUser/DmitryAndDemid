@@ -217,8 +217,22 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                     else
                     {
                         Checkbox("Use bad drop scenario", ref Info.Entities[SelectedObjectIndex].UseBadDropScenario);
+                        Text($"{(Info.Entities[SelectedObjectIndex].UseBadDropScenario ? "Good " : "")}Drop [{Info.Entities[SelectedObjectIndex].GoodDrop}]: ");
+                        if(Button("Edit##1"))
+                            Runtime.CurrentRuntime.AddScreen(new DropEditorScreen(Info.Entities[SelectedObjectIndex].GoodDrop,
+                                drop =>
+                                {
+                                    Info.Entities[SelectedObjectIndex].GoodDrop = drop;
+                                }));
                         if (Info.Entities[SelectedObjectIndex].UseBadDropScenario)
                         {
+                            Text($"Bad Drop [{Info.Entities[SelectedObjectIndex].BadDrop}]: ");
+                            if(Button("Edit##2"))
+                                Runtime.CurrentRuntime.AddScreen(new DropEditorScreen(Info.Entities[SelectedObjectIndex].BadDrop,
+                                    drop =>
+                                    {
+                                        Info.Entities[SelectedObjectIndex].BadDrop = drop;
+                                    }));
                         }
                         Checkbox("Drop when cleared", ref Info.Entities[SelectedObjectIndex].DropWhenCleared);
                         Checkbox("Is Boss", ref Info.Entities[SelectedObjectIndex].IsBoss);

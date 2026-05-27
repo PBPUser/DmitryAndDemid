@@ -36,7 +36,21 @@ public class RuntimeObject
         FlagIsDied = 0x1000,
         FlagUseRenderRotation = 0x2000,
         FlagUseUpdateScript = 0x4000,
-        FlagIsFinalBossChapter = 0x100000;
+        FlagIsFinalBossChapter = 0x100000,
+        FlagIsCollectable = 0x10000;
+
+    public static FileEntityInfo[] CollectableFEIs = new FileEntityInfo[8];
+
+    static RuntimeObject()
+    {
+        for (int i = 0; i < 8; i++)
+        {
+            CollectableFEIs[i] = new FileEntityInfo();
+            CollectableFEIs[i].Header[0] = 0b0000_0000;
+            CollectableFEIs[i].Header[0] |= 0x10000;
+            CollectableFEIs[i].Header[4] = i;
+        }
+    }
     
     private Rectangle Source = new();
     private Rectangle Target = new();
@@ -63,7 +77,11 @@ public class RuntimeObject
         entity.Header[0] |= FlagUseUpdateScript;
         if ((entity.Header[0] & FlagUseUpdateScript) == FlagUseUpdateScript)
             entity.UpdateAction = ActionsScope.ObjectActions[info.UpdateScript];
-        if ((entity.Header[0] & FlagIsBullet) == FlagIsBullet)
+        if ((entity.Header[0] & FlagIsCollectable) == FlagIsCollectable)
+        {
+            
+        }
+        else if ((entity.Header[0] & FlagIsBullet) == FlagIsBullet)
         {
             BulletRenderingInfo bulletRenderInfo = Runtime.CurrentRuntime.BulletVisualPresets[info.Visual];
             var shader = Runtime.CurrentRuntime.Shaders[bulletRenderInfo.Effect == "" ? "basic_bullet_shader" : bulletRenderInfo.Effect];
@@ -114,27 +132,29 @@ public class RuntimeObject
             entity.Target.Size = entity.Source.Size;
             entity.Origin = entity.Source.Size / 2;
             entity.FloatingPoints[0x13] = visual.Collision;
+            
+            if (info.IsBoss)
+            {
+                entity.BackgroundDistortionEffect = new GameplayScreenEffect(box, 
+                    new Vector2(192, 192), 
+                    4, 
+                    "boss_background_distortion", 
+                    box.GetTime(), 
+                    float.MaxValue)
+                {
+                    Layer = GameplayScreenEffect.EffectLayer.BackgroundOnly,
+                    StepLength = 1,
+                    UseSteps = true
+                };
+                entity.BossCircleEffect = new BossCircleScreenEffect(box, Vector2.Zero, 0, box.GetTime(), float.MaxValue);
+                box.AddScreenEffect(entity.BackgroundDistortionEffect);
+                box.AddScreenEffect(entity.BossCircleEffect);
+                box.AddOverlay(new BossHealthOverlay(box, entity));
+                entity.FloatingPoints[0xa] = entity.FloatingPoints[0];
+            }
         }
 
-        if (info.IsBoss)
-        {
-            entity.BackgroundDistortionEffect = new GameplayScreenEffect(box, 
-                new Vector2(192, 192), 
-                4, 
-                "boss_background_distortion", 
-                box.GetTime(), 
-                float.MaxValue)
-            {
-                Layer = GameplayScreenEffect.EffectLayer.BackgroundOnly,
-                StepLength = 1,
-                UseSteps = true
-            };
-            entity.BossCircleEffect = new BossCircleScreenEffect(box, Vector2.Zero, 0, box.GetTime(), float.MaxValue);
-            box.AddScreenEffect(entity.BackgroundDistortionEffect);
-            box.AddScreenEffect(entity.BossCircleEffect);
-            box.AddOverlay(new BossHealthOverlay(box, entity));
-            entity.FloatingPoints[0xa] = entity.FloatingPoints[0];
-        }
+        
         return entity;
     }
 
@@ -299,5 +319,54 @@ public class RuntimeObject
     public void Update()
     {
         UpdateAction?.Invoke(this);
+    }
+
+    public void UpdateCollectable()
+    {
+        FloatingPoints[0x5] = MathF.Abs(FloatingPoints[2]) > 0 ? Box.CurrentTick : 0;
+        FloatingPoints[2] = Raymath.MoveTowards(FloatingPoints[2], 0, 0.1f);
+        FloatingPoints[6] = Raymath.MoveTowards(FloatingPoints[6], float.MaxValue, 0.1f);
+        X += FloatingPoints[2];
+        Y += FloatingPoints[6];
+    }
+
+    public void UpdateCollectableBullet()
+    {
+        var direction = Helper.GetDirection(Position, new Vector2(Box.Player.X, Box.Player.Y));
+        FloatingPoints[2] = Raymath.MoveTowards(FloatingPoints[2], direction.X * 100000, 0.1f);
+        FloatingPoints[6] = Raymath.MoveTowards(FloatingPoints[6], direction.Y * 100000, 0.1f);
+        X += FloatingPoints[2];
+        Y += FloatingPoints[6];
+        if (Helper.IsCollied(TargetRectangle, Box.Player.Collision))
+        {
+            switch (Header[4])
+            {
+                case 0:
+                    Box.Player.Power += 1;
+                    break;
+                case 1:
+                    Box.Player.Power += 100;
+                    break;
+                case 2:
+                    Box.Player.Power = 400;
+                    break;
+                case 3:
+                    Box.Score += (int)(MathF.Floor(MathF.Pow(2, 14 * (464-Box.Player.Y) / 464) / 16384 * 30) / 30 * 100000);
+                    break;
+                case 4:
+                    Box.Player.HeartPoints++;
+                    break;
+                case 5:
+                    Box.Player.HeartSpices++;
+                    break;
+                case 6:
+                    Box.Player.Bombs++;
+                    break;
+                case 7:
+                    Box.Player.BombsSpices++;
+                    break;
+            }
+            Box.RemoveObject(this);
+        }
     }
 }

@@ -9,9 +9,9 @@ public struct Drop
     public bool DropStar = false;
     public bool DropStarPiece = false;
     public bool DropFullPower = false;
-    public byte DropLargePower = 0;
-    public byte DropPower = 0;
-    public byte DropScore = 0;
+    public int DropLargePower = 0;
+    public int DropPower = 0;
+    public int DropScore = 0;
 
     public Drop()
     {
@@ -44,4 +44,9 @@ public struct Drop
         val |= DropHeart ? 0x1 : 0; 
         return val;
     }
+
+    public override string ToString() => $"\nDrop Heart: {DropHeart}\nDrop Heart Piece: {DropHeartPiece}" +
+                                         $"Drop Star: {DropStar}\nDrop Star Piece: {DropStarPiece}\n" +
+                                         $"Score: {DropScore}\nPower: {DropPower}\n" +
+                                         $"Drop Large Power: {DropLargePower}\n";
 }

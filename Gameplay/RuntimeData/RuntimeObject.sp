@@ -17,6 +17,17 @@
 [0x15] Source Width
 [0x16] Source Height
 [0x17] Appear Timestamp
+# if collectable
+[0x4] Type {
+    0 - Power
+    1 - Large Power
+    2 - Full Power
+    3 - Score
+    4 - Heart
+    5 - Heart Piece
+    6 - Star
+    7 - Star Piece
+}
 # if bullet
 [0x0] Bit mask: {
     [0x080] Grazed

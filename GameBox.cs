@@ -235,12 +235,9 @@ public class GameBox : IDisposable
                         Helper.PlaySound(Runtime.CurrentRuntime.Sounds["damage"]);
                         Player.Weapon.SpawnDistortionEffect((int)obj.X, (int)obj.Y);
                         if (obj2.FloatingPoints[0] <= 0)
-                        {
-                            bool shouldDie = true;
+                        { 
                             if ((obj2.Header[0] & RuntimeObject.FlagIsBoss) == RuntimeObject.FlagIsBoss)
                             {
-                                shouldDie = (obj2.Header[0] & RuntimeObject.FlagIsFinalBossChapter) ==
-                                            RuntimeObject.FlagIsFinalBossChapter;
                                 TickOffset += (ChapterInfo.TickStart+ChapterInfo.Length-CurrentTick);
                                 int ticks = CurrentTick+TickOffset-ChapterInfo.TickStart;
                                 if (IsFailed)
@@ -248,12 +245,11 @@ public class GameBox : IDisposable
                                 else
                                     AddOverlay(new ScoreGameplayOverlay(this, 0, ticks, SpellcardStopwatch!.Elapsed.TotalSeconds, .5f, 3));
                                 SpellcardStopwatch = null;
-                                if(shouldDie)
-                                    AddScreenEffect(new BossDeathScreenEffect(this, obj2.Position, 70, GetTime(), GetTime()+0.75f));
+                                
                             }
-                            if(shouldDie)
+                            else
                             {
-                                obj2.Header[0] |=  RuntimeObject.FlagIsUsed;
+                                obj2.Header[0] |= RuntimeObject.FlagIsUsed;
                                 obj2.Header[0xa] = CurrentTick;
                                 RemoveObject(obj2);
                                 ScreenEffects.Add(new EntityDeathScreenEffect(this, new Vector2(obj.X, obj.Y), 40, GetTime(), GetTime()+0.75f, obj2.Header[0xC], obj2.Header[0xB]));
@@ -305,6 +301,14 @@ public class GameBox : IDisposable
     {
         ObjectsRemoveQueue.Add(obj);
         RequiresRefresh = true;
+        if ((obj.Header[0] & RuntimeObject.FlagIsBullet) != RuntimeObject.FlagIsBullet)
+            if ((obj.Header[0] & RuntimeObject.FlagIsBullet) != RuntimeObject.FlagIsBullet)
+            {
+                Drop d = obj.GoodDrop;
+                if ((obj.Header[0] & RuntimeObject.FlagUseBadDropScenario) != RuntimeObject.FlagUseBadDropScenario)
+                    d = IsFailed ? obj.BadDrop : obj.GoodDrop;
+                
+            }
     }
 
     public void AddScreenEffect(GameplayScreenEffect effect)
@@ -358,9 +362,14 @@ public class GameBox : IDisposable
         foreach (var obj in BoxObjects)
         {
             var bm = obj.Header[0];
-            if ((bm & RuntimeObject.FlagIsBoss) != RuntimeObject.FlagIsBoss)
+            if ((bm & RuntimeObject.FlagIsBoss) == RuntimeObject.FlagIsBoss)
             {
-                
+                if ((bm & RuntimeObject.FlagIsFinalBossChapter) == RuntimeObject.FlagIsFinalBossChapter)
+                {
+                    // TODO: Play boss death
+                    AddScreenEffect(new BossDeathScreenEffect(this, obj.Position, 45, GetTime(), GetTime()+2f));
+                    RemoveObject(obj);
+                }
             }
             else
             {
@@ -555,6 +564,11 @@ public class GameBox : IDisposable
     public int Score
     {
         get => score;
+        set
+        {
+            score = value;
+            // TODO: Redraw Score
+        }
     }
     
     public void UpdateUI()
