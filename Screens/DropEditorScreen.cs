@@ -31,11 +31,8 @@ public class DropEditorScreen : Screen
             ActionApply.Invoke(Drop);
             Runtime.CurrentRuntime.RemoveScreen(this);
         }
-
         if (Button("Cancel"))
-        {
             Runtime.CurrentRuntime.RemoveScreen(this);
-        }
         End();
         base.DrawImgui();
     }

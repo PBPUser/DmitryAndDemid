@@ -218,15 +218,15 @@ public static class Helper
 
     public static void DrawWave(Color color, float offsetX, float offsetY, float xPower, float scale, Rectangle target)
     {
-        Raylib.SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveScale, scale, ShaderUniformDataType.Float);
-        Raylib.SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveXPower, xPower, ShaderUniformDataType.Float);
-        Raylib.SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveOffsetX, offsetX, ShaderUniformDataType.Float);
-        Raylib.SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveOffsetY, offsetY, ShaderUniformDataType.Float);
-        Raylib.SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveScreenColor, ColorToVector(color), ShaderUniformDataType.Vec4);
-        Raylib.SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveScreenSize, new float[] { target.Width, target.Height }, ShaderUniformDataType.Vec2);
-        Raylib.BeginShaderMode(Runtime.CurrentRuntime.Shaders["wave"]);
-        Raylib.DrawRectanglePro(target, Vector2.Zero, 0, Color.White);
-        Raylib.EndShaderMode();
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveScale, scale, ShaderUniformDataType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveXPower, xPower, ShaderUniformDataType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveOffsetX, offsetX, ShaderUniformDataType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveOffsetY, offsetY, ShaderUniformDataType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveScreenColor, ColorToVector(color), ShaderUniformDataType.Vec4);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveScreenSize, new float[] { target.Width, target.Height }, ShaderUniformDataType.Vec2);
+        BeginShaderMode(Runtime.CurrentRuntime.Shaders["wave"]);
+        DrawRectanglePro(target, Vector2.Zero, 0, Color.White);
+        EndShaderMode();
     }
 
     private static Shader OutlineShader;

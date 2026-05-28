@@ -182,7 +182,31 @@ public class Runtime
         Textures["Copyright"] = Helper.DrawTextScaled(")(U,2026 Konu9lnpaBa Caxap Ko.", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
         Textures["Version"] = Helper.DrawTextScaled($"Beer {VersionString} (npo6Ha9l Bepcu9I)", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
         Textures["384x448"] = Helper.FillTextureWithColor(Color.White, 384, 448).Texture;
+        PrepareScoreTexture();
         Textures = Textures.OrderBy(x => x.Key).ToDictionary();
+    }
+
+    void PrepareScoreTexture()
+    {
+        const string text = "1234567890.";
+        float spacing = ScaleF * 2, fontSize = ScaleF * 16; 
+        Vector2 measure = MeasureTextEx(Fonts["kodemono"], text, fontSize, spacing);
+        RenderTexture2D
+            temp1 = LoadRenderTexture((int)measure.X, (int)measure.Y),
+            final = LoadRenderTexture((int)(measure.X + spacing * 2), (int)(measure.Y + spacing * 2));
+        BeginTextureMode(temp1);
+        DrawTextEx(Fonts["kodemono"], text, Vector2.Zero, fontSize, spacing, Color.White);
+        EndTextureMode();
+        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "border_width"), ScaleF * 4, ShaderUniformDataType.Float);
+        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "fres"), measure + new Vector2(spacing * 2), ShaderUniformDataType.Vec2);
+        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "res"), measure, ShaderUniformDataType.Vec2);
+        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "pos"), [0f, 0f], ShaderUniformDataType.Float);
+        BeginTextureMode(final);
+        BeginShaderMode(Shaders["outline2"]);
+        DrawTexture(temp1.Texture, (int)spacing, (int)spacing, Color.White);
+        UnloadRenderTexture(temp1);
+        EndShaderMode();
+        Textures["ScoreDigitsPrerender"] = final.Texture;
     }
 
     void LoadBullets()
