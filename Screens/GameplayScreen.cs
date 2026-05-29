@@ -245,14 +245,10 @@ public class GameplayScreen : Screen
             for(int i = 0; i < GameBox.StageInfo.Chapters.Length; i++)
             {
                 if (GameBox.StageInfo.Chapters[i] == GameBox.ChapterInfo)
-                {
                     ImGui.Text($"v Current chapter v");
-                }
                 ImGui.Text($"{i}. {GameBox.StageInfo.Chapters[i].Length}");
                 if (GameBox.StageInfo.Chapters[i] == GameBox.ChapterInfo)
-                {
                     ImGui.Text($"^ Current chapter ^");
-                }
             }
             ImGui.End();
             ImGui.Begin($"Overlay Info [{GameBox.GameplayOverlays.Count}]: ");
