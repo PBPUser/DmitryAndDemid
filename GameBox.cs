@@ -42,7 +42,7 @@ public class GameBox : IDisposable
             (int)(Runtime.CurrentRuntime.ScaleF * 448f)
         );
         UILeft = LoadRenderTexture((int)(Runtime.CurrentRuntime.ScaleF * 224),
-            (int)(Runtime.CurrentRuntime.ScaleF * 240));
+            (int)(Runtime.CurrentRuntime.ScaleF * 480));
         LoadStage(stage, chapter, difficulty);
         SignalGameplayOverlay = new SignalGameplayOverlay(this);
         AddOverlay(SignalGameplayOverlay);
@@ -157,7 +157,7 @@ public class GameBox : IDisposable
                 if(!GameplayOverlays.Any(x => x is ScoreGameplayOverlay && GetTime() - x.TimeAppear < 0.5))
                     AddOverlay(new ScoreGameplayOverlay(this, GetRandomValue(0, int.MaxValue), 600, 1.4, .5f, 3f));
         }
-        else if (IsKeyDown(KeyboardKey.RightShift) && CurrentTick % TargetTPS == 0)
+        else if (IsKeyDown(KeyboardKey.RightShift) && CurrentTickCompute % TargetTPS == 0)
         {
             if (IsKeyDown(KeyboardKey.D))
                 Player.HeartPoints++;
@@ -167,6 +167,8 @@ public class GameBox : IDisposable
                 Player.HeartSpices++;
             if (IsKeyDown(KeyboardKey.H))
                 Player.HeartSpices--;
+            if(IsKeyDown(KeyboardKey.L))
+                UpdateUI();
             if (IsKeyDown(KeyboardKey.Z))
                 DarkStrengthPos = new Vector2(Player.X, Player.Y);
             if (IsKeyDown(KeyboardKey.X))
@@ -214,7 +216,6 @@ public class GameBox : IDisposable
                 RemoveObject(obj);
                 continue;
             }
-
             if (InChapterDelay)
                 continue;
             if ((bitMask & RuntimeObject.FlagDangerousRelatedToEnemy) ==
@@ -233,6 +234,7 @@ public class GameBox : IDisposable
                         obj.Header[0xa] = CurrentTick;
                         obj2.FloatingPoints[0] -= obj.FloatingPoints[0x9];
                         Helper.PlaySound(Runtime.CurrentRuntime.Sounds["damage"]);
+                        Player.Weapon.AddShootTargetScore();
                         Player.Weapon.SpawnDistortionEffect((int)obj.X, (int)obj.Y);
                         if (obj2.FloatingPoints[0] <= 0)
                         { 
@@ -245,7 +247,7 @@ public class GameBox : IDisposable
                                 else
                                     AddOverlay(new ScoreGameplayOverlay(this, 0, ticks, SpellcardStopwatch!.Elapsed.TotalSeconds, .5f, 3));
                                 SpellcardStopwatch = null;
-                                
+                                obj.UpdateAction = null;
                             }
                             else
                             {
@@ -307,7 +309,7 @@ public class GameBox : IDisposable
                 Drop d = obj.GoodDrop;
                 if ((obj.Header[0] & RuntimeObject.FlagUseBadDropScenario) != RuntimeObject.FlagUseBadDropScenario)
                     d = IsFailed ? obj.BadDrop : obj.GoodDrop;
-                
+                // TODO: Drop Drop
             }
     }
 
@@ -354,8 +356,6 @@ public class GameBox : IDisposable
         AddObject(x);
         return x;
     }
-    
-    
 
     public void ClearAll(bool drop)
     {
@@ -369,6 +369,10 @@ public class GameBox : IDisposable
                     // TODO: Play boss death
                     AddScreenEffect(new BossDeathScreenEffect(this, obj.Position, 45, GetTime(), GetTime()+2f));
                     RemoveObject(obj);
+                }
+                else
+                {
+                    obj.UpdateAction = null;
                 }
             }
             else
@@ -486,8 +490,6 @@ public class GameBox : IDisposable
         foreach (var obj in BoxObjects)
         {
             #if DEBUG
-            if(IsKeyDown(KeyboardKey.S))
-                UpdateUI();
             if(IsKeyDown(KeyboardKey.A))
                 DrawRectangle((int)(obj.TargetRectangle.X-obj.Origin.X), (int)(obj.TargetRectangle.Y-obj.Origin.X), (int)obj.TargetRectangle.Width,
                     (int)obj.TargetRectangle.Height, Color.Magenta with {A = 64});
@@ -535,6 +537,11 @@ public class GameBox : IDisposable
         if(typeI > 1 && !InChapterDelay)
             Helper.DrawTimer((int)(UIAboveGameplay.Texture.Width - (appearTimer)*Helper.TimerTextureSize.X), 0, (ChapterInfo!.Length - CurrentTick - TickOffset) < (ChapterInfo!.Length > 600 ? 300 : 600));
         EndTextureMode();
+        if (IsUIUpdateRequired)
+        {
+            RedrawUI();
+            IsUIUpdateRequired = false;
+        }
     }
     #endregion
     #region UI
@@ -549,16 +556,17 @@ public class GameBox : IDisposable
     private int score = 0;
     private int hiScore = 0;
     public byte Continue = 0;
-    public RenderTexture2D ScoreTexture;
-    public RenderTexture2D HiScoreTexture;
     public Rectangle ScoreSrc, ScoreDest, HiScoreSrc, HiScoreDest;
     private static Rectangle HeartBombSource = new Rectangle(0, 0, 96, 96);
     private Rectangle HeartBombDest = new(0, 0, new Vector2(12 * Runtime.CurrentRuntime.ScaleF));
     float BombsY = 135 * Runtime.CurrentRuntime.ScaleF;
     float SizeOfRes = 12 * Runtime.CurrentRuntime.ScaleF;
-    float ResX = 97 * Runtime.CurrentRuntime.ScaleF;
+    float ResX = 206 * Runtime.CurrentRuntime.ScaleF;
     float HeartsY = 97 * Runtime.CurrentRuntime.ScaleF;
     private Texture2D StaffTexture = Runtime.CurrentRuntime.Textures["ingame-stuff.png"];
+    private RenderTexture2D HiScoreTexture = Helper.CreateScoreText("1.000.000", 16);
+    private RenderTexture2D ScoreTexture = Helper.CreateScoreText("1.000.000", 16);
+    public bool IsUIUpdateRequired = false;
     
     
     public int Score
@@ -567,14 +575,24 @@ public class GameBox : IDisposable
         set
         {
             score = value;
-            // TODO: Redraw Score
+            UpdateUI();
         }
     }
-    
+
+    public int MaxScore = 100000;
+    public int MaxScoreContinue = 0;
+
     public void UpdateUI()
+    {
+        IsUIUpdateRequired = true;
+    }
+    
+    void RedrawUI()
     {
         BeginTextureMode(UILeft);
         ClearBackground(Transparent);
+        DrawTextureEx(Runtime.CurrentRuntime.Textures["rightside_info.png"], Vector2.Zero, 0, Runtime.CurrentRuntime.ScaleF/4,Color.White);
+        DrawText(Raylib.GetTime()+"", 16, 16, 24, Color.Red);
         for (int i = 0; i < 8; i++)
         {
             DrawTexturePro(StaffTexture, HeartBombSource with { Y = 96, 
@@ -583,18 +601,39 @@ public class GameBox : IDisposable
                     i < Player.Bombs ? 0 :
                     384 - (Player.BombsSpices * 96)
                 },
-                HeartBombDest with {Y = BombsY, X = ResX + SizeOfRes * i },
+                HeartBombDest with {Y = BombsY, X = ResX - SizeOfRes * (8-i) },
                 Vector2.Zero, 0, Color.White);
             DrawTexturePro(StaffTexture, HeartBombSource with {  X = 
                     i > Player.HeartPoints ? 384 : 
                     i < Player.HeartPoints ? 0 :
                     384 - (Player.HeartSpices * 96)
                 },
-                HeartBombDest with {Y = HeartsY, X = ResX + SizeOfRes * i },
+                HeartBombDest with {Y = HeartsY, X = ResX - SizeOfRes * (8-i) },
                 Vector2.Zero, 0, Color.White);
         }
-        DrawText($"hearts: {Player.HeartPoints}", 0, 0, 24, Color.White);
-        DrawText($"hearts_pieces: {Player.HeartSpices}", 0, 24, 24, Color.White);
+        const float fontSizeBig = 22;
+        const float fontSizeSmall = 12;
+        string scoreString = Helper.FormatScore(score, Continue);
+        string hiscoreString = score > MaxScore ? scoreString : Helper.FormatScore(MaxScore, MaxScoreContinue);
+        var positionHiScore = new Vector2(206, 64) * Runtime.CurrentRuntime.ScaleF - Helper.GetScoreTextureSize(hiscoreString,fontSizeBig);
+        var positionScore = new Vector2(206, 86) * Runtime.CurrentRuntime.ScaleF - Helper.GetScoreTextureSize(scoreString, fontSizeBig);
+        Helper.DrawScoreText(hiscoreString, fontSizeBig, positionHiScore, Color.LightGray);
+        Helper.DrawScoreText(scoreString, fontSizeBig, positionScore, Color.White);
+        Helper.DrawScoreText($"{Player.HeartSpices}/5", fontSizeSmall, new Vector2(175, 112) * Runtime.CurrentRuntime.ScaleF, Color.White);
+        Helper.DrawScoreText($"{Player.BombsSpices}/5", fontSizeSmall, new Vector2(175, 152) * Runtime.CurrentRuntime.ScaleF, Color.White);
+        var sizeH = Helper.GetScoreTextureSize("..", fontSizeBig);
+        var sizeH2 = Helper.GetScoreTextureSize("...", fontSizeBig);
+        var sizeL = Helper.GetScoreTextureSize("..", fontSizeSmall);
+        var posPower1 = new Vector2(206, 200) * Runtime.CurrentRuntime.ScaleF -
+                        new Vector2(sizeL.X * 2 + sizeH.X + sizeH2.X, sizeH.Y);
+        Helper.DrawScoreText($"{Player.Power/100}.", fontSizeBig, posPower1, Color.Orange);
+        Helper.DrawScoreText($"{Player.Power%100:00}", fontSizeSmall, posPower1 + new Vector2(sizeH.X, (sizeH.Y-sizeL.Y) * 0.8f), Color.Orange);
+        Helper.DrawScoreText($"/4.", fontSizeBig, posPower1+new Vector2(sizeH.X+sizeL.X, 0), Color.Orange);
+        Helper.DrawScoreText($"00", fontSizeSmall, posPower1 + new Vector2(sizeH.X+sizeH2.X+sizeL.X, (sizeH.Y-sizeL.Y) * 0.8f), Color.Orange);
+        Helper.DrawScoreText($"10000", fontSizeBig, new Vector2(206, 218) * Runtime.CurrentRuntime.ScaleF - 
+                                                    Helper.GetScoreTextureSize("10000", fontSizeBig), Color.SkyBlue);
+        Helper.DrawScoreText(Player.Graze.ToString(), fontSizeBig, new Vector2(206, 236) * Runtime.CurrentRuntime.ScaleF - 
+                                                                   Helper.GetScoreTextureSize(Player.Graze.ToString(), fontSizeBig), Color.White);
         EndTextureMode();
     }
     #endregion

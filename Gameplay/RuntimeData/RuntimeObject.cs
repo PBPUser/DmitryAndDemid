@@ -168,6 +168,7 @@ public class RuntimeObject
             DieAction = info.UseDieScript ? ActionsScope.ObjectActions[info.DieScript] : null;
         Array.Copy(info.Header, Header, info.Header.Length);
         Array.Copy(info.FloatingPoints, FloatingPoints,info.FloatingPoints.Length);
+        info.FloatingPoints[10] = info.FloatingPoints[0];
     }
 
     public RuntimeObject CloneWithPositionSpawnTick(int x, int y, int tick)

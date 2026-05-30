@@ -609,6 +609,11 @@ public class GameplayEditorScreen : Screen
                 if(SliderFloat("font size", ref FontSize1, 8, 64))
                     RedrawFontTest();
                 End();
+                Begin("Score Testing Window");
+                InputInt("Score", ref TesterScore);
+                SliderInt("Continue", ref TesterContinue, 0, 9);
+                Text(Helper.FormatScore(TesterScore, TesterContinue));
+                End();
                 Begin("Preview");
                 if(IsRenderTextureValid(FontTestTexture))
                     rlImGui.Image(FontTestTexture.Texture);
@@ -672,6 +677,8 @@ public class GameplayEditorScreen : Screen
     private float LetterWidthScore = 0;
     private float PaddingScore = 0;
     private string ScoreText = "";
+    private int TesterScore = 0;
+    private int TesterContinue = 0;
     
     void RerenderSpellText()
     {

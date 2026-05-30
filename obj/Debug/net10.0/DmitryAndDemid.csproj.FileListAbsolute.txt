@@ -293,3 +293,5 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/font_antialias.fs
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/text_gradient.fs
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/boss_health_bar.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/rightside_info.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/rightside_info.png~

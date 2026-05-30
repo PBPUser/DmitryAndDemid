@@ -159,6 +159,7 @@ public class Player
             if (bombsSpices > 4)
                 Bombs += bombsSpices / 4;
             bombsSpices = value % 4;
+            GameBox.UpdateUI();
         }
     }
 
@@ -249,6 +250,7 @@ public class Player
                 return;
             graze = value;
             GameBox.UpdateUI();
+            // TODO: Play Graze SFX
         }
     }
 

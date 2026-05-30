@@ -35,4 +35,9 @@ public abstract class PlayerWeapon(Player player)
     {
         
     }
+
+    public virtual void AddShootTargetScore()
+    {
+        
+    }
 }

@@ -23,6 +23,8 @@ public class BossHealthOverlay : GameplayOverlay
 
     protected override void Draw()
     {
+        if((Boss.Header[0] & RuntimeObject.FlagIsDied) == RuntimeObject.FlagIsDied)
+            Box.RemoveOverlay(this);
         SetShaderValue(BossHealthOverlayShader, LocationPosition, new Vector2(Boss.X, Boss.Y), ShaderUniformDataType.Vec2);
         SetShaderValue(BossHealthOverlayShader, LocationProgress, (Boss.FloatingPoints[0] / Boss.FloatingPoints[0xa]) * State, ShaderUniformDataType.Float);
         BeginShaderMode(BossHealthOverlayShader);

@@ -1,3 +1,4 @@
+using System.Net.Mime;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -186,27 +187,36 @@ public class Runtime
         Textures = Textures.OrderBy(x => x.Key).ToDictionary();
     }
 
+    public float ScoreSpacing = 0;
+    public float ScoreLetterWidth = 0;
+    public float ScoreLetterHeight = 0;
+    
     void PrepareScoreTexture()
     {
-        const string text = "1234567890.";
-        float spacing = ScaleF * 2, fontSize = ScaleF * 16; 
+        const string text = "0123456789./";
+        float spacing = ScaleF * 4, fontSize = ScaleF * 64; 
         Vector2 measure = MeasureTextEx(Fonts["kodemono"], text, fontSize, spacing);
+        float letterWidth = measure.X / text.Length;
         RenderTexture2D
             temp1 = LoadRenderTexture((int)measure.X, (int)measure.Y),
             final = LoadRenderTexture((int)(measure.X + spacing * 2), (int)(measure.Y + spacing * 2));
         BeginTextureMode(temp1);
         DrawTextEx(Fonts["kodemono"], text, Vector2.Zero, fontSize, spacing, Color.White);
         EndTextureMode();
-        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "border_width"), ScaleF * 4, ShaderUniformDataType.Float);
+        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "border_width"), ScaleF * 6, ShaderUniformDataType.Float);
         SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "fres"), measure + new Vector2(spacing * 2), ShaderUniformDataType.Vec2);
         SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "res"), measure, ShaderUniformDataType.Vec2);
-        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "pos"), [0f, 0f], ShaderUniformDataType.Float);
+        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "pos"), [0, 0], ShaderUniformDataType.Vec2);
         BeginTextureMode(final);
         BeginShaderMode(Shaders["outline2"]);
-        DrawTexture(temp1.Texture, (int)spacing, (int)spacing, Color.White);
-        UnloadRenderTexture(temp1);
+        DrawTexture(temp1.Texture, (int)spacing , (int)spacing, Color.White);
         EndShaderMode();
+        EndTextureMode();
+        UnloadRenderTexture(temp1);
         Textures["ScoreDigitsPrerender"] = final.Texture;
+        ScoreSpacing = spacing;
+        ScoreLetterHeight = measure.Y;
+        ScoreLetterWidth = letterWidth;
     }
 
     void LoadBullets()
@@ -352,15 +362,30 @@ public class Runtime
             DrawTexture(Textures["241fps.png"], 0,0,Color.White);
         EndDrawing();
      }
+
+    private bool UseWhiteBackground = false;
     
     void UpdateTextureView()
     {
         if (GetTime() - TextureViewerDelay < TextureViewerLastTimeKeyPressed)
             return;
-        if (IsKeyDown(KeyboardKey.LeftControl) && IsKeyDown(KeyboardKey.J))
+        if (IsKeyDown(KeyboardKey.LeftControl))
         {
-            TextureViewerOpen = !TextureViewerOpen;
-            TextureViewerLastTimeKeyPressed = GetTime();
+            if (IsKeyDown(KeyboardKey.J))
+            {
+                TextureViewerOpen = !TextureViewerOpen;
+                TextureViewerLastTimeKeyPressed = GetTime();
+            }
+            else if (IsKeyDown(KeyboardKey.A))
+            {
+                UseWhiteBackground = !UseWhiteBackground;
+                TextureViewerLastTimeKeyPressed = GetTime();
+            }
+            else if (IsKeyDown(KeyboardKey.C))
+            {
+                PrepareScoreTexture();
+                TextureViewerLastTimeKeyPressed = GetTime();
+            }
             return;
         }
         if (SetValueMode)
@@ -469,7 +494,9 @@ public class Runtime
         var key = Textures.ElementAt(TextureId).Key;
         Texture2D texture = Textures.ElementAt(TextureId).Value;
         ImGui.Begin("Texture Viewer: ");
-        DrawRectangle(0,0,Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height, Color.Black);
+        ImGui.Text("press Ctrl+A to switch background");
+        ImGui.Text($"size: {texture.Width}x{texture.Height}");
+        DrawRectangle(0,0,Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height, UseWhiteBackground ? Color.White : Color.Black);
         ImGui.TextUnformatted($"Texture ID: {TextureId} ({key})");
         if (ShaderId != -1)
         {

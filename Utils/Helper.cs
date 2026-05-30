@@ -270,6 +270,54 @@ public static class Helper
         LocationAAScale = GetShaderLocation(AAShader, "scale");
     }
     
+    public static void DrawScoreText(string text, float fontSize, Vector2 position, Color color)
+    {
+        const string t = "0123456789./";
+        var vec2 = GetScoreTextureSize(text, fontSize);
+        Rectangle copy = new Rectangle(new(Runtime.CurrentRuntime.ScoreSpacing, 
+                Runtime.CurrentRuntime.ScoreSpacing),
+            Runtime.CurrentRuntime.ScoreLetterWidth, Runtime.CurrentRuntime.ScoreLetterHeight);
+        Rectangle target = new(0,position.Y, new Vector2(Runtime.CurrentRuntime.ScoreLetterWidth * (fontSize/64), vec2.Y));
+        int z = 0, i = 0;
+        var ctexture = Runtime.CurrentRuntime.Textures["ScoreDigitsPrerender"];
+        foreach (var c in text)
+        {
+            z = t.IndexOf(c);
+            DrawTexturePro(ctexture,
+                copy with { X = copy.X + Runtime.CurrentRuntime.ScoreLetterWidth * z },
+                target with { X = position.X + target.Width * i },
+                Vector2.Zero, 0, color);
+            i++;
+        }
+    }
+
+    public static string FormatScore(int score, int c)
+    {
+        string str = string.Join("", $"{(score == 0 ? "" : score)}{c}".Reverse());
+        int spacing = ((str.Length + 2) / 3 * 3) - str.Length;
+        str = str.PadRight(spacing + str.Length, 'o');
+        return string.Join("",string.Join(".", Enumerable.Range(0, str.Length / 3).Select(x => str[(x*3)..(x*3+3)]))
+            .Reverse()).Substring(spacing);
+    }
+
+    public static Vector2 GetScoreTextureSize(string text, float fontSize)
+    {
+        return new(
+            text.Length * Runtime.CurrentRuntime.ScoreLetterWidth * (fontSize/64),
+            Runtime.CurrentRuntime.ScoreLetterHeight * (fontSize/64)
+            );
+    }
+
+    public static RenderTexture2D CreateScoreText(string text, float fontSize)
+    {
+        var vec2 = GetScoreTextureSize(text, fontSize);
+        var texture = LoadRenderTexture((int)vec2.X, (int)vec2.Y);
+        BeginTextureMode(texture);
+        DrawScoreText(text, fontSize, Vector2.Zero, Color.White);
+        EndTextureMode();
+        return texture;
+    }
+    
     /// <summary>
     /// 
     /// </summary>

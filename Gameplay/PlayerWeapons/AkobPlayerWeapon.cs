@@ -103,4 +103,9 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
     {
         Player.GameBox.AddScreenEffect(new GameplayScreenEffect(Player.GameBox, new Vector2(x,y), 45, "akob_bullet_distortion", Player.GameBox.GetTime(), Player.GameBox.GetTime()+0.25f));
     }
+
+    public override void AddShootTargetScore()
+    {
+        Player.GameBox.Score += 1;
+    }
 }

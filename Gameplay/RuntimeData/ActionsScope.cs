@@ -103,7 +103,7 @@ public static class ActionsScope
                 for (int i = 0; i < 3; i++)
                 {
                     var d = c.Box.SpawnObject(0);
-                    d.FacingRotation = d.RenderRotation = -2.5f + 2.5f * i;
+                    d.FacingRotation = d.RenderRotation = -5.5f + 5.5f * i;
                     d.X = c.X;
                     d.Y = c.Y;
                     d.Speed = 2f;

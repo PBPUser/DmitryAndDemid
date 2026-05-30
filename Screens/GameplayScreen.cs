@@ -196,14 +196,6 @@ public class GameplayScreen : Screen
         DrawTexturePro(Runtime.CurrentRuntime.Textures["difficulties_ingame.png"],
             DifficultySource, DifficultyTarget with{ Height = (float)(Helper.ComputeObjectTimeStart(time,2f, .25f) * DifficultyTarget.Height) },
             Vector2.Zero, 0, Color.White);
-        DrawTexturePro(GameBox.ScoreTexture.Texture,
-            GameBox.ScoreSrc, 
-            GameBox.ScoreDest, 
-            Vector2.Zero, 0, Color.White);
-        DrawTexturePro(GameBox.ScoreTexture.Texture,
-            GameBox.ScoreSrc, 
-            GameBox.ScoreDest, 
-            Vector2.Zero, 0, Color.White);
         DrawTexturePro(GameBox.UIAboveGameplay.Texture,
             UIAboveSource,
             Dest,
