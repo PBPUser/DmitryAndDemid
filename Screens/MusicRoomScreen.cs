@@ -40,9 +40,7 @@ public class MusicRoomScreen : MenuScreen
         Infos = new MusicInfo[files.Length];
         Descriptions = new RenderTexture2D[files.Length];
         for (int i = 0; i < files.Length; i++)
-        {
-            Infos[i] = JsonSerializer.Deserialize<MusicInfo>(File.ReadAllText(files[i]));
-        }
+            Infos[i] = JsonSerializer.Deserialize<MusicInfo>(File.ReadAllText(files[i])) ?? new MusicInfo();
         Infos = Infos.OrderBy(x => x.Number).ToArray();
         for (int i = 0; i < Infos.Length; i++)
         {

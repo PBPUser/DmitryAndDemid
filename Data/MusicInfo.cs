@@ -10,8 +10,8 @@ public class MusicInfo
         .Select(x => JsonSerializer.Deserialize<MusicInfo>(System.IO.File.ReadAllText(x))).ToList();
     public static string[] MusicNames = MusicInformations.Select(x => x == null ? "(HoJlb)" : Helper.Transliterate( x.Title)).ToArray();
     
-    [JsonInclude] public int Number = 0;
-    [JsonInclude] public string Title = "";
-    [JsonInclude] public string Description = "";
+    [JsonInclude] public int Number = -1;
+    [JsonInclude] public string Title = "-1. Unknown";
+    [JsonInclude] public string Description = "Unknown";
     [JsonInclude] public string File = "";
 }
