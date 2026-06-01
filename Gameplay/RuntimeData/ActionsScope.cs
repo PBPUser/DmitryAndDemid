@@ -94,6 +94,10 @@ public static class ActionsScope
             obj.X += obj.Speed * d.X;
             obj.Y += obj.Speed * d.Y;
         };
+        dictionary["FlowerMove"] = obj =>
+        {
+            
+        };
         dictionary["nikitos#spell1"] = c =>
         {
             var time = c.Box.CurrentTick - c.CreatedAt + c.Header[0x5A];

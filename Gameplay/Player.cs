@@ -75,7 +75,11 @@ public class Player
         Controller.Update(this, GameBox.CurrentTick);
         X = Math.Clamp(X, 8, 376);
         Y = Math.Clamp(Y, 8, 440);
-        
+        if (IsInDeathCooldown)
+        {
+            X = 192;
+            Y = 512 - 112 * ((RestoreTick - GameBox.CurrentTick) / 60f);
+        }
         if (GameBox.CurrentTick % 4 == 0)
             SourceRect.X += 32;
         Weapon.Update();
@@ -185,7 +189,10 @@ public class Player
                     // TODO: Play full power sound
                     GameBox.AddOverlay(new BasicGameplayOverlay(GameBox, "full-power.png", .5f, 3));
                 }
-                //TODO: Play next power level sound
+                else
+                {
+                    //TODO: Play next power level sound
+                }
             }
             power = newValue;
             GameBox.UpdateUI();
@@ -256,20 +263,22 @@ public class Player
     }
 
     public Rectangle Collision => new Rectangle(X-CollisionRadius/2, Y-CollisionRadius/2, CollisionRadius, CollisionRadius);
+
+    public bool IsInDeathCooldown
+    {
+        get => RestoreTick > GameBox.CurrentTick;
+        set => RestoreTick = GameBox.CurrentTick + 120;
+    }
+
     
     private int graze;
-    
     private bool isFocused = false;
     private bool isBombing = false;
     private bool isShooting = false;
-
-    
     private Vector2 CollisionDotPos;
-    
     private const int RestoreInvincibilityLength = 300;
     private const int RestoreAnimationLength = 60;
     private int RestoreTick = 0;
-    
     
     public void Die()
     {
@@ -285,6 +294,8 @@ public class Player
                 GameBox, new Vector2(GameBox.Player.X, GameBox.Player.Y), 0, "die", GameBox.GetTime(), GameBox.GetTime() + 1.5f
             ));
         CollisionEnabled = false;
+        GameBox.ClearBullets();
+        IsInDeathCooldown = true;
         //RestoreTick = Game.CurrentTick + RestoreInvincibilityLength;
         Helper.PlaySound(Runtime.CurrentRuntime.Sounds["dead"]);
         Weapon.DefocusTimestamp = GameBox.CurrentTick;

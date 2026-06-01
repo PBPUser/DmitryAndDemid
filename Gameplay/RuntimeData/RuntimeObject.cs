@@ -68,6 +68,10 @@ public class RuntimeObject
     public GameplayScreenEffect? BackgroundDistortionEffect;
     public BossCircleScreenEffect? BossCircleEffect;
 
+    RuntimeObject()
+    {
+    }
+    
     public static RuntimeObject LoadFromFile(FileEntityInfo info, GameBox box)
     {
         RuntimeObject entity = new RuntimeObject();
@@ -322,20 +326,25 @@ public class RuntimeObject
         UpdateAction?.Invoke(this);
     }
 
-    public void UpdateCollectable()
-    {
-        FloatingPoints[0x5] = MathF.Abs(FloatingPoints[2]) > 0 ? Box.CurrentTick : 0;
-        FloatingPoints[2] = Raymath.MoveTowards(FloatingPoints[2], 0, 0.1f);
-        FloatingPoints[6] = Raymath.MoveTowards(FloatingPoints[6], float.MaxValue, 0.1f);
-        X += FloatingPoints[2];
-        Y += FloatingPoints[6];
-    }
-
     public void UpdateCollectableBullet()
     {
         var direction = Helper.GetDirection(Position, new Vector2(Box.Player.X, Box.Player.Y));
         FloatingPoints[2] = Raymath.MoveTowards(FloatingPoints[2], direction.X * 100000, 0.1f);
         FloatingPoints[6] = Raymath.MoveTowards(FloatingPoints[6], direction.Y * 100000, 0.1f);
+        X += FloatingPoints[2];
+        Y += FloatingPoints[6];
+        if (Helper.IsCollied(TargetRectangle, Box.Player.Collision))
+        {
+            Box.Score += (int)Math.Pow(10, (448-Y)/10) * Header[5];
+            Box.RemoveObject(this);
+        }
+    }
+
+    public void UpdateCollectable()
+    {
+        FloatingPoints[0x5] = MathF.Abs(FloatingPoints[2]) > 0 ? Box.CurrentTick : 0;
+        FloatingPoints[2] = Raymath.MoveTowards(FloatingPoints[2], 0, 0.1f);
+        FloatingPoints[6] = Raymath.MoveTowards(FloatingPoints[6], float.MaxValue, 0.1f);
         X += FloatingPoints[2];
         Y += FloatingPoints[6];
         if (Helper.IsCollied(TargetRectangle, Box.Player.Collision))

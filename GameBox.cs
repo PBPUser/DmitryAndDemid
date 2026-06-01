@@ -351,8 +351,13 @@ public class GameBox : IDisposable
                     return boss;
                 }
             }
+
         var x = RuntimeObject.LoadFromFile(StageInfo.Entities[i], this);
         x.Header[0x17] = CurrentTick;
+        if (StageInfo.Entities[i].IsBullet && Player.IsInDeathCooldown)
+        {
+            
+        }
         AddObject(x);
         return x;
     }
@@ -380,13 +385,19 @@ public class GameBox : IDisposable
                 if (drop)
                 {
                     if ((bm & RuntimeObject.FlagIsBullet) != RuntimeObject.FlagIsBullet)
+                    {
+                        // TODO: Play removal sound
+                        // TODO: Add objects removal shader 
                         obj.Header[0] |= RuntimeObject.FlagIsCollectableBullet;
+                        obj.Header[2] = 128;
+                        obj.CollectableVelocity = -1 * Helper.GetDirection(obj.Position, new Vector2(Player.X, Player.Y));
+                    }
                 }
                 else
                 {
+                    RemoveObject(obj);
                     // TODO: Add objects removal shader
                 }
-                RemoveObject(obj);
             }
         }
     }
@@ -507,7 +518,7 @@ public class GameBox : IDisposable
                 obj.Texture,
                 obj.SourceRectangle,
                 obj.TargetRectangle with { X = obj.TargetRectangle.X + obj.FloatingPoints[0x20] * tickDelta, Y = obj.TargetRectangle.Y + obj.FloatingPoints[0x21] * tickDelta },
-                obj.Origin, obj.RenderRotation + obj.FloatingPoints[0x23]*tickDelta, Color.White
+                obj.Origin, obj.RenderRotation + obj.FloatingPoints[0x23]*tickDelta, Color.White with {A = (byte)obj.Header[2] }
             );
             EndShaderMode();
         }
@@ -706,6 +717,18 @@ public class GameBox : IDisposable
             overlay.Dispose();
     }
     
+    public void ClearBullets()
+    {
+        foreach (var obj in BoxObjects)
+        {
+            if ((obj.Header[0] & RuntimeObject.FlagIsBullet) == RuntimeObject.FlagIsBullet)
+            {
+                obj.Header[0] |= RuntimeObject.FlagIsCollectableBullet;
+                obj.Header[2] = 128;
+                obj.CollectableVelocity = -1 * Helper.GetDirection(obj.Position, new Vector2(Player.X, Player.Y));
+            }
+        }
+    }
 #if DEBUG
     public List<string> DebugStrings = new();
 #endif
