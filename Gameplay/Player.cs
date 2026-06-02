@@ -56,29 +56,18 @@ public class Player
     
     public void Update()
     {
-        if (RestoreTick > GameBox.CurrentTick)
-        {
-            int j = GameBox.CurrentTick - RestoreTick + RestoreInvincibilityLength;
-            if (j < RestoreAnimationLength)
-            {
-                //UpdateCollisionRender(new Vector2(192, 400) + new Vector2(0, 128) * (1-((float)j/(float)RestoreInvincibilityLength)), 0);
-                X = 192;
-                Y = (int)(400 + 128 * (1 - ((float)j / (float)RestoreInvincibilityLength)));
-                return;
-            }
-        }
-        else
-        {
-            //CollisionDotPos = PositionTo;
-            CollisionEnabled = true;
-        }
         Controller.Update(this, GameBox.CurrentTick);
         X = Math.Clamp(X, 8, 376);
         Y = Math.Clamp(Y, 8, 440);
         if (IsInDeathCooldown)
         {
+            CollisionEnabled = false;
             X = 192;
-            Y = 512 - 112 * ((RestoreTick - GameBox.CurrentTick) / 60f);
+            Y = 400 + 112 * ((RestoreTick - GameBox.CurrentTick) / 60f);
+        }
+        else
+        {
+            CollisionEnabled = true;
         }
         if (GameBox.CurrentTick % 4 == 0)
             SourceRect.X += 32;
@@ -270,7 +259,8 @@ public class Player
         set => RestoreTick = GameBox.CurrentTick + 120;
     }
 
-    
+    public Vector2 Position => new Vector2(X, Y);
+
     private int graze;
     private bool isFocused = false;
     private bool isBombing = false;
@@ -278,7 +268,7 @@ public class Player
     private Vector2 CollisionDotPos;
     private const int RestoreInvincibilityLength = 300;
     private const int RestoreAnimationLength = 60;
-    private int RestoreTick = 0;
+    public int RestoreTick = 0;
     
     public void Die()
     {

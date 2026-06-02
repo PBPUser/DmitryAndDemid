@@ -14,4 +14,5 @@ public class MusicInfo
     [JsonInclude] public string Title = "-1. Unknown";
     [JsonInclude] public string Description = "Unknown";
     [JsonInclude] public string File = "";
+    [JsonInclude] public string InGameName = "";
 }

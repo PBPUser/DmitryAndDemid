@@ -13,6 +13,7 @@ uniform vec2 output_resolution;
 uniform vec2 position;
 uniform int time;
 uniform int created_at;
+uniform int opacity;
 
 vec4 qexture(sampler2D sampler, vec2 pos){
     vec2 uvs = pos * output_resolution;
@@ -24,5 +25,5 @@ vec4 qexture(sampler2D sampler, vec2 pos){
 void main()
 {
 	vec4 texelColor = qexture(texture0, fragTexCoord);
-	gl_FragColor = texelColor * colDiffuse;
+	gl_FragColor = texelColor * colDiffuse * vec4(1,1,1,float(opacity)/255);
 }

@@ -591,6 +591,15 @@ public class GameplayEditorScreen : Screen
                         jv);
                     End();
                 }
+                Begin("Score Subtitle Preview");
+                if (InputInt("Score", ref Score, 1))
+                    RedrawSpellSubtitle();
+                if (InputInt("Success Attempts", ref SuccessAttempts, 1))
+                    RedrawSpellSubtitle();
+                if (InputInt("Total Attempts", ref TotalAttempts, 1))
+                    RedrawSpellSubtitle();
+                rlImGui.ImageRenderTexture(TextureTestSpellSubtitle);
+                End();
                 break;
             case 7:
                 Begin("Test Spell Splash");
@@ -634,6 +643,11 @@ public class GameplayEditorScreen : Screen
         base.DrawImgui();
     }
 
+    private void RedrawSubtitle()
+    {
+        
+    }
+
     private void Error(string text)
     {
         ErrorText = text;
@@ -650,7 +664,7 @@ public class GameplayEditorScreen : Screen
             UnloadRenderTexture(FontTestTexture2);
         Helper.DrawTextAliased(out FontTestTexture,out FontTestTexture2,
             Runtime.CurrentRuntime.Fonts[Fonts[SelectedFontIndex]],
-            FontSize1, FontTextTest, Raylib_cs.Color.White);
+            FontSize1, 0, FontTextTest, Raylib_cs.Color.White);
     }
 
     private string FontTextTest = "";
@@ -687,14 +701,14 @@ public class GameplayEditorScreen : Screen
         Helper.DrawSpellScore(ScoreText, ref SpellTestTexture, out LetterWidthScore, out PaddingScore);
     }
 
-    private RenderTexture2D TextureTestBonus = LoadRenderTexture(8192,8192);
+    private RenderTexture2D TextureTestSpellSubtitle = LoadRenderTexture(8192,8192);
     private int Score = -1;
     private int TotalAttempts = 0;
     private int SuccessAttempts = 0;
     
-    void RerenderBonusCount()
+    void RedrawSpellSubtitle()
     {
-        Helper.DrawBonusCount(TextureTestBonus, Score, TotalAttempts, SuccessAttempts);
+        Helper.DrawSpellSubtitle(TextureTestSpellSubtitle, Score, TotalAttempts, SuccessAttempts);
     }
     
     private void RerenderPreviewText()

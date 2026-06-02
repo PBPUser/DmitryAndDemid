@@ -37,7 +37,8 @@ public class RuntimeObject
         FlagUseRenderRotation = 0x2000,
         FlagUseUpdateScript = 0x4000,
         FlagIsFinalBossChapter = 0x100000,
-        FlagIsCollectable = 0x10000;
+        FlagIsCollectable = 0x10000, 
+        FlagIsMovingToTarget = 0x20000;
 
     public static FileEntityInfo[] CollectableFEIs = new FileEntityInfo[8];
 
@@ -83,7 +84,14 @@ public class RuntimeObject
             entity.UpdateAction = ActionsScope.ObjectActions[info.UpdateScript];
         if ((entity.Header[0] & FlagIsCollectable) == FlagIsCollectable)
         {
-            
+            var shader = Runtime.CurrentRuntime.Shaders["basic_bullet_shader"];
+            entity.Header[0x40] = Raylib.GetShaderLocation(shader, "created_at");
+            entity.Header[0x41] = Raylib.GetShaderLocation(shader, "time");
+            entity.Header[0x42] = Raylib.GetShaderLocation(shader, "position");
+            entity.Header[0x43] = Raylib.GetShaderLocation(shader, "resolution");
+            entity.Header[0x44] = Raylib.GetShaderLocation(shader, "output_resolution");
+            entity.Header[0x45] = Raylib.GetShaderLocation(shader, "opacity");
+                
         }
         else if ((entity.Header[0] & FlagIsBullet) == FlagIsBullet)
         {
@@ -107,6 +115,7 @@ public class RuntimeObject
                 entity.Header[0x42] = Raylib.GetShaderLocation(shader, "position");
                 entity.Header[0x43] = Raylib.GetShaderLocation(shader, "resolution");
                 entity.Header[0x44] = Raylib.GetShaderLocation(shader, "output_resolution");
+                entity.Header[0x45] = Raylib.GetShaderLocation(shader, "opacity");
             }
             else
             {
@@ -115,6 +124,7 @@ public class RuntimeObject
                 entity.Header[0x42] = bulletRenderInfo.LocFXPosition;
                 entity.Header[0x43] = bulletRenderInfo.LocFXResolution;
                 entity.Header[0x44] = bulletRenderInfo.LocFXOutputResolution;
+                entity.Header[0x45] = bulletRenderInfo.LocFXOpacity;
             }
             entity.TexturePosition = spPos;
             entity.TextureSize = bulletRenderInfo.SourceSize;
@@ -189,13 +199,13 @@ public class RuntimeObject
         return entity;
     }
     
-    public Drop BadDrop => new Drop(Header[0x18]);
-    public Drop GoodDrop => new Drop(Header[0x19]);
+    public Drop BadDrop => new(Header[0x18]);
+    public Drop GoodDrop => new(Header[0x19]);
     
     public float RenderRotation
     {
-        get => BitConverter.ToSingle(BitConverter.GetBytes(Header[0x0D]), 0);
-        set => Header[0x0D] = BitConverter.ToInt32(BitConverter.GetBytes(value), 0);
+        get => FloatingPoints[5] ;
+        set => FloatingPoints[5] = value;
     }
 
     public Rectangle SourceRectangle => Source;
@@ -283,6 +293,26 @@ public class RuntimeObject
         }
     }
 
+    public Vector2 MoveTarget
+    {
+        get => new (FloatingPoints[0x14],  FloatingPoints[0x15]);
+        set
+        {
+            FloatingPoints[0x14] = value.X;
+            FloatingPoints[0x15] = value.Y;
+        }
+    }
+
+    public Vector2 Velocity
+    {
+        get => new Vector2(FloatingPoints[0x17],  FloatingPoints[0x18]);
+        set
+        {
+            FloatingPoints[0x17] = value.X;
+            FloatingPoints[0x18] = value.Y;
+        }
+    }
+
     public float Z
     {
         get => FloatingPoints[0x12];
@@ -298,6 +328,11 @@ public class RuntimeObject
     public Vector2 Position
     {
         get => new(FloatingPoints[0x10],  FloatingPoints[0x11]);
+        set
+        {
+            FloatingPoints[0x10] = value.X;
+            FloatingPoints[0x11] = value.Y;
+        }
     }
 
     public int SpawnId => Header[2];
@@ -323,16 +358,30 @@ public class RuntimeObject
 
     public void Update()
     {
+        if ((Header[0] & FlagIsMovingToTarget) == FlagIsMovingToTarget)
+        {
+            Position = Raymath.Vector2MoveTowards(Position, MoveTarget, FloatingPoints[0x16]);
+            if (Raymath.Vector2Distance(Position, MoveTarget) < 1)
+                Header[0] &= ~FlagIsMovingToTarget;
+        }
         UpdateAction?.Invoke(this);
+    }
+
+    public void SetMoveToTarget(float speed, Vector2 target)
+    {
+        MoveTarget = target;
+        FloatingPoints[0x16] = speed;
+        Header[0] |= FlagIsMovingToTarget;
     }
 
     public void UpdateCollectableBullet()
     {
         var direction = Helper.GetDirection(Position, new Vector2(Box.Player.X, Box.Player.Y));
-        FloatingPoints[2] = Raymath.MoveTowards(FloatingPoints[2], direction.X * 100000, 0.1f);
-        FloatingPoints[6] = Raymath.MoveTowards(FloatingPoints[6], direction.Y * 100000, 0.1f);
+        FloatingPoints[2] = Raymath.MoveTowards(FloatingPoints[2], direction.X * 100000, 0.2f);
+        FloatingPoints[6] = Raymath.MoveTowards(FloatingPoints[6], direction.Y * 100000, 0.2f);
         X += FloatingPoints[2];
         Y += FloatingPoints[6];
+        RenderRotation += Helper.FindAngle(Position, new Vector2(Box.Player.X, Box.Player.Y)) * 0.09f;
         if (Helper.IsCollied(TargetRectangle, Box.Player.Collision))
         {
             Box.Score += (int)Math.Pow(10, (448-Y)/10) * Header[5];

@@ -379,8 +379,8 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                             RerenderChapterTitleTexture();
                         if(ChapterTexturePreview != null)
                             rlImGui_cs.rlImGui.Image(ChapterTexturePreview.Value.Texture);
-                        InputInt("Bonus max score", ref Info.Header[6], 1000, 10000);
-                        InputInt("Spell Card Index on practice menu", ref Info.Header[9], 1, 1);
+                        InputInt("Bonus max score", ref Info.Chapters[SelectedObjectIndex].Header[4], 1000, 10000);
+                        //InputInt("Spell Card Index on practice menu", ref Info.Chapters[SelectedObjectIndex].Header[9], 1, 1);
                         Checkbox("Boss Invincible", ref  Info.Chapters[SelectedObjectIndex].BossInvincible);
                         Checkbox("Timeout card", ref  Info.Chapters[SelectedObjectIndex].TimeoutCard);
                     }

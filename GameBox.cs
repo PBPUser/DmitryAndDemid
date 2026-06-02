@@ -98,6 +98,9 @@ public class GameBox : IDisposable
     private bool ChapterScoreShown = false;
     private Stopwatch? SpellcardStopwatch = null;
     public const int Deathlength = 15;
+    private int ScoreChapterMax;
+    private int ChapterScoreCurrent;
+    private const int ChapterMaxScoreDelay = 240;
     
     void BoxUpdate()
     {
@@ -140,7 +143,8 @@ public class GameBox : IDisposable
 
         if (ChapterInfo.Type == ChapterType.Spell)
         {
-            if((CurrentTick + TickOffset - ChapterInfo.TickStart) % TargetTPS == 0 && !InChapterDelay && (ChapterInfo!.Length - CurrentTick) < (ChapterInfo!.Length > 600 ? 300 : 600))
+            ChapterScoreCurrent = (int)Math.Clamp(ScoreChapterMax * (MathF.Abs(CurrentTick + TickOffset - (ChapterInfo.TickStart + ChapterInfo.Length)) / (ChapterInfo.Length - ChapterMaxScoreDelay)), 0, ScoreChapterMax);
+            if((CurrentTick + TickOffset - ChapterInfo.TickStart) % TargetTPS == 0 && !InChapterDelay && (ChapterInfo!.Length - CurrentTick ) < (ChapterInfo!.Length > 600 ? 300 : 600))
                 Helper.PlaySound(Runtime.CurrentRuntime.Sounds["pre-timeout"]);
             if (CurrentTick + TickOffset - ChapterInfo.TickStart == ChapterInfo.Length)
             {
@@ -201,12 +205,22 @@ public class GameBox : IDisposable
                     RemoveObject(obj);
                 continue;
             }
-
             x = obj.FloatingPoints[0x10];
             y = obj.FloatingPoints[0x11];
             z = obj.FloatingPoints[0x12];
             r = obj.FloatingPoints[0x5];
-            obj.Update();
+            if ((obj.Header[0] & RuntimeObject.FlagIsCollectableBullet) == RuntimeObject.FlagIsCollectableBullet)
+            {
+                obj.UpdateCollectableBullet();
+            }
+            else if ((obj.Header[0] & RuntimeObject.FlagIsCollectable) == RuntimeObject.FlagIsCollectable)
+            {
+                obj.UpdateCollectable();
+            }
+            else
+            {
+                obj.Update();
+            }
             obj.FloatingPoints[0x20] = obj.FloatingPoints[0x10] - x;
             obj.FloatingPoints[0x21] = obj.FloatingPoints[0x11] - y;
             obj.FloatingPoints[0x22] = obj.FloatingPoints[0x12] - z;
@@ -242,10 +256,17 @@ public class GameBox : IDisposable
                             {
                                 TickOffset += (ChapterInfo.TickStart+ChapterInfo.Length-CurrentTick);
                                 int ticks = CurrentTick+TickOffset-ChapterInfo.TickStart;
+                                if (SpellcardStopwatch == null)
+                                {
+                                    SpellcardStopwatch = new Stopwatch();
+                                }
                                 if (IsFailed)
                                     AddOverlay(new TimerGameplayOverlay(this, "bonus-failed.png", ticks, SpellcardStopwatch!.Elapsed.TotalSeconds, 0.5f, 3f));
                                 else
-                                    AddOverlay(new ScoreGameplayOverlay(this, 0, ticks, SpellcardStopwatch!.Elapsed.TotalSeconds, .5f, 3));
+                                {
+                                    AddOverlay(new ScoreGameplayOverlay(this, ChapterScoreCurrent * 10, ticks, SpellcardStopwatch!.Elapsed.TotalSeconds, .5f, 3));
+                                    Score += ChapterScoreCurrent;
+                                }
                                 SpellcardStopwatch = null;
                                 obj.UpdateAction = null;
                             }
@@ -354,9 +375,11 @@ public class GameBox : IDisposable
 
         var x = RuntimeObject.LoadFromFile(StageInfo.Entities[i], this);
         x.Header[0x17] = CurrentTick;
-        if (StageInfo.Entities[i].IsBullet && Player.IsInDeathCooldown)
+        if (StageInfo.Entities[i].IsBullet && Player.RestoreTick + 60 > CurrentTick)
         {
-            
+            x.Header[2] = 128;
+            x.Header[0] |= RuntimeObject.FlagIsCollectableBullet;
+            x.CollectableVelocity = Helper.GetDirection(x.Position, new Vector2(Player.X, Player.Y));
         }
         AddObject(x);
         return x;
@@ -441,6 +464,7 @@ public class GameBox : IDisposable
             ChapterTitleAppear = GetTime();
             ChapterTitleDisappear = float.MaxValue;
             IsFailed = false;
+            ChapterScoreCurrent = ScoreChapterMax = ChapterInfo.MaxScore;
             AddScreenEffect(new SpellCardAttackScreenEffect(this, Vector2.Zero, 0, GetTime(), GetTime()+2));
         }
         else if (ChapterInfo.Type == ChapterType.NonSpell)
@@ -449,7 +473,31 @@ public class GameBox : IDisposable
         }
         InChapterDelay = false;
         ChapterInfo.CreateScript?.Invoke(ChapterInfo);
-        
+    }
+    
+    public void Dispose()
+    {
+        UnloadRenderTexture(Background);
+        UnloadRenderTexture(ScoreTexture);
+        UnloadRenderTexture(HiScoreTexture);
+        UnloadRenderTexture(Box);
+        UnloadRenderTexture(UIAboveGameplay);
+        UnloadRenderTexture(UILeft);
+        foreach (var overlay in GameplayOverlays)
+            overlay.Dispose();
+    }
+    
+    public void ClearBullets()
+    {
+        foreach (var obj in BoxObjects)
+        {
+            if ((obj.Header[0] & RuntimeObject.FlagIsBullet) == RuntimeObject.FlagIsBullet)
+            {
+                obj.Header[0] |= RuntimeObject.FlagIsCollectableBullet;
+                obj.Header[2] = 128;
+                obj.CollectableVelocity = -1 * Helper.GetDirection(obj.Position, new Vector2(Player.X, Player.Y));
+            }
+        }
     }
 
     void ShowChapterScore()
@@ -512,13 +560,17 @@ public class GameBox : IDisposable
                 SetShaderValue(obj.Shader, obj.Header[0x42], obj.TexturePosition, ShaderUniformDataType.Vec2); //3
                 SetShaderValue(obj.Shader, obj.Header[0x43], obj.TextureSize, ShaderUniformDataType.Vec2); //6,32
                 SetShaderValue(obj.Shader, obj.Header[0x44], obj.TotalTextureSize, ShaderUniformDataType.Vec2); //128
+                SetShaderValue(obj.Shader, obj.Header[0x45], obj.Header[2], ShaderUniformDataType.Int);
                 BeginShaderMode(obj.Shader);
             }
+
+            float bulletDV = (obj.Header[0] & RuntimeObject.FlagIsBullet) == RuntimeObject.FlagIsBullet ?
+                MathF.PI / 2 : 0;
             DrawTexturePro(
                 obj.Texture,
                 obj.SourceRectangle,
                 obj.TargetRectangle with { X = obj.TargetRectangle.X + obj.FloatingPoints[0x20] * tickDelta, Y = obj.TargetRectangle.Y + obj.FloatingPoints[0x21] * tickDelta },
-                obj.Origin, obj.RenderRotation + obj.FloatingPoints[0x23]*tickDelta, Color.White with {A = (byte)obj.Header[2] }
+                obj.Origin, (obj.RenderRotation + bulletDV) * 180 / MathF.PI + obj.FloatingPoints[0x23]*tickDelta   , Color.White
             );
             EndShaderMode();
         }
@@ -540,6 +592,7 @@ public class GameBox : IDisposable
                     ),
                 0, scaling,
                 Color.White with {A = Helper.TimeToTransparency(appear1)});
+            DrawText($"Score max: {ChapterScoreCurrent} of {ScoreChapterMax}", 0, 64, 24, Color.White);
         }
         foreach (var overlay in GameplayOverlays)
             overlay.DrawOverlay();
@@ -578,7 +631,8 @@ public class GameBox : IDisposable
     private RenderTexture2D HiScoreTexture = Helper.CreateScoreText("1.000.000", 16);
     private RenderTexture2D ScoreTexture = Helper.CreateScoreText("1.000.000", 16);
     public bool IsUIUpdateRequired = false;
-    
+
+    public int ChapterTick => CurrentTick + TickOffset - ChapterInfo.TickStart; 
     
     public int Score
     {
@@ -705,30 +759,6 @@ public class GameBox : IDisposable
 
     #endregion
 
-    public void Dispose()
-    {
-        UnloadRenderTexture(Background);
-        UnloadRenderTexture(ScoreTexture);
-        UnloadRenderTexture(HiScoreTexture);
-        UnloadRenderTexture(Box);
-        UnloadRenderTexture(UIAboveGameplay);
-        UnloadRenderTexture(UILeft);
-        foreach (var overlay in GameplayOverlays)
-            overlay.Dispose();
-    }
-    
-    public void ClearBullets()
-    {
-        foreach (var obj in BoxObjects)
-        {
-            if ((obj.Header[0] & RuntimeObject.FlagIsBullet) == RuntimeObject.FlagIsBullet)
-            {
-                obj.Header[0] |= RuntimeObject.FlagIsCollectableBullet;
-                obj.Header[2] = 128;
-                obj.CollectableVelocity = -1 * Helper.GetDirection(obj.Position, new Vector2(Player.X, Player.Y));
-            }
-        }
-    }
 #if DEBUG
     public List<string> DebugStrings = new();
 #endif

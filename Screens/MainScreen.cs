@@ -163,7 +163,10 @@ public class MainScreen : MenuScreen
     {
         ImGui.Begin("Gamepad testing window");
         var hp = Helper.GetDirection(new Vector2(LineX, LineY), GetMousePosition());
+        var angle = Helper.FindAngle(new Vector2(LineX, LineY), GetMousePosition());
+        var angleDirection = Helper.GetDirection(angle);
         DrawLine(LineX, LineY, LineX+(int)(hp.X * 500), LineY+(int)(hp.Y * 500), Color.Blue);
+        DrawTextureEx(Runtime.CurrentRuntime.Textures["pizza.png"], new Vector2(LineX, LineY), (float)angle * 180 / MathF.PI, 1, Color.White);
         ImGui.TextUnformatted($"Direction: {hp}");ImGui.TextUnformatted($"Direction: {hp}");
         ImGui.TextUnformatted($"Coords: {hp*500}");
         for (int i = 0; i < Runtime.CurrentRuntime.GamepadCount; i++)

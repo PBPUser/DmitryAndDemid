@@ -38,6 +38,7 @@ public class BulletRenderingInfo
         LocFXResolution = GetShaderLocation(EffectShader, "resolution");
         LocFXOutputResolution = GetShaderLocation(EffectShader, "output_resolution");
         LocFXPosition = GetShaderLocation(EffectShader, "position");
+        LocFXOpacity = GetShaderLocation(EffectShader, "opacity");
     }
     
     private string effect = "";
@@ -49,6 +50,7 @@ public class BulletRenderingInfo
     [JsonIgnore] public int LocFXResolution;
     [JsonIgnore] public int LocFXOutputResolution;
     [JsonIgnore] public int LocFXPosition;
+    [JsonIgnore] public int LocFXOpacity;
     [JsonIgnore] public int LocTXColor;
     [JsonIgnore] public RenderTexture2D? RuntimeTexture;
     [JsonIgnore] public RenderTexture2D? TempTexture;

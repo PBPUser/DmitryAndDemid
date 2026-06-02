@@ -24,8 +24,6 @@ public class RuntimeChapter
     public readonly int TickStart;
     public readonly int LengthOffset = 0;
     public readonly int MaxScore = 0;
-    public readonly Drop BadDrop;
-    public readonly Drop GoodDrop;
     public readonly RenderTexture2D? BossTitleTexture;
     public readonly RenderTexture2D? ChapterTitleTexture;
     public readonly Texture2D? SpellcardTexture;
@@ -43,8 +41,6 @@ public class RuntimeChapter
         UseUpdateScript = chapterInfo.UseUpdateScript;
         UseCreateScript = chapterInfo.UseCreateScript;
         Type = (ChapterType)chapterInfo.Header[0];
-        BadDrop = new Drop(chapterInfo.Header[5]);
-        GoodDrop = new Drop(chapterInfo.Header[6]);
         if ((int)Type > 1)
         {
             var size = Helper.GetBossTextSize(chapterInfo.BossName);

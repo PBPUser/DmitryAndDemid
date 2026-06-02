@@ -2,6 +2,7 @@ using System.Collections.Frozen;
 using System.Numerics;
 using DmitryAndDemid.Gameplay.Effects;
 using DmitryAndDemid.Utils;
+using Raylib_cs;
 
 namespace DmitryAndDemid.Gameplay.RuntimeData;
 
@@ -26,44 +27,41 @@ public static class ActionsScope
         dictionary["nikitos#spell1#easy_create"] = c =>
         {
             var nPerson = c.GameBox.SpawnObject(2);
-            nPerson.X = 192;
-            nPerson.Y = 192;
-            nPerson.Header[0x50] = 15;
+            nPerson.X = -8;
+            nPerson.Y = -8;
+            nPerson.Header[0x50] = 4;
             nPerson.Header[0x51] = 120;
             nPerson.Header[0x5B] = 1;
+            var rnd = new Random((int)(c.GameBox.Player.X + c.GameBox.Player.Y));
+            var pos = new Vector2(rnd.Next(32, 352), rnd.Next(48, 96));
+            nPerson.SetMoveToTarget(2, pos);
+            var direction = Helper.FindAngle(pos, new Vector2(c.GameBox.Player.X, c.GameBox.Player.Y));
+            nPerson.FloatingPoints[0x5C] = direction;
         };
         dictionary["nikitos#spell2#easy_create"] = c =>
         {
             var nPerson = c.GameBox.SpawnObject(3);
-            nPerson.X = 192;
-            nPerson.Y = 192;
-            nPerson.Header[0x50] = 15;
+            nPerson.SetMoveToTarget(2, new Vector2(192, 80));
+            nPerson.Header[0x50] = 4;
             nPerson.Header[0x51] = 120;
             nPerson.Header[0x5B] = 1;
         };
-        dictionary["nikitos#spell1#easy"] = c =>
+        dictionary["nikitos#spell2#easy"] = c =>
         {
-            //if ((c.GameBox.CurrentTick - c.TickStart) % 3 == 0)
-            //{
-            //    c.Header[0]++;
-            //    var rain = c.GameBox.SpawnObject(0);
-            //    rain.X = 36+56*(c.Header[0] % 5);
-            //    rain.Y = -16;
-            //    rain.Speed = MathF.Abs(MathF.Sin((c.GameBox.CurrentTick - c.TickStart)));
-            //    rain.FacingRotation = rain.RenderRotation = (c.Header[0] % 5 - 3) * -10;
-            //}
-            // if ((c.GameBox.CurrentTick - c.TickStart) % 15 == 0)
-            // {
-            //     var obj = c.GameBox.SpawnObject(1);
-            //     obj.X = -16;
-            //     obj.Y = 64;
-            //     obj.FacingRotation = -MathF.PI / 2;
-            //     obj.Speed = 2f;
-            // }
+
         };
         dictionary["nikitos#spell2#easy"] = c =>
         {
-            
+            if (c.GameBox.CurrentTick + c.GameBox.TickOffset - c.TickStart == 30)
+            {
+                var toilet1 = c.GameBox.SpawnObject(7);
+                var toilet2 = c.GameBox.SpawnObject(7);
+                toilet1.X = 64;
+                toilet2.X = 320;
+                toilet1.Y = toilet2.Y = -16;
+                toilet1.SetMoveToTarget(4, new Vector2(64, 96));
+                toilet2.SetMoveToTarget(4, new Vector2(320, 96));
+            }
         };
         ChapterActions = dictionary.ToFrozenDictionary();
     }
@@ -90,11 +88,34 @@ public static class ActionsScope
         };
         dictionary["MoveLinearByDirection"] = obj =>
         {
-            var d = Helper.GetDirection2(obj.FloatingPoints[0x6]);
+            var d = Helper.GetDirection(obj.FloatingPoints[0x6]);
             obj.X += obj.Speed * d.X;
             obj.Y += obj.Speed * d.Y;
         };
-        dictionary["FlowerMove"] = obj =>
+        dictionary["toilet#spell2#easy"] = obj =>
+        {
+            if (obj.Box.ChapterTick % 120 == 7)
+            {
+                var c = obj.Box.SpawnObject(6);
+                c.X = obj.X;
+                c.Y = obj.Y;
+                c.Speed = 2;
+                c.FacingRotation = c.RenderRotation = MathF.PI / 2;
+                c.Velocity = new Vector2(0, -1);
+                obj.SetMoveToTarget(4, new Vector2(obj.X, 128));
+            }
+            else if (obj.Box.ChapterTick % 120 == 15)
+            {
+                obj.SetMoveToTarget(4, new Vector2(obj.X, 96));
+            }
+        };
+        dictionary["toilet_bullet#spell2#easy"] = obj =>
+        {
+            obj.Velocity = Raymath. Vector2MoveTowards(obj.Velocity, Helper.GetDirection(obj.Position, obj.Box.Player.Position), 0.01f);
+            obj.Position += obj.Velocity * obj.Speed;
+            obj.RenderRotation = Helper.FindAngle(Vector2.Zero, obj.Velocity);
+        };
+        dictionary["DirectionShoot"] = obj =>
         {
             
         };
@@ -104,14 +125,13 @@ public static class ActionsScope
             if (time % c.Header[0x50] == 0 && time > 0)
             {
                 var angle = Helper.FindAngle(c.Position, new Vector2(c.Box.Player.X, c.Box.Player.Y));
-                for (int i = 0; i < 3; i++)
-                {
-                    var d = c.Box.SpawnObject(0);
-                    d.FacingRotation = d.RenderRotation = -5.5f + 5.5f * i;
-                    d.X = c.X;
-                    d.Y = c.Y;
-                    d.Speed = 2f;
-                }
+                var d = c.Box.SpawnObject(0);
+                d.FacingRotation = d.RenderRotation =
+                    (float)(c.FloatingPoints[0x5c] + (Math.PI / 2) * (Math.Abs(c.FloatingPoints[0x5D] % 10) - 5) / 5);
+                d.X = c.X;
+                d.Y = c.Y;
+                d.Speed = 6f;
+                c.FloatingPoints[0x5D]++;
             }
 
             if (time % c.Header[0x51] == 0 && time > 0)
@@ -119,12 +139,20 @@ public static class ActionsScope
                 
             }
 
-            if (time == 300)
+            if (time % 300 == 250)
+            {
+                var rnd = new Random((int)(c.Box.Player.X + c.Box.Player.Y + c.Box.CurrentTick));
+                var pos = new Vector2(rnd.Next(32, 352), rnd.Next(48, 96));
+                c.SetMoveToTarget(3, pos);
+            }
+            if (time % 300 == 0)
             {
                 c.Header[0x5B]++;
                 c.Header[0x5A] += 360;
                 c.Box.AddScreenEffect(new StrengthScreenEffect(c.Box, c.Position, 50, c.Box.GetTime(), c.Box.GetTime()+1, 0x00FF34, 0x00EE69));
                 Helper.PlaySound(Runtime.CurrentRuntime.Sounds["boss-appear"]);
+                var direction = Helper.FindAngle(c.Position, new Vector2(c.Box.Player.X, c.Box.Player.Y));
+                c.FloatingPoints[0x5C] = direction;
             }
         };
         dictionary["nikitos#spell2"] = c =>

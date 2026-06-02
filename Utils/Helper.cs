@@ -326,53 +326,42 @@ public static class Helper
     /// <param name="total"></param>
     /// <param name="success"></param>
     /// <returns>Used Texture Width</returns>
-    public static int DrawBonusCount(RenderTexture2D renderTexture2D, int score, int total, int success)
+    public static int DrawSpellSubtitle(RenderTexture2D renderTexture2D, int score, int total, int success)
     {
         float fontSize = BonusCountSize * Runtime.CurrentRuntime.ScaleF;
         string bonusTitle = Translate("spell.bonus");
-        string bonusValue = score == -1 ? Translate("spell.failed") : score.ToString();
+        string bonusValue = (score == -1 ? Translate("spell.failed") : score.ToString()) + " ";
         string spellTitle = Translate("spell.attempt");
         string spellValue = success > 99 ? Transliterate("spell.master") : $"{success:00}/{(total > 99 ? "99+" : $"{total:00}")}";
         var padding = Runtime.CurrentRuntime.ScaleF * 4;
-        DrawTextOutline(out var temp, TimerFont, fontSize, bonusTitle, Color.Blue, padding);
-        var rectangle = GetFullSourceRenderTexture(temp);
-        var rectangle2 = GetFullSource(temp.Texture);
+        var posX = 0; 
+        DrawTextOutline(out var temp1, TimerFont, fontSize, bonusTitle, Color.Blue, 0);
+        DrawTextOutline(out var temp2, TimerFont, fontSize, bonusValue, Color.White, 0);
+        DrawTextOutline(out var temp3, TimerFont, fontSize, spellTitle, Color.Blue, 0);
+        DrawTextOutline(out var temp4, TimerFont, fontSize, spellValue, Color.White, 0);
+        var rectangle = GetFullSourceRenderTexture(temp1);
+        var rectangle2 = GetFullSource(temp1.Texture);
         BeginTextureMode(renderTexture2D);
         ClearBackground(Runtime.TransparentWhite);
-        DrawTexturePro(temp.Texture, rectangle, rectangle2, Vector2.Zero, 0, Color.White);
-        var x = temp.Texture.Width;
-        UnloadRenderTexture(temp);
+        DrawTexture(temp1.Texture, 0, 0, Color.White);
+        posX += temp1.Texture.Width;
+        DrawTexture(temp2.Texture, posX, 0, Color.White);
+        posX += temp2.Texture.Width;
+        DrawTexture(temp3.Texture, posX, 0, Color.White);
+        posX += temp3.Texture.Width;
+        DrawTexture(temp4.Texture, posX, 0, Color.White);
+        posX += temp4.Texture.Width;
         EndTextureMode();
-        DrawTextOutline(out temp, TimerFont, fontSize, bonusValue, Color.White, padding);
-        BeginTextureMode(renderTexture2D);
-        rectangle = GetFullSourceRenderTexture(temp);
-        rectangle2 = GetFullSource(temp.Texture);
-        DrawTexturePro(temp.Texture, rectangle, rectangle2 with {X = x }, Vector2.Zero, 0, Color.White);
-        x += temp.Texture.Width;
-        UnloadRenderTexture(temp);
-        EndTextureMode();
-        DrawTextOutline(out temp, TimerFont, fontSize, spellTitle, Color.Blue, padding);
-        BeginTextureMode(renderTexture2D);
-        rectangle = GetFullSourceRenderTexture(temp);
-        rectangle2 = GetFullSource(temp.Texture);
-        DrawTexturePro(temp.Texture, rectangle, rectangle2 with {X = x }, Vector2.Zero, 0, Color.White);
-        x += temp.Texture.Width;
-        UnloadRenderTexture(temp);
-        EndTextureMode();
-        DrawTextOutline(out temp, TimerFont, fontSize, spellValue, Color.White, padding);
-        BeginTextureMode(renderTexture2D);
-        rectangle = GetFullSourceRenderTexture(temp);
-        rectangle2 = GetFullSource(temp.Texture);
-        DrawTexturePro(temp.Texture, rectangle, rectangle2 with {X = x }, Vector2.Zero, 0, Color.White);
-        x += temp.Texture.Width;
-        UnloadRenderTexture(temp);
-        EndTextureMode();
-        return 0;
+        UnloadRenderTexture(temp1);
+        UnloadRenderTexture(temp2);
+        UnloadRenderTexture(temp3);
+        UnloadRenderTexture(temp4);
+        return posX;
     }
 
     public static void DrawTextOutline(out RenderTexture2D texture, Font font, float fontSize, string text, Color color, float padding)
     {
-        DrawTextAliasedA(out var temp, font, fontSize, text, color);
+        DrawTextAliasedA(out var temp, font, fontSize, 0, text, color);
         texture = LoadRenderTexture((int)(temp.Texture.Width + padding * 2),
             (int)(temp.Texture.Height + padding * 2));
         var s = GetFullSource(texture.Texture);
@@ -416,9 +405,9 @@ public static class Helper
         #if DEBUG
         out RenderTexture2D unscaled,
         #endif
-        Font font, float fontSize, string text, Color color)
+        Font font, float fontSize, float spacing, string text, Color color)
     {
-        var measure = MeasureTextEx(font, text, fontSize * 4, 0);
+        var measure = MeasureTextEx(font, text, fontSize * 4, spacing);
         var tmp = LoadRenderTexture((int)measure.X, (int)measure.Y);
         SetShaderValue(AAShader, LocationAAResolution, measure, ShaderUniformDataType.Vec2);
         SetShaderValue(AAShader, LocationAAScale, 4, ShaderUniformDataType.Int);
@@ -438,10 +427,10 @@ public static class Helper
         #endif
     }
 
-    public static void DrawTextAliasedA(out RenderTexture2D texture, Font font, float fontSize, string text, Color color)
+    public static void DrawTextAliasedA(out RenderTexture2D texture, Font font, float fontSize, float spacing, string text, Color color)
     {
         RenderTexture2D unscaled = new RenderTexture2D();
-        DrawTextAliased(out texture, out unscaled, font, fontSize, text, color);
+        DrawTextAliased(out texture, out unscaled, font, fontSize, spacing, text, color);
         UnloadRenderTexture(unscaled);
     }
     

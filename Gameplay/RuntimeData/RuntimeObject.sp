@@ -73,6 +73,11 @@ Floating Points:
 [0x11] GameBox Position Y
 [0x12] GameBox Position Z
 [0x13] Collision
+[0x14] Target Move X
+[0x15] Target Move Y
+[0x16] Target-Move Speed
+[0x17] Velocity X
+[0x18] Velocity Y
 [0x20] GameBox Position X Delta
 [0x21] GameBox Position Y Delta
 [0x22] GameBox Position Z Delta

@@ -1,0 +1,6 @@
+{
+  "Texture": "toilet-sprite.png",
+  "RenderSize": { "X": 96, "Y": 96 },
+  "SourcePosition": { "X": 0, "Y": 0 },
+  "Collision": 48
+}
