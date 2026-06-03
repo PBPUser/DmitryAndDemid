@@ -42,7 +42,7 @@ public class SignalGameplayOverlay : GameplayOverlay
             h = (float)(Height * (0.3 + 0.1 * i));
             y = Height - h;
             DrawTextureNPatch(Runtime.CurrentRuntime.Textures["ingame-stuff.png"],
-                NPatchInfo with { Source = Box.Player.Signal > i ? WhiteSource : GrayedSource }, 
+                NPatchInfo with { Source = (MathF.Sqrt(Box.Player.Signal) > i ? WhiteSource : GrayedSource) }, 
                 new Rectangle(Padding + (Padding + Width) * i, (448 * Runtime.CurrentRuntime.ScaleF) - Padding - Height + y, Width, h), 
                 Vector2.Zero, 0, Color.White);
         }

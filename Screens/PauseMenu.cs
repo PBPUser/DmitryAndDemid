@@ -40,7 +40,21 @@ public class PauseMenu : MenuScreen
         }));
         MenuItems.Add(new MenuItem("ingame.restart", "", a =>
         {
-            
+            var screen = GameplayScreen.CreateCopy();
+            var pause = new PauseMenu(screen);
+            Runtime.CurrentRuntime.AddScreen(screen);
+            Runtime.CurrentRuntime.AddScreen(new BlackLoadingScreen(3, 0.2, () => {}, true, 1));
+            Task.Run(() =>
+            {
+                Task.Delay(2000);
+                Runtime.CurrentRuntime.AddAction(() =>
+                {
+                    Runtime.CurrentRuntime.RemoveScreen(this);
+                    Runtime.CurrentRuntime.RemoveScreen(GameplayScreen);
+                    GameplayScreen.Unload();
+                    Unload();
+                });
+            });
         }));
         MenuItems.Add(new MenuItem("ingame.exit", "", a =>
         {

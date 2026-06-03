@@ -13,10 +13,14 @@ namespace DmitryAndDemid.Screens;
 
 public class GameplayScreen : Screen
 {
-    public GameplayScreen(ProtogonistData data, int difficulty, FileStageInfo stage, int chapter, bool practice)
+    public GameplayScreen(ProtogonistData data, int difficulty, FileStageInfo[] stages, int chapter, bool practice)
     {
         SetBackground(Runtime.CurrentRuntime.Textures["gameplay_background.png"]);
-        //Game = new Game(data, stage, this, difficulty);
+        Data = data;
+        Difficulty = difficulty;
+        Stages = stages;
+        Chapter = chapter;
+        Practice = practice;
         Source = new Rectangle(0, 0, 384, -448);
         UIAboveSource = new Rectangle(0, 0, 384 * Runtime.CurrentRuntime.ScaleF, -448 * Runtime.CurrentRuntime.ScaleF);
         Dest = new Rectangle(32 * Runtime.CurrentRuntime.ScaleF, 16 * Runtime.CurrentRuntime.ScaleF, 384 * Runtime.CurrentRuntime.ScaleF, 448 * Runtime.CurrentRuntime.ScaleF);
@@ -36,7 +40,6 @@ public class GameplayScreen : Screen
         DifficultySource = new Rectangle(0, 160*difficulty, 1920, 160);
         DifficultyTargetStart = Helper.Scale(new Rectangle(152, 20, 144, 12), Runtime.CurrentRuntime.ScaleF);
         DifficultyTarget = Helper.Scale(new Rectangle(456, 24, 144, 12), Runtime.CurrentRuntime.ScaleF);
-
         LetterWidth = (int)(MeasureTextEx(Runtime.CurrentRuntime.Fonts["kodemono"],
             "j",
             (int)(24 * Runtime.CurrentRuntime.ScaleF),
@@ -45,8 +48,7 @@ public class GameplayScreen : Screen
         GameEffectsTextures[1] = LoadRenderTexture(384, 448);
         GameEffectsTextures[2] = LoadRenderTexture(384, 448);
         GameEffectsTextures[3] = LoadRenderTexture(384, 448);
-        GameBox = new GameBox(this, data, stage, chapter, difficulty, practice);
-
+        GameBox = new GameBox(this, data, stages, chapter, difficulty, practice);
         PauseEffect = new GameplayScreenEffect(GameBox, new Vector2(), int.MaxValue, "pause", float.MaxValue, float.MaxValue)
         {
             UseSteps = true,
@@ -58,8 +60,16 @@ public class GameplayScreen : Screen
             Runtime.CurrentRuntime.ScaleF * 416,
             0, UILeftSource.Size
         );
+        
     }
 
+    private ProtogonistData Data;
+    private int Difficulty;
+    private FileStageInfo[] Stages;
+    private int Chapter;
+    private bool Practice;
+
+    public GameplayScreen CreateCopy() => new(Data, Difficulty, Stages, Chapter, Practice);
     public int LetterWidth = 0;
     public PauseMenu PauseMenu;
     
@@ -84,7 +94,6 @@ public class GameplayScreen : Screen
     RenderTexture2D[] GameEffectsTextures = new RenderTexture2D[4];
     private int GameEffectTextureIndex = 1;
     
-    //public Game? Game;
     public GameBox GameBox;
     
     public void Resume() => GameBox.IsPaused = false;
@@ -124,7 +133,7 @@ public class GameplayScreen : Screen
     public override void TopUpdate()
     {
         float time = GameBox.GetTime();
-        if (time < GameBox.CountTimeFrom)
+        if (time < 0)
             return;
         GameBox.ProcessInput();
         if ((IsKeyDown(KeyboardKey.Escape) ||
@@ -138,8 +147,7 @@ public class GameplayScreen : Screen
     }
 
     private Shader DieShader;
-    private int LocationDiePosition;
-    private int LocationDieTime;
+    private int LocationDiePosition, LocationDieTime;
     
     public override void Render()
     {

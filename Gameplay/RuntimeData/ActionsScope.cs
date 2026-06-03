@@ -73,6 +73,20 @@ public static class ActionsScope
         {
 
         };
+        dictionary["MysticalToilet"] = obj =>
+        {
+            if (obj.Box.ChapterTick % obj.Header[0x55] == 0)
+            {
+                var rnd = new Random(obj.Box.CurrentTick);
+                obj.SetMoveToTarget(4, new Vector2(rnd.Next(64, 320), rnd.Next(64, 128)));
+            }
+            obj.RenderRotation = MathF.Sin(obj.Box.ChapterTick);
+        };
+        dictionary["MysticalToiletDie"] = obj =>
+        {
+            obj.Box.MysticalToilet = null;
+            // TODO: Play toilet die sound
+        };
         dictionary["AkobShoot"] = (obj) =>
         {
             obj.Y -= obj.Speed;

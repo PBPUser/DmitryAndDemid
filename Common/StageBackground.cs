@@ -18,6 +18,11 @@ public abstract class StageBackground
     {
         
     }
+
+    protected virtual void Unload()
+    {
+        
+    }
     
     public void Draw(RenderTexture2D texture, int tick, float delta)
     {

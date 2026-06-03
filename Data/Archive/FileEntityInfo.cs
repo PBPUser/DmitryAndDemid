@@ -19,7 +19,6 @@ public class FileEntityInfo
     public string UpdateScript = "";
     public string RemoveScript = "";
     public string DieScript = "";
-    
     public bool IsBullet = false;
     public bool IsGroupChild = false;
     public bool IsGroupParent = false;
@@ -135,5 +134,4 @@ public class FileEntityInfo
         if(UseDieScript && !IsBullet)
             bitPackage.WriteString(DieScript);
     }
-
 }

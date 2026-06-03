@@ -56,6 +56,8 @@ public class Player
     
     public void Update()
     {
+        if ((GameBox.CurrentTick - GameBox.TickOffset) % 100 == 0)
+            Signal--;
         Controller.Update(this, GameBox.CurrentTick);
         X = Math.Clamp(X, 8, 376);
         Y = Math.Clamp(Y, 8, 440);
@@ -107,6 +109,10 @@ public class Player
         {
             if (signal.Equals(value))
                 return;
+            if (value is > 36 or < 0)
+                return;
+            if(value > 24 && value > signal)
+                GameBox.SpawnMysticalToilet();
             signal = value;
         }
     }
@@ -247,6 +253,7 @@ public class Player
                 return;
             graze = value;
             GameBox.UpdateUI();
+            Signal += 1;
             // TODO: Play Graze SFX
         }
     }

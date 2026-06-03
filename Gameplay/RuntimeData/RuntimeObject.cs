@@ -38,9 +38,11 @@ public class RuntimeObject
         FlagUseUpdateScript = 0x4000,
         FlagIsFinalBossChapter = 0x100000,
         FlagIsCollectable = 0x10000, 
-        FlagIsMovingToTarget = 0x20000;
+        FlagIsMovingToTarget = 0x20000,
+        FlagInvincible = 0x40000;
 
     public static FileEntityInfo[] CollectableFEIs = new FileEntityInfo[8];
+    public static FileEntityInfo MagicalToilet;
 
     static RuntimeObject()
     {
@@ -51,6 +53,13 @@ public class RuntimeObject
             CollectableFEIs[i].Header[0] |= 0x10000;
             CollectableFEIs[i].Header[4] = i;
         }
+        MagicalToilet = new FileEntityInfo()
+        {
+            UpdateScript = "MysticalToilet",
+            DieScript = "MysticalToiletDie",
+            Visual = "toilet"
+        };
+        MagicalToilet.UseDieScript = true;
     }
     
     private Rectangle Source = new();
@@ -82,6 +91,7 @@ public class RuntimeObject
         entity.Header[0] |= FlagUseUpdateScript;
         if ((entity.Header[0] & FlagUseUpdateScript) == FlagUseUpdateScript)
             entity.UpdateAction = ActionsScope.ObjectActions[info.UpdateScript];
+        entity.DieAction = info.UseDieScript ? ActionsScope.ObjectActions[info.DieScript] : null;
         if ((entity.Header[0] & FlagIsCollectable) == FlagIsCollectable)
         {
             var shader = Runtime.CurrentRuntime.Shaders["basic_bullet_shader"];
@@ -160,7 +170,7 @@ public class RuntimeObject
                     StepLength = 1,
                     UseSteps = true
                 };
-                entity.BossCircleEffect = new BossCircleScreenEffect(box, Vector2.Zero, 0, box.GetTime(), float.MaxValue);
+                entity.BossCircleEffect = new BossCircleScreenEffect(box, Vector2.Zero, 0, box.GetTime(), float.MaxValue, entity);
                 box.AddScreenEffect(entity.BackgroundDistortionEffect);
                 box.AddScreenEffect(entity.BossCircleEffect);
                 box.AddOverlay(new BossHealthOverlay(box, entity));
@@ -182,7 +192,7 @@ public class RuntimeObject
             DieAction = info.UseDieScript ? ActionsScope.ObjectActions[info.DieScript] : null;
         Array.Copy(info.Header, Header, info.Header.Length);
         Array.Copy(info.FloatingPoints, FloatingPoints,info.FloatingPoints.Length);
-        info.FloatingPoints[10] = info.FloatingPoints[0];
+        FloatingPoints[0xa] = info.FloatingPoints[0];
     }
 
     public RuntimeObject CloneWithPositionSpawnTick(int x, int y, int tick)
@@ -215,6 +225,18 @@ public class RuntimeObject
     {
         get => FloatingPoints[0x6];
         set => FloatingPoints[0x6] = value;
+    }
+
+    public float Health
+    {
+        get => FloatingPoints[0];
+        set => FloatingPoints[0] = value;
+    }
+
+    public float MaxHealth
+    {
+        get => FloatingPoints[10];
+        set => FloatingPoints[10] = value;
     }
     
     public float RenderScaleX
@@ -273,10 +295,6 @@ public class RuntimeObject
         set
         {
             FloatingPoints[0x10] = value;
-            if (0 != (Header[0] & FlagIsBoss))
-                BackgroundDistortionEffect.Position.X =
-                    BossCircleEffect.Position.X = 
-                    value;
         }
     }
 
@@ -286,10 +304,6 @@ public class RuntimeObject
         set
         {
             FloatingPoints[0x11] = value;
-            if (0 != (Header[0] & FlagIsBoss))
-                BackgroundDistortionEffect.Position.Y =
-                    BossCircleEffect.Position.Y = 
-                        value;
         }
     }
 

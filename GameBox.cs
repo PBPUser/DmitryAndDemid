@@ -27,13 +27,14 @@ public class GameBox : IDisposable
     private bool SpellPractice;
     private SignalGameplayOverlay SignalGameplayOverlay;
     
-    public GameBox(GameplayScreen screen, ProtogonistData data, FileStageInfo stage, int chapter, int difficulty, bool practice)
+    public GameBox(GameplayScreen screen, ProtogonistData data, FileStageInfo[] stages, int chapter, int difficulty, bool practice)
     {
         GameplayScreen = screen;
         Practice = practice;
         Player = new Player(this, data, new PlayerController());
         ProtogonistId = data.ID;
         Difficulty = difficulty;
+        Stages = stages;
         PauseTimestamp = (float)(Raylib.GetTime() + 3);
         Background = LoadRenderTexture(384, 448);
         Box = LoadRenderTexture(384, 448);
@@ -43,13 +44,15 @@ public class GameBox : IDisposable
         );
         UILeft = LoadRenderTexture((int)(Runtime.CurrentRuntime.ScaleF * 224),
             (int)(Runtime.CurrentRuntime.ScaleF * 480));
-        LoadStage(stage, chapter, difficulty);
+        LoadStage(stages[0], chapter, difficulty);
         SignalGameplayOverlay = new SignalGameplayOverlay(this);
         AddOverlay(SignalGameplayOverlay);
         AddOverlay(new ItemGetBorderLineOverlay(this));
         UpdateUI();
     }
 
+    private int StageIndex = 0;
+    private FileStageInfo[] Stages;
     public const float TargetTPS = 60;
     private float TickLength = 1f / TargetTPS;
     private bool RequiresRefresh = false;
@@ -163,6 +166,8 @@ public class GameBox : IDisposable
         }
         else if (IsKeyDown(KeyboardKey.RightShift) && CurrentTickCompute % TargetTPS == 0)
         {
+            if(IsKeyDown(KeyboardKey.L))
+                SpawnMysticalToilet();
             if (IsKeyDown(KeyboardKey.D))
                 Player.HeartPoints++;
             if (IsKeyDown(KeyboardKey.F))
@@ -274,6 +279,8 @@ public class GameBox : IDisposable
                             {
                                 obj2.Header[0] |= RuntimeObject.FlagIsUsed;
                                 obj2.Header[0xa] = CurrentTick;
+                                if((obj.Header[0] & RuntimeObject.FlagUseDieScript) != 0)
+                                    obj.DieAction?.Invoke(obj);
                                 RemoveObject(obj2);
                                 ScreenEffects.Add(new EntityDeathScreenEffect(this, new Vector2(obj.X, obj.Y), 40, GetTime(), GetTime()+0.75f, obj2.Header[0xC], obj2.Header[0xB]));
                             }
@@ -302,13 +309,13 @@ public class GameBox : IDisposable
                 }
                 if ((bitMask & RuntimeObject.FlagIsBullet) != RuntimeObject.FlagIsBullet)
                     continue;
-                if ((bitMask & RuntimeObject.FlagIsGrazed) != RuntimeObject.FlagIsGrazed)
+                if ((bitMask & RuntimeObject.FlagIsGrazed) == RuntimeObject.FlagIsGrazed)
                     continue;
-                if (distance > collision)
+                if (distance > collision * 4)
                     continue;
                 Player.Graze++;
                 AddScreenEffect(new GrazeScreenEffect(this, new Vector2(obj.X, obj.Y), 0, GetTime(), GetTime()+1f, -Helper.FindAngle(new Vector2(Player.X, Player.Y), new Vector2(obj.X, obj.Y))));
-                obj.Header[0] |= RuntimeObject.FlagIsGrazed;
+                obj.Header[0] |= RuntimeObject.FlagIsBoss;
             }
         }
         Player.Update();
@@ -385,6 +392,22 @@ public class GameBox : IDisposable
         return x;
     }
 
+    public RuntimeObject? MysticalToilet = null;
+    
+    public void SpawnMysticalToilet()
+    {
+        if (MysticalToilet != null)
+            return;
+        var toilet = RuntimeObject.LoadFromFile(RuntimeObject.MagicalToilet, this);
+        toilet.MaxHealth = toilet.Health = MathF.Pow(2, Difficulty) * 10 * Player.Signal;
+        MysticalToilet = toilet;
+        AddObject(MysticalToilet);
+        toilet.Header[0x55] = 120 / (Difficulty + 1);
+        toilet.X = 192;
+        toilet.Y = 64;
+        // TODO: Play toilet spawn sound
+    }
+
     public void ClearAll(bool drop)
     {
         foreach (var obj in BoxObjects)
@@ -395,6 +418,7 @@ public class GameBox : IDisposable
                 if ((bm & RuntimeObject.FlagIsFinalBossChapter) == RuntimeObject.FlagIsFinalBossChapter)
                 {
                     // TODO: Play boss death
+                    obj.Header[0] |= RuntimeObject.FlagIsDied;
                     AddScreenEffect(new BossDeathScreenEffect(this, obj.Position, 45, GetTime(), GetTime()+2f));
                     RemoveObject(obj);
                 }
@@ -606,6 +630,10 @@ public class GameBox : IDisposable
             RedrawUI();
             IsUIUpdateRequired = false;
         }
+        DebugStrings.Add($"PauseTimestamp: {PauseTimestamp}");
+        DebugStrings.Add($"CountTimeFrom: {CountTimeFrom}");
+        DebugStrings.Add($"Box Time: {GetTime()}");
+        DebugStrings.Add($"Raylib Time: {Raylib.GetTime()}");
     }
     #endregion
     #region UI
@@ -709,10 +737,10 @@ public class GameBox : IDisposable
             return GameoverTimestamp;
         if (IsPaused)
             return (float)(PauseTimestamp - CountTimeFrom);
-        return (float)(Raylib.GetTime() - PauseTimestamp);
+        return (float)(Raylib.GetTime() - CountTimeFrom);
     }
 
-    public double CountTimeFrom = 0;
+    public double CountTimeFrom = Raylib.GetTime() + 3d;
     private float PauseTimestamp = 0;
     private float GameoverTimestamp = 0;
 

@@ -114,7 +114,7 @@ public class PersonSelectScreen : MenuScreen
             string stagePath = Directory.GetFiles("Assets/Data/SpellCards")[0];
             var bitPackage = BitPackage.OpenStreamReadPackage(stagePath);
             UseTLS = true;
-            var gamePlayScreen = new GameplayScreen(protogonistData, Difficulty, FileStageInfo.Load(ref bitPackage), 0, false);
+            var gamePlayScreen = new GameplayScreen(protogonistData, Difficulty, [FileStageInfo.Load(ref bitPackage)], 0, false);
             Runtime.CurrentRuntime.AddScreen(gamePlayScreen);
             bitPackage.Dispose();
         }

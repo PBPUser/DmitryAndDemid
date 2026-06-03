@@ -6,6 +6,7 @@ using DmitryAndDemid.Gameplay;
 using Microsoft.CSharp.RuntimeBinder;
 using Pango;
 using Raylib_cs;
+using Silk.NET.Vulkan;
 using static Raylib_cs.Raylib;
 using Color = Raylib_cs.Color;
 using Font = Raylib_cs.Font;
@@ -954,11 +955,6 @@ public static class Helper
     public static Vector2 GetSize(Texture2D texture)
     {
         return new Vector2(texture.Width, texture.Height);
-    }
-
-    public static void CreatePackage()
-    {
-        
     }
 #if DEBUG
     public static void ReprepareTimerShader()
