@@ -52,7 +52,9 @@ public class RuntimeObject
             CollectableFEIs[i].Header[0] = 0b0000_0000;
             CollectableFEIs[i].Header[0] |= 0x10000;
             CollectableFEIs[i].Header[4] = i;
+            CollectableFEIs[i].Header[0] &= ~FlagUseUpdateScript;
         }
+        CollectableFEIs[0].Visual = "power";
         MagicalToilet = new FileEntityInfo()
         {
             UpdateScript = "MysticalToilet",
@@ -89,19 +91,34 @@ public class RuntimeObject
         Array.Copy(info.Header, entity.Header, info.Header.Length);
         Array.Copy(info.FloatingPoints, entity.FloatingPoints, info.FloatingPoints.Length);
         entity.Header[0] |= FlagUseUpdateScript;
-        if ((entity.Header[0] & FlagUseUpdateScript) == FlagUseUpdateScript)
+        if ((entity.Header[0] & FlagUseUpdateScript) == FlagUseUpdateScript && (entity.Header[0] & FlagIsCollectable) != FlagIsCollectable)
             entity.UpdateAction = ActionsScope.ObjectActions[info.UpdateScript];
         entity.DieAction = info.UseDieScript ? ActionsScope.ObjectActions[info.DieScript] : null;
         if ((entity.Header[0] & FlagIsCollectable) == FlagIsCollectable)
         {
+            BulletRenderingInfo bulletRenderInfo = Runtime.CurrentRuntime.BulletVisualPresets[info.Visual];
             var shader = Runtime.CurrentRuntime.Shaders["basic_bullet_shader"];
+            var spPos = bulletRenderInfo.GetSpritePosition(info.Header[4]);
+            entity.Source = new(
+                spPos - new Vector2(32),
+                bulletRenderInfo.SourceSize + new Vector2(64)
+            );
+            entity.FloatingPoints[0x13] = bulletRenderInfo.Collision;
+            entity.Target.Size = entity.Source.Size;
+            entity.Origin = entity.Source.Size / 2;
+            entity.Header[0] |= FlagApplyShader;
+            entity.Shader = shader;
+            entity.Texture = bulletRenderInfo.GetTexture(info.Header[4]);
             entity.Header[0x40] = Raylib.GetShaderLocation(shader, "created_at");
             entity.Header[0x41] = Raylib.GetShaderLocation(shader, "time");
             entity.Header[0x42] = Raylib.GetShaderLocation(shader, "position");
             entity.Header[0x43] = Raylib.GetShaderLocation(shader, "resolution");
             entity.Header[0x44] = Raylib.GetShaderLocation(shader, "output_resolution");
             entity.Header[0x45] = Raylib.GetShaderLocation(shader, "opacity");
-                
+            entity.TexturePosition = spPos;
+            entity.TextureSize = bulletRenderInfo.SourceSize;
+            entity.TotalTextureSize = Helper.GetSize(entity.Texture);
+            entity.Header[0] |= FlagIsCollectable;
         }
         else if ((entity.Header[0] & FlagIsBullet) == FlagIsBullet)
         {
@@ -156,7 +173,6 @@ public class RuntimeObject
             entity.Target.Size = entity.Source.Size;
             entity.Origin = entity.Source.Size / 2;
             entity.FloatingPoints[0x13] = visual.Collision;
-            
             if (info.IsBoss)
             {
                 entity.BackgroundDistortionEffect = new GameplayScreenEffect(box, 
@@ -177,8 +193,7 @@ public class RuntimeObject
                 entity.FloatingPoints[0xa] = entity.FloatingPoints[0];
             }
         }
-
-        
+        entity.Health = MathF.Max(1, entity.Health);
         return entity;
     }
 
@@ -209,8 +224,8 @@ public class RuntimeObject
         return entity;
     }
     
-    public Drop BadDrop => new(Header[0x18]);
-    public Drop GoodDrop => new(Header[0x19]);
+    public Drop BadDrop => new(Header[4]);
+    public Drop GoodDrop => new(Header[5]);
     
     public float RenderRotation
     {
@@ -349,6 +364,12 @@ public class RuntimeObject
         }
     }
 
+    public float Collision
+    {
+        get => FloatingPoints[0x13];
+        set => FloatingPoints[0x13] = value;
+    }
+
     public int SpawnId => Header[2];
     public int BossId => Header[7];
 
@@ -398,7 +419,7 @@ public class RuntimeObject
         RenderRotation += Helper.FindAngle(Position, new Vector2(Box.Player.X, Box.Player.Y)) * 0.09f;
         if (Helper.IsCollied(TargetRectangle, Box.Player.Collision))
         {
-            Box.Score += (int)Math.Pow(10, (448-Y)/10) * Header[5];
+            Box.ScoreTarget += (int)Math.Pow(10, (448-Y)/10) * Header[5];
             Box.RemoveObject(this);
         }
     }
@@ -424,7 +445,7 @@ public class RuntimeObject
                     Box.Player.Power = 400;
                     break;
                 case 3:
-                    Box.Score += (int)(MathF.Floor(MathF.Pow(2, 14 * (464-Box.Player.Y) / 464) / 16384 * 30) / 30 * 100000);
+                    Box.ScoreTarget += (int)(MathF.Floor(MathF.Pow(2, 14 * (464-Box.Player.Y) / 464) / 16384 * 30) / 30 * 100000);
                     break;
                 case 4:
                     Box.Player.HeartPoints++;

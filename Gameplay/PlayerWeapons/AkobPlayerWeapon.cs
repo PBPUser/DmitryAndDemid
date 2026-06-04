@@ -2,8 +2,10 @@ using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Data.Archive;
+using DmitryAndDemid.Gameplay.Effects;
 using DmitryAndDemid.Gameplay.RuntimeData;
 using DmitryAndDemid.Utils;
+using Gtk;
 using Raylib_cs;
 
 namespace DmitryAndDemid.Gameplay.PlayerWeapons;
@@ -32,6 +34,8 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
     public override void Update()
     {
         UpdateBulletSourcePositions(player.GameBox.CurrentTick);
+        if(IsBombActive)
+            UpdateBomb();
     }
 
     public override void UpdatePower()
@@ -40,6 +44,59 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         UpdateBulletSourcePositions(player.GameBox.CurrentTick);
     }
 
+    void UpdateBomb()
+    {
+        var tick = Player.GameBox.CurrentTickWithOffset - BombActivationTick;
+        if (tick > 240)
+        {
+            IsBombActive = false;
+            Player.CollisionEnabled = true;
+            return;
+        }
+        float forkAngle = Player.GameBox.CurrentTickWithOffset - BombActivationTick;
+        float sign = forkAngle / 30 % 2;
+        forkAngle /= 30f;
+        forkAngle %= 1;
+        var t = tick % 30;
+        if (t == 15)
+        {
+            var time = Player.GameBox.GetTime();
+            // TODO: Play akob fork beat sound
+            Player.GameBox.AddScreenEffect(new ShakeScreenEffect(Player.GameBox, 0.1f,  20, 100, 
+                time, time+0.3f));
+        }
+        else if (t == 0)
+        {
+            // TODO: Play akob fork swap sound
+        }
+        ForkAngle = -90 + 180 * (1-MathF.Pow(1-forkAngle, 6));
+        if (sign > 0.99)
+            ForkAngle = -ForkAngle;
+        var sR = BombForkTarget with { Position = player.Position };
+        foreach (var bObj in Player.GameBox.BoxObjects)
+        {
+            if (RuntimeObject.FlagDangerousRelatedToEnemy ==
+                (bObj.Header[0] & RuntimeObject.FlagDangerousRelatedToEnemy))
+                break;
+            if(IsColliding(sR, BombForkOrigin, ForkAngle, bObj.Position, bObj.Collision))
+                bObj.Health -= 12f;
+        }
+    }
+
+    static bool IsColliding(Rectangle rect, Vector2 origin, float angle, Vector2 position, float radius)
+    {
+        Vector2 diff = position - rect.Position;
+        float cos = MathF.Cos(-angle);
+        float sin = MathF.Sin(-angle);
+        float lX = diff.X * cos - diff.Y * sin;
+        float lY = diff.Y * sin - diff.Y * cos;
+        Vector2 lCirclePos = new Vector2(lX, lY) + origin;
+        float cX = Math.Clamp(lCirclePos.X, 0f, rect.Size.X);
+        float cY = Math.Clamp(lCirclePos.Y, 0f, rect.Size.Y);
+        return MathF.Pow(lCirclePos.X - cX, 2) + MathF.Pow(lCirclePos.Y - cY, 2) <=
+               MathF.Pow(radius, 2);
+    }
+    
     void UpdateBulletSourcePositions(int time)
     {
         float dif = Player.DefocusedDifference + (Player.FocusedDifference - Player.DefocusedDifference) * Helper.ComputeObjectTime(time, FocusTimestamp, Player.FocusAnimationChangingLength,
@@ -78,9 +135,18 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         byte transparency = Helper.TimeToTransparency(objTime);
         Raylib.DrawTexturePro(player.SourceTexture, PlayerTopLayerSource, new Rectangle(new Vector2(Player.X, Player.Y), new Vector2(64)), 
             new Vector2(32), 0, Color.White with {A=transparency} );
+        if (IsBombActive)
+        {
+            Raylib.DrawTexturePro(Runtime.CurrentRuntime.Textures["vilkaCut.png"],
+                BombForkSource, BombForkTarget with { Position = Player.Position }, BombForkOrigin, ForkAngle, Color.White);
+        }
     }
 
+    private static Rectangle BombForkSource = new(0, 0, 126, 957);
+    private static Rectangle BombForkTarget = new(0, 0, 32, 239);
+    private static Vector2 BombForkOrigin = new Vector2(16, 210);
     private int NextBulletPositionIndex = 0;
+    private float ForkAngle = 0;
     
     public override void Shoot()
     {
@@ -96,7 +162,7 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         reo.FloatingPoints[9] = singleDamage;
         Player.GameBox.AddObject(reo);
         NextBulletPositionIndex = (NextBulletPositionIndex + 1) % BulletSourcePositionsCount;
-            //TODO Play shoot sound 
+        //TODO Play shoot sound 
     }
 
     public override void SpawnDistortionEffect(int x, int y)
@@ -106,6 +172,6 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
 
     public override void AddShootTargetScore()
     {
-        Player.GameBox.Score += 1;
+        Player.GameBox.ScoreTarget += 1;
     }
 }

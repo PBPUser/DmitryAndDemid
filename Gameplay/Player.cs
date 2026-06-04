@@ -91,6 +91,15 @@ public class Player
                 //TODO: Play extend sound
                 GameBox.AddOverlay(new BasicGameplayOverlay(GameBox, "extend.png", .5f, 3));
             }
+
+            if (value < heartPoints)
+            {
+                if (bombs < 3)
+                {
+                    bombsSpices = 0;
+                    bombs = 3;
+                }
+            }
             heartPoints = value;
             if (value < 0)
             {
@@ -229,6 +238,7 @@ public class Player
             if (isBombing == value)
                 return;
             isBombing = value;
+            Weapon.Bomb();
         }
     }
 

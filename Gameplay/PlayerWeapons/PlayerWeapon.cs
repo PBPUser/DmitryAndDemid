@@ -5,6 +5,8 @@ public abstract class PlayerWeapon(Player player)
     protected Player Player = player;
     public int FocusTimestamp = 0;
     public int DefocusTimestamp = 0;
+    public bool IsBombActive = false;
+    public int BombActivationTick = 0;
 
     public virtual void Update()
     {
@@ -40,4 +42,23 @@ public abstract class PlayerWeapon(Player player)
     {
         
     }
+
+    public void Bomb()
+    {
+        if (IsBombActive)
+            return;
+        if (Player.Bombs == 0)
+            return;
+        IsBombActive = true;
+        Player.CollisionEnabled = false;
+        BombActivationTick = Player.GameBox.CurrentTickWithOffset;
+        StartBombing();
+        Player.Bombs--;
+        Player.GameBox.IsFailed = true;
+    }
+
+    protected virtual void StartBombing()
+    {
+        
+    } 
 }

@@ -330,4 +330,4 @@
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Silk.NET.Vulkan.Extensions.EXT.dll
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Silk.NET.Vulkan.Extensions.KHR.dll
 /home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/caution.png
-/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Textures/Precomp. 19_00000.png
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/shake.fs

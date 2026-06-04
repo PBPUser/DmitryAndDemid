@@ -138,7 +138,6 @@ public class Runtime
         LoadFonts();
         LoadTextures();
         Helper.LoadShaderAttribs();
-        PrepareSpellSubtitleTexture();
         LoadBullets();
         LoadAudio();
         #if DEBUG
@@ -188,50 +187,6 @@ public class Runtime
         Textures = Textures.OrderBy(x => x.Key).ToDictionary();
     }
 
-
-    void PrepareSpellSubtitleTexture()
-    {
-        Textures["SpellCardBonusSubtext#Symbols"] = PreparePart("01234568789+/", Color.White).Texture;
-        Textures["SpellCardBonusSubtext#Master"] = PreparePart(Helper.Translate("spell.master"), Color.White).Texture;
-        Textures["SpellCardBonusSubtext#Bonus"] = PreparePart(Helper.Translate("spell.bonus"), Color.SkyBlue).Texture;
-        Textures["SpellCardBonusSubtext#Failed"] = PreparePart(Helper.Translate("spell.attempt"), Color.SkyBlue).Texture;
-        Textures["SpellCardBonusSubtext#Attempt"] = PreparePart(Helper.Translate("spell.failed"), Color.White).Texture;
-    }
-
-    RenderTexture2D PreparePart(string text, Color color)
-    {
-        Shader outlineShader = Shaders["outline2"];
-        Font font = Fonts["kodemono"];
-        float fontSize = ScaleF * 10;
-        Helper.DrawTextAliasedA(out var temp, font, fontSize, ScaleF, text, color);
-        float padding = ScaleF;
-        RenderTexture2D texture = LoadRenderTexture((int)(temp.Texture.Width + padding * 2),
-            (int)(temp.Texture.Height + padding * 2));
-        var s = Helper.GetFullSource(texture.Texture);
-        var temp2 = LoadRenderTexture(texture.Texture.Width, texture.Texture.Height);
-        SetShaderValue(outlineShader, GetShaderLocation(outlineShader, "pos"), [0f, 0f], ShaderUniformDataType.Vec2);
-        SetShaderValue(outlineShader, GetShaderLocation(outlineShader, "fres"), s.Size, ShaderUniformDataType.Vec2);
-        SetShaderValue(outlineShader, GetShaderLocation(outlineShader, "res"), s.Size, ShaderUniformDataType.Vec2);
-        SetShaderValue(outlineShader, GetShaderLocation(outlineShader, "border_width"), 4 * Runtime.CurrentRuntime.ScaleF, ShaderUniformDataType.Float);
-        BeginTextureMode(temp2);
-        DrawTexturePro(temp.Texture, 
-            new Rectangle(0, 0, temp.Texture.Width, temp.Texture.Height),
-            new Rectangle(padding, padding, temp.Texture.Width, temp.Texture.Height),
-            Vector2.Zero, 0, Color.White);
-        EndTextureMode();
-        BeginTextureMode(texture);
-        BeginShaderMode(outlineShader);
-        DrawTexturePro(temp2.Texture,
-            new Rectangle(0, 0, temp2.Texture.Width, temp2.Texture.Height),
-            new Rectangle(0, 0, texture.Texture.Width, texture.Texture.Height),
-            Vector2.Zero, 0, Color.White);
-        EndShaderMode();
-        EndTextureMode();
-        UnloadRenderTexture(temp);
-        UnloadRenderTexture(temp2);
-        return texture;
-    }
-    
     public float ScoreSpacing = 0;
     public float ScoreLetterWidth = 0;
     public float ScoreLetterHeight = 0;
@@ -428,8 +383,6 @@ public class Runtime
             }
             else if (IsKeyDown(KeyboardKey.C))
             {
-                PrepareSpellSubtitleTexture();
-                
                 TextureViewerLastTimeKeyPressed = GetTime();
             }
             return;

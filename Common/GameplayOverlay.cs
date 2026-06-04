@@ -7,8 +7,8 @@ public abstract class GameplayOverlay(GameBox box, float animationLength, float 
     protected float State => 
         Raymath.Clamp((Box.GetTime() - TimeAppear) / AnimationLength, 0, 1) * Raymath.Clamp((TimeAppear + Length - Box.GetTime()) / AnimationLength, 0, 1);
 
-    private float Length = length;
-    private float AnimationLength = animationLength;
+    protected float Length = length;
+    protected float AnimationLength = animationLength;
     public float TimeAppear = box.GetTime();
     protected GameBox Box = box;
     

@@ -80,7 +80,7 @@ public static class ActionsScope
                 var rnd = new Random(obj.Box.CurrentTick);
                 obj.SetMoveToTarget(4, new Vector2(rnd.Next(64, 320), rnd.Next(64, 128)));
             }
-            obj.RenderRotation = MathF.Sin(obj.Box.ChapterTick);
+            obj.RenderRotation = MathF.Sin(obj.Box.ChapterTick * .125f) * .5f;
         };
         dictionary["MysticalToiletDie"] = obj =>
         {

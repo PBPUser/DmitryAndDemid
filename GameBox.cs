@@ -56,7 +56,7 @@ public class GameBox : IDisposable
     public const float TargetTPS = 60;
     private float TickLength = 1f / TargetTPS;
     private bool RequiresRefresh = false;
-    private bool IsFailed = false;
+    public bool IsFailed = false;
 
     private List<RuntimeObject> 
         ObjectsAddQueue = new(),
@@ -111,6 +111,7 @@ public class GameBox : IDisposable
             return;
         if (CurrentTick >= CurrentTickCompute)
             return;
+        Score = (int)Raymath.MoveTowards(Score, ScoreTarget, MathF.Max((ScoreTarget - Score) / 30f, 10));
         CurrentTick++;
         if (CurrentTick + TickOffset >= ChapterInfo.TickStart + ChapterInfo.Length)
         {
@@ -147,9 +148,9 @@ public class GameBox : IDisposable
         if (ChapterInfo.Type == ChapterType.Spell)
         {
             ChapterScoreCurrent = (int)Math.Clamp(ScoreChapterMax * (MathF.Abs(CurrentTick + TickOffset - (ChapterInfo.TickStart + ChapterInfo.Length)) / (ChapterInfo.Length - ChapterMaxScoreDelay)), 0, ScoreChapterMax);
-            if((CurrentTick + TickOffset - ChapterInfo.TickStart) % TargetTPS == 0 && !InChapterDelay && (ChapterInfo!.Length - CurrentTick ) < (ChapterInfo!.Length > 600 ? 300 : 600))
+            if((CurrentTickWithOffset - ChapterInfo.TickStart) % TargetTPS == 0 && !InChapterDelay && (ChapterInfo.TickStart + ChapterInfo!.Length - CurrentTickWithOffset) < (ChapterInfo!.Length > 600 ? 300 : 600))
                 Helper.PlaySound(Runtime.CurrentRuntime.Sounds["pre-timeout"]);
-            if (CurrentTick + TickOffset - ChapterInfo.TickStart == ChapterInfo.Length)
+            if (CurrentTickWithOffset - ChapterInfo.TickStart == ChapterInfo.Length)
             {
                 AddOverlay(new TimerGameplayOverlay(this, "bonus-failed.png", ChapterInfo.Length, SpellcardStopwatch!.Elapsed.TotalSeconds, 0.5f, 3f));
                 Helper.PlaySound(Runtime.CurrentRuntime.Sounds["fault"]);
@@ -168,6 +169,13 @@ public class GameBox : IDisposable
         {
             if(IsKeyDown(KeyboardKey.L))
                 SpawnMysticalToilet();
+            if (IsKeyDown(KeyboardKey.P))
+            {
+                var obj = RuntimeObject.LoadFromFile(RuntimeObject.CollectableFEIs[0], this);
+                obj.X = Player.X;
+                obj.Y = 64;
+                AddObject(obj);
+            }
             if (IsKeyDown(KeyboardKey.D))
                 Player.HeartPoints++;
             if (IsKeyDown(KeyboardKey.F))
@@ -237,6 +245,35 @@ public class GameBox : IDisposable
             }
             if (InChapterDelay)
                 continue;
+            if (obj.Health <= 0)
+            { 
+                if ((obj.Header[0] & RuntimeObject.FlagIsBoss) == RuntimeObject.FlagIsBoss)
+                {
+                    TickOffset += ChapterInfo.TickStart+ChapterInfo.Length-CurrentTick;
+                    int ticks = CurrentTickWithOffset - ChapterInfo.TickStart;
+                    SpellcardStopwatch ??= new Stopwatch();
+                    if (!IsFailed)
+                    {
+                        AddOverlay(new ScoreGameplayOverlay(this, ChapterScoreCurrent * 10, ticks,
+                            SpellcardStopwatch!.Elapsed.TotalSeconds, .5f, 3));
+                        ScoreTarget += ChapterScoreCurrent;
+                    }
+                    else
+                        AddOverlay(new TimerGameplayOverlay(this, "bonus-failed.png", ticks,
+                            SpellcardStopwatch!.Elapsed.TotalSeconds, 0.5f, 3f));
+                    
+                    SpellcardStopwatch = null;
+                    obj.UpdateAction = null;
+                }
+                else
+                {
+                    obj.Header[0] |= RuntimeObject.FlagIsUsed;
+                    obj.Header[0xa] = CurrentTick;
+                    obj.DieAction?.Invoke(obj);
+                    RemoveObject(obj);
+                    ScreenEffects.Add(new EntityDeathScreenEffect(this, new Vector2(obj.X, obj.Y), 40, GetTime(), GetTime()+0.75f, obj.Header[0xC], obj.Header[0xB]));
+                }
+            }
             if ((bitMask & RuntimeObject.FlagDangerousRelatedToEnemy) ==
                 RuntimeObject.FlagDangerousRelatedToEnemy)
             {
@@ -255,36 +292,6 @@ public class GameBox : IDisposable
                         Helper.PlaySound(Runtime.CurrentRuntime.Sounds["damage"]);
                         Player.Weapon.AddShootTargetScore();
                         Player.Weapon.SpawnDistortionEffect((int)obj.X, (int)obj.Y);
-                        if (obj2.FloatingPoints[0] <= 0)
-                        { 
-                            if ((obj2.Header[0] & RuntimeObject.FlagIsBoss) == RuntimeObject.FlagIsBoss)
-                            {
-                                TickOffset += (ChapterInfo.TickStart+ChapterInfo.Length-CurrentTick);
-                                int ticks = CurrentTick+TickOffset-ChapterInfo.TickStart;
-                                if (SpellcardStopwatch == null)
-                                {
-                                    SpellcardStopwatch = new Stopwatch();
-                                }
-                                if (IsFailed)
-                                    AddOverlay(new TimerGameplayOverlay(this, "bonus-failed.png", ticks, SpellcardStopwatch!.Elapsed.TotalSeconds, 0.5f, 3f));
-                                else
-                                {
-                                    AddOverlay(new ScoreGameplayOverlay(this, ChapterScoreCurrent * 10, ticks, SpellcardStopwatch!.Elapsed.TotalSeconds, .5f, 3));
-                                    Score += ChapterScoreCurrent;
-                                }
-                                SpellcardStopwatch = null;
-                                obj.UpdateAction = null;
-                            }
-                            else
-                            {
-                                obj2.Header[0] |= RuntimeObject.FlagIsUsed;
-                                obj2.Header[0xa] = CurrentTick;
-                                if((obj.Header[0] & RuntimeObject.FlagUseDieScript) != 0)
-                                    obj.DieAction?.Invoke(obj);
-                                RemoveObject(obj2);
-                                ScreenEffects.Add(new EntityDeathScreenEffect(this, new Vector2(obj.X, obj.Y), 40, GetTime(), GetTime()+0.75f, obj2.Header[0xC], obj2.Header[0xB]));
-                            }
-                        }
                         RemoveObject(obj);
                         broken = true;
                         break;
@@ -320,6 +327,27 @@ public class GameBox : IDisposable
         }
         Player.Update();
     }
+
+    void SpawnDrop(Vector2 position, Drop drop)
+    {
+        var rnd = new Random(CurrentTickWithOffset);
+        float angle = MathF.PI;
+        for (int i = 0; i < drop.DropPower; i++)
+        {
+            var obj = RuntimeObject.LoadFromFile(RuntimeObject.CollectableFEIs[0], this);
+            obj.CollectableVelocity = Helper.GetDirection(angle+=MathF.PI / 6) * (rnd.NextSingle() + .5f);
+            obj.Position = position;
+            AddObject(obj);
+        }
+        for (int i = 0; i < drop.DropLargePower; i++)
+        {
+            var obj = RuntimeObject.LoadFromFile(RuntimeObject.CollectableFEIs[1], this);
+            obj.CollectableVelocity = Helper.GetDirection(angle+=MathF.PI / 6) * (rnd.NextSingle() + .5f);
+            obj.Position = position;
+            AddObject(obj);
+        }
+
+    }
     
     public void AddObject(RuntimeObject obj)
     {
@@ -331,6 +359,8 @@ public class GameBox : IDisposable
     {
         ObjectsRemoveQueue.Add(obj);
         RequiresRefresh = true;
+        obj.DieAction?.Invoke(obj);
+        obj.RemoveAction?.Invoke(obj);
         if ((obj.Header[0] & RuntimeObject.FlagIsBullet) != RuntimeObject.FlagIsBullet)
             if ((obj.Header[0] & RuntimeObject.FlagIsBullet) != RuntimeObject.FlagIsBullet)
             {
@@ -399,12 +429,13 @@ public class GameBox : IDisposable
         if (MysticalToilet != null)
             return;
         var toilet = RuntimeObject.LoadFromFile(RuntimeObject.MagicalToilet, this);
-        toilet.MaxHealth = toilet.Health = MathF.Pow(2, Difficulty) * 10 * Player.Signal;
+        toilet.MaxHealth = toilet.Health = MathF.Pow(2, Difficulty) * 10 * Player.Signal + 150;
         MysticalToilet = toilet;
         AddObject(MysticalToilet);
         toilet.Header[0x55] = 120 / (Difficulty + 1);
         toilet.X = 192;
         toilet.Y = 64;
+        AddOverlay(new MysticalToiletOverlay(this, 0.25f, 3));
         // TODO: Play toilet spawn sound
     }
 
@@ -413,21 +444,8 @@ public class GameBox : IDisposable
         foreach (var obj in BoxObjects)
         {
             var bm = obj.Header[0];
-            if ((bm & RuntimeObject.FlagIsBoss) == RuntimeObject.FlagIsBoss)
-            {
-                if ((bm & RuntimeObject.FlagIsFinalBossChapter) == RuntimeObject.FlagIsFinalBossChapter)
-                {
-                    // TODO: Play boss death
-                    obj.Header[0] |= RuntimeObject.FlagIsDied;
-                    AddScreenEffect(new BossDeathScreenEffect(this, obj.Position, 45, GetTime(), GetTime()+2f));
-                    RemoveObject(obj);
-                }
-                else
-                {
-                    obj.UpdateAction = null;
-                }
-            }
-            else
+            
+            if((bm & RuntimeObject.FlagIsBullet) ==  RuntimeObject.FlagIsBullet)
             {
                 if (drop)
                 {
@@ -446,6 +464,31 @@ public class GameBox : IDisposable
                     // TODO: Add objects removal shader
                 }
             }
+            else if ((bm & RuntimeObject.FlagIsBoss) == RuntimeObject.FlagIsBoss)
+            {
+                if ((bm & RuntimeObject.FlagIsFinalBossChapter) == RuntimeObject.FlagIsFinalBossChapter)
+                {
+                    // TODO: Play boss death
+                    obj.Header[0] |= RuntimeObject.FlagIsDied;
+                    AddScreenEffect(new BossDeathScreenEffect(this, obj.Position, 45, GetTime(), GetTime()+2f));
+                    RemoveObject(obj);
+                    SpawnDrop(obj.Position, IsFailed && (obj.Header[0] & RuntimeObject.FlagUseBadDropScenario) == RuntimeObject.FlagUseBadDropScenario ? obj.BadDrop : obj.GoodDrop);
+                }
+                else
+                {
+                    SpawnDrop(obj.Position, IsFailed && (obj.Header[0] & RuntimeObject.FlagUseBadDropScenario) == RuntimeObject.FlagUseBadDropScenario ? obj.BadDrop : obj.GoodDrop);
+                    obj.UpdateAction = null;
+                }
+            }
+            else
+            {
+                if (drop)
+                {
+                    SpawnDrop(obj.Position, IsFailed && (obj.Header[0] & RuntimeObject.FlagUseBadDropScenario) == RuntimeObject.FlagUseBadDropScenario ? obj.BadDrop : obj.GoodDrop);
+                }
+                RemoveObject(obj);
+            }
+
         }
     }
     
@@ -453,6 +496,7 @@ public class GameBox : IDisposable
     {
         PlayerData.Instance.SetStageUnlocked(stage.Header[1], true);
         StageInfo = RuntimeStageInfo.LoadFromFile(stage, difficulty, this);
+        AddOverlay(new StageTitleOverlay(this, stage.Header[1]) { TimeAppear = GetTime() + 5f });
         NextChapter();
     }
 
@@ -481,6 +525,7 @@ public class GameBox : IDisposable
         RenderBossTitle = false;
         if (ChapterInfo.Type == ChapterType.Spell)
         {
+            // TODO: Play SpellCard Sound
             SpellcardStopwatch = new Stopwatch();
             SpellcardStopwatch.Start();
             RenderBossTitle = true;
@@ -598,6 +643,7 @@ public class GameBox : IDisposable
             );
             EndShaderMode();
         }
+        float appear2 = MathF.Pow((float)Helper.ComputeObjectTimeStart(time,ChapterTitleAppear+1, 1),6);
         Player.Weapon.DrawTopLayer();
         EndTextureMode();
         BeginTextureMode(UIAboveGameplay);
@@ -606,7 +652,6 @@ public class GameBox : IDisposable
         if (RenderChapterTitle)
         {
             float appear1 = MathF.Pow((float)Helper.ComputeObjectTimeStart(time,ChapterTitleAppear, 1),2);
-            float appear2 = MathF.Pow((float)Helper.ComputeObjectTimeStart(time,ChapterTitleAppear+1, 1),6);
             float appear3 = (float)Helper.ComputeObjectTimeStart(time,ChapterTitleDisappear, 1);
             float scaling = (1 - appear1) * 9 + 1;
             DrawTextureEx(ChapterInfo!.ChapterTitleTexture!.Value.Texture, 
@@ -623,8 +668,10 @@ public class GameBox : IDisposable
         if (RenderBossTitle)
             DrawTexture(ChapterInfo!.BossTitleTexture!.Value.Texture, (int)(Runtime.CurrentRuntime.ScaleF * 4),(int)(Runtime.CurrentRuntime.ScaleF * 4),Color.White);
         if(typeI > 1 && !InChapterDelay)
-            Helper.DrawTimer((int)(UIAboveGameplay.Texture.Width - (appearTimer)*Helper.TimerTextureSize.X), 0, (ChapterInfo!.Length - CurrentTick - TickOffset) < (ChapterInfo!.Length > 600 ? 300 : 600));
+            Helper.DrawTimer((int)(UIAboveGameplay.Texture.Width - (appearTimer)*Helper.TimerTextureSize.X), 0, (ChapterInfo.TickStart + ChapterInfo!.Length - CurrentTickWithOffset) < (ChapterInfo!.Length > 600 ? 300 : 600));
         EndTextureMode();
+        if(RenderChapterTitle )
+            Helper.DrawSpellSubtitle(UIAboveGameplay, ChapterScoreCurrent, 0, 0, UIAboveGameplay.Texture.Width -  ChapterInfo!.ChapterTitleTexture!.Value.Texture.Width,(int)(300 * Runtime.CurrentRuntime.ScaleF * (0.063f+1-appear2)));
         if (IsUIUpdateRequired)
         {
             RedrawUI();
@@ -661,14 +708,28 @@ public class GameBox : IDisposable
     public bool IsUIUpdateRequired = false;
 
     public int ChapterTick => CurrentTick + TickOffset - ChapterInfo.TickStart; 
+    public int CurrentTickWithOffset => CurrentTick + TickOffset; 
     
-    public int Score
+    int Score
     {
         get => score;
         set
         {
+            if (score == value)
+                return;
             score = value;
             UpdateUI();
+        }
+    }
+
+    private int scoreTarget;
+    
+    public int ScoreTarget
+    {
+        get => scoreTarget;
+        set
+        {
+            scoreTarget = value;
         }
     }
 
