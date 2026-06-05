@@ -72,7 +72,6 @@ public class FileEntityInfo
             fileEntityInfo.FloatingPoints[i] = bitPackage.ReadFloat();
         fileEntityInfo.Visual = bitPackage.ReadString();
         fileEntityInfo.UpdateScript = bitPackage.ReadString();
-        
         fileEntityInfo.IsBullet = (fileEntityInfo.Header[0] & 0x001) == 0x001;
         fileEntityInfo.IsGroupChild = (fileEntityInfo.Header[0] & 0x002) == 0x002;
         fileEntityInfo.IsGroupParent = (fileEntityInfo.Header[0] & 0x004) == 0x004;

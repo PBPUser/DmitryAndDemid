@@ -62,6 +62,7 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         {
             var time = Player.GameBox.GetTime();
             // TODO: Play akob fork beat sound
+            Player.GameBox.AddScreenEffect(new AkobSpellScreenEffect(Player.GameBox, Player.Position, 101, time, time + .6f));
             Player.GameBox.AddScreenEffect(new ShakeScreenEffect(Player.GameBox, 0.1f,  20, 100, 
                 time, time+0.3f));
         }
@@ -78,8 +79,13 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
             if (RuntimeObject.FlagDangerousRelatedToEnemy ==
                 (bObj.Header[0] & RuntimeObject.FlagDangerousRelatedToEnemy))
                 break;
-            if(IsColliding(sR, BombForkOrigin, ForkAngle, bObj.Position, bObj.Collision))
-                bObj.Health -= 12f;
+            if (IsColliding(sR, BombForkOrigin, ForkAngle, bObj.Position, bObj.Collision))
+            {
+                if ((bObj.Header[0] & RuntimeObject.FlagIsBullet) == RuntimeObject.FlagIsBullet)
+                    bObj.Header[0] |= RuntimeObject.FlagIsCollectableBullet;
+                else
+                    bObj.Health -= 12f;
+            }
         }
     }
 

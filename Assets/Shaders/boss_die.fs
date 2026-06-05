@@ -112,12 +112,3 @@ void main(){
     gl_FragColor = mix(gl_FragColor, vec4(fColor.rgb,1), fColor[3] * overlayOpacity);
   }
 }
-
-/// 0 0 initial_rotation
-/// 0 1 initial_size
-/// 1 0 speed
-/// 1 1 time_start
-/// 2 0 rotation_speed
-/// 2 1 size_change
-/// 3 0 direction
-/// 3 1 move_speed

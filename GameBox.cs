@@ -300,7 +300,7 @@ public class GameBox : IDisposable
                 if (broken)
                     continue;
             }
-            if(!Player.CollisionEnabled)
+            if(!Player.CollisionEnabled || Player.Weapon.IsBombActive)
                 continue;
             if ((bitMask & RuntimeObject.FlagDangerousRelatedToPlayer) ==
                 RuntimeObject.FlagDangerousRelatedToPlayer)
@@ -468,9 +468,12 @@ public class GameBox : IDisposable
             {
                 if ((bm & RuntimeObject.FlagIsFinalBossChapter) == RuntimeObject.FlagIsFinalBossChapter)
                 {
+                    var time = GetTime();
                     // TODO: Play boss death
                     obj.Header[0] |= RuntimeObject.FlagIsDied;
-                    AddScreenEffect(new BossDeathScreenEffect(this, obj.Position, 45, GetTime(), GetTime()+2f));
+                    Player.GameBox.AddScreenEffect(new ShakeScreenEffect(Player.GameBox, 0.1f,  20, 100, 
+                        time, time+.5f));
+                    AddScreenEffect(new BossDeathScreenEffect(this, obj.Position, 45, time, time+2f));
                     RemoveObject(obj);
                     SpawnDrop(obj.Position, IsFailed && (obj.Header[0] & RuntimeObject.FlagUseBadDropScenario) == RuntimeObject.FlagUseBadDropScenario ? obj.BadDrop : obj.GoodDrop);
                 }
