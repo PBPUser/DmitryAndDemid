@@ -576,7 +576,7 @@ public class GameBox : IDisposable
     {
         ChapterScoreShown = true;
         InChapterDelay = true;
-        TimerDisappear = GetTime()+.5f;
+        TimerDisappear = GetTime() + .5f;
     }
 
     void ChapterEnd()
@@ -588,10 +588,7 @@ public class GameBox : IDisposable
     private static StageBackground StageBackgroundObject = new DrogichinBackground();
     private static Color Transparent = Color.Black with { A = 0 };
     public List<GameplayScreenEffect> ScreenEffects = new();
-    public RenderTexture2D Background;
-    public RenderTexture2D Box;
-    public RenderTexture2D UIAboveGameplay;
-    public RenderTexture2D UILeft;
+    public RenderTexture2D Background, Box, UIAboveGameplay, UILeft;
     public void RenderBox()
     {
         float time = GetTime();
