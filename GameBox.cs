@@ -17,20 +17,39 @@ namespace DmitryAndDemid;
 
 public class GameBox : IDisposable
 {
+    public const float TargetTPS = 60;
+    public List<RuntimeObject>  BoxObjects = new();
+    public List<GameplayOverlay> GameplayOverlays = new();
     public RuntimeStageInfo? StageInfo;
     public RuntimeChapter? ChapterInfo;
+    public Player Player;
     public string ProtogonistId;
     public int Difficulty;
-    public Player Player;
-    private GameplayScreen GameplayScreen;
-    bool Practice;
-    private bool SpellPractice;
-    private SignalGameplayOverlay SignalGameplayOverlay;
+    public int TickOffset = 0;
+    public int CurrentTick = 0;
+    public bool IsFailed = false;
+    public bool InChapterDelay = false;
+    FileStageInfo[] Stages;
+    List<RuntimeObject> ObjectsAddQueue = new();
+    List<RuntimeObject> ObjectsRemoveQueue = new();
+    List<GameplayScreenEffect> ScreenEffectsToAdd = new();
+    List<GameplayScreenEffect> ScreenEffectsToRemove = new();
+    List<GameplayOverlay> GameplayOverlaysToAdd = new();
+    List<GameplayOverlay> GameplayOverlaysToRemove = new();
+    SignalGameplayOverlay SignalGameplayOverlay;
+    GameplayScreen GameplayScreen;
+    float TickLength = 1f / TargetTPS;
+    int StageIndex = 0;
+    bool RequiresRefresh;
+    bool IsSpellPractice;
+    bool IsPractice;
     
-    public GameBox(GameplayScreen screen, ProtogonistData data, FileStageInfo[] stages, int chapter, int difficulty, bool practice)
+    int ComputeCurrentTickFromStartingTime => (int)(GetTime() * TargetTPS);
+    
+    public GameBox(GameplayScreen screen, ProtogonistData data, FileStageInfo[] stages, int chapter, int difficulty, bool isPractice)
     {
         GameplayScreen = screen;
-        Practice = practice;
+        IsPractice = isPractice;
         Player = new Player(this, data, new PlayerController());
         ProtogonistId = data.ID;
         Difficulty = difficulty;
@@ -50,35 +69,6 @@ public class GameBox : IDisposable
         AddOverlay(new ItemGetBorderLineOverlay(this));
         UpdateUI();
     }
-
-    private int StageIndex = 0;
-    private FileStageInfo[] Stages;
-    public const float TargetTPS = 60;
-    private float TickLength = 1f / TargetTPS;
-    private bool RequiresRefresh = false;
-    public bool IsFailed = false;
-
-    private List<RuntimeObject> 
-        ObjectsAddQueue = new(),
-        ObjectsRemoveQueue = new();
-
-    List<GameplayScreenEffect>
-        ScreenEffectsToAdd = new(),
-        ScreenEffectsToRemove = new();
-
-    public List<RuntimeObject>  BoxObjects = new();
-
-    public List<GameplayOverlay> 
-        GameplayOverlays = new();
-
-    List<GameplayOverlay> 
-        GameplayOverlaysToAdd = new(),
-        GameplayOverlaysToRemove = new();
-
-    public int CurrentTick = 0;
-    public bool InChapterDelay = false;
-    private int CurrentTickCompute => (int)(GetTime() * TargetTPS);
-    public int TickOffset = 0;
     
     #region Update
 
@@ -109,7 +99,7 @@ public class GameBox : IDisposable
     {
         if (IsPaused)
             return;
-        if (CurrentTick >= CurrentTickCompute)
+        if (CurrentTick >= ComputeCurrentTickFromStartingTime)
             return;
         Score = (int)Raymath.MoveTowards(Score, ScoreTarget, MathF.Max((ScoreTarget - Score) / 30f, 10));
         CurrentTick++;
@@ -165,7 +155,7 @@ public class GameBox : IDisposable
                 if(!GameplayOverlays.Any(x => x is ScoreGameplayOverlay && GetTime() - x.TimeAppear < 0.5))
                     AddOverlay(new ScoreGameplayOverlay(this, GetRandomValue(0, int.MaxValue), 600, 1.4, .5f, 3f));
         }
-        else if (IsKeyDown(KeyboardKey.RightShift) && CurrentTickCompute % TargetTPS == 0)
+        else if (IsKeyDown(KeyboardKey.RightShift) && ComputeCurrentTickFromStartingTime % TargetTPS == 0)
         {
             if(IsKeyDown(KeyboardKey.L))
                 SpawnMysticalToilet();
@@ -509,7 +499,7 @@ public class GameBox : IDisposable
         ChapterInfo?.Unload();
         if (StageInfo!.Chapters.Length <= ChapterIndex)
         {
-            if (Practice)
+            if (IsPractice)
             {
                 IsGameOver = true;
             }
@@ -578,11 +568,6 @@ public class GameBox : IDisposable
         InChapterDelay = true;
         TimerDisappear = GetTime() + .5f;
     }
-
-    void ChapterEnd()
-    {
-        
-    }
     #endregion
     #region Render
     private static StageBackground StageBackgroundObject = new DrogichinBackground();
@@ -629,7 +614,7 @@ public class GameBox : IDisposable
                 SetShaderValue(obj.Shader, obj.Header[0x42], obj.TexturePosition, ShaderUniformDataType.Vec2); //3
                 SetShaderValue(obj.Shader, obj.Header[0x43], obj.TextureSize, ShaderUniformDataType.Vec2); //6,32
                 SetShaderValue(obj.Shader, obj.Header[0x44], obj.TotalTextureSize, ShaderUniformDataType.Vec2); //128
-                SetShaderValue(obj.Shader, obj.Header[0x45], obj.Header[2], ShaderUniformDataType.Int);
+                SetShaderValue(obj.Shader, obj.Header[0x45], obj.Header[2], ShaderUniformDataType.Int); 
                 BeginShaderMode(obj.Shader);
             }
 
@@ -689,11 +674,9 @@ public class GameBox : IDisposable
     public float ChapterTitleDisappear = float.MaxValue;
     public float TimerAppear = 0;
     public float TimerDisappear = float.MaxValue;
-    private bool RenderChapterTitle = false;
-    private bool RenderBossTitle = false;
+    private int hiScore = 0;
     
     private int score = 0;
-    private int hiScore = 0;
     public byte Continue = 0;
     public Rectangle ScoreSrc, ScoreDest, HiScoreSrc, HiScoreDest;
     private static Rectangle HeartBombSource = new Rectangle(0, 0, 96, 96);
@@ -706,6 +689,8 @@ public class GameBox : IDisposable
     private RenderTexture2D HiScoreTexture = Helper.CreateScoreText("1.000.000", 16);
     private RenderTexture2D ScoreTexture = Helper.CreateScoreText("1.000.000", 16);
     public bool IsUIUpdateRequired = false;
+    bool RenderChapterTitle = false;
+    bool RenderBossTitle = false;
 
     public int ChapterTick => CurrentTick + TickOffset - ChapterInfo.TickStart; 
     public int CurrentTickWithOffset => CurrentTick + TickOffset; 
