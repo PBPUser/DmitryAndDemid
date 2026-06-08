@@ -669,29 +669,30 @@ public class GameBox : IDisposable
     }
     #endregion
     #region UI
-
+    static Rectangle HeartBombSource = new Rectangle(0, 0, 96, 96);
+    public Rectangle ScoreSrc, ScoreDest, HiScoreSrc, HiScoreDest;
     public float ChapterTitleAppear = 0;
     public float ChapterTitleDisappear = float.MaxValue;
     public float TimerAppear = 0;
     public float TimerDisappear = float.MaxValue;
-    private int hiScore = 0;
-    
-    private int score = 0;
-    public byte Continue = 0;
-    public Rectangle ScoreSrc, ScoreDest, HiScoreSrc, HiScoreDest;
-    private static Rectangle HeartBombSource = new Rectangle(0, 0, 96, 96);
-    private Rectangle HeartBombDest = new(0, 0, new Vector2(12 * Runtime.CurrentRuntime.ScaleF));
+    public int MaxScoreContinue = 0;
+    public int MaxScore = 100000;
+    public bool IsUIUpdateRequired = false;
+    RenderTexture2D HiScoreTexture = Helper.CreateScoreText("1.000.000", 16);
+    RenderTexture2D ScoreTexture = Helper.CreateScoreText("1.000.000", 16);
+    Rectangle HeartBombDest = new(0, 0, new Vector2(12 * Runtime.CurrentRuntime.ScaleF));
+    Texture2D StaffTexture = Runtime.CurrentRuntime.Textures["ingame-stuff.png"];
     float BombsY = 135 * Runtime.CurrentRuntime.ScaleF;
     float SizeOfRes = 12 * Runtime.CurrentRuntime.ScaleF;
     float ResX = 206 * Runtime.CurrentRuntime.ScaleF;
     float HeartsY = 97 * Runtime.CurrentRuntime.ScaleF;
-    private Texture2D StaffTexture = Runtime.CurrentRuntime.Textures["ingame-stuff.png"];
-    private RenderTexture2D HiScoreTexture = Helper.CreateScoreText("1.000.000", 16);
-    private RenderTexture2D ScoreTexture = Helper.CreateScoreText("1.000.000", 16);
-    public bool IsUIUpdateRequired = false;
+    int hiScore = 0;
+    int score = 0;
+    int scoreTarget;
+    byte Continue = 0;
     bool RenderChapterTitle = false;
     bool RenderBossTitle = false;
-
+    
     public int ChapterTick => CurrentTick + TickOffset - ChapterInfo.TickStart; 
     public int CurrentTickWithOffset => CurrentTick + TickOffset; 
     
@@ -706,8 +707,6 @@ public class GameBox : IDisposable
             UpdateUI();
         }
     }
-
-    private int scoreTarget;
     
     public int ScoreTarget
     {
@@ -717,10 +716,7 @@ public class GameBox : IDisposable
             scoreTarget = value;
         }
     }
-
-    public int MaxScore = 100000;
-    public int MaxScoreContinue = 0;
-
+    
     public void UpdateUI()
     {
         IsUIUpdateRequired = true;
@@ -753,10 +749,10 @@ public class GameBox : IDisposable
         const float fontSizeBig = 22;
         const float fontSizeSmall = 12;
         string scoreString = Helper.FormatScore(score, Continue);
-        string hiscoreString = score > MaxScore ? scoreString : Helper.FormatScore(MaxScore, MaxScoreContinue);
-        var positionHiScore = new Vector2(206, 64) * Runtime.CurrentRuntime.ScaleF - Helper.GetScoreTextureSize(hiscoreString,fontSizeBig);
+        string hiScoreString = score > MaxScore ? scoreString : Helper.FormatScore(MaxScore, MaxScoreContinue);
+        var positionHiScore = new Vector2(206, 64) * Runtime.CurrentRuntime.ScaleF - Helper.GetScoreTextureSize(hiScoreString,fontSizeBig);
         var positionScore = new Vector2(206, 86) * Runtime.CurrentRuntime.ScaleF - Helper.GetScoreTextureSize(scoreString, fontSizeBig);
-        Helper.DrawScoreText(hiscoreString, fontSizeBig, positionHiScore, Color.LightGray);
+        Helper.DrawScoreText(hiScoreString, fontSizeBig, positionHiScore, Color.LightGray);
         Helper.DrawScoreText(scoreString, fontSizeBig, positionScore, Color.White);
         Helper.DrawScoreText($"{Player.HeartSpices}/5", fontSizeSmall, new Vector2(175, 112) * Runtime.CurrentRuntime.ScaleF, Color.White);
         Helper.DrawScoreText($"{Player.BombsSpices}/5", fontSizeSmall, new Vector2(175, 152) * Runtime.CurrentRuntime.ScaleF, Color.White);
@@ -777,6 +773,12 @@ public class GameBox : IDisposable
     }
     #endregion
     #region Time
+    public double CountTimeFrom = Raylib.GetTime() + 3d;
+    float PauseTimestamp = 0;
+    float GameoverTimestamp = 0;
+    bool isPaused = false;
+    bool isGameover = false;
+
     public float GetTime()
     {
         if (IsGameOver)
@@ -785,13 +787,7 @@ public class GameBox : IDisposable
             return (float)(PauseTimestamp - CountTimeFrom);
         return (float)(Raylib.GetTime() - CountTimeFrom);
     }
-
-    public double CountTimeFrom = Raylib.GetTime() + 3d;
-    private float PauseTimestamp = 0;
-    private float GameoverTimestamp = 0;
-
-    private bool isGameover = false;
-    private bool isPaused = false;
+    
     public bool IsPaused
     {
         get => isPaused;
@@ -819,7 +815,6 @@ public class GameBox : IDisposable
             if (value)
             {
                 IsPaused = true;
-                
                 GameoverTimestamp = GetTime();
             }
             else if(Continue < 5)
@@ -829,8 +824,6 @@ public class GameBox : IDisposable
             }
         }
     }
-
-
     #endregion
 
 #if DEBUG
