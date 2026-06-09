@@ -28,7 +28,7 @@ public class BlackLoadingScreen : Screen
         FadeOut = fadeOut;
         FifoLoading = Runtime.CurrentRuntime.Textures["fifo_loading.png"];
         FifoSource = Helper.GetFullSource(FifoLoading);
-        FifoTarget = Helper.Scale(new Rectangle(64, 414,52, 97), Runtime.CurrentRuntime.ScaleF);
+        FifoTarget = Helper.Scale(new(64, 414,52, 97), Runtime.CurrentRuntime.ScaleF);
         FifoOrigin = FifoTarget.Size / 2;
     }
 
@@ -60,7 +60,6 @@ public class BlackLoadingScreen : Screen
             time * 1000f,
             Color.White 
                 with { A = transparency2 });
-        
         base.Render();
     }
 }
