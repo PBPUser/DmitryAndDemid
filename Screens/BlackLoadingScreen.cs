@@ -13,7 +13,7 @@ public class BlackLoadingScreen : Screen
     public Action? Event;
     private bool EventExecuted = false;
     bool FadeOut = false;
-    private Texture2D FifoLoading;
+    Texture2D FifoLoading;
     private Rectangle FifoSource, FifoTarget;
     Vector2 FifoOrigin;
     private double FifoLoadingShowDelay;
