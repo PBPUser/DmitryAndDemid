@@ -23,8 +23,8 @@ public class BlackLoadingScreen : Screen
     {
         FifoLoadingShowDelay = fifoLoadingShowDelay;
         LoadingTime = loadingTime;
-        Fade = fade;
         Event = @event;
+        Fade = fade;
         FadeOut = fadeOut;
         FifoLoading = Runtime.CurrentRuntime.Textures["fifo_loading.png"];
         FifoTarget = Helper.Scale(new(64, 414,52, 97), Runtime.CurrentRuntime.ScaleF);
