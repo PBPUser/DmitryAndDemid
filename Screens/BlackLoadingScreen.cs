@@ -28,8 +28,8 @@ public class BlackLoadingScreen : Screen
         FadeOut = fadeOut;
         FifoLoading = Runtime.CurrentRuntime.Textures["fifo_loading.png"];
         FifoTarget = Helper.Scale(new(64, 414,52, 97), Runtime.CurrentRuntime.ScaleF);
-        FifoSource = Helper.GetFullSource(FifoLoading);
         FifoOrigin = FifoTarget.Size / 2;
+        FifoSource = Helper.GetFullSource(FifoLoading);
     }
 
     public override void TopUpdate()
