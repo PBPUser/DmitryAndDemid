@@ -547,6 +547,7 @@ public class GameBox : IDisposable
         UnloadRenderTexture(UILeft);
         foreach (var overlay in GameplayOverlays)
             overlay.Dispose();
+        ChapterInfo?.Unload();
     }
     
     public void ClearBullets()
