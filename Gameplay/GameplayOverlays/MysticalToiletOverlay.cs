@@ -18,8 +18,8 @@ public class MysticalToiletOverlay(GameBox box, float animationLength, float len
 
     protected override void Draw()
     {
-        DrawTexturePro(Texture, Source with { X = -(Box.GetTime() * Texture.Width * 0.125f) }, Target1, Vector2.Zero, 0, Color.White with {A = Helper.TimeToTransparency(State)});
-        DrawTexturePro(Texture, Source with { X = (Box.GetTime() * Texture.Width * 0.125f) }, Target2, Vector2.Zero, 0, Color.White with {A = Helper.TimeToTransparency(State)});
+        DrawTexturePro(Texture, Source with { X = (Box.GetTime() * Texture.Width * 0.125f) }, Target1, Vector2.Zero, 0, Color.White with {A = Helper.TimeToTransparency(State)});
+        DrawTexturePro(Texture, Source with { X = -(Box.GetTime() * Texture.Width * 0.125f) }, Target2, Vector2.Zero, 0, Color.White with {A = Helper.TimeToTransparency(State)});
         base.Draw();
     }
 }
