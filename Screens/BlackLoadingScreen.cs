@@ -46,13 +46,13 @@ public class BlackLoadingScreen : Screen
     public override void Render()
     {
         float time = (float)GetTime();
-        byte transparency = Helper.TimeToTransparency(FadeOut ?
-            Helper.ComputeObjectTime(time, TimeAppear, Fade, LoadingTime+Fade, Fade) :
-            Helper.ComputeObjectTimeStart(time, TimeAppear, Fade)
-        );
         byte transparency2 = Helper.TimeToTransparency(FadeOut ?
             Helper.ComputeObjectTime(time, TimeAppear+FifoLoadingShowDelay, FifoLoadingAppearing, LoadingTime+FifoLoadingAppearing, FifoLoadingAppearing) :
             Helper.ComputeObjectTimeStart(time, TimeAppear+FifoLoadingShowDelay, FifoLoadingAppearing)
+        );
+        byte transparency = Helper.TimeToTransparency(FadeOut ?
+            Helper.ComputeObjectTime(time, TimeAppear, Fade, LoadingTime+Fade, Fade) :
+            Helper.ComputeObjectTimeStart(time, TimeAppear, Fade)
         );
         DrawRectangle(0,0,Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height,
             Color.Black with { A = transparency } );
