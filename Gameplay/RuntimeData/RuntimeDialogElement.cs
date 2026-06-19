@@ -16,10 +16,10 @@ public class RuntimeDialogElement
     public RuntimeDialogElement(DialogInfo.DialogElement dialogElement)
     {
         ID = dialogElement.ID;
-        ArtIndex = dialogElement.ArtIndex;
         Skipable = dialogElement.Skipable;
         if(dialogElement.AntogonistSpeak)
             Art = Runtime.CurrentRuntime.Textures[dialogElement.Art];
+        ArtIndex = dialogElement.ArtIndex;
         AntogonistSpeak = dialogElement.AntogonistSpeak;
         DialogTexture = Helper.DrawDialog(dialogElement.Text, AntogonistSpeak ? 0.79f : 2.34f);
     }
