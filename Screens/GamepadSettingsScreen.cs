@@ -19,8 +19,8 @@ public class GamepadSettingsScreen : MenuScreen
         MenuItems.Add(new MenuItem("controller.pause", Configuration.Config.PauseButton.ToString(), i => {}));
         MenuItems.Add(new MenuItem("controller.bomb", Configuration.Config.BombButton.ToString(), i => {}));
         MenuItems.Add(new MenuItem("controller.shoot", Configuration.Config.ShootButton.ToString(), i => {}));
-        MenuItems.Add(new MenuItem("controller.focus", Configuration.Config.FocusButton.ToString(), i => {}));
         MenuItems.Add(new MenuItem("controller.jump", Configuration.Config.JumpButton.ToString(), i => {}));
+        MenuItems.Add(new MenuItem("controller.focus", Configuration.Config.FocusButton.ToString(), i => {}));
         MenuItems.Add(new MenuItem("settings.default", "", i =>
         {
             var defaultConfiguration = new Configuration();
