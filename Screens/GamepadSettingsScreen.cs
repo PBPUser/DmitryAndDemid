@@ -16,11 +16,11 @@ public class GamepadSettingsScreen : MenuScreen
 
     public override void CreateMenu()
     {
-        MenuItems.Add(new MenuItem("controller.pause", Configuration.Config.PauseButton.ToString(), i => {}));
         MenuItems.Add(new MenuItem("controller.bomb", Configuration.Config.BombButton.ToString(), i => {}));
         MenuItems.Add(new MenuItem("controller.shoot", Configuration.Config.ShootButton.ToString(), i => {}));
         MenuItems.Add(new MenuItem("controller.jump", Configuration.Config.JumpButton.ToString(), i => {}));
         MenuItems.Add(new MenuItem("controller.focus", Configuration.Config.FocusButton.ToString(), i => {}));
+        MenuItems.Add(new MenuItem("controller.pause", Configuration.Config.PauseButton.ToString(), i => {}));
         MenuItems.Add(new MenuItem("settings.default", "", i =>
         {
             var defaultConfiguration = new Configuration();
@@ -51,11 +51,11 @@ public class GamepadSettingsScreen : MenuScreen
         MenuItems[SelectedIndex].Replace = padButton.ToString();
         switch (SelectedIndex)
         {
-            case 0: Configuration.Config.PauseButton = padButton; break;
-            case 1: Configuration.Config.BombButton = padButton; break;
-            case 2: Configuration.Config.ShootButton = padButton; break;
+            case 0: Configuration.Config.BombButton = padButton; break;
+            case 1: Configuration.Config.ShootButton = padButton; break;
+            case 2: Configuration.Config.JumpButton = padButton; break;
             case 3: Configuration.Config.FocusButton = padButton; break;
-            case 4: Configuration.Config.JumpButton = padButton; break;
+            case 4: Configuration.Config.PauseButton = padButton; break;
         }
         Configuration.Config.Save();
     }
