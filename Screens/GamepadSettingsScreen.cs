@@ -9,8 +9,8 @@ public class GamepadSettingsScreen : MenuScreen
 {
     public GamepadSettingsScreen()
     {
-        SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
         SetTitle(Runtime.CurrentRuntime.Textures["gamepad_settings.png"]);
+        SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
         CurrentY = Runtime.CurrentRuntime.Height / 2;
     }
 
