@@ -71,9 +71,7 @@ public class GamepadSettingsScreen : MenuScreen
     {
         Begin("Gamepad Options");
         if (Button("Exit"))
-        {
             Exit();
-        }
         End();
     }
 }
