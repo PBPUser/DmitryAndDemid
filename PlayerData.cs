@@ -28,7 +28,6 @@ public class PlayerData
         Save();
     }
     
-    
     public bool IsNicknameUnlocked(int i)
     {
         long a = 1 << i;
@@ -136,6 +135,8 @@ public class PlayerData
             tries[package.ReadString()] = ((int)package.ReadVarLong(), (int)package.ReadVarLong());
         return tries;
     }
+
+    private const string DEFAULT_NICKNAME = "--------";
     
     public class PersonPlayerData
     {
@@ -143,7 +144,7 @@ public class PlayerData
         {
             for (int i = 0; i < 10; i++)
             {
-                MainScoreRecords[i] = new("--------", (int)Math.Pow(10, 10 - i), -1, -1, -1);
+                MainScoreRecords[i] = new(DEFAULT_NICKNAME, (int)Math.Pow(10, 10 - i), -1, -1, -1);
                 ExtraScoreRecords[i] = new("--------", (int)Math.Pow(10, 10 - i), -1, -1, -1);
             }
         }
