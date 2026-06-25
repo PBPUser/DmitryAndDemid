@@ -149,10 +149,10 @@ public class PlayerData
             }
         }
         
-        public Dictionary<string, (int, int)> SpellcardTries = new();
-        public Dictionary<string, (int, int)> SpellcardPracticesTries = new();
         public PersonPlayerScoreRecord[] MainScoreRecords = new PersonPlayerScoreRecord[10];
         public PersonPlayerScoreRecord[] ExtraScoreRecords = new PersonPlayerScoreRecord[10];
+        public Dictionary<string, (int, int)> SpellcardTries = new();
+        public Dictionary<string, (int, int)> SpellcardPracticesTries = new();
 
         public static PersonPlayerData ReadFromPackage(ref BitPackage package)
         {
