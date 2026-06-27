@@ -11,8 +11,8 @@ public class GameplayScreenEffect
     {
         Shader = Runtime.CurrentRuntime.Shaders[shader];
         LocationPosition = GetShaderLocation(Shader, "position");
-        LocationTime = GetShaderLocation(Shader, "time");
         LocationRealTime = GetShaderLocation(Shader, "realTime");
+        LocationTime = GetShaderLocation(Shader, "time");
         TimeAppear = timeAppear;
         TimeDisappear = timeDisappear;
         Box = box;
