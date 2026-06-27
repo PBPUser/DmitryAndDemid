@@ -49,8 +49,8 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         var tick = Player.GameBox.CurrentTickWithOffset - BombActivationTick;
         if (tick > 240)
         {
-            IsBombActive = false;
             Player.CollisionEnabled = true;
+            IsBombActive = false;
             return;
         }
         float forkAngle = Player.GameBox.CurrentTickWithOffset - BombActivationTick;
@@ -61,10 +61,10 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         if (t == 15)
         {
             var time = Player.GameBox.GetTime();
-            // TODO: Play akob fork beat sound
             Player.GameBox.AddScreenEffect(new AkobSpellScreenEffect(Player.GameBox, Player.Position, 101, time, time + .6f));
             Player.GameBox.AddScreenEffect(new ShakeScreenEffect(Player.GameBox, 0.1f,  20, 100, 
                 time, time+0.3f));
+            // TODO: Play akob fork beat sound
         }
         else if (t == 0)
         {
