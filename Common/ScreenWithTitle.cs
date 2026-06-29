@@ -10,14 +10,7 @@ public abstract class ScreenWithTitle : Screen
 {
     static ScreenWithTitle()
     {
-        MenuTextureTarget = Scale(
-            new Rectangle(0, 0, 640, 135), 
-            Runtime.CurrentRuntime.Scale);
-    }
-    
-    protected void SetTitle(Texture2D title)
-    {
-        MenuTitleTexture = title;
+        MenuTextureTarget = Scale(new(0, 0, 640, 135), Runtime.CurrentRuntime.Scale);
     }
     
     protected float TimeDisappearTitle = float.MaxValue;
@@ -27,6 +20,11 @@ public abstract class ScreenWithTitle : Screen
     private static Rectangle MenuTextureTarget;
     protected float AppearingTime = .5f;
     protected float DisappearingTime = .5f;
+    protected void SetTitle(Texture2D title)
+    {
+        MenuTitleTexture = title;
+    }
+    
     
     public override void Activated()
     {
