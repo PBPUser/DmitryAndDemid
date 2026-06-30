@@ -3,10 +3,10 @@ namespace DmitryAndDemid.Gameplay;
 public abstract class PlayerWeapon(Player player)
 {
     protected Player Player = player;
-    public int FocusTimestamp = 0;
-    public int DefocusTimestamp = 0;
-    public bool IsBombActive = false;
     public int BombActivationTick = 0;
+    public int DefocusTimestamp = 0;
+    public int FocusTimestamp = 0;
+    public bool IsBombActive = false;
 
     public virtual void Update()
     {
