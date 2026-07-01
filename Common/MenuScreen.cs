@@ -16,18 +16,19 @@ public abstract class MenuScreen : ScreenWithTitle
     public const double MenuSwitchCooldown = 0.125;
     public const double MenuActivateCooldown = 0.5;
     
-    protected int CurrentY = 0;
-    protected List<MenuItem> MenuItems = new();
-    protected int CurrentX = 0;
-    protected int SelectedIndex = 0;
     protected bool AllowExitWithEscape = true;
     protected bool LoopList = true;
-    protected Vector2 SelectedItemOffset = Vector2.Zero;
-    protected Vector2 SelectedNoise = new Vector2(8, 8) * CurrentRuntime.ScaleF;
+    protected bool HorizontalDirectionNavigation = false;
+    protected bool VerticalDirectionNavigation = true;
+    protected int CurrentY = 0;
+    protected int CurrentX = 0;
+    protected int SelectedIndex = 0;
     protected float SelectedItemScale = 1f;
-
     protected double AnimationStartedAt = 0;
     protected double AnimationStartedIndex = 0;
+    protected Vector2 SelectedItemOffset = Vector2.Zero;
+    protected Vector2 SelectedNoise = new Vector2(8, 8) * CurrentRuntime.ScaleF;
+    protected List<MenuItem> MenuItems = new();
     
     public MenuScreen()
     {
@@ -50,9 +51,6 @@ public abstract class MenuScreen : ScreenWithTitle
 
     }
 
-    protected bool HorizontalDirectionNavigation = false;
-    protected bool VerticalDirectionNavigation = true;
-    
     public static double PreviousKeyTimestamp = 0;
     protected int PreviousSelectedIndex = 0;
     Action<int>? Event;
