@@ -54,7 +54,6 @@ public abstract class MenuScreen : ScreenWithTitle
     public static double PreviousKeyTimestamp = 0;
     protected int PreviousSelectedIndex = 0;
     Action<int>? Event;
-
     bool ItemActivated = false;
 
     public override void TopUpdate()
@@ -137,8 +136,7 @@ public abstract class MenuScreen : ScreenWithTitle
     {
         if(SelectedIndex > AnimationStartedIndex)
             return Math.Min(AnimationStartedIndex + (GetTime() - AnimationStartedAt) / MenuSwitchCooldown, (float)SelectedIndex);
-        else
-            return Math.Max(AnimationStartedIndex - (GetTime() - AnimationStartedAt) / MenuSwitchCooldown, (float)SelectedIndex);
+        return Math.Max(AnimationStartedIndex - (GetTime() - AnimationStartedAt) / MenuSwitchCooldown, (float)SelectedIndex);
     }
     
     protected double ComputeAnimationIndexLoop()
