@@ -133,11 +133,9 @@ public abstract class MenuScreen : ScreenWithTitle
     }
     
     protected double ComputeAnimationIndex()
-    {
-        if(SelectedIndex > AnimationStartedIndex)
-            return Math.Min(AnimationStartedIndex + (GetTime() - AnimationStartedAt) / MenuSwitchCooldown, (float)SelectedIndex);
-        return Math.Max(AnimationStartedIndex - (GetTime() - AnimationStartedAt) / MenuSwitchCooldown, (float)SelectedIndex);
-    }
+        => SelectedIndex > AnimationStartedIndex 
+                ? Math.Min(AnimationStartedIndex + (GetTime() - AnimationStartedAt) / MenuSwitchCooldown, (float)SelectedIndex)
+         : Math.Max(AnimationStartedIndex - (GetTime() - AnimationStartedAt) / MenuSwitchCooldown, (float)SelectedIndex);
     
     protected double ComputeAnimationIndexLoop()
     {
