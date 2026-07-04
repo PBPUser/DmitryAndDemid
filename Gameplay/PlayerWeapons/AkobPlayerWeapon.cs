@@ -112,8 +112,8 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
             
         }
         float angleStart = time * 2;
-        angleStart /= GameBox.TargetTPS;
         float angleDif = MathF.PI * 2 / BulletSourcePositionsCount;
+        angleStart /= GameBox.TargetTPS;
         for (int i = 0; i < BulletSourcePositionsCount; i++)
             BulletSourcePositions[i] = new Vector2(Player.X, Player.Y) + Helper.GetDirection(angleStart + (angleDif * i)) * dif;
     }
