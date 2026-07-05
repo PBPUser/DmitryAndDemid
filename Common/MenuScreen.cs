@@ -127,9 +127,9 @@ public abstract class MenuScreen : ScreenWithTitle
     protected void Exit()
     {
         Exiting();
+        ItemActivated = true;
         PreviousKeyTimestamp = GetTime();
         Event = a => CurrentRuntime.RemoveScreen(this);
-        ItemActivated = true;
     }
     
     protected double ComputeAnimationIndex()
