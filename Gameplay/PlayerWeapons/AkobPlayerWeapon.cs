@@ -107,10 +107,6 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
     {
         float dif = Player.DefocusedDifference + (Player.FocusedDifference - Player.DefocusedDifference) * Helper.ComputeObjectTime(time, FocusTimestamp, Player.FocusAnimationChangingLength,
             (DefocusTimestamp + Player.FocusAnimationChangingLength), Player.FocusAnimationChangingLength);
-        if (Player.IsFocused)
-        {
-            
-        }
         float angleStart = time * 2;
         float angleDif = MathF.PI * 2 / BulletSourcePositionsCount;
         angleStart /= GameBox.TargetTPS;
