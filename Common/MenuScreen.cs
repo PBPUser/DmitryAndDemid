@@ -92,8 +92,8 @@ public abstract class MenuScreen : ScreenWithTitle
             ((IsKeyDown(KeyboardKey.Down)) || Controller.IsButtonDown(GamepadButton.LeftFaceDown)) && VerticalDirectionNavigation ||
             (IsKeyDown(KeyboardKey.Right) || Controller.IsButtonDown(GamepadButton.LeftFaceRight)) && HorizontalDirectionNavigation)
         {
-            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
             PreviousKeyTimestamp = GetTime();
+            Helper.PlaySound(CurrentRuntime.Sounds["item-switch"]);
             PreviousSelectedIndex = SelectedIndex;
             double j = ComputeAnimationIndex();
             AnimationStartedIndex = j;
