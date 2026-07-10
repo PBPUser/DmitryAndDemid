@@ -9,13 +9,13 @@ public class GameplayScreenEffect
 {
     public GameplayScreenEffect(GameBox box, Vector2 position, int index, string shader, float timeAppear, float timeDisappear)
     {
+        Box = box;
         Shader = Runtime.CurrentRuntime.Shaders[shader];
         LocationPosition = GetShaderLocation(Shader, "position");
         LocationRealTime = GetShaderLocation(Shader, "realTime");
         LocationTime = GetShaderLocation(Shader, "time");
         TimeAppear = timeAppear;
         TimeDisappear = timeDisappear;
-        Box = box;
         Position = position;
         ZIndex = index;
     }
