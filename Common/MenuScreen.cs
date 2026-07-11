@@ -104,7 +104,7 @@ public abstract class MenuScreen : ScreenWithTitle
             do
             {
                 if (LoopList)
-                    SelectedIndex = (SelectedIndex + 1) % MenuItems.Count();
+                    SelectedIndex = (SelectedIndex + 1) % MenuItems.Count;
                 else
                     SelectedIndex = Math.Clamp(SelectedIndex + 1, 0, MenuItems.Count() - 1);
                 z++;
