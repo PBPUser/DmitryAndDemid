@@ -13,9 +13,9 @@ public class BulletRenderingInfo
     private static Texture2D T384448 = Runtime.CurrentRuntime.Textures["384x448"];
     
     [JsonInclude] public BulletVisualRenderType RenderType = BulletVisualRenderType.FromSprite;
-    [JsonInclude] public string Texture = "";
     [JsonInclude] public Vector2 SourceSize = Vector2.Zero;
     [JsonInclude] public Vector2 SpritePosition = Vector2.Zero;
+    [JsonInclude] public string Texture = "";
     [JsonInclude] public int Collision = 0;
 
     [JsonInclude]

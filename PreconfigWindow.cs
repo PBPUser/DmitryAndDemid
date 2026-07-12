@@ -15,7 +15,6 @@ public class PreconfigWindow
         Window = new Window("AAG2");
         Window.Resizable = false;
         Window.DeleteEvent += (a, b) => Application.Quit();
-
         var display = Gdk.Display.Default;
         if (display == null)
             Environment.Exit(0);
@@ -38,7 +37,6 @@ public class PreconfigWindow
             }
         }
         ress.Reverse();
-        Console.WriteLine($"Resolutions: {String.Join("\n", ress)}");
         var gridRes = new Grid();
         gridRes.RowSpacing = 4;
         gridRes.ColumnSpacing = 8;
@@ -46,7 +44,6 @@ public class PreconfigWindow
         var radioButtonDotByDot = new RadioButton("Borderless Window DOT by DOT (Recomended)") { Halign = Align.Start };
         var radioButtonBorderless = new RadioButton(radioButtonDotByDot, "Borderless Window") { Halign = Align.Start };
         int rowS = 0;
-
         foreach (var x in ress)
         {
             var fullScreen = new RadioButton(radioButtonDotByDot, $"Full Screen {x}");
