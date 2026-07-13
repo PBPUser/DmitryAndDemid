@@ -9,8 +9,8 @@ namespace DmitryAndDemid.Data;
 
 public class BulletRenderingInfo
 {
-    private static Rectangle FRC384448 = new Rectangle(0, 0, 384, 448); 
-    private static Texture2D T384448 = Runtime.CurrentRuntime.Textures["384x448"];
+    static Rectangle FRC384448 = new Rectangle(0, 0, 384, 448); 
+    static Texture2D T384448 = Runtime.CurrentRuntime.Textures["384x448"];
     
     [JsonInclude] public BulletVisualRenderType RenderType = BulletVisualRenderType.FromSprite;
     [JsonInclude] public Vector2 SourceSize = Vector2.Zero;
