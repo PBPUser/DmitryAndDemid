@@ -777,6 +777,8 @@ public sealed unsafe class VulkanBackend : IBackend
         {
             Vk.CmdEndRenderPass(Cmd);
             InPass = false;
+            // The pass is about to be re-entered with loadOp = LOAD; its own writes have to survive that.
+            AttachmentBarrier();
         }
 
         record(Cmd);
@@ -791,16 +793,31 @@ public sealed unsafe class VulkanBackend : IBackend
             return;
         Vk.CmdEndRenderPass(Cmd);
         InPass = false;
+        AttachmentBarrier();
+    }
 
-        // Anything just rendered into a target may be sampled by the next draw.
+    /// <summary>
+    /// Publishes what a render pass just wrote. Two consumers, and BOTH must be in the destination scope:
+    ///   * the next draw may SAMPLE the target that was just rendered into (ShaderRead), and
+    ///   * the pass may simply be re-entered — every pass here is loadOp = LOAD, so re-entering it READS the
+    ///     attachment back (ColorAttachmentRead). OutsidePass does exactly that, several times a frame.
+    /// Only the first was covered, so on a re-entry the reload had no dependency on the writes it was meant
+    /// to preserve. NVIDIA and Intel keep the colour cache hot across the pass boundary and got away with it;
+    /// AMD reloaded stale contents.
+    /// </summary>
+    private void AttachmentBarrier()
+    {
         MemoryBarrier barrier = new()
         {
             SType = StructureType.MemoryBarrier,
             SrcAccessMask = AccessFlags.ColorAttachmentWriteBit,
-            DstAccessMask = AccessFlags.ShaderReadBit,
+            DstAccessMask = AccessFlags.ShaderReadBit | AccessFlags.ColorAttachmentReadBit |
+                            AccessFlags.ColorAttachmentWriteBit | AccessFlags.TransferReadBit,
         };
         Vk.CmdPipelineBarrier(Cmd, PipelineStageFlags.ColorAttachmentOutputBit,
-            PipelineStageFlags.FragmentShaderBit, 0, 1, in barrier, 0, null, 0, null);
+            PipelineStageFlags.FragmentShaderBit | PipelineStageFlags.ColorAttachmentOutputBit |
+            PipelineStageFlags.TransferBit,
+            0, 1, in barrier, 0, null, 0, null);
     }
 
     private void Barrier(Image image, ImageLayout from, ImageLayout to)
@@ -833,8 +850,11 @@ public sealed unsafe class VulkanBackend : IBackend
         width = Math.Max(1, width);
         height = Math.Max(1, height);
 
+        // clear: true — a target is drawn into incrementally and is never fully overwritten up front, so it
+        // must start zeroed (see CreateImage).
         TextureHandle colour = CreateImage(width, height, OffscreenFormat,
-            ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.SampledBit | ImageUsageFlags.TransferDstBit);
+            ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.SampledBit | ImageUsageFlags.TransferDstBit,
+            clear: true);
         Textures[colour.Id].OwnedByTarget = true;
 
         Framebuffer framebuffer = CreateFramebuffer(OffscreenPass, Textures[colour.Id].View, width, height);
@@ -931,7 +951,12 @@ public sealed unsafe class VulkanBackend : IBackend
     //  textures
     // ======================================================================================
 
-    private TextureHandle CreateImage(int width, int height, Format format, ImageUsageFlags usage)
+    /// <param name="clear">
+    /// Zero the image after allocating it. Only pass true when nothing else is about to overwrite it —
+    /// a clear and an upload are BOTH transfer writes, and two transfer writes to the same memory are not
+    /// ordered against each other without a barrier (see Upload).
+    /// </param>
+    private TextureHandle CreateImage(int width, int height, Format format, ImageUsageFlags usage, bool clear)
     {
         ImageCreateInfo info = new()
         {
@@ -961,17 +986,21 @@ public sealed unsafe class VulkanBackend : IBackend
 
         // Everything lives in GENERAL: valid both as a colour attachment and as a sampled image.
         //
-        // The clear is NOT cosmetic. A fresh Vulkan image contains garbage, whereas GL/Raylib hand back a
-        // zeroed FBO texture — and the game relies on that: the spell card's effect chain composites through
-        // targets it never fully covers, so on Vulkan the uninitialised memory showed through as per-pixel
-        // speckle noise all over the playfield.
+        // The clear is NOT cosmetic (for TARGETS). A fresh Vulkan image contains garbage, whereas GL/Raylib
+        // hand back a zeroed FBO texture — and the game relies on that: the spell card's effect chain
+        // composites through targets it never fully covers, so on Vulkan the uninitialised memory showed
+        // through as per-pixel speckle noise all over the playfield.
         OutsidePass(cmd =>
         {
             LayoutBarrier(cmd, image, ImageLayout.Undefined, ImageLayout.General);
 
-            ClearColorValue clear = new(0, 0, 0, 0);
+            if (!clear)
+                return;
+
+            ClearColorValue value = new(0, 0, 0, 0);
             ImageSubresourceRange range = new(ImageAspectFlags.ColorBit, 0, 1, 0, 1);
-            Vk.CmdClearColorImage(cmd, image, ImageLayout.General, in clear, 1, in range);
+            Vk.CmdClearColorImage(cmd, image, ImageLayout.General, in value, 1, in range);
+            TransferBarrier(cmd, image);
         });
 
         int id = NextId++;
@@ -988,8 +1017,12 @@ public sealed unsafe class VulkanBackend : IBackend
 
     private TextureHandle CreateTexture(byte[] rgba, int width, int height)
     {
+        // clear: false — Upload immediately overwrites every texel. Clearing first would queue a SECOND
+        // transfer write over the same memory, and the two are unordered: on AMD the clear can retire after
+        // the copy and leave the texture blank. NVIDIA/Intel happen to retire transfers in submission order,
+        // which is why that race was invisible everywhere except on GCN.
         TextureHandle handle = CreateImage(width, height, Format.R8G8B8A8Unorm,
-            ImageUsageFlags.SampledBit | ImageUsageFlags.TransferDstBit);
+            ImageUsageFlags.SampledBit | ImageUsageFlags.TransferDstBit, clear: false);
         Upload(handle, rgba, width, height);
         return handle;
     }
@@ -1013,6 +1046,7 @@ public sealed unsafe class VulkanBackend : IBackend
                 ImageExtent = new Extent3D((uint)width, (uint)height, 1),
             };
             Vk.CmdCopyBufferToImage(cmd, staging.Buffer, texture.Image, ImageLayout.General, 1, in copy);
+            TransferBarrier(cmd, texture.Image);
         });
 
         // The GPU has not consumed it yet; free once the work it belongs to has completed.
@@ -1034,6 +1068,38 @@ public sealed unsafe class VulkanBackend : IBackend
             DstAccessMask = AccessFlags.MemoryReadBit | AccessFlags.MemoryWriteBit,
         };
         Vk.CmdPipelineBarrier(cmd, PipelineStageFlags.TopOfPipeBit, PipelineStageFlags.AllCommandsBit,
+            0, 0, null, 0, null, 1, in barrier);
+    }
+
+    /// <summary>
+    /// Makes a TRANSFER write (the zero-clear, or a buffer->image upload) visible to the draws that follow.
+    ///
+    /// This barrier is not optional and its absence is the classic "works on NVIDIA, garbage on AMD" bug.
+    /// A copy or clear lands in L2; the texture unit and the colour backend read through their own caches.
+    /// NVIDIA and Intel keep those coherent in practice, so a missing barrier costs nothing there. AMD GCN
+    /// does not — without the explicit flush/invalidate that this emits, the sampler goes on reading
+    /// whatever was in the image's memory before the upload.
+    /// </summary>
+    private void TransferBarrier(CommandBuffer cmd, Image image)
+    {
+        ImageMemoryBarrier barrier = new()
+        {
+            SType = StructureType.ImageMemoryBarrier,
+            OldLayout = ImageLayout.General,
+            NewLayout = ImageLayout.General,
+            SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
+            DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
+            Image = image,
+            SubresourceRange = new ImageSubresourceRange(ImageAspectFlags.ColorBit, 0, 1, 0, 1),
+            SrcAccessMask = AccessFlags.TransferWriteBit,
+            // The image can next be sampled, or loaded back as an attachment (loadOp = LOAD), or written as
+            // one. Cover all three; at this game's upload counts the extra scope costs nothing.
+            DstAccessMask = AccessFlags.ShaderReadBit | AccessFlags.ColorAttachmentReadBit |
+                            AccessFlags.ColorAttachmentWriteBit | AccessFlags.TransferWriteBit,
+        };
+        Vk.CmdPipelineBarrier(cmd, PipelineStageFlags.TransferBit,
+            PipelineStageFlags.FragmentShaderBit | PipelineStageFlags.ColorAttachmentOutputBit |
+            PipelineStageFlags.TransferBit,
             0, 0, null, 0, null, 1, in barrier);
     }
 
@@ -1678,7 +1744,8 @@ public sealed unsafe class VulkanBackend : IBackend
             System.Buffer.MemoryCopy(&mvp, vertexBlock, shader.VertexBlock.Length,
                 Math.Min(sizeof(Matrix4x4), shader.VertexBlock.Length));
 
-        DescriptorSet set = AllocateSet(shader);
+        if (!AllocateSet(shader, out DescriptorSet set))
+            return;   // pool exhausted this frame; dropping the draw beats binding a null set
         WriteDescriptors(shader, set, handle, texture);
 
         Pipeline pipeline = GetPipeline(shaderHandle, shader, CurrentBlend);
@@ -1690,7 +1757,12 @@ public sealed unsafe class VulkanBackend : IBackend
         Vk.CmdDraw(Cmd, VerticesPerQuad, 1, 0, 0);
     }
 
-    private DescriptorSet AllocateSet(VkShader shader)
+    /// <summary>
+    /// A set per draw, out of a pool reset each frame. The result MUST be checked: a heavy spell card can
+    /// push past MaxDrawsPerFrame, and on OutOfPoolMemory the handle comes back null. Binding that is
+    /// undefined behaviour — NVIDIA ignores it, AMD renders the garbage that a null set points at.
+    /// </summary>
+    private bool AllocateSet(VkShader shader, out DescriptorSet set)
     {
         DescriptorSetLayout layout = shader.SetLayout;
         DescriptorSetAllocateInfo info = new()
@@ -1700,8 +1772,7 @@ public sealed unsafe class VulkanBackend : IBackend
             DescriptorSetCount = 1,
             PSetLayouts = &layout,
         };
-        Vk.AllocateDescriptorSets(Device, in info, out DescriptorSet set);
-        return set;
+        return Vk.AllocateDescriptorSets(Device, in info, out set) == Result.Success;
     }
 
     private void WriteDescriptors(VkShader shader, DescriptorSet set, TextureHandle primary, VkTexture texture)
