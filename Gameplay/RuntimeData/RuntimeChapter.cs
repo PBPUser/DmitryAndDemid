@@ -1,8 +1,9 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using System.ComponentModel.DataAnnotations;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Utils;
-using Raylib_cs;
 
 namespace DmitryAndDemid.Gameplay.RuntimeData;
 
@@ -11,7 +12,7 @@ public class RuntimeChapter
     public readonly bool TimeoutCard;
     public readonly bool BossInvincible;
     public readonly bool ApplyShader;
-    public readonly Shader? SpellShader;
+    public readonly ShaderHandle? SpellShader;
     public readonly int LocPosition;
     public readonly int LocTime;
     public readonly bool HasDialogs;
@@ -24,9 +25,9 @@ public class RuntimeChapter
     public readonly int TickStart;
     public readonly int LengthOffset = 0;
     public readonly int MaxScore = 0;
-    public readonly RenderTexture2D? BossTitleTexture;
-    public readonly RenderTexture2D? ChapterTitleTexture;
-    public readonly Texture2D? SpellcardTexture;
+    public readonly TargetHandle? BossTitleTexture;
+    public readonly TargetHandle? ChapterTitleTexture;
+    public readonly TextureHandle? SpellcardTexture;
     public readonly GameBox GameBox;
     public int[] Header = new int[128];
 
@@ -44,7 +45,7 @@ public class RuntimeChapter
         if ((int)Type > 1)
         {
             var size = Helper.GetBossTextSize(chapterInfo.BossName);
-            BossTitleTexture = Raylib.LoadRenderTexture((int)size.X, (int)size.Y);
+            BossTitleTexture = LoadRenderTexture((int)size.X, (int)size.Y);
             Helper.DrawBossText(BossTitleTexture.Value, chapterInfo.BossName);
         }
         if (Type == ChapterType.Spell)
@@ -52,7 +53,7 @@ public class RuntimeChapter
             SpellcardTexture = Runtime.CurrentRuntime.Textures[chapterInfo.SpellcardTexture];
             MaxScore = chapterInfo.Header[4];
             var size = Helper.GetTitleTextSize(chapterInfo.SpellcardTitle);
-            ChapterTitleTexture = Raylib.LoadRenderTexture((int)size.X, (int)size.Y);
+            ChapterTitleTexture = LoadRenderTexture((int)size.X, (int)size.Y);
             Helper.DrawChapterTitleText(ChapterTitleTexture.Value, chapterInfo.SpellcardTitle);
         }
         if(UseCreateScript && ActionsScope.ChapterActions.ContainsKey(chapterInfo.CreateScript))
@@ -63,16 +64,16 @@ public class RuntimeChapter
         if (ApplyShader)
         {
             SpellShader = Runtime.CurrentRuntime.Shaders[chapterInfo.SpellcardShader];
-            LocPosition = Raylib.GetShaderLocation(SpellShader.Value, "pos");
-            LocTime = Raylib.GetShaderLocation(SpellShader.Value, "time");
+            LocPosition = GetShaderLocation(SpellShader.Value, "pos");
+            LocTime = GetShaderLocation(SpellShader.Value, "time");
         }
     }
 
     public void Unload()
     {
         if(BossTitleTexture != null)
-            Raylib.UnloadRenderTexture(BossTitleTexture.Value);
+            UnloadRenderTexture(BossTitleTexture.Value);
         if(ChapterTitleTexture != null)
-            Raylib.UnloadRenderTexture(ChapterTitleTexture.Value);
+            UnloadRenderTexture(ChapterTitleTexture.Value);
     }
 }

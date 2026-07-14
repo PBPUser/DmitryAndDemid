@@ -1,10 +1,10 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Utils;
 using ImGuiNET;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Screens;
 
@@ -85,17 +85,17 @@ public class PauseMenu : MenuScreen
         var pauseSize = Helper.GetSize(texturePause);
         var forkSizeTarget = forkSize / 4 * Runtime.CurrentRuntime.ScaleF;
         var pauseSizeTarget = pauseSize / 4 * Runtime.CurrentRuntime.ScaleF;
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["fork_tint"], GetShaderLocation(Runtime.CurrentRuntime.Shaders["fork_tint"], "color"), new Vector3(0,1,.2f), ShaderUniformDataType.Vec3);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["fork_tint"], GetShaderLocation(Runtime.CurrentRuntime.Shaders["fork_tint"], "color"), new Vector3(0,1,.2f), UniformType.Vec3);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders["fork_tint"]);
         DrawTexturePro(textureFork,
-            new Rectangle(0, 0, forkSize),
-            new Rectangle(forkPosition * z + forkPositionHidden*(1-z), forkSizeTarget),
-            forkSizeTarget / 2, MathF.Sin(time * 3) * 6, Color.White);
+            new Rect(0, 0, forkSize),
+            new Rect(forkPosition * z + forkPositionHidden*(1-z), forkSizeTarget),
+            forkSizeTarget / 2, MathF.Sin(time * 3) * 6, Rgba.White);
         EndShaderMode();
         DrawTexturePro(texturePause,
-            new Rectangle(0, 0, pauseSize),
-            new Rectangle(pausePosition * MathF.Pow(z,2) + pausePositionHidden*(1-MathF.Pow(z,2)), pauseSizeTarget),
-            pauseSizeTarget / 2, 0, Color.White);
+            new Rect(0, 0, pauseSize),
+            new Rect(pausePosition * MathF.Pow(z,2) + pausePositionHidden*(1-MathF.Pow(z,2)), pauseSizeTarget),
+            pauseSizeTarget / 2, 0, Rgba.White);
         CurrentX = (int)((160f - 64f * z) * Runtime.CurrentRuntime.ScaleF);
         
         DrawMenu();

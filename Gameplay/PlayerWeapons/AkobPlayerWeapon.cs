@@ -1,3 +1,5 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
@@ -6,7 +8,6 @@ using DmitryAndDemid.Gameplay.Effects;
 using DmitryAndDemid.Gameplay.RuntimeData;
 using DmitryAndDemid.Utils;
 using Gtk;
-using Raylib_cs;
 
 namespace DmitryAndDemid.Gameplay.PlayerWeapons;
 
@@ -24,9 +25,9 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
     
     private static FileEntityInfo BulletFileInfo = new FileEntityInfo();
     
-    private static Rectangle PlayerBottomLayerSource = new Rectangle(0, 64, 64, 64);
-    private static Rectangle PlayerTopLayerSource = new Rectangle(64, 64, 64, 64);
-    private static Rectangle AkobRectangleSource = new Rectangle(128, 64, 16, 16);
+    private static Rect PlayerBottomLayerSource = new Rect(0, 64, 64, 64);
+    private static Rect PlayerTopLayerSource = new Rect(64, 64, 64, 64);
+    private static Rect AkobRectangleSource = new Rect(128, 64, 16, 16);
     
     public Vector2[] BulletSourcePositions = new Vector2[4];
     private int BulletSourcePositionsCount = 0;
@@ -89,7 +90,7 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         }
     }
 
-    static bool IsColliding(Rectangle rect, Vector2 origin, float angle, Vector2 position, float radius)
+    static bool IsColliding(Rect rect, Vector2 origin, float angle, Vector2 position, float radius)
     {
         Vector2 diff = position - rect.Position;
         float cos = MathF.Cos(-angle);
@@ -120,32 +121,32 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         byte transparency = Helper.TimeToTransparency(.5 *
                                                       Helper.ComputeObjectTime(Player.GameBox.CurrentTick, FocusTimestamp, Player.FocusAnimationChangingLength,
                                                           DefocusTimestamp + Player.FocusAnimationChangingLength, Player.FocusAnimationChangingLength));
-        Raylib.DrawTexturePro(player.SourceTexture, PlayerBottomLayerSource, new Rectangle(new Vector2(Player.X, Player.Y), new Vector2(64)), 
-            new Vector2(32), time*64, Color.White with {A=transparency} );
-        Raylib.DrawTexturePro(player.SourceTexture, PlayerBottomLayerSource, new Rectangle(new Vector2(Player.X, Player.Y), new Vector2(64)), 
-            new Vector2(32), -time*64, Color.White with {A=transparency} );
+        DrawTexturePro(player.SourceTexture, PlayerBottomLayerSource, new Rect(new Vector2(Player.X, Player.Y), new Vector2(64)), 
+            new Vector2(32), time*64, Rgba.White with {A=transparency} );
+        DrawTexturePro(player.SourceTexture, PlayerBottomLayerSource, new Rect(new Vector2(Player.X, Player.Y), new Vector2(64)), 
+            new Vector2(32), -time*64, Rgba.White with {A=transparency} );
     }
 
     public override void DrawTopLayer()
     {
         for(int i = 0; i < BulletSourcePositionsCount; i++)
-            Raylib.DrawTexturePro(player.SourceTexture, AkobRectangleSource, new Rectangle(BulletSourcePositions[i],new Vector2(16)), new Vector2(8)
-                , 0, Color.White);
+            DrawTexturePro(player.SourceTexture, AkobRectangleSource, new Rect(BulletSourcePositions[i],new Vector2(16)), new Vector2(8)
+                , 0, Rgba.White);
         var objTime = Helper.ComputeObjectTime(Player.GameBox.CurrentTick, FocusTimestamp,
             Player.FocusAnimationChangingLength,
             DefocusTimestamp + Player.FocusAnimationChangingLength, Player.FocusAnimationChangingLength);
         byte transparency = Helper.TimeToTransparency(objTime);
-        Raylib.DrawTexturePro(player.SourceTexture, PlayerTopLayerSource, new Rectangle(new Vector2(Player.X, Player.Y), new Vector2(64)), 
-            new Vector2(32), 0, Color.White with {A=transparency} );
+        DrawTexturePro(player.SourceTexture, PlayerTopLayerSource, new Rect(new Vector2(Player.X, Player.Y), new Vector2(64)), 
+            new Vector2(32), 0, Rgba.White with {A=transparency} );
         if (IsBombActive)
         {
-            Raylib.DrawTexturePro(Runtime.CurrentRuntime.Textures["vilkaCut.png"],
-                BombForkSource, BombForkTarget with { Position = Player.Position }, BombForkOrigin, ForkAngle, Color.White);
+            DrawTexturePro(Runtime.CurrentRuntime.Textures["vilkaCut.png"],
+                BombForkSource, BombForkTarget with { Position = Player.Position }, BombForkOrigin, ForkAngle, Rgba.White);
         }
     }
 
-    private static Rectangle BombForkSource = new(0, 0, 126, 957);
-    private static Rectangle BombForkTarget = new(0, 0, 32, 239);
+    private static Rect BombForkSource = new(0, 0, 126, 957);
+    private static Rect BombForkTarget = new(0, 0, 32, 239);
     private static Vector2 BombForkOrigin = new Vector2(16, 210);
     private int NextBulletPositionIndex = 0;
     private float ForkAngle = 0;

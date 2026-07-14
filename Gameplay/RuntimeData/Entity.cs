@@ -1,3 +1,4 @@
+using DmitryAndDemid.Rendering;
 namespace DmitryAndDemid.Gameplay.RuntimeData;
 
 public struct Entity

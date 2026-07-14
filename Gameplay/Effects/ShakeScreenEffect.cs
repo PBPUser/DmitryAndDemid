@@ -1,7 +1,7 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Common;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Gameplay.Effects;
 
@@ -24,8 +24,8 @@ public class ShakeScreenEffect : GameplayScreenEffect
 
     public override void ApplyShading(float gameTime)
     {
-        SetShaderValue(Shader, ShakeStrengthLocation, Strength, ShaderUniformDataType.Float);
-        SetShaderValue(Shader, ShakeSpeedLocation, Speed, ShaderUniformDataType.Float);
+        SetShaderValue(Shader, ShakeStrengthLocation, Strength, UniformType.Float);
+        SetShaderValue(Shader, ShakeSpeedLocation, Speed, UniformType.Float);
         base.ApplyShading(gameTime);
     }
 }

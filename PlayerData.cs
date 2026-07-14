@@ -1,3 +1,5 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using DmitryAndDemid.Utils;
 
 namespace DmitryAndDemid;

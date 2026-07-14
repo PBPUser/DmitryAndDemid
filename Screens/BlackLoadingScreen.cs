@@ -1,8 +1,8 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Utils;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Screens;
 
@@ -13,8 +13,8 @@ public class BlackLoadingScreen : Screen
     public Action? Event;
     private bool EventExecuted = false;
     bool FadeOut = false;
-    Texture2D FifoLoading;
-    private Rectangle FifoSource, FifoTarget;
+    TextureHandle FifoLoading;
+    private Rect FifoSource, FifoTarget;
     Vector2 FifoOrigin;
     private double FifoLoadingShowDelay;
     private const double FifoLoadingAppearing = 0.25;
@@ -55,10 +55,10 @@ public class BlackLoadingScreen : Screen
             Helper.ComputeObjectTimeStart(time, TimeAppear, Fade)
         );
         DrawRectangle(0,0,Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height,
-            Color.Black with { A = transparency } );
+            Rgba.Black with { A = transparency } );
         DrawTexturePro(FifoLoading, FifoSource, FifoTarget, FifoOrigin,
             time * 1000f,
-            Color.White 
+            Rgba.White 
                 with { A = transparency2 });
         base.Render();
     }

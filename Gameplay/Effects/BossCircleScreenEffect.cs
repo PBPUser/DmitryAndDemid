@@ -1,7 +1,7 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Common;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Gameplay.Effects;
 
@@ -19,7 +19,7 @@ public class BossCircleScreenEffect : GameplayScreenEffect
 
     private RuntimeObject Boss;
     private int LocationTexture;
-    Texture2D CursorTexture;
+    TextureHandle CursorTexture;
     
     
     public override void ApplyShading(float gameTime)

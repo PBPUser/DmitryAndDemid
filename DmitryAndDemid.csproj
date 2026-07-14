@@ -6,6 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- Shipped executable names: the game is aag2, the configurator is custom (Launcher/). -->
+    <AssemblyName>aag2</AssemblyName>
+    <RootNamespace>DmitryAndDemid</RootNamespace>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -20,13 +24,22 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="5.3.0" />
     <PackageReference Include="Raylib-cs" Version="7.0.2" />
     <PackageReference Include="rlImgui-cs" Version="3.2.0" />
+    <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Vulkan" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Windowing" Version="2.23.0" />
+    <PackageReference Include="StbImageSharp" Version="2.30.15" />
+    <PackageReference Include="StbTrueTypeSharp" Version="1.26.12" />
     <PackageReference Include="System.CodeDom" Version="10.0.7" />
   </ItemGroup>
   
+  <ItemGroup>
+    <!-- The configurator is its own executable (Launcher/DmitryAndDemid.Launcher.csproj). -->
+    <Compile Remove="Launcher\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <Content Include="Assets\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

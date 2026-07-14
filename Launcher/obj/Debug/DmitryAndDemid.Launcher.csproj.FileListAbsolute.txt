@@ -1,0 +1,17 @@
+/home/iwuwka/Documents/DmitryAndDemid/Launcher/obj/Debug/DmitryAndDemid.Launcher.csproj.AssemblyReference.cache
+/home/iwuwka/Documents/DmitryAndDemid/Launcher/obj/Debug/DmitryAndDemid.Launcher.GeneratedMSBuildEditorConfig.editorconfig
+/home/iwuwka/Documents/DmitryAndDemid/Launcher/obj/Debug/DmitryAndDemid.Launcher.AssemblyInfoInputs.cache
+/home/iwuwka/Documents/DmitryAndDemid/Launcher/obj/Debug/DmitryAndDemid.Launcher.AssemblyInfo.cs
+/home/iwuwka/Documents/DmitryAndDemid/Launcher/obj/Debug/DmitryAndDemid.Launcher.csproj.CoreCompileInputs.cache
+/home/iwuwka/Documents/DmitryAndDemid/Launcher/obj/Debug/DmitryAndDemid.Launcher.sourcelink.json
+/home/iwuwka/Documents/DmitryAndDemid/Launcher/obj/Debug/DmitryAn.F8F3108F.Up2Date
+/home/iwuwka/Documents/DmitryAndDemid/Launcher/obj/Debug/DmitryAndDemid.Launcher.genruntimeconfig.cache
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/custom
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/custom.deps.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/custom.runtimeconfig.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/custom.dll
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/custom.pdb
+/home/iwuwka/Documents/DmitryAndDemid/Launcher/obj/Debug/custom.dll
+/home/iwuwka/Documents/DmitryAndDemid/Launcher/obj/Debug/refint/custom.dll
+/home/iwuwka/Documents/DmitryAndDemid/Launcher/obj/Debug/custom.pdb
+/home/iwuwka/Documents/DmitryAndDemid/Launcher/obj/Debug/ref/custom.dll

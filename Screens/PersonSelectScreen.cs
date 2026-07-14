@@ -1,3 +1,4 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -5,8 +6,7 @@ using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Utils;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Screens;
 
@@ -21,8 +21,8 @@ public class PersonSelectScreen : MenuScreen
         HorizontalDirectionNavigation = true;
         VerticalDirectionNavigation = false;
         GameType = gameType;
-        ArtDestination = Helper.Scale(new Rectangle(40, 80, 200, 400), Runtime.CurrentRuntime.Scale);
-        DescriptionDestination = Helper.Scale(new Rectangle(320, 100, 280, 200), Runtime.CurrentRuntime.Scale);
+        ArtDestination = Helper.Scale(new Rect(40, 80, 200, 400), Runtime.CurrentRuntime.Scale);
+        DescriptionDestination = Helper.Scale(new Rect(320, 100, 280, 200), Runtime.CurrentRuntime.Scale);
         ArtShift = (float)(Runtime.CurrentRuntime.Scale * 40f);
         DescriptionShift = (float)(Runtime.CurrentRuntime.Scale * 30f);
         SetTitle(Runtime.CurrentRuntime.Textures["hero_select.png"]);
@@ -30,23 +30,23 @@ public class PersonSelectScreen : MenuScreen
             SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
     }
 
-    private static Rectangle RectangleSelectionSource = new Rectangle(0, 0, 200, 200);
-    private static Rectangle ArtSource = new Rectangle(0, 0, 800, 1600);
-    Rectangle ArtDestination;
-    Rectangle DescriptionDestination;
+    private static Rect RectangleSelectionSource = new Rect(0, 0, 200, 200);
+    private static Rect ArtSource = new Rect(0, 0, 800, 1600);
+    Rect ArtDestination;
+    Rect DescriptionDestination;
     private float ArtShift;
     private float DescriptionShift;
     
-    private Texture2D[] ArtTextures;
-    private Texture2D[] DescriptionTextures;
+    private TextureHandle[] ArtTextures;
+    private TextureHandle[] DescriptionTextures;
     
     string[] Files;
 
     public override void CreateMenu()
     {
         Files = Directory.GetFiles("Assets/Data/PlayablePersons/", "*.json");
-        ArtTextures = new Texture2D[Files.Length];
-        DescriptionTextures = new Texture2D[Files.Length];
+        ArtTextures = new TextureHandle[Files.Length];
+        DescriptionTextures = new TextureHandle[Files.Length];
         int i = 0;
         foreach (var x in Files)
         {
@@ -61,7 +61,7 @@ public class PersonSelectScreen : MenuScreen
     public override void Render()
     {
         DrawBackground();
-        float appear = (float)Helper.ComputeObjectTime(Raylib.GetTime(), TimeAppear, .5f, TimeDisappear, .5f);
+        float appear = (float)Helper.ComputeObjectTime(GetTime(), TimeAppear, .5f, TimeDisappear, .5f);
         float invertedAppearElastic = Helper.EaseInOutElasticF(1 - appear);
         float index = (float)ComputeAnimationIndexLoop();
         for(int j = 0; j < MenuItems.Count; j++)
@@ -73,23 +73,23 @@ public class PersonSelectScreen : MenuScreen
                 RectangleSelectionSource, 
                 DescriptionDestination with
                 {
-                    X = Raymath.Lerp(DescriptionDestination.X + position * ArtShift, (Runtime.CurrentRuntime.Width+DescriptionDestination.Width) / 2, invertedAppearElastic),
-                    Width = Raymath.Lerp(DescriptionDestination.Width, 0,invertedAppearElastic)
+                    X = MathUtil.Lerp(DescriptionDestination.X + position * ArtShift, (Runtime.CurrentRuntime.Width+DescriptionDestination.Width) / 2, invertedAppearElastic),
+                    Width = MathUtil.Lerp(DescriptionDestination.Width, 0,invertedAppearElastic)
                 }, 
                 Vector2.Zero, 
                 (1-transparency) * 10f, 
-                Color.White with {A = Helper.TimeToTransparency(appear * transparency)});
+                Rgba.White with {A = Helper.TimeToTransparency(appear * transparency)});
             DrawTexturePro(
                 ArtTextures[j], 
                 ArtSource, 
                 ArtDestination with
                 {
-                    X = Raymath.Lerp(ArtDestination.X + position * ArtShift, (Runtime.CurrentRuntime.Width-ArtDestination.Width) / 2, invertedAppearElastic),
-                    Width = Raymath.Lerp(ArtDestination.Width, 0,invertedAppearElastic)
+                    X = MathUtil.Lerp(ArtDestination.X + position * ArtShift, (Runtime.CurrentRuntime.Width-ArtDestination.Width) / 2, invertedAppearElastic),
+                    Width = MathUtil.Lerp(ArtDestination.Width, 0,invertedAppearElastic)
                 }, 
                 Vector2.Zero, 
                 0, 
-                Color.White with {A = Helper.TimeToTransparency(appear * transparency)});
+                Rgba.White with {A = Helper.TimeToTransparency(appear * transparency)});
         }
         DrawTitle();
     }
@@ -98,6 +98,18 @@ public class PersonSelectScreen : MenuScreen
     {
         TimeDisappear = (float)(0.5 + GetTime());
         base.Exiting();
+    }
+
+    /// <summary>
+    /// Fade the art and description out when another screen (spell practice, practice, gameplay) opens on top
+    /// of us. Without this only the title faded — ScreenWithTitle handles that — and the character art stayed
+    /// at full opacity behind the screen above. Activated() on the way back resets TimeDisappear, so escaping
+    /// back here fades it in again.
+    /// </summary>
+    public override void Deactivated()
+    {
+        TimeDisappear = (float)GetTime() + DisappearingTime;
+        base.Deactivated();
     }
 
     void OpenNext()

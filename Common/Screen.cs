@@ -1,6 +1,7 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using System.Numerics;
 using DmitryAndDemid.Utils;
-using Raylib_cs;
 
 namespace DmitryAndDemid.Common;
 
@@ -44,7 +45,7 @@ public abstract class Screen : IDisposable
 
     public virtual void Activated()
     {
-        TimeAppear = (float)Raylib.GetTime();
+        TimeAppear = (float)GetTime();
         TimeDisappear = 99999999999f;
     }
 
@@ -78,11 +79,11 @@ public abstract class Screen : IDisposable
     public float TimeAppear = 0f;
     public float TimeDisappear = 99999999f;
 
-    Texture2D Background;
-    Rectangle BGRectSource;
-    Rectangle BGRectDest;
+    TextureHandle Background;
+    Rect BGRectSource;
+    Rect BGRectDest;
 
-    public void SetBackground(Texture2D bg)
+    public void SetBackground(TextureHandle bg)
     {
         BGRectSource = Helper.GetFullSource(bg);
         BGRectDest = Helper.GetFullscreenSource();
@@ -91,10 +92,10 @@ public abstract class Screen : IDisposable
 
     public void DrawBackground()
     {
-        Raylib.DrawTexturePro(Background, BGRectSource, BGRectDest, Vector2.Zero, 0,
-            Color.White with
+        DrawTexturePro(Background, BGRectSource, BGRectDest, Vector2.Zero, 0,
+            Rgba.White with
             {
-                A = (byte)(255 * Helper.ComputeObjectTime(Raylib.GetTime(), TimeAppear, .5f, TimeDisappear, .5f))
+                A = (byte)(255 * Helper.ComputeObjectTime(GetTime(), TimeAppear, .5f, TimeDisappear, .5f))
             });
     }
 }

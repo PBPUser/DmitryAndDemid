@@ -1,11 +1,9 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Utils;
 using Gdk;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
-using Color = Raylib_cs.Color;
-using Rectangle = Raylib_cs.Rectangle;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Screens;
 
@@ -19,8 +17,8 @@ public class TrophyScreen : ScreenWithTitle
         Load();
     }
 
-    private RenderTexture2D[] Menu;
-    private RenderTexture2D[] Description;
+    private TargetHandle[] Menu;
+    private TargetHandle[] Description;
     private float ItemSwitchTime = 0;
     private float ItemTriggerTime = 0;
     public bool IsItemTriggered = false;
@@ -33,8 +31,8 @@ public class TrophyScreen : ScreenWithTitle
     {
         string[] files = Directory.GetFiles("Assets/Data/Trophy",
             "*.json");
-        Menu = new RenderTexture2D[files.Length];
-        Description = new RenderTexture2D[files.Length];
+        Menu = new TargetHandle[files.Length];
+        Description = new TargetHandle[files.Length];
         for (int i = 0; i < files.Length; i++)
         {
             Menu[i] = Helper.DrawTextScaled($"{i:00}",
@@ -51,7 +49,7 @@ public class TrophyScreen : ScreenWithTitle
         DrawBackground();
         DrawTitle();
         int row = 0, start = 0;
-        Rectangle rc;
+        Rect rc;
         float time = (float)GetTime();
         for (int i = 0; i < Menu.Length; i++)
         {
@@ -64,7 +62,7 @@ public class TrophyScreen : ScreenWithTitle
             DrawTexturePro(Menu[i].Texture,
                 rc,
                 rc with {X = start + (i % Columns) * Menu[0].Texture.Width, Y = (YFrom) + (Runtime.CurrentRuntime.Height * (1-Helper.EaseInOutElasticF((float)Helper.ComputeObjectTime(time, TimeAppear + (.02f * i), 1, TimeDisappear + (.02f * i), 1)))) + (row) * Menu[0].Texture.Height },
-                Vector2.Zero, 0, Index == i ? Color.Yellow : Color.White
+                Vector2.Zero, 0, Index == i ? Rgba.Yellow : Rgba.White
                 );
         }
         base.Render();
@@ -83,13 +81,13 @@ public class TrophyScreen : ScreenWithTitle
         if (time - ItemSwitchTime < MenuScreen.MenuSwitchCooldown)
             return;
         int indexDif = 0;
-        if (IsKeyDown(KeyboardKey.Down))
+        if (IsKeyDown(KeyCode.Down))
             indexDif += Columns;
-        if (IsKeyDown(KeyboardKey.Up))
+        if (IsKeyDown(KeyCode.Up))
             indexDif -= Columns;
-        if (IsKeyDown(KeyboardKey.Left))
+        if (IsKeyDown(KeyCode.Left))
             indexDif -= 1;
-        if (IsKeyDown(KeyboardKey.Right))
+        if (IsKeyDown(KeyCode.Right))
             indexDif += 1;
         if (Math.Abs(indexDif) > 0)
         {
@@ -99,7 +97,7 @@ public class TrophyScreen : ScreenWithTitle
         }
         if (time - ItemSwitchTime < MenuScreen.MenuActivateCooldown)
             return;
-        if (IsKeyDown(KeyboardKey.Enter) || IsKeyDown(KeyboardKey.Z))
+        if (IsKeyDown(KeyCode.Enter) || IsKeyDown(KeyCode.Z))
         {
             IsItemTriggered = true;
             Exiting();
@@ -109,7 +107,7 @@ public class TrophyScreen : ScreenWithTitle
             ItemTriggerTime = time;
             Action = () => Runtime.CurrentRuntime.RemoveScreen(this);
         }
-        if (IsKeyDown(KeyboardKey.Escape) || IsKeyDown(KeyboardKey.X))
+        if (IsKeyDown(KeyCode.Escape) || IsKeyDown(KeyCode.X))
         {
             IsItemTriggered = true;
             Exiting();

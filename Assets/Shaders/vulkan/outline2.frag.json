@@ -1,0 +1,32 @@
+{
+ "blockSize": 48,
+ "blockBinding": 1,
+ "uniforms": [
+  {
+   "name": "border_width",
+   "offset": 16,
+   "type": "float"
+  },
+  {
+   "name": "res",
+   "offset": 24,
+   "type": "vec2"
+  },
+  {
+   "name": "fres",
+   "offset": 32,
+   "type": "vec2"
+  },
+  {
+   "name": "pos",
+   "offset": 40,
+   "type": "vec2"
+  }
+ ],
+ "samplers": [
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
+}

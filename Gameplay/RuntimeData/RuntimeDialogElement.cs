@@ -1,14 +1,15 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using DmitryAndDemid.Utils;
 using DmitryAndDemid.Data;
-using Raylib_cs;
 
 namespace DmitryAndDemid.Gameplay;
 
 public class RuntimeDialogElement
 {
-    public RenderTexture2D DialogTexture;
+    public TargetHandle DialogTexture;
     public bool Skipable;
-    public Texture2D Art;
+    public TextureHandle Art;
     public bool AntogonistSpeak;
     public int ArtIndex = 0;
     public string ID;
@@ -26,6 +27,6 @@ public class RuntimeDialogElement
 
     public void Unload()
     {
-        Raylib.UnloadRenderTexture(DialogTexture);
+        UnloadRenderTexture(DialogTexture);
     }
 }

@@ -1,9 +1,10 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Utils;
 using Gtk;
-using Raylib_cs;
 
 namespace DmitryAndDemid.Screens;
 
@@ -15,13 +16,13 @@ public class IngameSaveReplayScreen : Screen
     public IngameSaveReplayScreen(PlayerController playerController, GameplayScreen screen)
     {
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
-        MenuItems = new RenderTexture2D[20];
+        MenuItems = new TargetHandle[20];
         FontSize = (int)(16 * Runtime.CurrentRuntime.ScaleF);
         Spacing = (int)(2 * Runtime.CurrentRuntime.ScaleF);
         X = (int)(32 * Runtime.CurrentRuntime.ScaleF);
         Y = (int)(32 * Runtime.CurrentRuntime.ScaleF);
         var font = Runtime.CurrentRuntime.Fonts["googlesans"];
-        LineHeight = (int)(Spacing + Raylib.MeasureTextEx(font, "a", FontSize, Spacing).Y);
+        LineHeight = (int)(Spacing + MeasureTextEx(font, "a", FontSize, Spacing).Y);
         Controller = playerController;
         GameplayScreen = screen;
     }
@@ -32,7 +33,7 @@ public class IngameSaveReplayScreen : Screen
     private int LetterIndex = 0;
     private int LineHeight;
     private int X, Y;
-    public RenderTexture2D[] MenuItems;
+    public TargetHandle[] MenuItems;
     private bool InKeyboardMode = false;
     private double LastInputTime = 0;
     private const double InputDelay = 0.25f;
@@ -66,16 +67,16 @@ public class IngameSaveReplayScreen : Screen
     {
         base.Render();
         DrawBackground();
-        float state = (float)Helper.ComputeObjectTime((float)Raylib.GetTime(),
+        float state = (float)Helper.ComputeObjectTime((float)GetTime(),
                 KeyboardModeSwitchInTime, 0.5,
                 KeyboardModeSwitchOutTime, 0.5);
         if (InKeyboardMode)
-            Raylib.DrawTexture(MenuItems[Index].Texture, X, Y, Color.Yellow);
+            DrawTexture(MenuItems[Index].Texture, X, Y, Rgba.Yellow);
         else
             for (int i = 0; i < 20; i++)
             {
-                Raylib.DrawTexture(MenuItems[i].Texture, X,
-                    Y + (i*LineHeight), i == Index ? Color.Yellow : Color.White);
+                DrawTexture(MenuItems[i].Texture, X,
+                    Y + (i*LineHeight), i == Index ? Rgba.Yellow : Rgba.White);
             }
         Keyboard.DrawKeyboard((Runtime.CurrentRuntime.Width - Keyboard.LineWidth)/2, (int)(Runtime.CurrentRuntime.Height - (Keyboard.KeyboardHeight*state)));
     }
@@ -96,7 +97,7 @@ public class IngameSaveReplayScreen : Screen
     {
         foreach (var item in MenuItems)
         {
-            Raylib.UnloadRenderTexture(item);
+            UnloadRenderTexture(item);
         }
         base.Unload();
     }
@@ -111,13 +112,13 @@ public class IngameSaveReplayScreen : Screen
             Keyboard.HandleInput();
             return;
         }
-        if (Raylib.GetTime() - LastInputTime < InputDelay)
+        if (GetTime() - LastInputTime < InputDelay)
             return;
-        if (Raylib.IsKeyDown(KeyboardKey.Z) || Raylib.IsKeyDown(KeyboardKey.Enter))
+        if (IsKeyDown(KeyCode.Z) || IsKeyDown(KeyCode.Enter))
         {
             var font = Runtime.CurrentRuntime.Fonts["googlesans"];
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["button"]);
-            KeyboardModeSwitchInTime = (float)Raylib.GetTime();
+            KeyboardModeSwitchInTime = (float)GetTime();
             KeyboardModeSwitchOutTime = float.MaxValue;
             InKeyboardMode = true;
             LetterIndex = 0;
@@ -130,15 +131,15 @@ public class IngameSaveReplayScreen : Screen
             rJson.Difficulty = GameplayScreen.GameBox.Difficulty;
             rJson.Stage = "All";
             rJson.Slowdown = "0.0";
-            LastInputTime = Raylib.GetTime();
+            LastInputTime = GetTime();
             Keyboard.Reset();
             Keyboard.SetKeyboardCallback(a =>
             {
                 if (a == '\n')
                 {
                     InKeyboardMode = false;
-                    LastInputTime = Raylib.GetTime();
-                    KeyboardModeSwitchOutTime = (float)Raylib.GetTime()+0.5f;
+                    LastInputTime = GetTime();
+                    KeyboardModeSwitchOutTime = (float)GetTime()+0.5f;
                     if (ExitAfterSave)
                     {
                         Runtime.CurrentRuntime.RemoveScreen(this); 
@@ -158,11 +159,11 @@ public class IngameSaveReplayScreen : Screen
                 {
                     Helper.PlaySound(Runtime.CurrentRuntime.Sounds["esc"]);
                     InKeyboardMode = false;
-                    LastInputTime = Raylib.GetTime();
+                    LastInputTime = GetTime();
                     MenuItems[Index] = Helper.DrawText(ReadFile(Index), FontSize, 0, 0, 
                         Spacing, font, "gradient", 
                         Runtime.CurrentRuntime.ScaleF);
-                    KeyboardModeSwitchOutTime = (float)Raylib.GetTime()+0.5f;
+                    KeyboardModeSwitchOutTime = (float)GetTime()+0.5f;
                     return;
                 }
 
@@ -171,25 +172,25 @@ public class IngameSaveReplayScreen : Screen
                     Current = $"{Current.Substring(0, LetterIndex)}{a}".PadRight(8, '-');
                     LetterIndex++;
                 }
-                Raylib.UnloadRenderTexture(MenuItems[Index]);
+                UnloadRenderTexture(MenuItems[Index]);
                 MenuItems[Index] = Helper.DrawText(CurrentFormat.Replace("%s", Current), FontSize, 0, 0, 
                     Spacing, font, "gradient", 
                     Runtime.CurrentRuntime.ScaleF);
             });
         }
-        else if (Raylib.IsKeyDown(KeyboardKey.Up))
+        else if (IsKeyDown(KeyCode.Up))
         {
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
             Index = (Index + 19) % 20;
-            LastInputTime = Raylib.GetTime();
+            LastInputTime = GetTime();
         }
-        else if (Raylib.IsKeyDown(KeyboardKey.Down))
+        else if (IsKeyDown(KeyCode.Down))
         {
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
             Index = (Index + 1) % 20;
-            LastInputTime = Raylib.GetTime();
+            LastInputTime = GetTime();
         }
-        else if (Raylib.IsKeyDown(KeyboardKey.Escape))
+        else if (IsKeyDown(KeyCode.Escape))
         {
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["esc"]);
             Runtime.CurrentRuntime.RemoveScreen(this);

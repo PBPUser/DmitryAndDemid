@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>custom</AssemblyName>
+    <RootNamespace>DmitryAndDemid.Launcher</RootNamespace>
+
+    <!-- Build straight into the game's output folder: the configurator ships beside the game and edits the
+         config.json that sits there. Shared dependencies (GtkSharp and friends) are the same package
+         versions the game uses, so they land on identical files. -->
+    <OutputPath>..\bin\$(Configuration)\net10.0\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- GTK only. The configurator deliberately does NOT reference Raylib/Silk/Vulkan: it edits a JSON file,
+         and has no business loading a graphics stack to do it. -->
+    <PackageReference Include="GtkSharp" Version="3.24.24.95" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Shared with the game by LINKING its sources, so the two can never disagree about the config schema
+         or about which renderers exist. Each of these is dependency-free by design. -->
+    <Compile Include="..\Configuration.cs" Link="Shared\Configuration.cs" />
+    <Compile Include="..\Data\FullScreenType.cs" Link="Shared\FullScreenType.cs" />
+    <Compile Include="..\Rendering\InputCodes.cs" Link="Shared\InputCodes.cs" />
+    <Compile Include="..\Rendering\RendererRegistry.cs" Link="Shared\RendererRegistry.cs" />
+  </ItemGroup>
+
+</Project>

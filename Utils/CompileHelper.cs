@@ -1,3 +1,5 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using System.CodeDom.Compiler;
 using System.Diagnostics;
 using Microsoft.CSharp;

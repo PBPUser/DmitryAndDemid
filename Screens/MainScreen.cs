@@ -1,12 +1,11 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Utils;
 using GLib;
 using ImGuiNET;
-using Raylib_cs;
-using rlImGui_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Screens;
 
@@ -15,9 +14,9 @@ public class MainScreen : MenuScreen
 
     int TitleIndex = 0;
     int selectedIndex = 0;
-    Texture2D SelectedPerson;
+    TextureHandle SelectedPerson;
 
-    Rectangle
+    Rect
         RCPersonSource,
         RCPersonTarget1,
         RCPersonTarget2;
@@ -35,8 +34,8 @@ public class MainScreen : MenuScreen
 
         Size = (int)(Runtime.CurrentRuntime.Scale * 32);
         AppearTime = GetTime();
-        LogoTargetLeft = new Rectangle(0, 0, (float)(130 * Runtime.CurrentRuntime.Scale), (float)(95 * Runtime.CurrentRuntime.Scale));
-        LogoTargetRight = new Rectangle(Runtime.CurrentRuntime.Width - (float)(135 * Runtime.CurrentRuntime.Scale), 0, (float)(135 * Runtime.CurrentRuntime.Scale), (float)(52 * Runtime.CurrentRuntime.Scale));
+        LogoTargetLeft = new Rect(0, 0, (float)(130 * Runtime.CurrentRuntime.Scale), (float)(95 * Runtime.CurrentRuntime.Scale));
+        LogoTargetRight = new Rect(Runtime.CurrentRuntime.Width - (float)(135 * Runtime.CurrentRuntime.Scale), 0, (float)(135 * Runtime.CurrentRuntime.Scale), (float)(52 * Runtime.CurrentRuntime.Scale));
 
         Configuration.Config.FastLoading = true;
         Configuration.Config.Save();
@@ -48,15 +47,15 @@ public class MainScreen : MenuScreen
         int titlePersonY = (int)(120 * Runtime.CurrentRuntime.Scale);
         int titlePersonWidth = (int)(360 * SelectedPerson.Height / SelectedPerson.Height * Runtime.CurrentRuntime.Scale);
 
-        RCPersonTarget1 = new Rectangle(Runtime.CurrentRuntime.Width, titlePersonY, titlePersonWidth, titlePersonHeight);
-        RCPersonTarget2 = new Rectangle(Runtime.CurrentRuntime.Width - titlePersonWidth, titlePersonY, titlePersonWidth, titlePersonHeight);
-        RCPersonSource = new Rectangle(0, 0, SelectedPerson.Width, SelectedPerson.Height);
+        RCPersonTarget1 = new Rect(Runtime.CurrentRuntime.Width, titlePersonY, titlePersonWidth, titlePersonHeight);
+        RCPersonTarget2 = new Rect(Runtime.CurrentRuntime.Width - titlePersonWidth, titlePersonY, titlePersonWidth, titlePersonHeight);
+        RCPersonSource = new Rect(0, 0, SelectedPerson.Width, SelectedPerson.Height);
 
         int logoCenterWidth = (int)(250 * Runtime.CurrentRuntime.Scale);
         int logoCenterHeight = (int)(100 * Runtime.CurrentRuntime.Scale);
         int logoCenterX = (int)((Runtime.CurrentRuntime.Width - logoCenterWidth) * 0.45f);
-        LogoTargetCenter1 = new Rectangle(logoCenterX, -logoCenterHeight, logoCenterWidth, logoCenterHeight * 0.7f);
-        LogoTargetCenter2 = new Rectangle(logoCenterX, (int)(Runtime.CurrentRuntime.Scale * 32), logoCenterWidth, logoCenterHeight);
+        LogoTargetCenter1 = new Rect(logoCenterX, -logoCenterHeight, logoCenterWidth, logoCenterHeight * 0.7f);
+        LogoTargetCenter2 = new Rect(logoCenterX, (int)(Runtime.CurrentRuntime.Scale * 32), logoCenterWidth, logoCenterHeight);
         CurrentY = (int)(160 * Runtime.CurrentRuntime.Scale);
         MusicRoom = new MusicRoomScreen();
         SelectedItemOffset = new Vector2(8, 0) * Runtime.CurrentRuntime.ScaleF;
@@ -68,16 +67,16 @@ public class MainScreen : MenuScreen
 #endif
     private MusicRoomScreen MusicRoom;
     private TrophyScreen TrophyScreen;
-    static Color DarkRed = new Color(0.7f, 0, 0, 1);
-    static Rectangle LogoSourceLeft = new Rectangle(0, 0, 260, 190);
-    static Rectangle LogoSourceRight = new Rectangle(810, 0, 270, 105);
-    static Rectangle LogoSourceCenter = new Rectangle(0, 0, 1000, 400);
+    static Rgba DarkRed = new Rgba(178, 0, 0, 255); // was Color(0.7f,0,0,1) — Raylib's float ctor is 0..1
+    static Rect LogoSourceLeft = new Rect(0, 0, 260, 190);
+    static Rect LogoSourceRight = new Rect(810, 0, 270, 105);
+    static Rect LogoSourceCenter = new Rect(0, 0, 1000, 400);
     public bool IsOnTop = false;
 
-    Rectangle LogoTargetLeft;
-    Rectangle LogoTargetRight;
-    Rectangle LogoTargetCenter1;
-    Rectangle LogoTargetCenter2;
+    Rect LogoTargetLeft;
+    Rect LogoTargetRight;
+    Rect LogoTargetCenter1;
+    Rect LogoTargetCenter2;
 
     int Size;
     double AppearTime;
@@ -111,14 +110,14 @@ public class MainScreen : MenuScreen
         ;
         float time = (float)GetTime();
 #if DEBUG
-        var bg = Color.White;
+        var bg = Rgba.White;
 #else
-        var bg = Helper.Mix(Color.Black, Color.White, (float)appear2);
+        var bg = Helper.Mix(Rgba.Black, Rgba.White, (float)appear2);
 #endif
         DrawRectangle(0, 0, Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height, bg);
-        var color1 = Helper.Mix(Color.Black, Color.Red, (float)appear2);
-        var color2 = Helper.Mix(Color.Black, DarkRed, (float)appear2);
-        DrawTexturePro(Runtime.CurrentRuntime.Textures["game_logo.png"], LogoSourceCenter, Helper.Mix(LogoTargetCenter1, LogoTargetCenter2, Helper.EaseInOutElasticF(appear3)), Vector2.Zero, 0f, Color.White);
+        var color1 = Helper.Mix(Rgba.Black, Rgba.Red, (float)appear2);
+        var color2 = Helper.Mix(Rgba.Black, DarkRed, (float)appear2);
+        DrawTexturePro(Runtime.CurrentRuntime.Textures["game_logo.png"], LogoSourceCenter, Helper.Mix(LogoTargetCenter1, LogoTargetCenter2, Helper.EaseInOutElasticF(appear3)), Vector2.Zero, 0f, Rgba.White);
         CurrentX = (int)((16 - (Helper.Pow2F(1 - appear5) * 384)) * Runtime.CurrentRuntime.Scale);
 #if DEBUG
         CurrentX = IsOnTop ? 0 : -10000;
@@ -126,14 +125,14 @@ public class MainScreen : MenuScreen
         DrawMenu();
         Helper.DrawWave(color1, MathF.Sin(time) + 1.5f, -0.7f - Helper.EaseInOutElasticF(appear1) * 1.5f, 1.5f, 1.5f, Runtime.CurrentRuntime.FullScreenRect);
         Helper.DrawWave(color2, MathF.Sin(time + 0.1f) + 1.5f, -0.7f - Helper.EaseInOutElasticF(appear3) * 1.5f, 1.5f, 1.5f, Runtime.CurrentRuntime.FullScreenRect);
-        DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceLeft, LogoTargetLeft, Vector2.Zero, 0f, Color.White with { A = Helper.TimeToTransparency(appear25) });
-        DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceRight, LogoTargetRight, Vector2.Zero, 0f, Color.White with { A = Helper.TimeToTransparency(appear25) });
-        DrawTexturePro(SelectedPerson, RCPersonSource, Helper.Mix(RCPersonTarget1, RCPersonTarget2, appear4), Vector2.Zero, 0f, Color.White);
+        DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceLeft, LogoTargetLeft, Vector2.Zero, 0f, Rgba.White with { A = Helper.TimeToTransparency(appear25) });
+        DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceRight, LogoTargetRight, Vector2.Zero, 0f, Rgba.White with { A = Helper.TimeToTransparency(appear25) });
+        DrawTexturePro(SelectedPerson, RCPersonSource, Helper.Mix(RCPersonTarget1, RCPersonTarget2, appear4), Vector2.Zero, 0f, Rgba.White);
         var source = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["Version"]);
         DrawTexturePro(
             Runtime.CurrentRuntime.Textures["Copyright"],
             source,
-            new Rectangle(
+            new Rect(
                 .5f * (Runtime.CurrentRuntime.Width - source.Width),
                 Runtime.CurrentRuntime.Height - source.Height * appear3,
                 source.Width,
@@ -141,12 +140,12 @@ public class MainScreen : MenuScreen
             ),
             Vector2.Zero,
             0,
-            Color.White with {A = Helper.TimeToTransparency(appear3)}
+            Rgba.White with {A = Helper.TimeToTransparency(appear3)}
         );
         DrawTexturePro(
             Runtime.CurrentRuntime.Textures["Version"],
              source,
-            new Rectangle(
+            new Rect(
                 Runtime.CurrentRuntime.Width - source.Width,
                 Runtime.CurrentRuntime.Height - source.Height - (MathF.Sin(time * 24) * 13 + 32) * Runtime.CurrentRuntime.ScaleF + 64 * Runtime.CurrentRuntime.ScaleF * (1-appear3),
                 source.Width,
@@ -154,7 +153,7 @@ public class MainScreen : MenuScreen
                 ),
             Vector2.Zero,
             MathF.Sin(time * 16) * 4 ,
-            Color.White with {A = Helper.TimeToTransparency(appear3)}
+            Rgba.White with {A = Helper.TimeToTransparency(appear3)}
             );
     }
     
@@ -165,12 +164,12 @@ public class MainScreen : MenuScreen
         var hp = Helper.GetDirection(new Vector2(LineX, LineY), GetMousePosition());
         var angle = Helper.FindAngle(new Vector2(LineX, LineY), GetMousePosition());
         var angleDirection = Helper.GetDirection(angle);
-        DrawLine(LineX, LineY, LineX+(int)(hp.X * 500), LineY+(int)(hp.Y * 500), Color.Blue);
-        DrawTextureEx(Runtime.CurrentRuntime.Textures["pizza.png"], new Vector2(LineX, LineY), (float)angle * 180 / MathF.PI, 1, Color.White);
+        DrawLine(LineX, LineY, LineX+(int)(hp.X * 500), LineY+(int)(hp.Y * 500), Rgba.Blue);
+        DrawTextureEx(Runtime.CurrentRuntime.Textures["pizza.png"], new Vector2(LineX, LineY), (float)angle * 180 / MathF.PI, 1, Rgba.White);
         ImGui.TextUnformatted($"Direction: {hp}");ImGui.TextUnformatted($"Direction: {hp}");
         ImGui.TextUnformatted($"Coords: {hp*500}");
         for (int i = 0; i < Runtime.CurrentRuntime.GamepadCount; i++)
-            ImGui.TextUnformatted($"Gamepad: {GetGamepadName_(i)} {IsGamepadButtonDown(i, GamepadButton.LeftFaceUp)} {IsGamepadButtonDown(i, GamepadButton.RightFaceLeft)}");
+            ImGui.TextUnformatted($"Gamepad {i}: {IsGamepadButtonDown(i, PadButton.LeftFaceUp)} {IsGamepadButtonDown(i, PadButton.RightFaceLeft)}");
         ImGui.ShowDemoWindow();
         ImGui.End();
     }
@@ -202,7 +201,7 @@ public class MainScreen : MenuScreen
     public override void PreRender(double delta)
     {
         #if DEBUG
-        if (IsMouseButtonDown(MouseButton.Left))
+        if (IsMouseButtonDown(MouseBtn.Left))
         {
             LineX = GetMouseX();
             LineY = GetMouseY();

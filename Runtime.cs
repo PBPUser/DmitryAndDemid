@@ -2,16 +2,15 @@ using System.Net.Mime;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 using static DmitryAndDemid.Configuration;
 using Gtk;
-using Raylib_cs;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
+using DmitryAndDemid.Rendering;
 using DmitryAndDemid.Screens;
 using DmitryAndDemid.Utils;
 using ImGuiNET;
-using rlImGui_cs;
 
 namespace DmitryAndDemid;
 
@@ -25,8 +24,8 @@ public class Runtime
     }
 
     public static string BaseVertexShader = File.ReadAllText("Assets/Shaders/base.vs");
-    public static Color TransparentWhite = Color.White with { A = 0 };
-    public static Color TransparentBlack = Color.Black with { A = 0 };
+    public static Rgba TransparentWhite = Rgba.White with { A = 0 };
+    public static Rgba TransparentBlack = Rgba.Black with { A = 0 };
     public string VersionString = "0.01a";
     public double Time;
     public int Width;
@@ -35,20 +34,40 @@ public class Runtime
     public float MusicVolume = 1.0f;
     public bool DisableClose = false;
     bool ADPTriggered = false;
-    public Rectangle FullScreenRect;
-    private Rectangle CurrentScoreSource;
-    Rectangle CurrentScoreTarget;
+    public Rect FullScreenRect;
+    private Rect CurrentScoreSource;
+    Rect CurrentScoreTarget;
     public double Scale = 1;
     public float ScaleF = 1;
-    public Dictionary<string, Shader> Shaders = new();
-    public Dictionary<string, Texture2D> Textures = new();
-    public Dictionary<string, Sound> Sounds = new();
-    public Dictionary<string, Font> Fonts = new();
+    public Dictionary<string, ShaderHandle> Shaders = new();
+    public Dictionary<string, TextureHandle> Textures = new();
+    public Dictionary<string, SoundHandle> Sounds = new();
+    public Dictionary<string, FontHandle> Fonts = new();
     public Dictionary<string, BulletRenderingInfo> BulletVisualPresets = new();
     public int GamepadCount = 0;
 
+    /// <summary>
+    /// The game always renders into this at its internal 4:3 resolution (Width x Height); the frame is then
+    /// blitted into the real window by <see cref="Present"/>. Without this indirection the fixed
+    /// Scale = Width/640 layout would run off the bottom of any non-4:3 monitor in fullscreen.
+    /// </summary>
+    TargetHandle Backbuffer;
+
+    /// <summary>Where the backbuffer lands inside the window: the whole window, or a letterboxed sub-rect.</summary>
+    public Rect PresentRect { get; private set; }
+
+    public FullScreenType WindowMode = FullScreenType.Window;
+
     public async Task Start()
     {
+        // Pick the renderer: --renderer=<name> on the command line wins, else config.json, else Raylib.
+        string rendererName = Config.Renderer;
+        foreach (string arg in Environment.GetCommandLineArgs())
+            if (arg.StartsWith("--renderer=", StringComparison.OrdinalIgnoreCase))
+                rendererName = arg["--renderer=".Length..];
+        Engine.Use(Engine.Create(rendererName));
+        Console.WriteLine($"Renderer: {Engine.BackendName}");
+
         var strs = Config.Resolution.Split("x");
         bool isErrored = false;
         string error = "";
@@ -83,21 +102,29 @@ public class Runtime
         Scale = width / 640d;
         ScaleF = (float)Scale;
         var size = 100 * ScaleF;
-        InitWindow(width, height, "AAG2 ~ UcTopu9I o6 DmuTpuu u3 Dporu4uHa & DeMuDa CepreeBu4a");
+        Engine.Platform.OpenWindow(width, height,
+            $"AAG2 ~ UcTopu9I o6 DmuTpuu u3 Dporu4uHa & DeMuDa CepreeBu4a [{Engine.BackendName}]");
+        SetWindowMode(Config.FullScreenType);
+        Backbuffer = LoadRenderTexture(Width, Height);
         var sugarTexture = LoadTexture("Assets/Textures/sugar_logo.png");
-        rlImGui.Setup(true);
+        if (Engine.Backend.SupportsDebugUi)
+            Engine.Backend.SetupDebugUi();
         BeginDrawing();
-        ClearBackground(Color.Black);
+        ClearBackground(Rgba.Black);
+        BeginTextureMode(Backbuffer);
+        ClearBackground(Rgba.Black);
         DrawTexturePro(sugarTexture,
-            new Rectangle(Vector2.Zero, 400, 400),
-            new Rectangle((Width - size) / 2, (Height - size) / 2, size, size), 
-            Vector2.Zero, 0, Color.White);
+            new Rect(Vector2.Zero, 400, 400),
+            new Rect((Width - size) / 2, (Height - size) / 2, size, size),
+            Vector2.Zero, 0, Rgba.White);
+        EndTextureMode();
+        Present();
         EndDrawing();
         UnloadTexture(sugarTexture);
         SetTargetFPS(Config.FrameCap);
         if (Config.UseVSYNC)
-            SetWindowState(ConfigFlags.VSyncHint);
-        SetExitKey(KeyboardKey.Null);
+            Engine.Platform.SetVSync(true);
+        Engine.Platform.DisableExitKey();
         Time = GetTime();
         double c = 0;
         ScreenLoading = new LoadingScreen();
@@ -110,7 +137,95 @@ public class Runtime
             Render();
             Time = c;
         }
-        CloseWindow();
+        Engine.Platform.CloseWindow();
+    }
+
+    /// <summary>
+    /// Switches presentation mode and persists it. Live-switchable: the internal resolution never changes,
+    /// only how the backbuffer is mapped onto the window, so nothing needs reloading.
+    /// </summary>
+    public void SetWindowMode(FullScreenType mode)
+    {
+        WindowMode = mode;
+        Engine.Platform.ApplyWindowMode(ToEngineMode(mode), Width, Height);
+        if (Config.FullScreenType != mode)
+        {
+            Config.FullScreenType = mode;
+            Config.Save();
+        }
+    }
+
+    static Rendering.WindowMode ToEngineMode(FullScreenType type) => type switch
+    {
+        FullScreenType.Borderless => Rendering.WindowMode.Borderless,
+        FullScreenType.BorderlessDotByDot => Rendering.WindowMode.BorderlessDotByDot,
+        FullScreenType.Exclusive => Rendering.WindowMode.Exclusive,
+        _ => Rendering.WindowMode.Windowed,
+    };
+
+    /// <summary>
+    /// Blits the backbuffer into the window. Recomputed every frame so that a mode switch, a monitor change
+    /// or a window resize is picked up without any extra bookkeeping.
+    /// </summary>
+    void Present()
+    {
+        int windowWidth = GetScreenWidth(), windowHeight = GetScreenHeight();
+        float x, y, w, h;
+
+        // Dot-by-dot means 1:1 pixels — no scaling at all, just centre it. Falls back to fitting if the
+        // chosen internal resolution is actually larger than the monitor.
+        bool dotByDot = WindowMode == FullScreenType.BorderlessDotByDot
+                        && Width <= windowWidth && Height <= windowHeight;
+        if (dotByDot)
+        {
+            w = Width;
+            h = Height;
+        }
+        else
+        {
+            // Fit while preserving the 4:3 aspect: pillarbox on a wider monitor, letterbox on a taller one.
+            float scale = MathF.Min(windowWidth / (float)Width, windowHeight / (float)Height);
+            w = Width * scale;
+            h = Height * scale;
+        }
+        x = (windowWidth - w) / 2f;
+        y = (windowHeight - h) / 2f;
+        PresentRect = new Rect(x, y, w, h);
+
+        // Point filtering when the mapping is 1:1 or an exact integer multiple, bilinear otherwise —
+        // otherwise a fractional scale makes the pixel art shimmer.
+        bool integerScale = MathF.Abs(w % Width) < 0.01f && MathF.Abs(h % Height) < 0.01f;
+        SetTextureFilter(Backbuffer.Texture,
+            dotByDot || integerScale ? FilterMode.Point : FilterMode.Bilinear);
+
+        // Blit as a straight RGB copy (src factor ONE, dst factor ZERO), deliberately ignoring the
+        // backbuffer's alpha channel.
+        //
+        // Raylib's default blend applies SRC_ALPHA/ONE_MINUS_SRC_ALPHA to the ALPHA channel as well as to
+        // RGB, so drawing a half-transparent pixel into an opaque target leaves alpha at 0.75, not 1
+        // (0.5*0.5 + 1*(1-0.5)). That never mattered while the game composited straight to the window,
+        // because a window's alpha channel is never sampled. The backbuffer's alpha IS sampled here, so
+        // without this the semi-transparent passes — spellcard effects above all — would punch holes in
+        // the frame and the gameplay would blend into the black behind it.
+        // The RGB is already correctly composited; only the alpha is junk, so we discard it.
+        BeginBlendMode(BlendMode.CopyRgb);
+        DrawTexturePro(
+            Backbuffer.Texture,
+            new Rect(0, Height, Width, -Height), // render targets are stored bottom-up
+            PresentRect,
+            Vector2.Zero, 0, Rgba.White);
+        EndBlendMode();
+    }
+
+
+    /// <summary>Maps a window-space point (e.g. the mouse) into the game's internal coordinate space.</summary>
+    public Vector2 WindowToGame(Vector2 windowPoint)
+    {
+        if (PresentRect.Width <= 0 || PresentRect.Height <= 0)
+            return windowPoint;
+        return new Vector2(
+            (windowPoint.X - PresentRect.X) * Width / PresentRect.Width,
+            (windowPoint.Y - PresentRect.Y) * Height / PresentRect.Height);
     }
 
     LoadingScreen ScreenLoading;
@@ -127,7 +242,8 @@ public class Runtime
     {
         try
         {
-            InitAudioDevice();
+            if (!Engine.Audio.Initialize())
+                throw new Exception("audio device unavailable");
         }
         catch (Exception ex)
         {
@@ -149,7 +265,7 @@ public class Runtime
             if (!ADPTriggered)
                 AddAction(() =>
                 {
-                    if (IsKeyDown(KeyboardKey.J))
+                    if (IsKeyDown(KeyCode.J))
                     {
                         ScreenLoading.SetADPText("Kpajjj AKTUBUPOBAHblJ noJl3OBaTeJlEM..", false);
                         ADPTriggered = true;
@@ -179,10 +295,10 @@ public class Runtime
         foreach (var x in Directory.GetFiles("Assets/Textures", "*.png"))
             Textures[Path.GetFileName(x)] = LoadTexture(x);
         Textures["MenuItemSelectionGradient1"] = Helper.RenderSelectionBackground(200, 200, 0);
-        Textures["MenuBackground"] = Helper.FillTextureWithColor(Color.Black with { A = 128 }, Width, Height).Texture;
+        Textures["MenuBackground"] = Helper.FillTextureWithColor(Rgba.Black with { A = 128 }, Width, Height).Texture;
         Textures["Copyright"] = Helper.DrawTextScaled(")(U,2026 Konu9lnpaBa Caxap Ko.", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
         Textures["Version"] = Helper.DrawTextScaled($"Beer {VersionString} (npo6Ha9l Bepcu9I)", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
-        Textures["384x448"] = Helper.FillTextureWithColor(Color.White, 384, 448).Texture;
+        Textures["384x448"] = Helper.FillTextureWithColor(Rgba.White, 384, 448).Texture;
         PrepareScoreTexture();
         Textures = Textures.OrderBy(x => x.Key).ToDictionary();
     }
@@ -197,19 +313,19 @@ public class Runtime
         float spacing = ScaleF * 4, fontSize = ScaleF * 64; 
         Vector2 measure = MeasureTextEx(Fonts["kodemono"], text, fontSize, spacing);
         float letterWidth = measure.X / text.Length;
-        RenderTexture2D
+        TargetHandle
             temp1 = LoadRenderTexture((int)measure.X, (int)measure.Y),
             final = LoadRenderTexture((int)(measure.X + spacing * 2), (int)(measure.Y + spacing * 2));
         BeginTextureMode(temp1);
-        DrawTextEx(Fonts["kodemono"], text, Vector2.Zero, fontSize, spacing, Color.White);
+        DrawTextEx(Fonts["kodemono"], text, Vector2.Zero, fontSize, spacing, Rgba.White);
         EndTextureMode();
-        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "border_width"), ScaleF * 6, ShaderUniformDataType.Float);
-        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "fres"), measure + new Vector2(spacing * 2), ShaderUniformDataType.Vec2);
-        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "res"), measure, ShaderUniformDataType.Vec2);
-        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "pos"), [0, 0], ShaderUniformDataType.Vec2);
+        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "border_width"), ScaleF * 6, UniformType.Float);
+        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "fres"), measure + new Vector2(spacing * 2), UniformType.Vec2);
+        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "res"), measure, UniformType.Vec2);
+        SetShaderValue(Shaders["outline2"], GetShaderLocation(Shaders["outline2"], "pos"), [0, 0], UniformType.Vec2);
         BeginTextureMode(final);
         BeginShaderMode(Shaders["outline2"]);
-        DrawTexture(temp1.Texture, (int)spacing , (int)spacing, Color.White);
+        DrawTexture(temp1.Texture, (int)spacing , (int)spacing, Rgba.White);
         EndShaderMode();
         EndTextureMode();
         UnloadRenderTexture(temp1);
@@ -312,10 +428,8 @@ public class Runtime
 
     void GamepadCheck()
     {
-        int prevGamepadCount = GamepadCount;
-        GamepadCount = 0;
-        while (IsGamepadAvailable(GamepadCount))
-            GamepadCount++;
+        Engine.Input.RefreshGamepads();
+        GamepadCount = Engine.Input.GamepadCount;
     }
 
     void RefreshScreens()
@@ -342,24 +456,39 @@ public class Runtime
     void Render()
     {
         BeginDrawing();
+        // MenuItem pre-renders into its own targets; keep it outside the backbuffer so it can't be
+        // mistaken for frame content.
         if(MenuScreen.MenuItem.RequiresRender)
             MenuScreen.MenuItem.RenderItems();
-        ClearBackground(Color.Black);
+        ClearBackground(Rgba.Black); // the letterbox bars
+
+        BeginTextureMode(Backbuffer);
+        Engine.Renderer.TargetFloor = 1;
+        ClearBackground(Rgba.Black);
         for (int i = UpdateRenderFrom; i < Screens.Count; i++)
             Screens[i].Render();
+        Engine.Renderer.TargetFloor = 0;
+        // Reset rather than End: it unwinds the whole stack, so a screen that leaked a Begin can't
+        // corrupt the next frame. In the balanced case it is exactly an End.
+        Engine.Renderer.ResetTargets();
+
+        Present();
         DrawFPS(0, 0);
 #if DEBUG
         if (TextureViewerOpen)
             DrawTextureView();
         else
         {
-            rlImGui.Begin();
-            Screens.Last().DrawImgui();
-            rlImGui.End();
+            if (Engine.Backend.SupportsDebugUi)
+            {
+                Engine.Backend.BeginDebugUi();
+                Screens.Last().DrawImgui();
+                Engine.Backend.EndDebugUi();
+            }
         }
 #endif
         if (IsFrameCap240)
-            DrawTexture(Textures["241fps.png"], 0,0,Color.White);
+            DrawTexture(Textures["241fps.png"], 0,0,Rgba.White);
         EndDrawing();
      }
 
@@ -369,19 +498,19 @@ public class Runtime
     {
         if (GetTime() - TextureViewerDelay < TextureViewerLastTimeKeyPressed)
             return;
-        if (IsKeyDown(KeyboardKey.LeftControl))
+        if (IsKeyDown(KeyCode.LeftControl))
         {
-            if (IsKeyDown(KeyboardKey.J))
+            if (IsKeyDown(KeyCode.J))
             {
                 TextureViewerOpen = !TextureViewerOpen;
                 TextureViewerLastTimeKeyPressed = GetTime();
             }
-            else if (IsKeyDown(KeyboardKey.A))
+            else if (IsKeyDown(KeyCode.A))
             {
                 UseWhiteBackground = !UseWhiteBackground;
                 TextureViewerLastTimeKeyPressed = GetTime();
             }
-            else if (IsKeyDown(KeyboardKey.C))
+            else if (IsKeyDown(KeyCode.C))
             {
                 TextureViewerLastTimeKeyPressed = GetTime();
             }
@@ -389,9 +518,9 @@ public class Runtime
         }
         if (SetValueMode)
         {
-            if (IsKeyDown(KeyboardKey.Tab))
+            if (IsKeyDown(KeyCode.Tab))
             {
-                if(IsKeyDown(KeyboardKey.LeftShift))
+                if(IsKeyDown(KeyCode.LeftShift))
                     SetValueModeCursorField = (SetValueModeCursorField + 4) % 5;
                 else
                     SetValueModeCursorField = (SetValueModeCursorField + 1) % 5;
@@ -403,7 +532,7 @@ public class Runtime
                 case 0:
                     return;
                 case 3:
-                    if (IsKeyDown(KeyboardKey.A))
+                    if (IsKeyDown(KeyCode.A))
                         SetValueMode = false;
                     return;
             }
@@ -412,7 +541,7 @@ public class Runtime
         }
         if (!TextureViewerOpen)
             return;
-        if (IsKeyDown(KeyboardKey.Up))
+        if (IsKeyDown(KeyCode.Up))
         {
             TextureId = (TextureId + Textures.Count - 1) % Textures.Count;
             TextureViewerLastTimeKeyPressed = GetTime();
@@ -420,12 +549,12 @@ public class Runtime
         }
 
         var p = ShaderId;
-        if (IsKeyDown(KeyboardKey.Left))
+        if (IsKeyDown(KeyCode.Left))
         {
             ShaderId = (ShaderId+(Shaders.Count+1)) % (Shaders.Count+1)-1;
             TextureViewerLastTimeKeyPressed = GetTime();
         }
-        if (IsKeyDown(KeyboardKey.Right))
+        if (IsKeyDown(KeyCode.Right))
         {
             ShaderId = (ShaderId+2+(Shaders.Count+1)) % (Shaders.Count+1)-1;
             TextureViewerLastTimeKeyPressed = GetTime();
@@ -433,7 +562,7 @@ public class Runtime
 
         if (Math.Abs(p-ShaderId) > 0.000001f)
         {
-            PreviewerShaderValues = new Dictionary<string, (object, ShaderUniformDataType)>();
+            PreviewerShaderValues = new Dictionary<string, (object, UniformType)>();
             if (ShaderId == -1)
                 return;
             var id = Shaders.ElementAt(ShaderId);
@@ -445,31 +574,31 @@ public class Runtime
                 string name = spl[2];
                 PreviewerShaderValues[name] = (null, type switch
                 {
-                    "float" => ShaderUniformDataType.Float,
-                    "vec2" => ShaderUniformDataType.Vec2,
-                    "vec3" => ShaderUniformDataType.Vec3,
-                    "vec4" => ShaderUniformDataType.Vec4,
-                    "sampler2D" => ShaderUniformDataType.Sampler2D,
-                    _ => ShaderUniformDataType.Float
+                    "float" => UniformType.Float,
+                    "vec2" => UniformType.Vec2,
+                    "vec3" => UniformType.Vec3,
+                    "vec4" => UniformType.Vec4,
+                    "sampler2D" => UniformType.Sampler2D,
+                    _ => UniformType.Float
                 });
             }
             return;
         }
-        if (IsKeyDown(KeyboardKey.R))
+        if (IsKeyDown(KeyCode.R))
         {
             Zoom = 1;
             ImageOffset = Vector2.Zero;
             TextureViewerLastTimeKeyPressed = GetTime();
             return;
         }
-        if (IsKeyDown(KeyboardKey.S))
+        if (IsKeyDown(KeyCode.S))
         {
             SetValueMode = !SetValueMode;
             TextureViewerLastTimeKeyPressed = GetTime();
             return;
         }
         
-        if (IsKeyDown(KeyboardKey.Down))
+        if (IsKeyDown(KeyCode.Down))
         {
             TextureId = (TextureId + 1) % Textures.Count;
             TextureViewerLastTimeKeyPressed = GetTime();
@@ -481,7 +610,7 @@ public class Runtime
             Zoom = MathF.Max(Zoom+delta / 8, 0);
         }
 
-        if (IsMouseButtonDown(MouseButton.Left))
+        if (IsMouseButtonDown(MouseBtn.Left))
         {
             ImageOffset += GetMouseDelta();
         }
@@ -489,35 +618,37 @@ public class Runtime
     
     void DrawTextureView()
     {
-        rlImGui.Begin();
+        if (!Engine.Backend.SupportsDebugUi)
+            return;
+        Engine.Backend.BeginDebugUi();
         var key = Textures.ElementAt(TextureId).Key;
-        Texture2D texture = Textures.ElementAt(TextureId).Value;
+        TextureHandle texture = Textures.ElementAt(TextureId).Value;
         ImGui.Begin("Texture Viewer: ");
         ImGui.Text("press Ctrl+A to switch background");
         ImGui.Text($"size: {texture.Width}x{texture.Height}");
-        DrawRectangle(0,0,Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height, UseWhiteBackground ? Color.White : Color.Black);
+        DrawRectangle(0,0,Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height, UseWhiteBackground ? Rgba.White : Rgba.Black);
         ImGui.TextUnformatted($"Texture ID: {TextureId} ({key})");
         if (ShaderId != -1)
         {
             var shader = Shaders.ElementAt(ShaderId);
-            ImGui.TextUnformatted($"Shader ID: {ShaderId} ({shader.Key})");
+            ImGui.TextUnformatted($"ShaderHandle ID: {ShaderId} ({shader.Key})");
             foreach (var variable in PreviewerShaderValues.Where(x => x.Value.Item1 != null))
             {
                 switch (variable.Value.Item2)
                 {
-                    case ShaderUniformDataType.Float:
+                    case UniformType.Float:
                         SetShaderValue(shader.Value, 
                             GetShaderLocation(shader.Value, variable.Key), 
                             (float)(variable.Value.Item1 as float?),
                             variable.Value.Item2);
                         break;
-                    case ShaderUniformDataType.Vec2:
+                    case UniformType.Vec2:
                         SetShaderValue(shader.Value, 
                             GetShaderLocation(shader.Value, variable.Key), 
                             (Vector2)(variable.Value.Item1 as Vector2?),
                             variable.Value.Item2);
                         break;
-                    case ShaderUniformDataType.Vec3:
+                    case UniformType.Vec3:
                         SetShaderValue(shader.Value, 
                             GetShaderLocation(shader.Value, variable.Key), 
                             (Vector3)variable.Value.Item1,
@@ -528,7 +659,7 @@ public class Runtime
             BeginShaderMode(shader.Value);
         }
 
-        if (ImGui.Button("Set Shader Values"))
+        if (ImGui.Button("Set ShaderHandle Values"))
         {
             SetValueMode = true;
         }
@@ -538,7 +669,7 @@ public class Runtime
             ImageOffset = Vector2.Zero;
         }
         ImGui.End();
-        DrawTextureEx(texture, ImageOffset, 0, Zoom, Color.White);
+        DrawTextureEx(texture, ImageOffset, 0, Zoom, Rgba.White);
         EndShaderMode();
         if (SetValueMode)
         {
@@ -548,7 +679,7 @@ public class Runtime
                 string str = ""+shaderValue.Value.Item1;
                 switch (shaderValue.Value.Item2)
                 {
-                    case ShaderUniformDataType.Float:
+                    case UniformType.Float:
                         if (ImGui.InputText(shaderValue.Key, ref str, 0xff))
                         {
                             if (float.TryParse(str, out float value))
@@ -556,7 +687,7 @@ public class Runtime
                                     (value, PreviewerShaderValues[shaderValue.Key].Item2);
                         }
                         break;
-                    case ShaderUniformDataType.Vec2:
+                    case UniformType.Vec2:
                         if (ImGui.InputText(shaderValue.Key, ref str, 0xff))
                         {
                             string[] spl = str.Split(',');
@@ -568,7 +699,7 @@ public class Runtime
                                         (new Vector2(x,y), PreviewerShaderValues[shaderValue.Key].Item2);
                         }
                         break;
-                    case ShaderUniformDataType.Vec3:
+                    case UniformType.Vec3:
                         if (ImGui.InputText(shaderValue.Key, ref str, 0xff))
                         {
                             string[] spl = str.Split(',');
@@ -587,10 +718,10 @@ public class Runtime
                 SetValueMode = false;
             ImGui.End();
         }
-        rlImGui.End();
+        Engine.Backend.EndDebugUi();
     }
 
-    private ShaderUniformDataType ShaderUniformDataType = ShaderUniformDataType.Float;
+    private UniformType UniformType = UniformType.Float;
     private string FieldText = "";
     private string ValueText = "";
     private bool SetValueMode = false;
@@ -602,5 +733,5 @@ public class Runtime
     private double TextureViewerLastTimeKeyPressed = 0;
     private const double TextureViewerDelay = 0.125;
     private bool TextureViewerOpen = false;
-    private Dictionary<string, (object?, ShaderUniformDataType)> PreviewerShaderValues = new();
+    private Dictionary<string, (object?, UniformType)> PreviewerShaderValues = new();
 }

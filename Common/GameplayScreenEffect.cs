@@ -1,7 +1,7 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using System.Security.Principal;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Common;
 
@@ -24,7 +24,7 @@ public class GameplayScreenEffect
     public int LocationRealTime;
     public int LocationTime;
     public int LocationPosition;
-    public Shader Shader;
+    public ShaderHandle Shader;
     public GameBox Box;
     public float TimeAppear = 0;
     public float TimeDisappear = 0;
@@ -41,14 +41,14 @@ public class GameplayScreenEffect
 
     public virtual float State2(float time)
     {
-        float a = Raymath.Clamp01((time - TimeAppear) / StepLength);
-        float b = Raymath.Clamp01((TimeDisappear - time) / StepLength);
+        float a = MathUtil.Clamp01((time - TimeAppear) / StepLength);
+        float b = MathUtil.Clamp01((TimeDisappear - time) / StepLength);
         return a * b;
     }
     
     public virtual void ApplyShading(float gameTime)
     {
-        float time = UseRealTime ? (float)Raylib.GetTime() : gameTime;
+        float time = UseRealTime ? (float)GetTime() : gameTime;
         if (time > TimeDisappear)
         {
             Box.RemoveScreenEffect(this);
@@ -60,9 +60,9 @@ public class GameplayScreenEffect
         Box.DebugStrings.Add($"Shader: {Shader}");
         Box.DebugStrings.Add($"State: {state}");
 #endif
-        SetShaderValue(Shader, LocationTime, state, ShaderUniformDataType.Float);
-        SetShaderValue(Shader, LocationRealTime, gameTime, ShaderUniformDataType.Float);
-        SetShaderValue(Shader, LocationPosition, Position, ShaderUniformDataType.Vec2);
+        SetShaderValue(Shader, LocationTime, state, UniformType.Float);
+        SetShaderValue(Shader, LocationRealTime, gameTime, UniformType.Float);
+        SetShaderValue(Shader, LocationPosition, Position, UniformType.Vec2);
         BeginShaderMode(Shader);
     }
 

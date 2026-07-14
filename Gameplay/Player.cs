@@ -1,3 +1,5 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using System.Data;
 using System.Numerics;
 using System.Reflection;
@@ -6,7 +8,6 @@ using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay.GameplayOverlays;
 using DmitryAndDemid.Utils;
 using Gtk;
-using Raylib_cs;
 
 namespace DmitryAndDemid.Gameplay;
 
@@ -26,8 +27,8 @@ public class Player
     public const float DefocusedDifference = 32f;
     public const int FocusAnimationChangingLength = 15;
     public bool CollisionEnabled = true;
-    public Texture2D SourceTexture;
-    public Rectangle SourceRect;
+    public TextureHandle SourceTexture;
+    public Rect SourceRect;
     public GameBox GameBox;
     
     public float PointMagnetRadius => 
@@ -43,7 +44,7 @@ public class Player
             SourceTexture = Runtime.CurrentRuntime.Textures[data.Sprite];
         else
             Console.WriteLine($"Player sprite ({data.Sprite}) not found!");
-        SourceRect = new Rectangle(0, 0, 32, 32);
+        SourceRect = new Rect(0, 0, 32, 32);
         Speed = data.Speed;
         FocusSpeed = data.FocusSpeed;
         var type = Assembly.GetExecutingAssembly().GetTypes().FirstOrDefault(x => x.IsAssignableTo(typeof(PlayerWeapon)) && x.Name == data.WeaponClassName);
@@ -151,7 +152,7 @@ public class Player
                 return;
             if (bombs < value)
             {
-                // TODO: Play Extend Sound
+                // TODO: Play Extend SoundHandle
             }
             bombs = value;
             GameBox.UpdateUI();
@@ -268,7 +269,7 @@ public class Player
         }
     }
 
-    public Rectangle Collision => new Rectangle(X-CollisionRadius/2, Y-CollisionRadius/2, CollisionRadius, CollisionRadius);
+    public Rect Collision => new Rect(X-CollisionRadius/2, Y-CollisionRadius/2, CollisionRadius, CollisionRadius);
 
     public bool IsInDeathCooldown
     {
@@ -311,9 +312,9 @@ public class Player
     public void Draw()
     {
         Weapon.DrawBottomLayer();
-        Raylib.DrawTexturePro(
-            SourceTexture, SourceRect, new Rectangle(X-16, Y-16,32,32), 
-            Vector2.Zero, 0, Color.White
+        DrawTexturePro(
+            SourceTexture, SourceRect, new Rect(X-16, Y-16,32,32), 
+            Vector2.Zero, 0, Rgba.White
             );
     }
 }

@@ -1,3 +1,5 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
@@ -9,7 +11,6 @@ using ImGuiNET;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 using Pango;
-using Raylib_cs;
 using static ImGuiNET.ImGui;
 using Script = Pango.Script;
 
@@ -27,7 +28,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
     private string Question = "Are you sure to delete this object?";
     private bool QuestionShown = false;
     private Action? QuestionOKAction = null;
-    private Vector3 Color, DeathParticlesColor, DeathRoundsColor;
+    private Vector3 Rgba, DeathParticlesColor, DeathRoundsColor;
     public bool SelectMode = false;
     private int Time = 0;
     private int SelectedObjectIndex = -1;
@@ -70,7 +71,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
         bool s = false;
         Begin("Stage Editor", ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.MenuBar);
         BeginMenuBar();
-        MenuItem("FPS: " + Raylib.GetFPS());
+        MenuItem("FPS: " + GetFPS());
         if(MenuItem("Save"))
             Save();
         if(MenuItem("Reload"))
@@ -166,7 +167,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                             Info.Entities.Select(x => x.Header[3].ToString() + (x.IsBoss && x.IsBullet ? $"BOSS ({x.Header[7]})" : "")).ToArray(),
                             Info.Entities.Length, 32))
                     {
-                        Color = Helper.ColorIntToVector3(Info.Entities[SelectedObjectIndex].Header[4]);
+                        Rgba = Helper.ColorIntToVector3(Info.Entities[SelectedObjectIndex].Header[4]);
                         SelectedTextureIndex = -1;
                         VisualIndex = Visuals.IndexOf(Info.Entities[SelectedObjectIndex].Visual);
                         SelectedCreateScriptIndex = Scripts.IndexOf(Info.Entities[SelectedObjectIndex].CreateScript);
@@ -210,8 +211,8 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                         Info.Entities[SelectedObjectIndex].Visual = Visuals[VisualIndex];
                     if (Info.Entities[SelectedObjectIndex].IsBullet)
                     {
-                        if (ColorPicker3("Bullet Color", ref Color))
-                            Info.Entities[SelectedObjectIndex].Header[4] = Helper.Vector3ColorToInt(Color);
+                        if (ColorPicker3("Bullet Rgba", ref Rgba))
+                            Info.Entities[SelectedObjectIndex].Header[4] = Helper.Vector3ColorToInt(Rgba);
                         InputInt("Collectable score moddifier", ref Info.Entities[SelectedObjectIndex].Header[5]);
                     }
                     else
@@ -246,13 +247,13 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                         }
                         InputFloat("Health",  ref Info.Entities[SelectedObjectIndex].FloatingPoints[0]);
                         InputInt("Score add when killed", ref Info.Entities[SelectedObjectIndex].Header[6]);
-                        Checkbox("Override Visual's Death Color",
+                        Checkbox("Override Visual's Death Rgba",
                             ref Info.Entities[SelectedObjectIndex].OverrideDeathColor);
                         if (Info.Entities[SelectedObjectIndex].OverrideDeathColor)
                         {
-                            if (ColorEdit3("Death Particles Color", ref DeathParticlesColor))
+                            if (ColorEdit3("Death Particles Rgba", ref DeathParticlesColor))
                                 Info.Entities[SelectedObjectIndex].Header[0xC] = Helper.Vector3ColorToInt(DeathParticlesColor);
-                            if (ColorEdit3("Death Rounds Color", ref DeathRoundsColor))
+                            if (ColorEdit3("Death Rounds Rgba", ref DeathRoundsColor))
                                 Info.Entities[SelectedObjectIndex].Header[0xB] = Helper.Vector3ColorToInt(DeathRoundsColor);
                         }
                         
@@ -362,14 +363,14 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                         if (InputText("Boss Identifier", ref Info.Chapters[SelectedObjectIndex].BossName, 255))
                             RerenderBossIdentifierTexture();
                         if(BossTexturePreview != null)
-                            rlImGui_cs.rlImGui.Image(BossTexturePreview.Value.Texture);
+                            Engine.Backend.DebugUiImage(BossTexturePreview.Value);
 
                     }
                     if (Info.Chapters[SelectedObjectIndex].Header[0] == 3)
                     {
                         if(Combo("Background", ref SelectedTextureIndex, Textures, Textures.Length))
                             Info.Chapters[SelectedObjectIndex].SpellcardTexture =  Textures[SelectedTextureIndex];
-                        Checkbox("Apply Shader", ref Info.Chapters[SelectedObjectIndex].ApplyShader);
+                        Checkbox("Apply ShaderHandle", ref Info.Chapters[SelectedObjectIndex].ApplyShader);
                         if (Info.Chapters[SelectedObjectIndex].ApplyShader)
                         {
                             if(Combo("Select shader", ref SelectedShaderIndex, Shaders, Shaders.Length))
@@ -378,7 +379,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                         if(InputText("SpellCard name", ref Info.Chapters[SelectedObjectIndex].SpellcardTitle, 255))
                             RerenderChapterTitleTexture();
                         if(ChapterTexturePreview != null)
-                            rlImGui_cs.rlImGui.Image(ChapterTexturePreview.Value.Texture);
+                            Engine.Backend.DebugUiImage(ChapterTexturePreview.Value);
                         InputInt("Bonus max score", ref Info.Chapters[SelectedObjectIndex].Header[4], 1000, 10000);
                         //InputInt("Spell Card Index on practice menu", ref Info.Chapters[SelectedObjectIndex].Header[9], 1, 1);
                         Checkbox("Boss Invincible", ref  Info.Chapters[SelectedObjectIndex].BossInvincible);
@@ -488,7 +489,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
         //        EditableChapterInfo.Header[2]);
         //    Checkbox("Dangerous For Player when Collide",
         //        ref EditableChapterInfo.GameObjects[SelectedObjectIndex].DangerousForPlayer);
-        //    Checkbox("Apply Shader",
+        //    Checkbox("Apply ShaderHandle",
         //        ref EditableChapterInfo.GameObjects[SelectedObjectIndex].ApplyShader);
         //    Checkbox("Use Creation Script",
         //        ref EditableChapterInfo.GameObjects[SelectedObjectIndex].UseAppearScript);
@@ -506,9 +507,9 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
         //        EditableChapterInfo.GameObjects[SelectedObjectIndex].Visual = Visuals[SelectedTextureIndex];
         //    }
 //
-        //    if (ColorPicker3("Texture Color", ref Color))
+        //    if (ColorPicker3("Texture Rgba", ref Rgba))
         //    {
-        //        EditableChapterInfo.GameObjects[SelectedObjectIndex].IntVariables[14] = Helper.Vector3ColorToInt(Color);
+        //        EditableChapterInfo.GameObjects[SelectedObjectIndex].IntVariables[14] = Helper.Vector3ColorToInt(Rgba);
         //    }
         //    var obj = EditableChapterInfo.GameObjects[SelectedObjectIndex];
         //    if (Visuals.Contains(obj.Visual))
@@ -523,7 +524,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
         //            rlImGui_cs.rlImGui.ImageRect(
         //                bulletVisual.GetTexture(color),
         //                (int)(size.X * 64 / max), (int)Math.Abs(size.Y * 64 / max),
-        //                new Rectangle(pos, size)
+        //                new Rect(pos, size)
         //            );
         //        }
         //        else
@@ -535,7 +536,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
         //            rlImGui_cs.rlImGui.ImageRect(
         //                Runtime.CurrentRuntime.Textures[visual.Texture],
         //                (int)(size.X * 64 / max), (int)Math.Abs(size.Y * 64 / max),
-        //                new Rectangle(pos, size)
+        //                new Rect(pos, size)
         //            );
         //        }
         //    }
@@ -552,28 +553,28 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
 
     public int VisualIndex = -1;
 
-    private RenderTexture2D? BossTexturePreview = null;
-    private RenderTexture2D? ChapterTexturePreview = null;
+    private TargetHandle? BossTexturePreview = null;
+    private TargetHandle? ChapterTexturePreview = null;
     
     private void RerenderBossIdentifierTexture()
     {
         if(BossTexturePreview != null)
-            Raylib.UnloadRenderTexture(BossTexturePreview.Value);
+            UnloadRenderTexture(BossTexturePreview.Value);
         if (TabItem != 3 || SelectedObjectIndex == -1)
             return;
         var size = Helper.GetBossTextSize(Info.Chapters[SelectedObjectIndex].BossName);
-        BossTexturePreview = Raylib.LoadRenderTexture((int)size.X, (int)size.Y);
+        BossTexturePreview = LoadRenderTexture((int)size.X, (int)size.Y);
         Helper.DrawBossText(BossTexturePreview.Value, Info.Chapters[SelectedObjectIndex].BossName);
     }
 
     void RerenderChapterTitleTexture()
     {
         if(ChapterTexturePreview != null)
-            Raylib.UnloadRenderTexture(ChapterTexturePreview.Value);
+            UnloadRenderTexture(ChapterTexturePreview.Value);
         if (TabItem != 3 || SelectedObjectIndex == -1)
             return;
         var size = Helper.GetTitleTextSize(Info.Chapters[SelectedObjectIndex].SpellcardTitle);
-        ChapterTexturePreview = Raylib.LoadRenderTexture((int)size.X, (int)size.Y);
+        ChapterTexturePreview = LoadRenderTexture((int)size.X, (int)size.Y);
         Helper.DrawChapterTitleText(ChapterTexturePreview.Value, Info.Chapters[SelectedObjectIndex].SpellcardTitle);
     }
 

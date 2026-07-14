@@ -1,8 +1,8 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Utils;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Gameplay.GameplayOverlays;
 
@@ -16,10 +16,10 @@ public class TimerGameplayOverlay : GameplayOverlay
         );
         Texture = Runtime.CurrentRuntime.Textures[image];
         SourceRectangle = Helper.GetFullSource(Texture);
-        DestinationRectangle = new Rectangle(0, 128 * Runtime.CurrentRuntime.ScaleF, SourceRectangle.Size / 4  * Runtime.CurrentRuntime.ScaleF);
+        DestinationRectangle = new Rect(0, 128 * Runtime.CurrentRuntime.ScaleF, SourceRectangle.Size / 4  * Runtime.CurrentRuntime.ScaleF);
         SourceRectangle2 = Helper.GetFullSourceRenderTexture(TimersTexture);
         DestinationRectangle2 =
-            new Rectangle(
+            new Rect(
                 TimersTexture.Texture.Width,
                 176 * Runtime.CurrentRuntime.ScaleF,
                 TimersTexture.Texture.Width,
@@ -28,12 +28,12 @@ public class TimerGameplayOverlay : GameplayOverlay
         Helper.DrawTimerSplash(TimersTexture, ticks, time);
     }
 
-    private RenderTexture2D TimersTexture;
-    private Texture2D Texture;
-    private Rectangle SourceRectangle;
-    private Rectangle DestinationRectangle;
-    private Rectangle SourceRectangle2;
-    private Rectangle DestinationRectangle2;
+    private TargetHandle TimersTexture;
+    private TextureHandle Texture;
+    private Rect SourceRectangle;
+    private Rect DestinationRectangle;
+    private Rect SourceRectangle2;
+    private Rect DestinationRectangle2;
 
     protected override void Unload()
     {
@@ -43,8 +43,8 @@ public class TimerGameplayOverlay : GameplayOverlay
     protected override void Draw()
     {
         float state = State;
-        Rectangle rectangle = DestinationRectangle with { Height = DestinationRectangle.Height * state };
-        DrawTexturePro(Texture, SourceRectangle, rectangle, Vector2.Zero, 0, Color.White);
-        DrawTexturePro(TimersTexture.Texture, SourceRectangle2, DestinationRectangle2, Vector2.Zero, 0, Color.White with {A = Helper.TimeToTransparency(state)});
+        Rect rectangle = DestinationRectangle with { Height = DestinationRectangle.Height * state };
+        DrawTexturePro(Texture, SourceRectangle, rectangle, Vector2.Zero, 0, Rgba.White);
+        DrawTexturePro(TimersTexture.Texture, SourceRectangle2, DestinationRectangle2, Vector2.Zero, 0, Rgba.White with {A = Helper.TimeToTransparency(state)});
     }
 }

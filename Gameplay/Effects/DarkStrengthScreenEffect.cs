@@ -1,7 +1,7 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Common;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Gameplay.Effects;
 
@@ -29,8 +29,8 @@ public class DarkStrengthScreenEffect : GameplayScreenEffect
 
     public override void ApplyShading(float gameTime)
     {
-        SetShaderValue(Shader, LDSMask, Mask, ShaderUniformDataType.Int);
-        SetShaderValue(Shader, LDSOffset, Offset, ShaderUniformDataType.Vec2);
+        SetShaderValue(Shader, LDSMask, Mask, UniformType.Int);
+        SetShaderValue(Shader, LDSOffset, Offset, UniformType.Vec2);
         base.ApplyShading(gameTime);
     }
 }

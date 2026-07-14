@@ -1,7 +1,7 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Utils;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 using static DmitryAndDemid.Utils.Helper;
 
 namespace DmitryAndDemid.Common;
@@ -15,12 +15,12 @@ public abstract class ScreenWithTitle : Screen
     
     protected float TimeDisappearTitle = float.MaxValue;
     protected float TimeAppearTitle = float.MinValue;
-    private Texture2D MenuTitleTexture;
-    private static Rectangle MenuTextureSource = new Rectangle(0, 0, 1920, 270);
-    private static Rectangle MenuTextureTarget;
+    private TextureHandle MenuTitleTexture;
+    private static Rect MenuTextureSource = new Rect(0, 0, 1920, 270);
+    private static Rect MenuTextureTarget;
     protected float AppearingTime = .5f;
     protected float DisappearingTime = .5f;
-    protected void SetTitle(Texture2D title)
+    protected void SetTitle(TextureHandle title)
     {
         MenuTitleTexture = title;
     }
@@ -41,8 +41,8 @@ public abstract class ScreenWithTitle : Screen
 
     protected void DrawTitle()
     {
-        float appear = (float)ComputeObjectTime(Raylib.GetTime(), TimeAppearTitle, AppearingTime, TimeDisappearTitle, DisappearingTime);
-        DrawTexturePro(MenuTitleTexture, MenuTextureSource, MenuTextureTarget with { Y = (1-Pow2F(appear)) * MenuTextureTarget.Height * -1 }, Vector2.Zero, 0, Color.White);
+        float appear = (float)ComputeObjectTime(GetTime(), TimeAppearTitle, AppearingTime, TimeDisappearTitle, DisappearingTime);
+        DrawTexturePro(MenuTitleTexture, MenuTextureSource, MenuTextureTarget with { Y = (1-Pow2F(appear)) * MenuTextureTarget.Height * -1 }, Vector2.Zero, 0, Rgba.White);
     }
     
     public virtual void Exiting()

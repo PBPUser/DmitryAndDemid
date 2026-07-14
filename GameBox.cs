@@ -1,3 +1,4 @@
+using DmitryAndDemid.Rendering;
 using System.Diagnostics;
 using System.Numerics;
 using DmitryAndDemid.Backgrounds;
@@ -10,8 +11,7 @@ using DmitryAndDemid.Gameplay.GameplayOverlays;
 using DmitryAndDemid.Gameplay.RuntimeData;
 using DmitryAndDemid.Screens;
 using DmitryAndDemid.Utils;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid;
 
@@ -54,7 +54,7 @@ public class GameBox : IDisposable
         ProtogonistId = data.ID;
         Difficulty = difficulty;
         Stages = stages;
-        PauseTimestamp = (float)(Raylib.GetTime() + 3);
+        PauseTimestamp = (float)(GetTime() + 3);
         Background = LoadRenderTexture(384, 448);
         Box = LoadRenderTexture(384, 448);
         UIAboveGameplay = LoadRenderTexture(
@@ -101,7 +101,7 @@ public class GameBox : IDisposable
             return;
         if (CurrentTick >= ComputeCurrentTickFromStartingTime)
             return;
-        Score = (int)Raymath.MoveTowards(Score, ScoreTarget, MathF.Max((ScoreTarget - Score) / 30f, 10));
+        Score = (int)MathUtil.MoveTowards(Score, ScoreTarget, MathF.Max((ScoreTarget - Score) / 30f, 10));
         CurrentTick++;
         if (CurrentTick + TickOffset >= ChapterInfo.TickStart + ChapterInfo.Length)
         {
@@ -149,44 +149,44 @@ public class GameBox : IDisposable
             }
         }
         #if DEBUG
-        if (IsKeyDown(KeyboardKey.LeftControl))
+        if (IsKeyDown(KeyCode.LeftControl))
         {
-            if(IsKeyDown(KeyboardKey.B))
+            if(IsKeyDown(KeyCode.B))
                 if(!GameplayOverlays.Any(x => x is ScoreGameplayOverlay && GetTime() - x.TimeAppear < 0.5))
                     AddOverlay(new ScoreGameplayOverlay(this, GetRandomValue(0, int.MaxValue), 600, 1.4, .5f, 3f));
         }
-        else if (IsKeyDown(KeyboardKey.RightShift) && ComputeCurrentTickFromStartingTime % TargetTPS == 0)
+        else if (IsKeyDown(KeyCode.RightShift) && ComputeCurrentTickFromStartingTime % TargetTPS == 0)
         {
-            if(IsKeyDown(KeyboardKey.L))
+            if(IsKeyDown(KeyCode.L))
                 SpawnMysticalToilet();
-            if (IsKeyDown(KeyboardKey.P))
+            if (IsKeyDown(KeyCode.P))
             {
                 var obj = RuntimeObject.LoadFromFile(RuntimeObject.CollectableFEIs[0], this);
                 obj.X = Player.X;
                 obj.Y = 64;
                 AddObject(obj);
             }
-            if (IsKeyDown(KeyboardKey.D))
+            if (IsKeyDown(KeyCode.D))
                 Player.HeartPoints++;
-            if (IsKeyDown(KeyboardKey.F))
+            if (IsKeyDown(KeyCode.F))
                 Player.HeartPoints--;
-            if (IsKeyDown(KeyboardKey.G))
+            if (IsKeyDown(KeyCode.G))
                 Player.HeartSpices++;
-            if (IsKeyDown(KeyboardKey.H))
+            if (IsKeyDown(KeyCode.H))
                 Player.HeartSpices--;
-            if(IsKeyDown(KeyboardKey.L))
+            if(IsKeyDown(KeyCode.L))
                 UpdateUI();
-            if (IsKeyDown(KeyboardKey.Z))
+            if (IsKeyDown(KeyCode.Z))
                 DarkStrengthPos = new Vector2(Player.X, Player.Y);
-            if (IsKeyDown(KeyboardKey.X))
+            if (IsKeyDown(KeyCode.X))
                 if (!ScreenEffects.Any(x => x is DarkStrengthScreenEffect && GetTime() - x.TimeAppear < 1.5))
                 {
                     var pos = new Vector2(Player.X, Player.Y);
                     var offset = DarkStrengthPos - pos;
-                    offset *= new Vector2(Raymath.Sign(offset.X), Raymath.Sign(offset.Y));
+                    offset *= new Vector2(MathUtil.Sign(offset.X), MathUtil.Sign(offset.Y));
                     AddScreenEffect(new DarkStrengthScreenEffect(this, offset, pos, 0b0000_1111, 20, GetTime(), GetTime()+2f));
                 }
-            if(IsKeyDown(KeyboardKey.C))
+            if(IsKeyDown(KeyCode.C))
                 if(!ScreenEffects.Any(x => x is StrengthScreenEffect && GetTime() - x.TimeAppear < 0.05))
                     AddScreenEffect(new StrengthScreenEffect(this, new Vector2(Player.X, Player.Y), 40, GetTime(), GetTime()+0.75f, 0x11bb2a, 0x11bb2a));
         }
@@ -272,7 +272,7 @@ public class GameBox : IDisposable
                 {
                     if ((obj2.Header[0] & RuntimeObject.FlagIsBullet) == RuntimeObject.FlagIsBullet)
                         continue;
-                    if (Raymath.Vector2Distance(obj.Position, obj2.Position) <
+                    if (MathUtil.Vector2Distance(obj.Position, obj2.Position) <
                         (obj.CollisionScale * obj.FloatingPoints[0x13] +
                          obj2.CollisionScale * obj2.FloatingPoints[0x13]) / 2)
                     {
@@ -295,7 +295,7 @@ public class GameBox : IDisposable
             if ((bitMask & RuntimeObject.FlagDangerousRelatedToPlayer) ==
                 RuntimeObject.FlagDangerousRelatedToPlayer)
             {
-                var distance = Raymath.Vector2Distance(new(Player.X, Player.Y), obj.Position);
+                var distance = MathUtil.Vector2Distance(new(Player.X, Player.Y), obj.Position);
                 var collision = Player.CollisionRadius + obj.CollisionScale * obj.FloatingPoints[0x13];
                 if (distance < collision / 2)
                 {
@@ -518,7 +518,7 @@ public class GameBox : IDisposable
         RenderBossTitle = false;
         if (ChapterInfo.Type == ChapterType.Spell)
         {
-            // TODO: Play SpellCard Sound
+            // TODO: Play SpellCard SoundHandle
             SpellcardStopwatch = new Stopwatch();
             SpellcardStopwatch.Start();
             RenderBossTitle = true;
@@ -572,9 +572,9 @@ public class GameBox : IDisposable
     #endregion
     #region Render
     private static StageBackground StageBackgroundObject = new DrogichinBackground();
-    private static Color Transparent = Color.Black with { A = 0 };
+    private static Rgba Transparent = Rgba.Black with { A = 0 };
     public List<GameplayScreenEffect> ScreenEffects = new();
-    public RenderTexture2D Background, Box, UIAboveGameplay, UILeft;
+    public TargetHandle Background, Box, UIAboveGameplay, UILeft;
     public void RenderBox()
     {
         float time = GetTime();
@@ -590,11 +590,11 @@ public class GameBox : IDisposable
         {
             if (ChapterInfo!.ApplyShader)
             {
-                SetShaderValue(ChapterInfo.SpellShader!.Value, ChapterInfo.LocPosition, [192f, 96f], ShaderUniformDataType.Vec2);
-                SetShaderValue(ChapterInfo.SpellShader!.Value, ChapterInfo.LocTime, GetTime() / 8, ShaderUniformDataType.Float);
+                SetShaderValue(ChapterInfo.SpellShader!.Value, ChapterInfo.LocPosition, [192f, 96f], UniformType.Vec2);
+                SetShaderValue(ChapterInfo.SpellShader!.Value, ChapterInfo.LocTime, GetTime() / 8, UniformType.Float);
                 BeginShaderMode(ChapterInfo.SpellShader.Value);
             }
-            DrawTexture(ChapterInfo!.SpellcardTexture!.Value, 0,0,Color.White);
+            DrawTexture(ChapterInfo!.SpellcardTexture!.Value, 0,0,Rgba.White);
             EndShaderMode();
         }
         EndTextureMode();
@@ -604,18 +604,18 @@ public class GameBox : IDisposable
         foreach (var obj in BoxObjects)
         {
             #if DEBUG
-            if(IsKeyDown(KeyboardKey.A))
+            if(IsKeyDown(KeyCode.A))
                 DrawRectangle((int)(obj.TargetRectangle.X-obj.Origin.X), (int)(obj.TargetRectangle.Y-obj.Origin.X), (int)obj.TargetRectangle.Width,
-                    (int)obj.TargetRectangle.Height, Color.Magenta with {A = 64});
+                    (int)obj.TargetRectangle.Height, Rgba.Magenta with {A = 64});
             #endif
             if ((obj.Header[0] & RuntimeObject.FlagApplyShader) == RuntimeObject.FlagApplyShader)
             {
-                SetShaderValue(obj.Shader, obj.Header[0x40], obj.CreatedAt, ShaderUniformDataType.Int);
-                SetShaderValue(obj.Shader, obj.Header[0x41], CurrentTick, ShaderUniformDataType.Int);
-                SetShaderValue(obj.Shader, obj.Header[0x42], obj.TexturePosition, ShaderUniformDataType.Vec2); //3
-                SetShaderValue(obj.Shader, obj.Header[0x43], obj.TextureSize, ShaderUniformDataType.Vec2); //6,32
-                SetShaderValue(obj.Shader, obj.Header[0x44], obj.TotalTextureSize, ShaderUniformDataType.Vec2); //128
-                SetShaderValue(obj.Shader, obj.Header[0x45], obj.Header[2], ShaderUniformDataType.Int); 
+                SetShaderValue(obj.Shader, obj.Header[0x40], obj.CreatedAt, UniformType.Int);
+                SetShaderValue(obj.Shader, obj.Header[0x41], CurrentTick, UniformType.Int);
+                SetShaderValue(obj.Shader, obj.Header[0x42], obj.TexturePosition, UniformType.Vec2); //3
+                SetShaderValue(obj.Shader, obj.Header[0x43], obj.TextureSize, UniformType.Vec2); //6,32
+                SetShaderValue(obj.Shader, obj.Header[0x44], obj.TotalTextureSize, UniformType.Vec2); //128
+                SetShaderValue(obj.Shader, obj.Header[0x45], obj.Header[2], UniformType.Int); 
                 BeginShaderMode(obj.Shader);
             }
 
@@ -625,7 +625,7 @@ public class GameBox : IDisposable
                 obj.Texture,
                 obj.SourceRectangle,
                 obj.TargetRectangle with { X = obj.TargetRectangle.X + obj.FloatingPoints[0x20] * tickDelta, Y = obj.TargetRectangle.Y + obj.FloatingPoints[0x21] * tickDelta },
-                obj.Origin, (obj.RenderRotation + bulletDV) * 180 / MathF.PI + obj.FloatingPoints[0x23]*tickDelta   , Color.White
+                obj.Origin, (obj.RenderRotation + bulletDV) * 180 / MathF.PI + obj.FloatingPoints[0x23]*tickDelta   , Rgba.White
             );
             EndShaderMode();
         }
@@ -646,13 +646,13 @@ public class GameBox : IDisposable
                     300 * Runtime.CurrentRuntime.ScaleF * (0.075f+1-appear2)
                     ),
                 0, scaling,
-                Color.White with {A = Helper.TimeToTransparency(appear1)});
-            DrawText($"Score max: {ChapterScoreCurrent} of {ScoreChapterMax}", 0, 64, 24, Color.White);
+                Rgba.White with {A = Helper.TimeToTransparency(appear1)});
+            DrawText($"Score max: {ChapterScoreCurrent} of {ScoreChapterMax}", 0, 64, 24, Rgba.White);
         }
         foreach (var overlay in GameplayOverlays)
             overlay.DrawOverlay();
         if (RenderBossTitle)
-            DrawTexture(ChapterInfo!.BossTitleTexture!.Value.Texture, (int)(Runtime.CurrentRuntime.ScaleF * 4),(int)(Runtime.CurrentRuntime.ScaleF * 4),Color.White);
+            DrawTexture(ChapterInfo!.BossTitleTexture!.Value.Texture, (int)(Runtime.CurrentRuntime.ScaleF * 4),(int)(Runtime.CurrentRuntime.ScaleF * 4),Rgba.White);
         if(typeI > 1 && !InChapterDelay)
             Helper.DrawTimer((int)(UIAboveGameplay.Texture.Width - (appearTimer)*Helper.TimerTextureSize.X), 0, (ChapterInfo.TickStart + ChapterInfo!.Length - CurrentTickWithOffset) < (ChapterInfo!.Length > 600 ? 300 : 600));
         EndTextureMode();
@@ -666,12 +666,12 @@ public class GameBox : IDisposable
         DebugStrings.Add($"PauseTimestamp: {PauseTimestamp}");
         DebugStrings.Add($"CountTimeFrom: {CountTimeFrom}");
         DebugStrings.Add($"Box Time: {GetTime()}");
-        DebugStrings.Add($"Raylib Time: {Raylib.GetTime()}");
+        DebugStrings.Add($"Raylib Time: {GetTime()}");
     }
     #endregion
     #region UI
-    static Rectangle HeartBombSource = new Rectangle(0, 0, 96, 96);
-    public Rectangle ScoreSrc, ScoreDest, HiScoreSrc, HiScoreDest;
+    static Rect HeartBombSource = new Rect(0, 0, 96, 96);
+    public Rect ScoreSrc, ScoreDest, HiScoreSrc, HiScoreDest;
     public float ChapterTitleAppear = 0;
     public float ChapterTitleDisappear = float.MaxValue;
     public float TimerAppear = 0;
@@ -679,10 +679,10 @@ public class GameBox : IDisposable
     public int MaxScoreContinue = 0;
     public int MaxScore = 100000;
     public bool IsUIUpdateRequired = false;
-    RenderTexture2D HiScoreTexture = Helper.CreateScoreText("1.000.000", 16);
-    RenderTexture2D ScoreTexture = Helper.CreateScoreText("1.000.000", 16);
-    Rectangle HeartBombDest = new(0, 0, new Vector2(12 * Runtime.CurrentRuntime.ScaleF));
-    Texture2D StaffTexture = Runtime.CurrentRuntime.Textures["ingame-stuff.png"];
+    TargetHandle HiScoreTexture = Helper.CreateScoreText("1.000.000", 16);
+    TargetHandle ScoreTexture = Helper.CreateScoreText("1.000.000", 16);
+    Rect HeartBombDest = new(0, 0, new Vector2(12 * Runtime.CurrentRuntime.ScaleF));
+    TextureHandle StaffTexture = Runtime.CurrentRuntime.Textures["ingame-stuff.png"];
     float BombsY = 135 * Runtime.CurrentRuntime.ScaleF;
     float SizeOfRes = 12 * Runtime.CurrentRuntime.ScaleF;
     float ResX = 206 * Runtime.CurrentRuntime.ScaleF;
@@ -727,8 +727,8 @@ public class GameBox : IDisposable
     {
         BeginTextureMode(UILeft);
         ClearBackground(Transparent);
-        DrawTextureEx(Runtime.CurrentRuntime.Textures["rightside_info.png"], Vector2.Zero, 0, Runtime.CurrentRuntime.ScaleF/4,Color.White);
-        DrawText(Raylib.GetTime()+"", 16, 16, 24, Color.Red);
+        DrawTextureEx(Runtime.CurrentRuntime.Textures["rightside_info.png"], Vector2.Zero, 0, Runtime.CurrentRuntime.ScaleF/4,Rgba.White);
+        DrawText(GetTime()+"", 16, 16, 24, Rgba.Red);
         for (int i = 0; i < 8; i++)
         {
             DrawTexturePro(StaffTexture, HeartBombSource with { Y = 96, 
@@ -738,14 +738,14 @@ public class GameBox : IDisposable
                     384 - (Player.BombsSpices * 96)
                 },
                 HeartBombDest with {Y = BombsY, X = ResX - SizeOfRes * (8-i) },
-                Vector2.Zero, 0, Color.White);
+                Vector2.Zero, 0, Rgba.White);
             DrawTexturePro(StaffTexture, HeartBombSource with {  X = 
                     i > Player.HeartPoints ? 384 : 
                     i < Player.HeartPoints ? 0 :
                     384 - (Player.HeartSpices * 96)
                 },
                 HeartBombDest with {Y = HeartsY, X = ResX - SizeOfRes * (8-i) },
-                Vector2.Zero, 0, Color.White);
+                Vector2.Zero, 0, Rgba.White);
         }
         const float fontSizeBig = 22;
         const float fontSizeSmall = 12;
@@ -753,28 +753,28 @@ public class GameBox : IDisposable
         string hiScoreString = score > MaxScore ? scoreString : Helper.FormatScore(MaxScore, MaxScoreContinue);
         var positionHiScore = new Vector2(206, 64) * Runtime.CurrentRuntime.ScaleF - Helper.GetScoreTextureSize(hiScoreString,fontSizeBig);
         var positionScore = new Vector2(206, 86) * Runtime.CurrentRuntime.ScaleF - Helper.GetScoreTextureSize(scoreString, fontSizeBig);
-        Helper.DrawScoreText(hiScoreString, fontSizeBig, positionHiScore, Color.LightGray);
-        Helper.DrawScoreText(scoreString, fontSizeBig, positionScore, Color.White);
-        Helper.DrawScoreText($"{Player.HeartSpices}/5", fontSizeSmall, new Vector2(175, 112) * Runtime.CurrentRuntime.ScaleF, Color.White);
-        Helper.DrawScoreText($"{Player.BombsSpices}/5", fontSizeSmall, new Vector2(175, 152) * Runtime.CurrentRuntime.ScaleF, Color.White);
+        Helper.DrawScoreText(hiScoreString, fontSizeBig, positionHiScore, Rgba.LightGray);
+        Helper.DrawScoreText(scoreString, fontSizeBig, positionScore, Rgba.White);
+        Helper.DrawScoreText($"{Player.HeartSpices}/5", fontSizeSmall, new Vector2(175, 112) * Runtime.CurrentRuntime.ScaleF, Rgba.White);
+        Helper.DrawScoreText($"{Player.BombsSpices}/5", fontSizeSmall, new Vector2(175, 152) * Runtime.CurrentRuntime.ScaleF, Rgba.White);
         var sizeH = Helper.GetScoreTextureSize("..", fontSizeBig);
         var sizeH2 = Helper.GetScoreTextureSize("...", fontSizeBig);
         var sizeL = Helper.GetScoreTextureSize("..", fontSizeSmall);
         var posPower1 = new Vector2(206, 200) * Runtime.CurrentRuntime.ScaleF -
                         new Vector2(sizeL.X * 2 + sizeH.X + sizeH2.X, sizeH.Y);
-        Helper.DrawScoreText($"{Player.Power/100}.", fontSizeBig, posPower1, Color.Orange);
-        Helper.DrawScoreText($"{Player.Power%100:00}", fontSizeSmall, posPower1 + new Vector2(sizeH.X, (sizeH.Y-sizeL.Y) * 0.8f), Color.Orange);
-        Helper.DrawScoreText($"/4.", fontSizeBig, posPower1+new Vector2(sizeH.X+sizeL.X, 0), Color.Orange);
-        Helper.DrawScoreText($"00", fontSizeSmall, posPower1 + new Vector2(sizeH.X+sizeH2.X+sizeL.X, (sizeH.Y-sizeL.Y) * 0.8f), Color.Orange);
+        Helper.DrawScoreText($"{Player.Power/100}.", fontSizeBig, posPower1, Rgba.Orange);
+        Helper.DrawScoreText($"{Player.Power%100:00}", fontSizeSmall, posPower1 + new Vector2(sizeH.X, (sizeH.Y-sizeL.Y) * 0.8f), Rgba.Orange);
+        Helper.DrawScoreText($"/4.", fontSizeBig, posPower1+new Vector2(sizeH.X+sizeL.X, 0), Rgba.Orange);
+        Helper.DrawScoreText($"00", fontSizeSmall, posPower1 + new Vector2(sizeH.X+sizeH2.X+sizeL.X, (sizeH.Y-sizeL.Y) * 0.8f), Rgba.Orange);
         Helper.DrawScoreText($"10000", fontSizeBig, new Vector2(206, 218) * Runtime.CurrentRuntime.ScaleF - 
-                                                    Helper.GetScoreTextureSize("10000", fontSizeBig), Color.SkyBlue);
+                                                    Helper.GetScoreTextureSize("10000", fontSizeBig), Rgba.SkyBlue);
         Helper.DrawScoreText(Player.Graze.ToString(), fontSizeBig, new Vector2(206, 236) * Runtime.CurrentRuntime.ScaleF - 
-                                                                   Helper.GetScoreTextureSize(Player.Graze.ToString(), fontSizeBig), Color.White);
+                                                                   Helper.GetScoreTextureSize(Player.Graze.ToString(), fontSizeBig), Rgba.White);
         EndTextureMode();
     }
     #endregion
     #region Time
-    public double CountTimeFrom = Raylib.GetTime() + 3d;
+    public double CountTimeFrom = Gfx.GetTime() + 3d;
     float PauseTimestamp = 0;
     float GameoverTimestamp = 0;
     bool isPaused = false;
@@ -786,7 +786,7 @@ public class GameBox : IDisposable
             return GameoverTimestamp;
         if (IsPaused)
             return (float)(PauseTimestamp - CountTimeFrom);
-        return (float)(Raylib.GetTime() - CountTimeFrom);
+        return (float)(Gfx.GetTime() - CountTimeFrom);
     }
     
     public bool IsPaused
@@ -799,9 +799,9 @@ public class GameBox : IDisposable
             isPaused = value;
             GameplayScreen.Paused = value;
             if(value)
-                PauseTimestamp = (float)Raylib.GetTime();
+                PauseTimestamp = (float)GetTime();
             else
-                CountTimeFrom += Raylib.GetTime() - PauseTimestamp;
+                CountTimeFrom += GetTime() - PauseTimestamp;
         }
     }
 

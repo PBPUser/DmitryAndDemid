@@ -1,3 +1,4 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
@@ -5,12 +6,7 @@ using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay;
 using Microsoft.CSharp.RuntimeBinder;
 using Pango;
-using Raylib_cs;
-using Silk.NET.Vulkan;
-using static Raylib_cs.Raylib;
-using Color = Raylib_cs.Color;
-using Font = Raylib_cs.Font;
-using Rectangle = Raylib_cs.Rectangle;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Utils;
 
@@ -22,23 +18,23 @@ public static class Helper
     {
         PrepareTimerRenderer();
         
-        LocationCloudRadius = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["cloud"], "radius");
-        LocationCloudDimensions = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["cloud"], "dimenssions");
-        LocationCloudAngle = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["cloud"], "angle");
-        LocationCloudWidth = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["cloud"], "width");
-        LocationCloudSize = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["cloud"], "size");
+        LocationCloudRadius = GetShaderLocation(Runtime.CurrentRuntime.Shaders["cloud"], "radius");
+        LocationCloudDimensions = GetShaderLocation(Runtime.CurrentRuntime.Shaders["cloud"], "dimenssions");
+        LocationCloudAngle = GetShaderLocation(Runtime.CurrentRuntime.Shaders["cloud"], "angle");
+        LocationCloudWidth = GetShaderLocation(Runtime.CurrentRuntime.Shaders["cloud"], "width");
+        LocationCloudSize = GetShaderLocation(Runtime.CurrentRuntime.Shaders["cloud"], "size");
 
-        LocationWaveScale = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["wave"], "scale");
-        LocationWaveXPower = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["wave"], "xPower");
-        LocationWaveOffsetX = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["wave"], "offsetX");
-        LocationWaveOffsetY = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["wave"], "offsetY");
-        LocationWaveScreenSize = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["wave"], "screenSize");
-        LocationWaveScreenColor = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["wave"], "color");
+        LocationWaveScale = GetShaderLocation(Runtime.CurrentRuntime.Shaders["wave"], "scale");
+        LocationWaveXPower = GetShaderLocation(Runtime.CurrentRuntime.Shaders["wave"], "xPower");
+        LocationWaveOffsetX = GetShaderLocation(Runtime.CurrentRuntime.Shaders["wave"], "offsetX");
+        LocationWaveOffsetY = GetShaderLocation(Runtime.CurrentRuntime.Shaders["wave"], "offsetY");
+        LocationWaveScreenSize = GetShaderLocation(Runtime.CurrentRuntime.Shaders["wave"], "screenSize");
+        LocationWaveScreenColor = GetShaderLocation(Runtime.CurrentRuntime.Shaders["wave"], "color");
 
-        LocationFlipScreenSize = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["flip"], "screenSize");
+        LocationFlipScreenSize = GetShaderLocation(Runtime.CurrentRuntime.Shaders["flip"], "screenSize");
         
-        LocationRenderSelectionHeight = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["selection"], "height");
-        LocationRenderSelectionScreenSize = Raylib.GetShaderLocation(Runtime.CurrentRuntime.Shaders["selection"], "screenSize");
+        LocationRenderSelectionHeight = GetShaderLocation(Runtime.CurrentRuntime.Shaders["selection"], "height");
+        LocationRenderSelectionScreenSize = GetShaderLocation(Runtime.CurrentRuntime.Shaders["selection"], "screenSize");
         
         LocationContrastOpacity = GetShaderLocation(Runtime.CurrentRuntime.Shaders["contrast"], "opacity");
         LocationContrastLevel = GetShaderLocation(Runtime.CurrentRuntime.Shaders["contrast"], "contrastLevel");
@@ -57,10 +53,10 @@ public static class Helper
         LocationGradientBorderWidth = GetShaderLocation(Runtime.CurrentRuntime.Shaders["gradient"], "border_width");
         LocationGradientResoulution = GetShaderLocation(Runtime.CurrentRuntime.Shaders["gradient"], "res");
 
-        PizzaSource = new Rectangle(0, 0, Runtime.CurrentRuntime.Textures["pizza.png"].Width, Runtime.CurrentRuntime.Textures["pizza.png"].Height);
+        PizzaSource = new Rect(0, 0, Runtime.CurrentRuntime.Textures["pizza.png"].Width, Runtime.CurrentRuntime.Textures["pizza.png"].Height);
     }
 
-    static Rectangle PizzaSource;
+    static Rect PizzaSource;
 
     private static int LocationGradientBorderWidth;
     private static int LocationGradientResoulution;
@@ -106,37 +102,37 @@ public static class Helper
 
     public static void BeginRotateShader(float roll, float pitch, float yaw, float focal)
     {
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["rotate"], LocationRotateFocal, focal, ShaderUniformDataType.Float);
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["rotate"], LocationRotateRoll, roll, ShaderUniformDataType.Float);
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["rotate"], LocationRotatePitch, pitch, ShaderUniformDataType.Float);
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["rotate"], LocationRotateYaw, yaw, ShaderUniformDataType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["rotate"], LocationRotateFocal, focal, UniformType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["rotate"], LocationRotateRoll, roll, UniformType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["rotate"], LocationRotatePitch, pitch, UniformType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["rotate"], LocationRotateYaw, yaw, UniformType.Float);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders["rotate"]);
     }
     
     public static void BeginContrastShader(float contrastLevel, float opacity)
     {
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["contrast"], LocationContrastOpacity, opacity, ShaderUniformDataType.Float);
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["contrast"], LocationContrastLevel, contrastLevel, ShaderUniformDataType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["contrast"], LocationContrastOpacity, opacity, UniformType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["contrast"], LocationContrastLevel, contrastLevel, UniformType.Float);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders["contrast"]);
     }
 
     private const float BossTextFontSize = 8;
     private const float ChapterTitleFontSize = 12;
-    private static Color BossTextColor = Color.Lime;
+    private static Rgba BossTextColor = Rgba.Lime;
     
     public static Vector2 GetBossTextSize(string text)
     {
         string transliterate = Transliterate(text);
-        return Raylib.MeasureTextEx(GetFontDefault(),
+        return MeasureTextEx(GetFontDefault(),
             transliterate,
             BossTextFontSize * Runtime.CurrentRuntime.ScaleF,
             Runtime.CurrentRuntime.ScaleF);
     }
 
-    public static void DrawBossText(RenderTexture2D texture, string text)
+    public static void DrawBossText(TargetHandle texture, string text)
     {
         string transliterate = Transliterate(text);
-        RenderTexture2D temp = Raylib.LoadRenderTexture(texture.Texture.Width,  texture.Texture.Height);
+        TargetHandle temp = LoadRenderTexture(texture.Texture.Width,  texture.Texture.Height);
         BeginTextureMode(temp);
         DrawTextEx(GetFontDefault(),
             transliterate,
@@ -145,39 +141,39 @@ public static class Helper
             Runtime.CurrentRuntime.ScaleF, BossTextColor);
         EndTextureMode();
         BeginTextureMode(texture);
-        Rectangle rc = new(0, 0, temp.Texture.Width, temp.Texture.Height);
-        Rectangle rc2 = new(0, temp.Texture.Height, temp.Texture.Width, temp.Texture.Height);
-        DrawTexturePro(temp.Texture, rc2,   rc, Vector2.Zero, 0, Color.White);
+        Rect rc = new(0, 0, temp.Texture.Width, temp.Texture.Height);
+        Rect rc2 = new(0, temp.Texture.Height, temp.Texture.Width, temp.Texture.Height);
+        DrawTexturePro(temp.Texture, rc2,   rc, Vector2.Zero, 0, Rgba.White);
         EndTextureMode();
         UnloadRenderTexture(temp);
     }
 
-    public static void DrawChapterTitleText(RenderTexture2D texture, string text)
+    public static void DrawChapterTitleText(TargetHandle texture, string text)
     {
         string transliterate = Transliterate(text);
-        RenderTexture2D temp = Raylib.LoadRenderTexture(texture.Texture.Width,  texture.Texture.Height);
+        TargetHandle temp = LoadRenderTexture(texture.Texture.Width,  texture.Texture.Height);
         BeginTextureMode(temp);
         var b = GetTitleTextSize(text);
         DrawTextEx(Runtime.CurrentRuntime.Fonts["kodemono"],
             transliterate,
             new(b.X * 0.33f, b.Y * 0.3f),
             ChapterTitleFontSize * Runtime.CurrentRuntime.ScaleF,
-            Runtime.CurrentRuntime.ScaleF, Color.White);
+            Runtime.CurrentRuntime.ScaleF, Rgba.White);
         EndTextureMode();
         BeginTextureMode(texture);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders["spellcard_title"]);
         DrawTexturePro(Runtime.CurrentRuntime.Textures["384x448"],
-            new Rectangle(0, 0, 384, 448),
-            new Rectangle(0, 0, b),
-            Vector2.Zero, 0, Color.White);
+            new Rect(0, 0, 384, 448),
+            new Rect(0, 0, b),
+            Vector2.Zero, 0, Rgba.White);
         EndShaderMode();
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], LocationOutlineBorderwidth, Runtime.CurrentRuntime.ScaleF , ShaderUniformDataType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], LocationOutlineBorderwidth, Runtime.CurrentRuntime.ScaleF , UniformType.Float);
         SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], LocationOutlineResolution,
-            [b.X / 1.5f, b.Y / 1.5f], ShaderUniformDataType.Vec2);
+            [b.X / 1.5f, b.Y / 1.5f], UniformType.Vec2);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders["outline"]);
-        Rectangle rc = new(0, 0, temp.Texture.Width, temp.Texture.Height);
-        Rectangle rc2 = new(0, temp.Texture.Height, temp.Texture.Width, temp.Texture.Height);
-        DrawTexturePro(temp.Texture, rc2,   rc, Vector2.Zero, 0, Color.White);
+        Rect rc = new(0, 0, temp.Texture.Width, temp.Texture.Height);
+        Rect rc2 = new(0, temp.Texture.Height, temp.Texture.Width, temp.Texture.Height);
+        DrawTexturePro(temp.Texture, rc2,   rc, Vector2.Zero, 0, Rgba.White);
         EndShaderMode();
         EndTextureMode();
         UnloadRenderTexture(temp);
@@ -186,27 +182,27 @@ public static class Helper
     public static Vector2 GetTitleTextSize(string text)
     {
         string transliterate = Transliterate(text);
-        return Raylib.MeasureTextEx(Runtime.CurrentRuntime.Fonts["kodemono"],
+        return MeasureTextEx(Runtime.CurrentRuntime.Fonts["kodemono"],
             transliterate,
             ChapterTitleFontSize * Runtime.CurrentRuntime.ScaleF,
             Runtime.CurrentRuntime.ScaleF) * 1.5f;
     }
     
-    public static RenderTexture2D RenderTextureInCloud(Texture2D texture, float radius = 3f, float angle = -0.85f, float width = 0.35f, float size = 1.4f)
+    public static TargetHandle RenderTextureInCloud(TextureHandle texture, float radius = 3f, float angle = -0.85f, float width = 0.35f, float size = 1.4f)
     {
-        RenderTexture2D cloud = Raylib.LoadRenderTexture(texture.Width * 2, texture.Height * 2);
+        TargetHandle cloud = LoadRenderTexture(texture.Width * 2, texture.Height * 2);
         var arr = new float[] { 1, 1 };
-        Raylib.SetShaderValue(Runtime.CurrentRuntime.Shaders["cloud"], LocationCloudRadius, radius, ShaderUniformDataType.Float);
-        Raylib.SetShaderValue(Runtime.CurrentRuntime.Shaders["cloud"], LocationCloudAngle, angle, ShaderUniformDataType.Float);
-        Raylib.SetShaderValue(Runtime.CurrentRuntime.Shaders["cloud"], LocationCloudWidth, width, ShaderUniformDataType.Float);
-        Raylib.SetShaderValue(Runtime.CurrentRuntime.Shaders["cloud"], LocationCloudSize, size, ShaderUniformDataType.Float);
-        Raylib.SetShaderValue(Runtime.CurrentRuntime.Shaders["cloud"], LocationCloudDimensions, arr, ShaderUniformDataType.Vec2);
-        Raylib.BeginTextureMode(cloud);
-        Raylib.BeginShaderMode(Runtime.CurrentRuntime.Shaders["cloud"]);
-        Raylib.DrawTexturePro(Runtime.CurrentRuntime.Textures["pizza.png"], PizzaSource, new Rectangle(0, 0, cloud.Texture.Width, cloud.Texture.Height), Vector2.Zero, 0f, Color.White);//
-        Raylib.EndShaderMode();
-        Raylib.DrawTexture(texture, texture.Width / 2, texture.Height / 2, Color.White);
-        Raylib.EndTextureMode();
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["cloud"], LocationCloudRadius, radius, UniformType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["cloud"], LocationCloudAngle, angle, UniformType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["cloud"], LocationCloudWidth, width, UniformType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["cloud"], LocationCloudSize, size, UniformType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["cloud"], LocationCloudDimensions, arr, UniformType.Vec2);
+        BeginTextureMode(cloud);
+        BeginShaderMode(Runtime.CurrentRuntime.Shaders["cloud"]);
+        DrawTexturePro(Runtime.CurrentRuntime.Textures["pizza.png"], PizzaSource, new Rect(0, 0, cloud.Texture.Width, cloud.Texture.Height), Vector2.Zero, 0f, Rgba.White);//
+        EndShaderMode();
+        DrawTexture(texture, texture.Width / 2, texture.Height / 2, Rgba.White);
+        EndTextureMode();
         return cloud;
     }
 
@@ -217,27 +213,27 @@ public static class Helper
     static int LocationWaveScreenSize;
     static int LocationWaveScreenColor;
 
-    public static void DrawWave(Color color, float offsetX, float offsetY, float xPower, float scale, Rectangle target)
+    public static void DrawWave(Rgba color, float offsetX, float offsetY, float xPower, float scale, Rect target)
     {
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveScale, scale, ShaderUniformDataType.Float);
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveXPower, xPower, ShaderUniformDataType.Float);
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveOffsetX, offsetX, ShaderUniformDataType.Float);
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveOffsetY, offsetY, ShaderUniformDataType.Float);
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveScreenColor, ColorToVector(color), ShaderUniformDataType.Vec4);
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveScreenSize, new float[] { target.Width, target.Height }, ShaderUniformDataType.Vec2);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveScale, scale, UniformType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveXPower, xPower, UniformType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveOffsetX, offsetX, UniformType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveOffsetY, offsetY, UniformType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveScreenColor, ColorToVector(color), UniformType.Vec4);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["wave"], LocationWaveScreenSize, new float[] { target.Width, target.Height }, UniformType.Vec2);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders["wave"]);
-        DrawRectanglePro(target, Vector2.Zero, 0, Color.White);
+        DrawRectanglePro(target, Vector2.Zero, 0, Rgba.White);
         EndShaderMode();
     }
 
-    private static Shader OutlineShader;
-    private static Shader TextGradientShader;
-    private static Shader AAShader;
+    private static ShaderHandle OutlineShader;
+    private static ShaderHandle TextGradientShader;
+    private static ShaderHandle AAShader;
     private static float TimerFontSize = 24;
     private static float TimerFontSpacing = 2;
-    private static RenderTexture2D TempTimerTexture, TempTimerTexture2;
-    private static Rectangle TimerRectangleSource, TimerRectangleTarget;
-    private static Font TimerFont = Runtime.CurrentRuntime.Fonts["kodemono"];
+    private static TargetHandle TempTimerTexture, TempTimerTexture2;
+    private static Rect TimerRectangleSource, TimerRectangleTarget;
+    private static FontHandle TimerFont = Runtime.CurrentRuntime.Fonts["kodemono"];
     private static int LocationOutlineResolution;
     private static int LocationOutlineFullResolution;
     private static int LocationOutlinePosition;
@@ -265,20 +261,20 @@ public static class Helper
         TimerPos = TimerTextureSize / 12f; 
         TempTimerTexture = LoadRenderTexture((int)TimerTextureSize.X, (int)TimerTextureSize.Y);
         TempTimerTexture2 = LoadRenderTexture((int)TimerTextureSize.X, (int)TimerTextureSize.Y);
-        TimerRectangleSource = new Rectangle(0, (int)TimerTextureSize.Y, (int)TimerTextureSize.X, -(int)TimerTextureSize.Y);
-        TimerRectangleTarget = new Rectangle(0, 0, (int)TimerTextureSize.X, (int)TimerTextureSize.Y);
+        TimerRectangleSource = new Rect(0, (int)TimerTextureSize.Y, (int)TimerTextureSize.X, -(int)TimerTextureSize.Y);
+        TimerRectangleTarget = new Rect(0, 0, (int)TimerTextureSize.X, (int)TimerTextureSize.Y);
         LocationAAResolution = GetShaderLocation(AAShader, "resolution");
         LocationAAScale = GetShaderLocation(AAShader, "scale");
     }
     
-    public static void DrawScoreText(string text, float fontSize, Vector2 position, Color color)
+    public static void DrawScoreText(string text, float fontSize, Vector2 position, Rgba color)
     {
         const string t = "0123456789./";
         var vec2 = GetScoreTextureSize(text, fontSize);
-        Rectangle copy = new Rectangle(new(Runtime.CurrentRuntime.ScoreSpacing, 
+        Rect copy = new Rect(new(Runtime.CurrentRuntime.ScoreSpacing, 
                 Runtime.CurrentRuntime.ScoreSpacing),
             Runtime.CurrentRuntime.ScoreLetterWidth, Runtime.CurrentRuntime.ScoreLetterHeight);
-        Rectangle target = new(0,position.Y, new Vector2(Runtime.CurrentRuntime.ScoreLetterWidth * (fontSize/64), vec2.Y));
+        Rect target = new(0,position.Y, new Vector2(Runtime.CurrentRuntime.ScoreLetterWidth * (fontSize/64), vec2.Y));
         int z = 0, i = 0;
         var ctexture = Runtime.CurrentRuntime.Textures["ScoreDigitsPrerender"];
         foreach (var c in text)
@@ -309,19 +305,19 @@ public static class Helper
             );
     }
 
-    public static RenderTexture2D CreateScoreText(string text, float fontSize)
+    public static TargetHandle CreateScoreText(string text, float fontSize)
     {
         var vec2 = GetScoreTextureSize(text, fontSize);
         var texture = LoadRenderTexture((int)vec2.X, (int)vec2.Y);
         BeginTextureMode(texture);
-        DrawScoreText(text, fontSize, Vector2.Zero, Color.White);
+        DrawScoreText(text, fontSize, Vector2.Zero, Rgba.White);
         EndTextureMode();
         return texture;
     }
 
-    private static RenderTexture2D BonusTexture;
-    private static RenderTexture2D SpellTexture;
-    private static RenderTexture2D SubtitleBufferTexture;
+    private static TargetHandle BonusTexture;
+    private static TargetHandle SpellTexture;
+    private static TargetHandle SubtitleBufferTexture;
     private static float SpellFontSize;
 
     static void PrepareSpellSubtitleTextures()
@@ -329,8 +325,8 @@ public static class Helper
         SpellFontSize = BonusCountSize *  Runtime.CurrentRuntime.ScaleF;
         string bonusTitle = Translate("spell.bonus");
         string spellTitle = Translate("spell.attempt");
-        DrawTextOutline(out BonusTexture, TimerFont, SpellFontSize, bonusTitle, Color.Blue, 0);
-        DrawTextOutline(out SpellTexture, TimerFont, SpellFontSize, spellTitle, Color.Blue, 0);
+        DrawTextOutline(out BonusTexture, TimerFont, SpellFontSize, bonusTitle, Rgba.Blue, 0);
+        DrawTextOutline(out SpellTexture, TimerFont, SpellFontSize, spellTitle, Rgba.Blue, 0);
         SubtitleBufferTexture = LoadRenderTexture(8192, BonusTexture.Texture.Height);
     }
     
@@ -343,116 +339,118 @@ public static class Helper
     /// <param name="total"></param>
     /// <param name="success"></param>
     /// <returns>Used Texture Width</returns>
-    public static int DrawSpellSubtitle(RenderTexture2D renderTexture2D, int score, int total, int success, int posX = 0, int posY = 0)
+    public static int DrawSpellSubtitle(TargetHandle renderTexture2D, int score, int total, int success, int posX = 0, int posY = 0)
     {
         string bonusValue = (score == -1 ? Translate("spell.failed") : score.ToString()) + " ";
         string spellValue = success > 99 ? Transliterate("spell.master") : $"{success:00}/{(total > 99 ? "99+" : $"{total:00}")}";
         var padding = Runtime.CurrentRuntime.ScaleF * 4;
-        DrawTextOutline(out var temp2, TimerFont, SpellFontSize, bonusValue, Color.White, 0);
-        DrawTextOutline(out var temp4, TimerFont, SpellFontSize, spellValue, Color.White, 0);
+        DrawTextOutline(out var temp2, TimerFont, SpellFontSize, bonusValue, Rgba.White, 0);
+        DrawTextOutline(out var temp4, TimerFont, SpellFontSize, spellValue, Rgba.White, 0);
         //var rectangle = GetFullSourceRenderTexture(temp1);
         //var rectangle2 = GetFullSource(temp1.Texture);
         //BeginTextureMode(renderTexture2D);
-        //DrawTexture(temp1.Texture, posX, posY, Color.White);
+        //DrawTexture(temp1.Texture, posX, posY, Rgba.White);
         //posX += temp1.Texture.Width;
-        //DrawTexture(temp2.Texture, posX, posY, Color.White);
+        //DrawTexture(temp2.Texture, posX, posY, Rgba.White);
         //posX += temp2.Texture.Width;
-        //DrawTexture(temp3.Texture, posX, posY, Color.White);
+        //DrawTexture(temp3.Texture, posX, posY, Rgba.White);
         //posX += temp3.Texture.Width;
-        //DrawTexture(temp4.Texture, posX, posY, Color.White);
+        //DrawTexture(temp4.Texture, posX, posY, Rgba.White);
         //posX += temp4.Texture.Width;
-        EndTextureMode();
+        // NOTE: there used to be an EndTextureMode() here with no matching Begin — the Begin above is
+        // commented out. Raylib tolerated it (End just unbinds to the window), but it is a genuine
+        // imbalance: with the frame composited into a render target it popped that target instead.
         UnloadRenderTexture(temp2);
         UnloadRenderTexture(temp4);
         return posX;
     }
 
-    public static void DrawTextOutline(out RenderTexture2D texture, Font font, float fontSize, string text, Color color, float padding)
+    public static void DrawTextOutline(out TargetHandle texture, FontHandle font, float fontSize, string text, Rgba color, float padding)
     {
         DrawTextAliasedA(out var temp, font, fontSize, 0, text, color);
         texture = LoadRenderTexture((int)(temp.Texture.Width + padding * 2),
             (int)(temp.Texture.Height + padding * 2));
         var s = GetFullSource(texture.Texture);
         var temp2 = LoadRenderTexture(texture.Texture.Width, texture.Texture.Height);
-        SetShaderValue(OutlineShader, LocationOutlinePosition, [0f, 0f], ShaderUniformDataType.Vec2);
-        SetShaderValue(OutlineShader, LocationOutlineFullResolution, s.Size, ShaderUniformDataType.Vec2);
-        SetShaderValue(OutlineShader, LocationOutlineResolution, s.Size, ShaderUniformDataType.Vec2);
-        SetShaderValue(OutlineShader, LocationOutlineBorderwidth, 4 * Runtime.CurrentRuntime.ScaleF, ShaderUniformDataType.Float);
+        SetShaderValue(OutlineShader, LocationOutlinePosition, [0f, 0f], UniformType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineFullResolution, s.Size, UniformType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineResolution, s.Size, UniformType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineBorderwidth, 4 * Runtime.CurrentRuntime.ScaleF, UniformType.Float);
         BeginTextureMode(temp2);
         DrawTexturePro(temp.Texture, 
-            new Rectangle(0, 0, temp.Texture.Width, temp.Texture.Height),
-            new Rectangle(padding, padding, temp.Texture.Width, temp.Texture.Height),
-            Vector2.Zero, 0, Color.White);
+            new Rect(0, 0, temp.Texture.Width, temp.Texture.Height),
+            new Rect(padding, padding, temp.Texture.Width, temp.Texture.Height),
+            Vector2.Zero, 0, Rgba.White);
         EndTextureMode();
         BeginTextureMode(texture);
         BeginShaderMode(OutlineShader);
         DrawTexturePro(temp2.Texture,
-            new Rectangle(0, 0, temp2.Texture.Width, temp2.Texture.Height),
-            new Rectangle(0, 0, texture.Texture.Width, texture.Texture.Height),
-            Vector2.Zero, 0, Color.White);
+            new Rect(0, 0, temp2.Texture.Width, temp2.Texture.Height),
+            new Rect(0, 0, texture.Texture.Width, texture.Texture.Height),
+            Vector2.Zero, 0, Rgba.White);
         EndShaderMode();
         EndTextureMode();
         UnloadRenderTexture(temp);
         UnloadRenderTexture(temp2);
     }
     
-    public static void DrawTextOutlineRef(ref RenderTexture2D texture, Font font, float fontSize, string text, Color color, float padding)
+    public static void DrawTextOutlineRef(ref TargetHandle texture, FontHandle font, float fontSize, string text, Rgba color, float padding)
     {
         //DrawTextAliasedRef(out var temp, font, fontSize, 0, text, color);
         //var s = GetFullSource(texture.Texture);
         //var temp2 = LoadRenderTexture(texture.Texture.Width, texture.Texture.Height);
-        //SetShaderValue(OutlineShader, LocationOutlinePosition, [0f, 0f], ShaderUniformDataType.Vec2);
-        //SetShaderValue(OutlineShader, LocationOutlineFullResolution, s.Size, ShaderUniformDataType.Vec2);
-        //SetShaderValue(OutlineShader, LocationOutlineResolution, s.Size, ShaderUniformDataType.Vec2);
-        //SetShaderValue(OutlineShader, LocationOutlineBorderwidth, 4 * Runtime.CurrentRuntime.ScaleF, ShaderUniformDataType.Float);
+        //SetShaderValue(OutlineShader, LocationOutlinePosition, [0f, 0f], UniformType.Vec2);
+        //SetShaderValue(OutlineShader, LocationOutlineFullResolution, s.Size, UniformType.Vec2);
+        //SetShaderValue(OutlineShader, LocationOutlineResolution, s.Size, UniformType.Vec2);
+        //SetShaderValue(OutlineShader, LocationOutlineBorderwidth, 4 * Runtime.CurrentRuntime.ScaleF, UniformType.Float);
         //BeginTextureMode(temp2);
         //DrawTexturePro(temp.Texture, 
-        //    new Rectangle(0, 0, temp.Texture.Width, temp.Texture.Height),
-        //    new Rectangle(padding, padding, temp.Texture.Width, temp.Texture.Height),
-        //    Vector2.Zero, 0, Color.White);
+        //    new Rect(0, 0, temp.Texture.Width, temp.Texture.Height),
+        //    new Rect(padding, padding, temp.Texture.Width, temp.Texture.Height),
+        //    Vector2.Zero, 0, Rgba.White);
         //EndTextureMode();
         //BeginTextureMode(texture);
         //BeginShaderMode(OutlineShader);
         //DrawTexturePro(temp2.Texture,
-        //    new Rectangle(0, 0, temp2.Texture.Width, temp2.Texture.Height),
-        //    new Rectangle(0, 0, texture.Texture.Width, texture.Texture.Height),
-        //    Vector2.Zero, 0, Color.White);
+        //    new Rect(0, 0, temp2.Texture.Width, temp2.Texture.Height),
+        //    new Rect(0, 0, texture.Texture.Width, texture.Texture.Height),
+        //    Vector2.Zero, 0, Rgba.White);
         //EndShaderMode();
         //EndTextureMode();
         //UnloadRenderTexture(temp);
         //UnloadRenderTexture(temp2);
     }
 
-    public static void DrawTextGradient(out RenderTexture2D texture, Font font, float fontSize, string text,
-        Color color, float padding)
+    public static void DrawTextGradient(out TargetHandle texture, FontHandle font, float fontSize, string text,
+        Rgba color, float padding)
     {
         DrawTextOutline(out var temp, font, fontSize, text, color, padding);
         texture = LoadRenderTexture(temp.Texture.Width, temp.Texture.Height);
         BeginTextureMode(texture);
         BeginShaderMode(TextGradientShader);
-        DrawTexture(temp.Texture, 0, 0, Color.White);
+        DrawTexture(temp.Texture, 0, 0, Rgba.White);
         EndShaderMode();
         EndTextureMode();
         UnloadRenderTexture(temp);
     }
 
-    public static void DrawTextAliased(out RenderTexture2D texture, 
+    public static void DrawTextAliased(out TargetHandle texture, 
 #if DEBUG
-        out RenderTexture2D unscaled,
+        out TargetHandle unscaled,
 #endif
-        Font font, float fontSize, float spacing, string text, Color color)
+        FontHandle font, float fontSize, float spacing, string text, Rgba color)
     {
         var measure = MeasureTextEx(font, text, fontSize * 4, spacing);
         var tmp = LoadRenderTexture((int)measure.X, (int)measure.Y);
-        SetShaderValue(AAShader, LocationAAResolution, measure, ShaderUniformDataType.Vec2);
-        SetShaderValue(AAShader, LocationAAScale, 4, ShaderUniformDataType.Int);
+        SetShaderValue(AAShader, LocationAAResolution, measure, UniformType.Vec2);
+        SetShaderValue(AAShader, LocationAAScale, 4, UniformType.Int);
         BeginTextureMode(tmp);
         DrawTextEx(font, text, Vector2.Zero, fontSize * 4, spacing, color);
         EndTextureMode();
         texture = LoadRenderTexture((int)measure.X / 4, (int)measure.Y / 4);
         BeginTextureMode(texture);
         BeginShaderMode(AAShader);
-        DrawTexture(tmp.Texture, 0, 0, Color.White);
+        DrawTexture(tmp.Texture, 0, 0, Rgba.White);
         EndShaderMode();
         EndTextureMode();
 #if DEBUG
@@ -462,33 +460,33 @@ public static class Helper
 #endif
     }
 
-    private static RenderTexture2D AlliasTextureTemp = LoadRenderTexture(8192, 8192);
+    private static TargetHandle AlliasTextureTemp = LoadRenderTexture(8192, 8192);
     
-    public static void DrawTextAliasedRef(ref RenderTexture2D texture,
-        Font font, float fontSize, float spacing, string text, Color color)
+    public static void DrawTextAliasedRef(ref TargetHandle texture,
+        FontHandle font, float fontSize, float spacing, string text, Rgba color)
     {
         var measure = MeasureTextEx(font, text, fontSize * 4, spacing);
         var tmp = LoadRenderTexture((int)measure.X, (int)measure.Y);
-        SetShaderValue(AAShader, LocationAAResolution, measure, ShaderUniformDataType.Vec2);
-        SetShaderValue(AAShader, LocationAAScale, 4, ShaderUniformDataType.Int);
+        SetShaderValue(AAShader, LocationAAResolution, measure, UniformType.Vec2);
+        SetShaderValue(AAShader, LocationAAScale, 4, UniformType.Int);
         BeginTextureMode(tmp);
         DrawTextEx(font, text, Vector2.Zero, fontSize * 4, spacing, color);
         EndTextureMode();
         BeginTextureMode(texture);
         BeginShaderMode(AAShader);
-        DrawTexture(tmp.Texture, 0, 0, Color.White);
+        DrawTexture(tmp.Texture, 0, 0, Rgba.White);
         EndShaderMode();
         EndTextureMode();
     }
 
-    public static void DrawTextAliasedA(out RenderTexture2D texture, Font font, float fontSize, float spacing, string text, Color color)
+    public static void DrawTextAliasedA(out TargetHandle texture, FontHandle font, float fontSize, float spacing, string text, Rgba color)
     {
-        RenderTexture2D unscaled = new RenderTexture2D();
+        TargetHandle unscaled = new TargetHandle();
         DrawTextAliased(out texture, out unscaled, font, fontSize, spacing, text, color);
         UnloadRenderTexture(unscaled);
     }
     
-    public static void DrawTimerSplash(RenderTexture2D renderTexture, int ticks, double time)
+    public static void DrawTimerSplash(TargetHandle renderTexture, int ticks, double time)
     {
         var secondsFontSize = (int)(SplashTimerSize * Runtime.CurrentRuntime.ScaleF);
         var millsFonsSize = (int)(SplashTimerMillsSize * Runtime.CurrentRuntime.ScaleF);
@@ -517,38 +515,38 @@ public static class Helper
         var gameSource = GetFullSourceRenderTexture(gameTexture);
         var realSource = GetFullSourceRenderTexture(realTexture);
         BeginTextureMode(gameTexture);
-        DrawTextPro(TimerFont, gameSecondsStr, new Vector2(padding), Vector2.Zero, 0, secondsFontSize, 0, Color.White);
-        DrawTextPro(TimerFont, gameMillsStr, new Vector2(padding +gameSecondsSize.X, (padding*.75f)-gameMillsSize.Y+gameSecondsSize.Y), Vector2.Zero, 0, millsFonsSize, 0, Color.White);
+        DrawTextPro(TimerFont, gameSecondsStr, new Vector2(padding), Vector2.Zero, 0, secondsFontSize, 0, Rgba.White);
+        DrawTextPro(TimerFont, gameMillsStr, new Vector2(padding +gameSecondsSize.X, (padding*.75f)-gameMillsSize.Y+gameSecondsSize.Y), Vector2.Zero, 0, millsFonsSize, 0, Rgba.White);
         EndTextureMode();
         BeginTextureMode(realTexture);
-        DrawTextPro(TimerFont, realSecondsStr, new Vector2(padding), Vector2.Zero, 0, secondsFontSize, 0, Color.White);
-        DrawTextPro(TimerFont, realMillsStr, new Vector2(padding +realSecondsSize.X, (padding*.75f)-realMillsSize.Y+realSecondsSize.Y), Vector2.Zero, 0, millsFonsSize, 0, Color.White);
+        DrawTextPro(TimerFont, realSecondsStr, new Vector2(padding), Vector2.Zero, 0, secondsFontSize, 0, Rgba.White);
+        DrawTextPro(TimerFont, realMillsStr, new Vector2(padding +realSecondsSize.X, (padding*.75f)-realMillsSize.Y+realSecondsSize.Y), Vector2.Zero, 0, millsFonsSize, 0, Rgba.White);
         EndTextureMode();
         BeginTextureMode(gameTextureApply);
-        ClearBackground(Color.Black with {A=0});
-        SetShaderValue(OutlineShader, LocationOutlinePosition, [0,0], ShaderUniformDataType.Vec2);
-        SetShaderValue(OutlineShader, LocationOutlineResolution, gameSource.Size * new Vector2(1,1), ShaderUniformDataType.Vec2);
-        SetShaderValue(OutlineShader, LocationOutlineFullResolution, gameSource.Size * new Vector2(1,1), ShaderUniformDataType.Vec2);
-        SetShaderValue(OutlineShader, LocationOutlineBorderwidth, Runtime.CurrentRuntime.ScaleF * 4f, ShaderUniformDataType.Float);
+        ClearBackground(Rgba.Black with {A=0});
+        SetShaderValue(OutlineShader, LocationOutlinePosition, [0,0], UniformType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineResolution, gameSource.Size * new Vector2(1,1), UniformType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineFullResolution, gameSource.Size * new Vector2(1,1), UniformType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineBorderwidth, Runtime.CurrentRuntime.ScaleF * 4f, UniformType.Float);
         BeginShaderMode(OutlineShader);
-        DrawTexture(gameTexture.Texture, 0, 0, Color.White);
+        DrawTexture(gameTexture.Texture, 0, 0, Rgba.White);
         EndShaderMode();
         EndTextureMode();
         BeginTextureMode(realTextureApply);
-        ClearBackground(Color.Black with {A=0});
-        SetShaderValue(OutlineShader, LocationOutlineResolution, realSource.Size * new Vector2(1,-1), ShaderUniformDataType.Vec2);
-        SetShaderValue(OutlineShader, LocationOutlineFullResolution, realSource.Size * new Vector2(1,-1), ShaderUniformDataType.Vec2);
+        ClearBackground(Rgba.Black with {A=0});
+        SetShaderValue(OutlineShader, LocationOutlineResolution, realSource.Size * new Vector2(1,-1), UniformType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineFullResolution, realSource.Size * new Vector2(1,-1), UniformType.Vec2);
         BeginShaderMode(OutlineShader);
-        DrawTexture(realTexture.Texture, 0, 0, Color.White);
+        DrawTexture(realTexture.Texture, 0, 0, Rgba.White);
         EndShaderMode();
         EndTextureMode();
         BeginTextureMode(renderTexture);
-        ClearBackground(Color.Black with {A=0});
-        DrawTexture(gameTextureApply.Texture, renderTexture.Texture.Width-gameTextureApply.Texture.Width, (int)(10 * Runtime.CurrentRuntime.ScaleF), Color.White);
-        DrawTexture(realTextureApply.Texture, renderTexture.Texture.Width-realTextureApply.Texture.Width, (int)(60 * Runtime.CurrentRuntime.ScaleF), Color.White);
-        DrawTexturePro(texture, source, new Rectangle(
+        ClearBackground(Rgba.Black with {A=0});
+        DrawTexture(gameTextureApply.Texture, renderTexture.Texture.Width-gameTextureApply.Texture.Width, (int)(10 * Runtime.CurrentRuntime.ScaleF), Rgba.White);
+        DrawTexture(realTextureApply.Texture, renderTexture.Texture.Width-realTextureApply.Texture.Width, (int)(60 * Runtime.CurrentRuntime.ScaleF), Rgba.White);
+        DrawTexturePro(texture, source, new Rect(
             0, 0, source.Size / 4 * Runtime.CurrentRuntime.ScaleF
-            ), Vector2.Zero, 0, Color.White);
+            ), Vector2.Zero, 0, Rgba.White);
         EndTextureMode();
         UnloadRenderTexture(gameTexture);
         UnloadRenderTexture(gameTextureApply);
@@ -556,7 +554,7 @@ public static class Helper
         UnloadRenderTexture(realTextureApply);
     }
 
-    public static void DrawSpellScore(string scoreText, ref RenderTexture2D renderTexture2D, out float letterWidth, out float textWidth)
+    public static void DrawSpellScore(string scoreText, ref TargetHandle renderTexture2D, out float letterWidth, out float textWidth)
     {
         var fontSize = (int)(SplashTimerSize * Runtime.CurrentRuntime.ScaleF);
         var measure = MeasureTextEx(TimerFont, scoreText, fontSize, 0);
@@ -571,15 +569,15 @@ public static class Helper
         Vector2 v = new((renderTexture2D.Texture.Width - fullSource.Width) / 2,
             (128 * Runtime.CurrentRuntime.ScaleF));
         BeginTextureMode(tmp);
-        DrawTextPro(TimerFont, scoreText, new Vector2(16), Vector2.Zero, 0, fontSize, 0, Color.White);
+        DrawTextPro(TimerFont, scoreText, new Vector2(16), Vector2.Zero, 0, fontSize, 0, Rgba.White);
         EndTextureMode();
-        SetShaderValue(OutlineShader, LocationOutlineFullResolution, fullSource2.Size, ShaderUniformDataType.Vec2);
-        SetShaderValue(OutlineShader, LocationOutlineResolution, fullSource.Size, ShaderUniformDataType.Vec2);
-        SetShaderValue(OutlineShader, LocationOutlinePosition, v, ShaderUniformDataType.Vec2);
-        SetShaderValue(OutlineShader, LocationOutlineBorderwidth, Runtime.CurrentRuntime.ScaleF * 4f, ShaderUniformDataType.Float);
+        SetShaderValue(OutlineShader, LocationOutlineFullResolution, fullSource2.Size, UniformType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineResolution, fullSource.Size, UniformType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlinePosition, v, UniformType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineBorderwidth, Runtime.CurrentRuntime.ScaleF * 4f, UniformType.Float);
         BeginTextureMode(renderTexture2D);
         BeginShaderMode(OutlineShader);
-        DrawTexturePro(tmp.Texture, GetFullSourceRenderTexture(tmp), fullSource with { X = v.X, Y = v.Y }, Vector2.Zero, 0, Color.White);
+        DrawTexturePro(tmp.Texture, GetFullSourceRenderTexture(tmp), fullSource with { X = v.X, Y = v.Y }, Vector2.Zero, 0, Rgba.White);
         EndTextureMode();
         EndShaderMode();
         UnloadRenderTexture(tmp);
@@ -589,30 +587,30 @@ public static class Helper
     {
         string text = $"{Math.Clamp(ticks/60, 0, 99):00}";
         BeginTextureMode(TempTimerTexture);
-        ClearBackground(Color.Black with {A=0});
+        ClearBackground(Rgba.Black with {A=0});
         DrawTextPro(TimerFont, text, TimerPos,
-            Vector2.Zero, 0, TimerFontSize, TimerFontSpacing, Color.White);
+            Vector2.Zero, 0, TimerFontSize, TimerFontSpacing, Rgba.White);
         EndTextureMode();
-        SetShaderValue(OutlineShader, LocationOutlinePosition, [0,0], ShaderUniformDataType.Vec2);
-        SetShaderValue(OutlineShader, LocationOutlineBorderwidth, Runtime.CurrentRuntime.ScaleF * 4, ShaderUniformDataType.Float);
-        SetShaderValue(OutlineShader, LocationOutlineResolution, TimerTextureSize, ShaderUniformDataType.Vec2);
-        SetShaderValue(OutlineShader, LocationOutlineFullResolution, TimerTextureSize, ShaderUniformDataType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlinePosition, [0,0], UniformType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineBorderwidth, Runtime.CurrentRuntime.ScaleF * 4, UniformType.Float);
+        SetShaderValue(OutlineShader, LocationOutlineResolution, TimerTextureSize, UniformType.Vec2);
+        SetShaderValue(OutlineShader, LocationOutlineFullResolution, TimerTextureSize, UniformType.Vec2);
         BeginTextureMode(TempTimerTexture2);
-        ClearBackground(Color.White with {A=0});
+        ClearBackground(Rgba.White with {A=0});
         BeginShaderMode(OutlineShader);
-        DrawTexture(TempTimerTexture.Texture, 0, 0,Color.White);
+        DrawTexture(TempTimerTexture.Texture, 0, 0,Rgba.White);
         EndShaderMode();
         EndTextureMode();
     }
     
     public static void DrawTimer(int x, int y, bool isTimingOut)
     {
-        DrawTexture(TempTimerTexture2.Texture, x,y,isTimingOut ? Color.Red : Color.White);
+        DrawTexture(TempTimerTexture2.Texture, x,y,isTimingOut ? Rgba.Red : Rgba.White);
     }
 
-    public static RenderTexture2D DrawDialog(string text, float angle)
+    public static TargetHandle DrawDialog(string text, float angle)
     {
-        var tx = DrawText(text, 16, 4, 4, 2, GetFontDefault(), Color.Black, "shadow");
+        var tx = DrawText(text, 16, 4, 4, 2, GetFontDefault(), Rgba.Black, "shadow");
         var vx = RenderTextureInCloud(tx.Texture, 3f, angle);
         UnloadRenderTexture(tx);
         return vx;
@@ -620,15 +618,15 @@ public static class Helper
 
     static int LocationFlipScreenSize;
 
-    public static Vector4 ColorToVector(Color color)
+    public static Vector4 ColorToVector(Rgba color)
     {
         return new Vector4(color.R / 255f, color.G / 255f, color.B / 255f, color.A / 255f);
     }
 
-    public static Rectangle Mix(Rectangle rc1, Rectangle rc2, float mix)
+    public static Rect Mix(Rect rc1, Rect rc2, float mix)
     {
         float imix = 1f - mix;
-        return new Rectangle(
+        return new Rect(
             rc1.X * imix + rc2.X * mix,
             rc1.Y * imix + rc2.Y * mix,
             rc1.Width * imix + rc2.Width * mix,
@@ -652,10 +650,10 @@ public static class Helper
         );
     }
 
-    public static Color Mix(Color color1, Color color2, float mix)
+    public static Rgba Mix(Rgba color1, Rgba color2, float mix)
     {
         float imix = 1f - mix;
-        return new Color(
+        return new Rgba(
             (byte)(color1.R * imix + color2.R * mix),
             (byte)(color1.G * imix + color2.G * mix),
             (byte)(color1.B * imix + color2.B * mix),
@@ -742,142 +740,142 @@ public static class Helper
         return new Vector3(r / 0xFF, g / 0xFF, b / 0xFF);
     }
     
-    public static RenderTexture2D DrawTextScaled(string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, string shader = "shadow") => DrawText(s, 
+    public static TargetHandle DrawTextScaled(string s, int fontSize, int hPadding, int vPadding, int spacing, FontHandle font, string shader = "shadow") => DrawText(s, 
         (int)(fontSize*Runtime.CurrentRuntime.Scale), 
         (int)(hPadding*Runtime.CurrentRuntime.Scale), 
         (int)(vPadding*Runtime.CurrentRuntime.Scale), 
         (int)(spacing*Runtime.CurrentRuntime.Scale),
         font, 
-        Color.White,
+        Rgba.White,
         shader,
         Runtime.CurrentRuntime.ScaleF);
-    public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, string shader = "shadow", float scale = 1f) => 
-        DrawText(s, fontSize, hPadding, vPadding, spacing, font, Color.White, shader, scale);
+    public static TargetHandle DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, FontHandle font, string shader = "shadow", float scale = 1f) => 
+        DrawText(s, fontSize, hPadding, vPadding, spacing, font, Rgba.White, shader, scale);
 
-    public static void DrawTextOnRenderTextureWithoutReinitialization(ref RenderTexture2D texture, 
+    public static void DrawTextOnRenderTextureWithoutReinitialization(ref TargetHandle texture, 
         Vector2 pos,
         string s, int fontSize,
-        int spacing, Font font, Color color,
+        int spacing, FontHandle font, Rgba color,
         string shader, float scale = 1f)
     {
         int sFontSize = (int)(fontSize * scale);
         int sSpacing = (int)(spacing * scale);
         var measure = MeasureTextEx(font, s, sFontSize, sSpacing);
-        RenderTexture2D temp = LoadRenderTexture((int)measure.X+8, (int)measure.Y+8);
-        RenderTexture2D temp2 = LoadRenderTexture((int)measure.X+8, (int)measure.Y+8);
-        Rectangle source = new(0, -temp2.Texture.Height, temp2.Texture.Width, -temp2.Texture.Height);
-        Rectangle destination = new(pos - new Vector2(4), source.Size * new Vector2(1, -1));
+        TargetHandle temp = LoadRenderTexture((int)measure.X+8, (int)measure.Y+8);
+        TargetHandle temp2 = LoadRenderTexture((int)measure.X+8, (int)measure.Y+8);
+        Rect source = new(0, -temp2.Texture.Height, temp2.Texture.Width, -temp2.Texture.Height);
+        Rect destination = new(pos - new Vector2(4), source.Size * new Vector2(1, -1));
         BeginTextureMode(temp);
         DrawTextEx(font, s, new Vector2(4, 4), fontSize, sSpacing, color);
         EndTextureMode();
         switch (shader)
         {
             case "shadow":
-                SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowDepth, 4f, ShaderUniformDataType.Float);
-                SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowResolution, measure + new Vector2(8,8), ShaderUniformDataType.Vec2);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowDepth, 4f, UniformType.Float);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowResolution, measure + new Vector2(8,8), UniformType.Vec2);
                 break;
             case "gradient":
-                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientBorderWidth, 2f, ShaderUniformDataType.Float);
-                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientResoulution,  measure + new Vector2(8,8), ShaderUniformDataType.Vec2);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientBorderWidth, 2f, UniformType.Float);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientResoulution,  measure + new Vector2(8,8), UniformType.Vec2);
                 break;
         }
         BeginTextureMode(temp2);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders[shader]);
-        DrawTexture(temp.Texture, 0, 0, Color.White);
+        DrawTexture(temp.Texture, 0, 0, Rgba.White);
         EndShaderMode();
         EndTextureMode();
         BeginTextureMode(texture);
         DrawTexturePro(temp2.Texture,
-            source, destination, Vector2.Zero, 0, Color.White);
+            source, destination, Vector2.Zero, 0, Rgba.White);
         EndTextureMode();
         UnloadRenderTexture(temp);
         UnloadRenderTexture(temp2);
     }
     
-    public static void DrawTextOnRenderTexture(ref RenderTexture2D texture, string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, Color color, string shader, float scale = 1f)
+    public static void DrawTextOnRenderTexture(ref TargetHandle texture, string s, int fontSize, int hPadding, int vPadding, int spacing, FontHandle font, Rgba color, string shader, float scale = 1f)
     {
         if(IsRenderTextureValid(texture))
             UnloadRenderTexture(texture);
         var measure = MeasureTextEx(font, s, fontSize, spacing);
         int width = (int)(measure.X + hPadding * 2);
         int height = (int)(measure.Y + vPadding * 2);
-        RenderTexture2D temp = Raylib.LoadRenderTexture(width, height);
-        texture = Raylib.LoadRenderTexture(width, height);
+        TargetHandle temp = LoadRenderTexture(width, height);
+        texture = LoadRenderTexture(width, height);
         BeginTextureMode(temp);
         DrawTextEx(font, s, new Vector2(hPadding, vPadding), fontSize, spacing, color);
         EndTextureMode();
         switch (shader)
         {
             case "shadow":
-                SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowDepth, 4f, ShaderUniformDataType.Float);
-                SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowResolution, new float[] { width, height }, ShaderUniformDataType.Vec2);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowDepth, 4f, UniformType.Float);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["shadow"], LocationShadowResolution, new float[] { width, height }, UniformType.Vec2);
                 break;
             case "gradient":
-                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientBorderWidth, scale * 2f, ShaderUniformDataType.Float);
-                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientResoulution, new Vector2(width,height), ShaderUniformDataType.Vec2);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientBorderWidth, scale * 2f, UniformType.Float);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["gradient"], LocationGradientResoulution, new Vector2(width,height), UniformType.Vec2);
                 break;
             case "outline":
-                SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], LocationGradientBorderWidth, scale * 3f, ShaderUniformDataType.Float);
-                SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], GetShaderLocation(Runtime.CurrentRuntime.Shaders["outline"], "res"), new Vector2(width,height), ShaderUniformDataType.Vec2);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], LocationGradientBorderWidth, scale * 3f, UniformType.Float);
+                SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], GetShaderLocation(Runtime.CurrentRuntime.Shaders["outline"], "res"), new Vector2(width,height), UniformType.Vec2);
                 break;
         }
         BeginTextureMode(texture);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders[shader]);
-        DrawTexture(temp.Texture, 0, 0, Color.White);
+        DrawTexture(temp.Texture, 0, 0, Rgba.White);
         EndShaderMode();
         EndTextureMode();
         UnloadRenderTexture(temp);
     }
     
-    private static RenderTexture2D ScoreDigits;
+    private static TargetHandle ScoreDigits;
     public static Vector2 ScoreDigitSize;
     
-    public static RenderTexture2D DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, Font font, Color color, string shader, float scale = 1f)
+    public static TargetHandle DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, FontHandle font, Rgba color, string shader, float scale = 1f)
     {
-        RenderTexture2D texture = new RenderTexture2D();
+        TargetHandle texture = new TargetHandle();
         DrawTextOnRenderTexture(ref texture, s, fontSize, hPadding, vPadding, spacing, font, color, shader, scale);
         return texture;
     }
 
-    public static Rectangle GetFullSource(Texture2D t) => new Rectangle(0, 0, t.Width, t.Height);
-    public static Rectangle GetFullSourceRenderTexture(RenderTexture2D rt2d) => new Rectangle(0, rt2d.Texture.Height, rt2d.Texture.Width, -rt2d.Texture.Height);
+    public static Rect GetFullSource(TextureHandle t) => new Rect(0, 0, t.Width, t.Height);
+    public static Rect GetFullSourceRenderTexture(TargetHandle rt2d) => new Rect(0, rt2d.Texture.Height, rt2d.Texture.Width, -rt2d.Texture.Height);
 
-    public static Rectangle GetFullscreenSource() => new Rectangle(0, 0, Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height);
+    public static Rect GetFullscreenSource() => new Rect(0, 0, Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height);
 
-    public static Rectangle ScaleByHeight(float middle, float y, Vector2 size, float newHeight)
+    public static Rect ScaleByHeight(float middle, float y, Vector2 size, float newHeight)
     {
         float mp = newHeight / size.Y;
-        return new Rectangle(middle, y, mp * size.X, newHeight);
+        return new Rect(middle, y, mp * size.X, newHeight);
     }
 
-    public static Rectangle Scale(Rectangle rc, double scale)
+    public static Rect Scale(Rect rc, double scale)
     {
         return Scale(rc, (float)scale);
     }
 
-    public static Rectangle Scale(Rectangle rc, float scale)
+    public static Rect Scale(Rect rc, float scale)
     {
-        return new Rectangle(rc.Position * scale, rc.Size * scale);
+        return new Rect(rc.Position * scale, rc.Size * scale);
     }
 
     private static int LocationRenderSelectionScreenSize;
     private static int LocationRenderSelectionHeight;
     
-    public static Texture2D RenderSelectionBackground(int width, int height, int vPadding)
+    public static TextureHandle RenderSelectionBackground(int width, int height, int vPadding)
     {
         int h = height + vPadding * 2;
-        RenderTexture2D texture = LoadRenderTexture(width, h);
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["selection"], LocationRenderSelectionHeight, (float)height, ShaderUniformDataType.Float);
-        SetShaderValue(Runtime.CurrentRuntime.Shaders["selection"], LocationRenderSelectionScreenSize, new float[] { 200f, 200f }, ShaderUniformDataType.Vec2);
+        TargetHandle texture = LoadRenderTexture(width, h);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["selection"], LocationRenderSelectionHeight, (float)height, UniformType.Float);
+        SetShaderValue(Runtime.CurrentRuntime.Shaders["selection"], LocationRenderSelectionScreenSize, new float[] { 200f, 200f }, UniformType.Vec2);
         BeginTextureMode(texture);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders["selection"]);
-        DrawRectanglePro(new Rectangle(0,0,width,height), Vector2.Zero, 0, Color.White);
+        DrawRectanglePro(new Rect(0,0,width,height), Vector2.Zero, 0, Rgba.White);
         EndShaderMode();
         EndTextureMode();
         return texture.Texture;
     }
 
-    public static RenderTexture2D FillTextureWithColor(Color color, int w, int h)
+    public static TargetHandle FillTextureWithColor(Rgba color, int w, int h)
     {
         var texture = LoadRenderTexture(w, h);
         BeginTextureMode(texture);
@@ -905,10 +903,10 @@ public static class Helper
     //    float time = (float)GetTime();
     //    foreach (var obj in objects)
     //    {
-    //        SetShaderValue(Runtime.CurrentRuntime.Shaders[shader], LocationDisappearShootTime, time - obj.Time, ShaderUniformDataType.Float);
-    //        SetShaderValue(Runtime.CurrentRuntime.Shaders[shader], LocationDisappearShootPosition, obj.Position, ShaderUniformDataType.Vec2);
+    //        SetShaderValue(Runtime.CurrentRuntime.Shaders[shader], LocationDisappearShootTime, time - obj.Time, UniformType.Float);
+    //        SetShaderValue(Runtime.CurrentRuntime.Shaders[shader], LocationDisappearShootPosition, obj.Position, UniformType.Vec2);
     //        BeginShaderMode(Runtime.CurrentRuntime.Shaders[shader]);
-    //        DrawRectangle(0,0,384,448,Color.White);
+    //        DrawRectangle(0,0,384,448,Rgba.White);
     //        EndShaderMode();
     //    }
     //}
@@ -922,16 +920,16 @@ public static class Helper
             areaEnd.X > xPositionTo.X && areaEnd.Y > xPositionTo.Y;
     }
 
-    public static bool IsCollied(Rectangle rc1, Rectangle rc2)
+    public static bool IsCollied(Rect rc1, Rect rc2)
     {
         #if DEBUG
         if (rc1.X > rc2.X)
             (rc2.X, rc1.X) = (rc1.X, rc2.X);
-        var vecDistance = MathF.Abs(Raymath.Vector2Distance(rc1.Center, rc2.Center));
+        var vecDistance = MathF.Abs(MathUtil.Vector2Distance(rc1.Center, rc2.Center));
         var wDistance = (rc1.Width + rc2.Width) / 2;
         return vecDistance < wDistance;
 #else
-        return Raymath.Vector2Distance(rc1.Center, rc2.Center) < (rc1.Width + rc2.Width) / 2;
+        return MathUtil.Vector2Distance(rc1.Center, rc2.Center) < (rc1.Width + rc2.Width) / 2;
 #endif
     }
     
@@ -945,28 +943,21 @@ public static class Helper
         return (MathF.Pow(x/2 - 1, pow) + 1) / 2;
     }
     
-    public static void PlaySound(Sound sound)
+    /// <summary>
+    /// Plays a one-shot. Alias/ring-buffer handling now lives in the backend (IAudio.Play), which also
+    /// fixes the old bug here: this stored the original sound rather than the alias it created, so
+    /// UnloadSoundAlias was later handed a non-alias.
+    /// </summary>
+    public static void PlaySound(SoundHandle sound)
     {
-        var soundCopy = LoadSoundAlias(sound);
-        SetSoundVolume(soundCopy, Runtime.CurrentRuntime.SFXVolume);
-        Raylib.PlaySound(soundCopy);
-        SoundAlieases[AliasIndex] = sound;
-        AliasIndex++;
-        if (RequiresUnloading)
-        {
-            UnloadSoundAlias(SoundAlieases[AliasIndex-1]);
-        }
-
-        if (AliasIndex < AliasCount)
-            return;
-        RequiresUnloading = true;
-        AliasIndex = 0;
+        Engine.Audio.SfxVolume = Runtime.CurrentRuntime.SFXVolume;
+        Engine.Audio.Play(sound);
     }
 
     private const int AliasCount = 4096;
     private static int AliasIndex = 0;
     private static bool RequiresUnloading = false;
-    private static Sound[] SoundAlieases = new Sound[4096];
+    private static SoundHandle[] SoundAlieases = new SoundHandle[4096];
     
     static Dictionary<string, string> TransliterationDictionary = 
         JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText("Assets/Data/cyrilic-transliteration-table.json"));
@@ -1005,7 +996,7 @@ public static class Helper
         throw new NotImplementedException();
     }
 
-    public static Vector2 GetSize(Texture2D texture)
+    public static Vector2 GetSize(TextureHandle texture)
     {
         return new Vector2(texture.Width, texture.Height);
     }

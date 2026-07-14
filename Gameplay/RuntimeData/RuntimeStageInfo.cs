@@ -1,8 +1,9 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Gameplay.RuntimeData;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
-using Raylib_cs;
 using Microsoft.CodeAnalysis.Scripting;
 
 namespace DmitryAndDemid.Gameplay;
@@ -13,7 +14,7 @@ public class RuntimeStageInfo
     public int MusicID;
     Script<object>[] Scripts;
     string[] Groups;
-    public Texture2D[] Backgrounds;
+    public TextureHandle[] Backgrounds;
     public FileEntityInfo[] Entities;
     public RuntimeChapter[] Chapters;
     

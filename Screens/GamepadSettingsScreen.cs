@@ -1,6 +1,6 @@
+using DmitryAndDemid.Rendering;
 using DmitryAndDemid.Common;
-using static Raylib_cs.Raylib;
-using Raylib_cs;
+using static DmitryAndDemid.Rendering.Gfx;
 using static ImGuiNET.ImGui;
 
 namespace DmitryAndDemid.Screens;
@@ -45,8 +45,8 @@ public class GamepadSettingsScreen : MenuScreen
         base.TopUpdate();
         if (SelectedIndex >= 5)
             return;
-        GamepadButton padButton = (GamepadButton)GetGamepadButtonPressed();
-        if (padButton == GamepadButton.Unknown)
+        PadButton padButton = (PadButton)GetGamepadButtonPressed();
+        if (padButton == PadButton.Unknown)
             return;
         MenuItems[SelectedIndex].Replace = padButton.ToString();
         switch (SelectedIndex)

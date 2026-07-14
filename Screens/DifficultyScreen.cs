@@ -1,10 +1,10 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Utils;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Screens;
 
@@ -19,21 +19,21 @@ public class DifficultyScreen : MenuScreen
         LoopList = false;
         GameType = gameType;
         HorizontalDirectionNavigation = true;
-        RectangleSelectionTarget = Helper.Scale(new Rectangle(310, 220, 220, 120), Runtime.CurrentRuntime.Scale);
+        RectangleSelectionTarget = Helper.Scale(new Rect(310, 220, 220, 120), Runtime.CurrentRuntime.Scale);
         TargetHeight = RectangleSelectionTarget.Height;
-        RectangleDestinationDifficultySelect = Helper.Scale(new Rectangle(200, 170, 240, 120), Runtime.CurrentRuntime.Scale);
-        RectangleDestinationDifficultySelected = Helper.Scale(new Rectangle(220, 400, 160, 80), Runtime.CurrentRuntime.Scale);
+        RectangleDestinationDifficultySelect = Helper.Scale(new Rect(200, 170, 240, 120), Runtime.CurrentRuntime.Scale);
+        RectangleDestinationDifficultySelected = Helper.Scale(new Rect(220, 400, 160, 80), Runtime.CurrentRuntime.Scale);
         RectangleShift = new Vector2(300, 40) * (float)Runtime.CurrentRuntime.Scale;
     }
 
     private float TargetHeight;
     
-    private static Rectangle RectangleSelectionSource = new Rectangle(0, 0, 200, 200);
-    private Rectangle RectangleSelectionTarget;
+    private static Rect RectangleSelectionSource = new Rect(0, 0, 200, 200);
+    private Rect RectangleSelectionTarget;
 
-    private static Rectangle RectangleSourceDifficulty = new Rectangle(0, 0, 960, 480);
-    private Rectangle RectangleDestinationDifficultySelect;
-    private Rectangle RectangleDestinationDifficultySelected;
+    private static Rect RectangleSourceDifficulty = new Rect(0, 0, 960, 480);
+    private Rect RectangleDestinationDifficultySelect;
+    private Rect RectangleDestinationDifficultySelected;
     private Vector2 RectangleShift;
     
     public override void CreateMenu()
@@ -90,9 +90,9 @@ public class DifficultyScreen : MenuScreen
     public override void Render()
     {
         DrawBackground();
-        float appearState = (float)Helper.ComputeObjectTime(Raylib.GetTime(), TimeAppearItems, .5f, TimeDisappearItems, .5f);
-        float appearSelected = (float)Helper.ComputeObjectTime(Raylib.GetTime(), TimeAppear, .5f, TimeDisappear, .5f);
-        float appearSelected2 = (float)Helper.ComputeObjectTime(Raylib.GetTime(), TimeAppearSelected, .5f, TimeDisappearSelected, .5f);
+        float appearState = (float)Helper.ComputeObjectTime(GetTime(), TimeAppearItems, .5f, TimeDisappearItems, .5f);
+        float appearSelected = (float)Helper.ComputeObjectTime(GetTime(), TimeAppear, .5f, TimeDisappear, .5f);
+        float appearSelected2 = (float)Helper.ComputeObjectTime(GetTime(), TimeAppearSelected, .5f, TimeDisappearSelected, .5f);
         float index = (float)ComputeAnimationIndex();
         float angle = 15f - (index * 15f);
         float elasticAppear = Helper.EaseInOutElasticF(appearState);
@@ -106,7 +106,7 @@ public class DifficultyScreen : MenuScreen
             Runtime.CurrentRuntime.Textures["MenuItemSelectionGradient1"],
             RectangleSelectionSource, RectangleSelectionTarget, 
             Helper.Half * RectangleSelectionTarget.Size, angle+((1-appearState)*60f), 
-            Color.White);
+            Rgba.White);
         for (; sourceIndex < MenuItems.Count; sourceIndex++)
         {
             if (x != SelectedIndex)
@@ -120,7 +120,7 @@ public class DifficultyScreen : MenuScreen
                         Position = RectangleDestinationDifficultySelect.Position - (RectangleShift * (index-x) * elasticAppear) 
                     }, 
                     Vector2.Zero, 0f, 
-                    Color.White);
+                    Rgba.White);
                 EndShaderMode();
             }
                 
@@ -140,7 +140,7 @@ public class DifficultyScreen : MenuScreen
             RectangleSourceDifficulty with { Y = GameType == GameType.Extra ? 1920 : 480 * SelectedIndex },
             rectangleSelected, 
             Vector2.Zero, 0f, 
-            Color.White);
+            Rgba.White);
         EndShaderMode();
         DrawTitle();
     }

@@ -1,14 +1,14 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using Gtk;
-using static Raylib_cs.Raylib;
-using Raylib_cs;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Utils;
 
 public static class Keyboard
 {
     private const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ.,:;/@abcdefghijklmnopqrstuvwxyz+-/*=%0123456789()()[]<>#!?'\"$";
-    private static RenderTexture2D Texture;
+    private static TargetHandle Texture;
     private static bool IsOnNazad = false;
     private static int X = 0, Y = 0;
     private static Action<char?>? Callback = null;
@@ -23,10 +23,10 @@ public static class Keyboard
     private static int LineHeight;
     private static int LetterWidth;
     private static int Spacing;
-    private static Color Selection = Color.Purple with { A = 128 };
-    private static Texture2D Cursosor;
-    private static Rectangle CursosorSource;
-    private static Rectangle CursosorTarget;
+    private static Rgba Selection = Rgba.Purple with { A = 128 };
+    private static TextureHandle Cursosor;
+    private static Rect CursosorSource;
+    private static Rect CursosorTarget;
     
 
     static Keyboard()
@@ -40,11 +40,11 @@ public static class Keyboard
     {
         Cursosor = Runtime.CurrentRuntime.Textures["cursosor.png"];
         CursosorSource = Helper.GetFullSource(Cursosor);
-        CursosorTarget = new Rectangle(CursosorSource.Size / 20 * Runtime.CurrentRuntime.ScaleF, CursosorSource.Size / 20 * Runtime.CurrentRuntime.ScaleF);
+        CursosorTarget = new Rect(CursosorSource.Size / 20 * Runtime.CurrentRuntime.ScaleF, CursosorSource.Size / 20 * Runtime.CurrentRuntime.ScaleF);
         var font = Runtime.CurrentRuntime.Fonts["kodemono"];
         int fontSize = (int)(24 * Runtime.CurrentRuntime.ScaleF);
         int spacing = (int)(8 * Runtime.CurrentRuntime.ScaleF);
-        var measureLetter = Raylib.MeasureTextEx(font, "a", fontSize, spacing);
+        var measureLetter = MeasureTextEx(font, "a", fontSize, spacing);
         Texture = Helper.DrawText(chars, fontSize, 0, 0,
             spacing, font, "gradient", Runtime.CurrentRuntime.ScaleF);
         LineWidth = (int)(16 * measureLetter.X + spacing * 15);
@@ -60,9 +60,9 @@ public static class Keyboard
         float state2 = (float)Helper.ComputeObjectTimeStart(GetTime(), LastClickTimestamp, InputCooldown);
         for(int i = 0; i < 6; i++)
             DrawTexturePro(Texture.Texture,
-                new Rectangle(i*(LineWidth+Spacing),0, LineWidth, LineHeight),
-                new Rectangle(x, y+i*LineHeight, LineWidth, LineHeight),
-                Vector2.Zero, 0, Color.White);
+                new Rect(i*(LineWidth+Spacing),0, LineWidth, LineHeight),
+                new Rect(x, y+i*LineHeight, LineWidth, LineHeight),
+                Vector2.Zero, 0, Rgba.White);
         var s = CursosorTarget.Size * state2 + (1 - state2) * (0.5f * CursosorTarget.Size);
         DrawTexturePro(
             Cursosor, CursosorSource,
@@ -74,7 +74,7 @@ public static class Keyboard
             },
             s,
             state * TargetCursosorRotation + (1-state) * PreviousCursosorRotation
-            , Color.White);
+            , Rgba.White);
         
     }
     
@@ -92,7 +92,7 @@ public static class Keyboard
     {
         if (GetTime() - LastInputTimestamp < InputCooldown)
             return;
-        if (IsKeyDown(KeyboardKey.Left))
+        if (IsKeyDown(KeyCode.Left))
         {
             PreviousCursosorRotation = TargetCursosorRotation;
             PreviousCursosorPosition = new Vector2(X, Y);
@@ -107,7 +107,7 @@ public static class Keyboard
             LastSwitchTimestamp = GetTime();
         }
 
-        if (IsKeyDown(KeyboardKey.Escape))
+        if (IsKeyDown(KeyCode.Escape))
         {
             if (X == 14 && Y == 5)
             {
@@ -126,7 +126,7 @@ public static class Keyboard
                 Y = 5;
             }
         }
-        if (IsKeyDown(KeyboardKey.Right))
+        if (IsKeyDown(KeyCode.Right))
         {
             PreviousCursosorRotation = TargetCursosorRotation;
             PreviousCursosorPosition = new Vector2(X, Y);
@@ -140,7 +140,7 @@ public static class Keyboard
             LastInputTimestamp = GetTime();
             LastSwitchTimestamp = GetTime();
         }
-        if (IsKeyDown(KeyboardKey.Up))
+        if (IsKeyDown(KeyCode.Up))
         {
             PreviousCursosorRotation = TargetCursosorRotation;
             PreviousCursosorPosition = new Vector2(X, Y);
@@ -156,7 +156,7 @@ public static class Keyboard
             LastInputTimestamp = GetTime();
             LastSwitchTimestamp = GetTime();
         }
-        if (IsKeyDown(KeyboardKey.Down))
+        if (IsKeyDown(KeyCode.Down))
         {
             PreviousCursosorRotation = TargetCursosorRotation;
             PreviousCursosorPosition = new Vector2(X, Y);
@@ -175,7 +175,7 @@ public static class Keyboard
             LastSwitchTimestamp = GetTime();
         }
 
-        if (IsKeyDown(KeyboardKey.Z) || IsKeyDown(KeyboardKey.Enter))
+        if (IsKeyDown(KeyCode.Z) || IsKeyDown(KeyCode.Enter))
         {
             if (Y == 5)
             {

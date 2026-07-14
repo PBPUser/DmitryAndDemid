@@ -1,6 +1,7 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using System.Numerics;
 using DmitryAndDemid.Common;
-using Raylib_cs;
 
 namespace DmitryAndDemid.Gameplay.Effects;
 
@@ -9,8 +10,8 @@ public class BossDeathScreenEffect : GameplayScreenEffect
     public BossDeathScreenEffect(GameBox box, Vector2 position, int index, float timeAppear, float timeDisappear) 
         : base(box, position, index, "entity_die", timeAppear, timeDisappear)
     {
-        LocationLeaves = Raylib.GetShaderLocation(Shader, "textureLeaves");
-        Raylib.SetShaderValueTexture(Shader, LocationLeaves, Runtime.CurrentRuntime.Textures["vilkaCut.png"]);
+        LocationLeaves = GetShaderLocation(Shader, "textureLeaves");
+        SetShaderValueTexture(Shader, LocationLeaves, Runtime.CurrentRuntime.Textures["vilkaCut.png"]);
         Layer = EffectLayer.BackgroundAndGameplay;
     }
 

@@ -1,11 +1,11 @@
-using Raylib_cs;
+using DmitryAndDemid.Rendering;
 
 namespace DmitryAndDemid.Common;
 
 public abstract class GameplayOverlay(GameBox box, float animationLength, float length) : IDisposable
 {
     protected float State => 
-        Raymath.Clamp((Box.GetTime() - TimeAppear) / AnimationLength, 0, 1) * Raymath.Clamp((TimeAppear + Length - Box.GetTime()) / AnimationLength, 0, 1);
+        MathUtil.Clamp((Box.GetTime() - TimeAppear) / AnimationLength, 0, 1) * MathUtil.Clamp((TimeAppear + Length - Box.GetTime()) / AnimationLength, 0, 1);
 
     protected float Length = length;
     protected float AnimationLength = animationLength;

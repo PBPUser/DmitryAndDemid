@@ -1,3 +1,5 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using DmitryAndDemid.Data;
 using Gtk;
 
@@ -18,31 +20,50 @@ public class PreconfigWindow
         var display = Gdk.Display.Default;
         if (display == null)
             Environment.Exit(0);
-        Gdk.Rectangle rc = new();
-        double mp = 1;
-        int w = 0;
-        List<string> ress = new();
+        // Every 4:3 resolution that fits on at least one monitor. `mp` used to carry over between monitors
+        // and entries were never de-duplicated, so a second monitor produced either nothing or duplicates.
+        SortedSet<double> multipliers = new();
         for (int i = 0; i < display.NMonitors; i++)
         {
-            rc = display.GetMonitor(i).Geometry;
-            Console.WriteLine($"Geometry: {rc}");
-            while (true)
-            {
-                if (rc.Width < 640 * mp)
-                    break;
-                if (rc.Height < 480 * mp)
-                    break;
-                ress.Add($"{(int)(640 * mp)}x{(int)(480 * mp)}");
-                mp += .5;
-            }
+            Gdk.Rectangle geometry = display.GetMonitor(i).Geometry;
+            for (double mp = 1; 640 * mp <= geometry.Width && 480 * mp <= geometry.Height; mp += .5)
+                multipliers.Add(mp);
         }
-        ress.Reverse();
+        if (multipliers.Count == 0)
+            multipliers.Add(1);
+        List<string> ress = multipliers.Reverse().Select(mp => $"{(int)(640 * mp)}x{(int)(480 * mp)}").ToList();
         var gridRes = new Grid();
         gridRes.RowSpacing = 4;
         gridRes.ColumnSpacing = 8;
         gridRes.Margin = 0;
         var radioButtonDotByDot = new RadioButton("Borderless Window DOT by DOT (Recomended)") { Halign = Align.Start };
         var radioButtonBorderless = new RadioButton(radioButtonDotByDot, "Borderless Window") { Halign = Align.Start };
+
+        // Select(mode, resolution) on activation only. The old code used StateChanged, which also fires when
+        // a button is DEselected — so picking one option ran the handler of the option you just left.
+        void Bind(RadioButton button, FullScreenType mode, string resolution)
+        {
+            button.Toggled += (_, _) =>
+            {
+                if (!button.Active)
+                    return;
+                Configuration.Config.FullScreenType = mode;
+                Configuration.Config.Resolution = resolution;
+                Configuration.Config.Save();
+            };
+        }
+
+        // The two borderless buttons previously had no handler at all: choosing either (including the
+        // "Recommended" default) left FullScreenType at whatever was last saved.
+        // Borderless modes cover the monitor, so the resolution here is the INTERNAL render resolution,
+        // which the game then letterboxes; keep whatever is configured.
+        Bind(radioButtonDotByDot, FullScreenType.BorderlessDotByDot, Configuration.Config.Resolution);
+        Bind(radioButtonBorderless, FullScreenType.Borderless, Configuration.Config.Resolution);
+        if (Configuration.Config.FullScreenType == FullScreenType.BorderlessDotByDot)
+            radioButtonDotByDot.Active = true;
+        else if (Configuration.Config.FullScreenType == FullScreenType.Borderless)
+            radioButtonBorderless.Active = true;
+
         int rowS = 0;
         foreach (var x in ress)
         {
@@ -52,25 +73,37 @@ public class PreconfigWindow
             gridRes.Attach(nonFullScreen, 0, ress.Count + rowS, 1, 1);
             if (Configuration.Config.Resolution == x)
             {
-                if (Configuration.Config.FullScreenType == Data.FullScreenType.Exclusive)
+                if (Configuration.Config.FullScreenType == FullScreenType.Exclusive)
                     fullScreen.Active = true;
-                else if (Configuration.Config.FullScreenType == Data.FullScreenType.Window)
+                else if (Configuration.Config.FullScreenType == FullScreenType.Window)
                     nonFullScreen.Active = true;
             }
-            fullScreen.StateChanged += (a, b) =>
-            {
-                Configuration.Config.FullScreenType = FullScreenType.Exclusive;
-                Configuration.Config.Resolution = x;
-                Configuration.Config.Save();
-            };
-            nonFullScreen.StateChanged += (a, b) =>
-            {
-                Configuration.Config.FullScreenType = FullScreenType.Borderless;
-                Configuration.Config.Resolution = x;
-                Configuration.Config.Save();
-            };
+            Bind(fullScreen, FullScreenType.Exclusive, x);
+            Bind(nonFullScreen, FullScreenType.Window, x); // was writing Borderless — "Window" left you borderless
             rowS++;
         }
+        // Renderer picker. Built from Engine.Available, so it lists exactly the renderers that exist.
+        var rendererBox = new Box(Orientation.Horizontal, 8) { Halign = Align.Start };
+        rendererBox.Add(new Label("Renderer:"));
+
+        var rendererCombo = new ComboBoxText();
+        foreach ((string key, string name) in Engine.Available)
+            rendererCombo.AppendText(name);
+
+        int active = Array.FindIndex(Engine.Available, r => r.Key == Configuration.Config.Renderer);
+        rendererCombo.Active = active < 0 ? 0 : active;
+
+        rendererCombo.Changed += (_, _) =>
+        {
+            int index = rendererCombo.Active;
+            if (index < 0 || index >= Engine.Available.Length)
+                return;
+            Configuration.Config.Renderer = Engine.Available[index].Key;
+            Configuration.Config.Save();
+        };
+        rendererBox.Add(rendererCombo);
+
+
         var btn = new Button("Play");
         btn.Clicked += Play_Clicked;
         var grid = new Grid();
@@ -81,8 +114,8 @@ public class PreconfigWindow
         label.Halign = Align.Start;
         int row = 0;
         var checkBox = new CheckButton("Ask each startup time");
-        checkBox.Active = true;
-        checkBox.StateChanged += (a, b) =>
+        checkBox.Active = Configuration.Config.AlwaysAsk; // was hard-coded true, ignoring the saved setting
+        checkBox.Toggled += (_, _) =>
         {
             Configuration.Config.AlwaysAsk = checkBox.Active;
             Configuration.Config.Save();
@@ -91,6 +124,7 @@ public class PreconfigWindow
         grid.Attach(radioButtonDotByDot, 0, row++, 1, 1);
         grid.Attach(radioButtonBorderless, 0, row++, 1, 1);
         grid.Attach(gridRes, 0, row++, 1, 1);
+        grid.Attach(rendererBox, 0, row++, 1, 1);
         grid.Attach(checkBox, 0, row++, 1, 1);
         grid.Attach(btn, 0, row++, 1, 1);
         btn.Hexpand = false;

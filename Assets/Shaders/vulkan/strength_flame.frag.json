@@ -1,0 +1,11 @@
+{
+ "blockSize": 0,
+ "blockBinding": -1,
+ "uniforms": [],
+ "samplers": [
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
+}

@@ -1,3 +1,4 @@
+using DmitryAndDemid.Rendering;
 namespace DmitryAndDemid.Gameplay;
 
 public abstract class PlayerWeapon(Player player)

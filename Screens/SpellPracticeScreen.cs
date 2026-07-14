@@ -1,3 +1,5 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 
@@ -11,6 +13,9 @@ public class SpellPracticeScreen : MenuScreen
     SpellPracticeScreen()
     {
         SetTitle(Runtime.CurrentRuntime.Textures["spell_practice.png"]);
+        // Render() calls DrawBackground(), which without this was drawing an unset TextureHandle (Id 0), so the
+        // screen dimmed nothing and relied on whatever was underneath it.
+        SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
     }
 
     public override void CreateMenu()

@@ -1,8 +1,8 @@
+using DmitryAndDemid.Rendering;
 using DmitryAndDemid.Common;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 using DmitryAndDemid;
 using DmitryAndDemid.Data;
-using Raylib_cs;
 using System.Numerics;
 using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Utils;
@@ -21,9 +21,9 @@ public class GameplayScreen : Screen
         Stages = stages;
         Chapter = chapter;
         Practice = practice;
-        Source = new Rectangle(0, 0, 384, -448);
-        UIAboveSource = new Rectangle(0, 0, 384 * Runtime.CurrentRuntime.ScaleF, -448 * Runtime.CurrentRuntime.ScaleF);
-        Dest = new Rectangle(32 * Runtime.CurrentRuntime.ScaleF, 16 * Runtime.CurrentRuntime.ScaleF, 384 * Runtime.CurrentRuntime.ScaleF, 448 * Runtime.CurrentRuntime.ScaleF);
+        Source = new Rect(0, 0, 384, -448);
+        UIAboveSource = new Rect(0, 0, 384 * Runtime.CurrentRuntime.ScaleF, -448 * Runtime.CurrentRuntime.ScaleF);
+        Dest = new Rect(32 * Runtime.CurrentRuntime.ScaleF, 16 * Runtime.CurrentRuntime.ScaleF, 384 * Runtime.CurrentRuntime.ScaleF, 448 * Runtime.CurrentRuntime.ScaleF);
         DialogDest = Helper.GetFullscreenSource();
         DialogSource = Helper.GetFullscreenSource();
         DialogSource.Height *= -1;
@@ -33,13 +33,13 @@ public class GameplayScreen : Screen
             DieShader, 
             GetShaderLocation(DieShader, "scale"),
             Runtime.CurrentRuntime.ScaleF,
-            ShaderUniformDataType.Float
+            UniformType.Float
             );
         LocationDiePosition = GetShaderLocation(DieShader, "pos");
         LocationDieTime = GetShaderLocation(DieShader, "time");
-        DifficultySource = new Rectangle(0, 160*difficulty, 1920, 160);
-        DifficultyTargetStart = Helper.Scale(new Rectangle(152, 20, 144, 12), Runtime.CurrentRuntime.ScaleF);
-        DifficultyTarget = Helper.Scale(new Rectangle(456, 24, 144, 12), Runtime.CurrentRuntime.ScaleF);
+        DifficultySource = new Rect(0, 160*difficulty, 1920, 160);
+        DifficultyTargetStart = Helper.Scale(new Rect(152, 20, 144, 12), Runtime.CurrentRuntime.ScaleF);
+        DifficultyTarget = Helper.Scale(new Rect(456, 24, 144, 12), Runtime.CurrentRuntime.ScaleF);
         LetterWidth = (int)(MeasureTextEx(Runtime.CurrentRuntime.Fonts["kodemono"],
             "j",
             (int)(24 * Runtime.CurrentRuntime.ScaleF),
@@ -56,7 +56,7 @@ public class GameplayScreen : Screen
             UseRealTime = true
         };
         UILeftSource  = Helper.GetFullSourceRenderTexture(GameBox.UILeft);
-        LeftDest = new Rectangle(
+        LeftDest = new Rect(
             Runtime.CurrentRuntime.ScaleF * 416,
             0, UILeftSource.Size
         );
@@ -73,25 +73,25 @@ public class GameplayScreen : Screen
     public int LetterWidth = 0;
     public PauseMenu PauseMenu;
     
-    Rectangle Source;
-    Rectangle Dest;
-    Rectangle DialogSource;
-    Rectangle DialogDest;
-    private Rectangle LeftDest;
-    private Rectangle UILeftSource;
-    private Rectangle UIAboveSource;
+    Rect Source;
+    Rect Dest;
+    Rect DialogSource;
+    Rect DialogDest;
+    private Rect LeftDest;
+    private Rect UILeftSource;
+    private Rect UIAboveSource;
 
-    private static Rectangle Fullscreen = Helper.GetFullscreenSource();
-    private static Rectangle BGSource = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["gameplay_background.png"]);
-    private static Rectangle DestEffect = new Rectangle(0, 0, 384, 448); 
+    private static Rect Fullscreen = Helper.GetFullscreenSource();
+    private static Rect BGSource = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["gameplay_background.png"]);
+    private static Rect DestEffect = new Rect(0, 0, 384, 448); 
 
-    private Rectangle DifficultySource;
-    private Rectangle DifficultyTargetStart;
-    private Rectangle DifficultyTarget;
+    private Rect DifficultySource;
+    private Rect DifficultyTargetStart;
+    private Rect DifficultyTarget;
 
     public GameplayScreenEffect PauseEffect;
     
-    RenderTexture2D[] GameEffectsTextures = new RenderTexture2D[4];
+    TargetHandle[] GameEffectsTextures = new TargetHandle[4];
     private int GameEffectTextureIndex = 1;
     
     public GameBox GameBox;
@@ -113,14 +113,14 @@ public class GameplayScreen : Screen
             {
                 Runtime.CurrentRuntime.AddScreen(PauseMenu);
                 GameBox.ScreenEffects.Add(PauseEffect);
-                PauseEffect.TimeAppear = (float)Raylib.GetTime();
+                PauseEffect.TimeAppear = (float)GetTime();
                 PauseEffect.TimeDisappear = float.MaxValue;
             }
             else
             {
                 Runtime.CurrentRuntime.RemoveScreen(PauseMenu);
                 GameBox.RemoveScreenEffect(PauseEffect);
-                PauseEffect.TimeDisappear = (float)(Raylib.GetTime()+1);
+                PauseEffect.TimeDisappear = (float)(GetTime()+1);
             }
         }
     }
@@ -136,7 +136,7 @@ public class GameplayScreen : Screen
         if (time < 0)
             return;
         GameBox.ProcessInput();
-        if ((IsKeyDown(KeyboardKey.Escape) ||
+        if ((IsKeyDown(KeyCode.Escape) ||
              Controller.IsButtonDown(Configuration.Config.PauseButton)) 
             && !GameBox.IsGameOver && GetTime() - MenuScreen.PreviousKeyTimestamp > MenuScreen.MenuSwitchCooldown)
         {
@@ -146,7 +146,7 @@ public class GameplayScreen : Screen
         base.TopUpdate();
     }
 
-    private Shader DieShader;
+    private ShaderHandle DieShader;
     private int LocationDiePosition, LocationDieTime;
     
     public override void Render()
@@ -158,65 +158,65 @@ public class GameplayScreen : Screen
         BeginTextureMode(GameEffectsTextures[0]);
         DrawTexturePro(GameBox.Background.Texture,
             Source, DestEffect,
-            Vector2.Zero, 0, Color.White);
+            Vector2.Zero, 0, Rgba.White);
         EndTextureMode();
         GameEffectTextureIndex = 0;
         foreach (var gse in GameBox.ScreenEffects.Where(x => x.Layer == GameplayScreenEffect.EffectLayer.BackgroundOnly))
         {
             GameEffectTextureIndex = (GameEffectTextureIndex + 1) % 2;
             BeginTextureMode(GameEffectsTextures[GameEffectTextureIndex]);
-            ClearBackground(Color.Black with {A = 0});
+            ClearBackground(Rgba.Black with {A = 0});
             gse.ApplyShading(time);
             DrawTexturePro(GameEffectsTextures[(GameEffectTextureIndex+1) % 2].Texture,
-                Source, DestEffect, Vector2.Zero, 0, Color.White);
+                Source, DestEffect, Vector2.Zero, 0, Rgba.White);
             EndShaderMode();
             EndTextureMode();
         }
         BeginTextureMode(GameEffectsTextures[2]);
-        ClearBackground(Color.Black with {A = 0});
+        ClearBackground(Rgba.Black with {A = 0});
         DrawTexturePro(GameEffectsTextures[GameEffectTextureIndex].Texture,
-            Source, DestEffect, Vector2.Zero, 0, Color.White);
+            Source, DestEffect, Vector2.Zero, 0, Rgba.White);
         EndTextureMode();
         GameEffectTextureIndex = 0;
-        DrawTexturePro(Runtime.CurrentRuntime.Textures["gameplay_background.png"], BGSource,Fullscreen, Vector2.Zero, 0, Color.White);
+        DrawTexturePro(Runtime.CurrentRuntime.Textures["gameplay_background.png"], BGSource,Fullscreen, Vector2.Zero, 0, Rgba.White);
         BeginTextureMode(GameEffectsTextures[0]);
-        ClearBackground(Color.Black with {A = 0});
+        ClearBackground(Rgba.Black with {A = 0});
         DrawTexturePro(GameEffectsTextures[2].Texture,
             Source, DestEffect,
-            Vector2.Zero, 0, Color.White);
+            Vector2.Zero, 0, Rgba.White);
         DrawTexturePro(GameBox.Box.Texture,
             Source, DestEffect,
-            Vector2.Zero, 0, Color.White);
+            Vector2.Zero, 0, Rgba.White);
         EndTextureMode();
         foreach (GameplayScreenEffect gse in GameBox.ScreenEffects.Where(x => x.Layer == GameplayScreenEffect.EffectLayer.BackgroundAndGameplay))
         {
             GameEffectTextureIndex = (GameEffectTextureIndex + 1) % 2;
             BeginTextureMode(GameEffectsTextures[GameEffectTextureIndex]);
-            ClearBackground(Color.Black with {A = 0});
+            ClearBackground(Rgba.Black with {A = 0});
             gse.ApplyShading(time);
             DrawTexturePro(GameEffectsTextures[(GameEffectTextureIndex+1) % 2].Texture,
-                Source, DestEffect, Vector2.Zero, 0, Color.White);
+                Source, DestEffect, Vector2.Zero, 0, Rgba.White);
             EndShaderMode();
             EndTextureMode();
         }
         DrawTexturePro(GameEffectsTextures[GameEffectTextureIndex].Texture,
-            Source, Dest, Vector2.Zero, 0, Color.White);
+            Source, Dest, Vector2.Zero, 0, Rgba.White);
         DrawTexturePro(Runtime.CurrentRuntime.Textures["difficulties_ingame.png"],
             DifficultySource, DifficultyTarget with{ Height = (float)(Helper.ComputeObjectTimeStart(time,2f, .25f) * DifficultyTarget.Height) },
-            Vector2.Zero, 0, Color.White);
+            Vector2.Zero, 0, Rgba.White);
         DrawTexturePro(GameBox.UIAboveGameplay.Texture,
             UIAboveSource,
             Dest,
-            Vector2.Zero, 0, Color.White);
+            Vector2.Zero, 0, Rgba.White);
         DrawTexturePro(GameBox.UILeft.Texture,
             UILeftSource,
             LeftDest,
-            Vector2.Zero, 0, Color.White);
+            Vector2.Zero, 0, Rgba.White);
         if (time - TimeAppear > 2f)
             return;
         DrawTexturePro(Runtime.CurrentRuntime.Textures["difficulties_ingame.png"],
             DifficultySource, DifficultyTargetStart with{ Height = (float)((1-Helper.EaseInOutElasticF((float)Helper.ComputeObjectTimeStart(time,1.75f, .25f))) * DifficultyTarget.Height) },
-            Vector2.Zero, 0, Color.White);
+            Vector2.Zero, 0, Rgba.White);
     }
     
     public override void Unload()

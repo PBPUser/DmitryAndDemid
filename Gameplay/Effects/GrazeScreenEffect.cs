@@ -1,6 +1,7 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using System.Numerics;
 using DmitryAndDemid.Common;
-using Raylib_cs;
 
 namespace DmitryAndDemid.Gameplay.Effects;
 
@@ -10,7 +11,7 @@ public class GrazeScreenEffect : GameplayScreenEffect
         : base(box, position, index, "graze_particle", timeAppear, timeDisappear)
     {
         Angle = angle;
-        LocationAngle = Raylib.GetShaderLocation(Shader, "angle");
+        LocationAngle = GetShaderLocation(Shader, "angle");
         Layer = EffectLayer.BackgroundAndGameplay;
     }
 
@@ -19,7 +20,7 @@ public class GrazeScreenEffect : GameplayScreenEffect
 
     public override void ApplyShading(float gameTime)
     {
-        Raylib.SetShaderValue(Shader, LocationAngle, Angle, ShaderUniformDataType.Float);
+        SetShaderValue(Shader, LocationAngle, Angle, UniformType.Float);
         base.ApplyShading(gameTime);
     }
 }

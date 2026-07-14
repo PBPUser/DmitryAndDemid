@@ -1,3 +1,5 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using System.Text.Json.Serialization;
 using DmitryAndDemid.Screens;
 using DmitryAndDemid.Utils;

@@ -1,16 +1,16 @@
+using DmitryAndDemid.Rendering;
 using System.Collections.Frozen;
 using System.Numerics;
 using System.Text.Json.Serialization;
 using DmitryAndDemid.Utils;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Data;
 
 public class BulletRenderingInfo
 {
-    static Rectangle FRC384448 = new Rectangle(0, 0, 384, 448); 
-    static Texture2D T384448 = Runtime.CurrentRuntime.Textures["384x448"];
+    static Rect FRC384448 = new Rect(0, 0, 384, 448); 
+    static TextureHandle T384448 = Runtime.CurrentRuntime.Textures["384x448"];
     
     [JsonInclude] public BulletVisualRenderType RenderType = BulletVisualRenderType.FromSprite;
     [JsonInclude] public Vector2 SourceSize = Vector2.Zero;
@@ -43,8 +43,8 @@ public class BulletRenderingInfo
     
     private string effect = "";
 
-    [JsonIgnore] public Shader EffectShader;
-    [JsonIgnore] public Shader TextureShader;
+    [JsonIgnore] public ShaderHandle EffectShader;
+    [JsonIgnore] public ShaderHandle TextureShader;
     [JsonIgnore] public int LocFXCreatedAt;
     [JsonIgnore] public int LocFXTime;
     [JsonIgnore] public int LocFXResolution;
@@ -52,8 +52,8 @@ public class BulletRenderingInfo
     [JsonIgnore] public int LocFXPosition;
     [JsonIgnore] public int LocFXOpacity;
     [JsonIgnore] public int LocTXColor;
-    [JsonIgnore] public RenderTexture2D? RuntimeTexture;
-    [JsonIgnore] public RenderTexture2D? TempTexture;
+    [JsonIgnore] public TargetHandle? RuntimeTexture;
+    [JsonIgnore] public TargetHandle? TempTexture;
     [JsonIgnore] public bool IsInitialized = false;
     [JsonIgnore] private int CurrentX = 0, CurrentY = 0;
     [JsonIgnore] private Dictionary<int, Vector2> Positions = new();
@@ -72,7 +72,7 @@ public class BulletRenderingInfo
         IsInitialized = true;
     }
 
-    public Texture2D GetTexture(int color)
+    public TextureHandle GetTexture(int color)
     {
         if (RenderType == BulletVisualRenderType.FromSprite)
             return Runtime.CurrentRuntime.Textures[Texture];
@@ -81,9 +81,9 @@ public class BulletRenderingInfo
         if (Positions.ContainsKey(color))
             return RuntimeTexture!.Value.Texture;
         BeginTextureMode(TempTexture!.Value);
-        SetShaderValue(TextureShader, LocTXColor, Helper.ColorIntToVector3(color), ShaderUniformDataType.Vec3);
+        SetShaderValue(TextureShader, LocTXColor, Helper.ColorIntToVector3(color), UniformType.Vec3);
         BeginShaderMode(TextureShader);
-        DrawTexturePro(T384448, FRC384448, new Rectangle(CurrentX, CurrentY, SourceSize), Vector2.Zero, 0, Color.White);
+        DrawTexturePro(T384448, FRC384448, new Rect(CurrentX, CurrentY, SourceSize), Vector2.Zero, 0, Rgba.White);
         EndTextureMode();
         EndShaderMode();
         Positions[color] = new Vector2(CurrentX, CurrentY);
@@ -94,8 +94,8 @@ public class BulletRenderingInfo
             CurrentY += (int)SourceSize.Y;
         }
         BeginTextureMode(RuntimeTexture!.Value);
-        ClearBackground(Color.White with {A=0});
-        DrawTexture(TempTexture!.Value.Texture, 0, 0, Color.White);
+        ClearBackground(Rgba.White with {A=0});
+        DrawTexture(TempTexture!.Value.Texture, 0, 0, Rgba.White);
         EndTextureMode();
         return RuntimeTexture!.Value.Texture;
     }

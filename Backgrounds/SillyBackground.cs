@@ -1,5 +1,6 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using DmitryAndDemid.Common;
-using Raylib_cs;
 
 namespace DmitryAndDemid.Backgrounds;
 
@@ -22,7 +23,7 @@ public class SillyBackground : StageBackground
         base.Update(tick, delta);
     }
 
-    protected override void Render(RenderTexture2D texture, int tick, float delta)
+    protected override void Render(TargetHandle texture, int tick, float delta)
     {
         base.Render(texture, tick, delta);
     }

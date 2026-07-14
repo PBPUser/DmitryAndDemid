@@ -1,8 +1,8 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Utils;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Gameplay.GameplayOverlays;
 
@@ -12,17 +12,17 @@ public class BasicGameplayOverlay : GameplayOverlay
     {
         Texture = Runtime.CurrentRuntime.Textures[image];
         SourceRectangle = Helper.GetFullSource(Texture);
-        DestinationRectangle = new Rectangle(0, 128 * Runtime.CurrentRuntime.ScaleF, SourceRectangle.Size / 4  * Runtime.CurrentRuntime.ScaleF);
+        DestinationRectangle = new Rect(0, 128 * Runtime.CurrentRuntime.ScaleF, SourceRectangle.Size / 4  * Runtime.CurrentRuntime.ScaleF);
     }
 
-    private Texture2D Texture;
-    private Rectangle SourceRectangle;
-    Rectangle DestinationRectangle;
+    private TextureHandle Texture;
+    private Rect SourceRectangle;
+    Rect DestinationRectangle;
 
     protected override void Draw()
     {
         float state = State;
-        Rectangle rectangle = DestinationRectangle with { Height = DestinationRectangle.Height * state };
-        DrawTexturePro(Texture, SourceRectangle, rectangle, Vector2.Zero, 0, Color.White);
+        Rect rectangle = DestinationRectangle with { Height = DestinationRectangle.Height * state };
+        DrawTexturePro(Texture, SourceRectangle, rectangle, Vector2.Zero, 0, Rgba.White);
     }
 }

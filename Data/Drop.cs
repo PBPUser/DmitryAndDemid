@@ -1,3 +1,5 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using Lua.Internal;
 
 namespace DmitryAndDemid.Data;

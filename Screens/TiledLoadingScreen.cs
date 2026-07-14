@@ -1,9 +1,9 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Utils;
 using ImGuiNET;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Screens;
 
@@ -14,17 +14,17 @@ public class TiledLoadingScreen : Screen
     public Action? Event; 
     private bool EventExecuted = false;
     bool FadeOut = false;
-    private Texture2D FifoLoading;
-    private Rectangle FifoSource, FifoTarget, LoadingSource, LoadingTarget, LoadingBufferSource;
+    private TextureHandle FifoLoading;
+    private Rect FifoSource, FifoTarget, LoadingSource, LoadingTarget, LoadingBufferSource;
     Vector2 FifoOrigin;
     private double FifoLoadingShowDelay;
     private const double FifoLoadingAppearing = 0.25;
-    private Texture2D
+    private TextureHandle
         LoadingTexture = Runtime.CurrentRuntime.Textures["loading.png"];
-    private RenderTexture2D LoadingBuffer;
-    public Shader LoadingShaderSwap;
-    public Shader LoadingShaderTiles;
-    static Texture2D ForkTexture = Runtime.CurrentRuntime.Textures["vilkaCut.png"];
+    private TargetHandle LoadingBuffer;
+    public ShaderHandle LoadingShaderSwap;
+    public ShaderHandle LoadingShaderTiles;
+    static TextureHandle ForkTexture = Runtime.CurrentRuntime.Textures["vilkaCut.png"];
     static Vector2 ForkSize;
 
     static TiledLoadingScreen()
@@ -47,7 +47,7 @@ public class TiledLoadingScreen : Screen
         FadeOut = fadeOut;
         FifoLoading = Runtime.CurrentRuntime.Textures["fifo_loading.png"];
         FifoSource = Helper.GetFullSource(FifoLoading);
-        FifoTarget = Helper.Scale(new Rectangle(64, 414,52, 97), Runtime.CurrentRuntime.ScaleF);
+        FifoTarget = Helper.Scale(new Rect(64, 414,52, 97), Runtime.CurrentRuntime.ScaleF);
         FifoOrigin = FifoTarget.Size / 2;
     }
 
@@ -67,20 +67,20 @@ public class TiledLoadingScreen : Screen
         float time = (float)GetTime();
         float fade = (float)(time < TimeAppear + Fade ? (time - TimeAppear) / Fade : time > TimeAppear + LoadingTime - Fade ? 1 - (TimeAppear + LoadingTime - Fade - time)/Fade : .99f); 
         BeginTextureMode(LoadingBuffer);
-        SetShaderValue(LoadingShaderTiles, GetShaderLocation(LoadingShaderTiles,"time"), time, ShaderUniformDataType.Float);
-        SetShaderValue(LoadingShaderTiles, GetShaderLocation(LoadingShaderTiles,"outputRes"), LoadingTarget.Size, ShaderUniformDataType.Vec2);
-        SetShaderValue(LoadingShaderTiles, GetShaderLocation(LoadingShaderTiles,"textureRes"), LoadingSource.Size * 4, ShaderUniformDataType.Vec2);
+        SetShaderValue(LoadingShaderTiles, GetShaderLocation(LoadingShaderTiles,"time"), time, UniformType.Float);
+        SetShaderValue(LoadingShaderTiles, GetShaderLocation(LoadingShaderTiles,"outputRes"), LoadingTarget.Size, UniformType.Vec2);
+        SetShaderValue(LoadingShaderTiles, GetShaderLocation(LoadingShaderTiles,"textureRes"), LoadingSource.Size * 4, UniformType.Vec2);
         BeginShaderMode(LoadingShaderTiles);
-        DrawTexturePro(LoadingTexture, LoadingSource, LoadingTarget, Vector2.Zero, 0, Color.White);
+        DrawTexturePro(LoadingTexture, LoadingSource, LoadingTarget, Vector2.Zero, 0, Rgba.White);
         EndTextureMode();
         EndShaderMode();
-        SetShaderValue(LoadingShaderSwap, GetShaderLocation(LoadingShaderSwap,"time"), fade, ShaderUniformDataType.Float);
+        SetShaderValue(LoadingShaderSwap, GetShaderLocation(LoadingShaderSwap,"time"), fade, UniformType.Float);
         BeginShaderMode(LoadingShaderSwap);
-        DrawTexturePro(LoadingBuffer.Texture, LoadingBufferSource, LoadingTarget, Vector2.Zero, 0, Color.White);
+        DrawTexturePro(LoadingBuffer.Texture, LoadingBufferSource, LoadingTarget, Vector2.Zero, 0, Rgba.White);
         EndShaderMode();
         DrawTexturePro(FifoLoading, FifoSource, FifoTarget, FifoOrigin,
             time * 1000f,
-            Color.White 
+            Rgba.White 
                 with { A = 255 });
         base.Render();
     }

@@ -1,3 +1,5 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics.X86;
@@ -9,7 +11,6 @@ using DmitryAndDemid.Gameplay.GameplayOverlays;
 using DmitryAndDemid.Gameplay.RuntimeData;
 using DmitryAndDemid.Utils;
 using Microsoft.CodeAnalysis.Scripting;
-using Raylib_cs;
 
 namespace DmitryAndDemid.Gameplay;
 
@@ -64,18 +65,18 @@ public class RuntimeObject
         MagicalToilet.UseDieScript = true;
     }
     
-    private Rectangle Source = new();
-    private Rectangle Target = new();
+    private Rect Source = new();
+    private Rect Target = new();
     public Vector2 Origin = new();
     public int[] Header = new int[128];
     public float[] FloatingPoints = new float[128];
-    public Texture2D Texture;
+    public TextureHandle Texture;
     public GameBox Box;
     public RuntimeObjectReferenceAction? CreateAction;
     public RuntimeObjectReferenceAction? UpdateAction;
     public RuntimeObjectReferenceAction? DieAction;
     public RuntimeObjectReferenceAction? RemoveAction;
-    public Shader Shader;
+    public ShaderHandle Shader;
     public Vector2 TexturePosition, TextureSize, TotalTextureSize;
     public GameplayScreenEffect? BackgroundDistortionEffect;
     public BossCircleScreenEffect? BossCircleEffect;
@@ -109,12 +110,12 @@ public class RuntimeObject
             entity.Header[0] |= FlagApplyShader;
             entity.Shader = shader;
             entity.Texture = bulletRenderInfo.GetTexture(info.Header[4]);
-            entity.Header[0x40] = Raylib.GetShaderLocation(shader, "created_at");
-            entity.Header[0x41] = Raylib.GetShaderLocation(shader, "time");
-            entity.Header[0x42] = Raylib.GetShaderLocation(shader, "position");
-            entity.Header[0x43] = Raylib.GetShaderLocation(shader, "resolution");
-            entity.Header[0x44] = Raylib.GetShaderLocation(shader, "output_resolution");
-            entity.Header[0x45] = Raylib.GetShaderLocation(shader, "opacity");
+            entity.Header[0x40] = GetShaderLocation(shader, "created_at");
+            entity.Header[0x41] = GetShaderLocation(shader, "time");
+            entity.Header[0x42] = GetShaderLocation(shader, "position");
+            entity.Header[0x43] = GetShaderLocation(shader, "resolution");
+            entity.Header[0x44] = GetShaderLocation(shader, "output_resolution");
+            entity.Header[0x45] = GetShaderLocation(shader, "opacity");
             entity.TexturePosition = spPos;
             entity.TextureSize = bulletRenderInfo.SourceSize;
             entity.TotalTextureSize = Helper.GetSize(entity.Texture);
@@ -137,12 +138,12 @@ public class RuntimeObject
             entity.FloatingPoints[0x13] = bulletRenderInfo.Collision;
             if (bulletRenderInfo.Effect == "")
             {
-                entity.Header[0x40] = Raylib.GetShaderLocation(shader, "created_at");
-                entity.Header[0x41] = Raylib.GetShaderLocation(shader, "time");
-                entity.Header[0x42] = Raylib.GetShaderLocation(shader, "position");
-                entity.Header[0x43] = Raylib.GetShaderLocation(shader, "resolution");
-                entity.Header[0x44] = Raylib.GetShaderLocation(shader, "output_resolution");
-                entity.Header[0x45] = Raylib.GetShaderLocation(shader, "opacity");
+                entity.Header[0x40] = GetShaderLocation(shader, "created_at");
+                entity.Header[0x41] = GetShaderLocation(shader, "time");
+                entity.Header[0x42] = GetShaderLocation(shader, "position");
+                entity.Header[0x43] = GetShaderLocation(shader, "resolution");
+                entity.Header[0x44] = GetShaderLocation(shader, "output_resolution");
+                entity.Header[0x45] = GetShaderLocation(shader, "opacity");
             }
             else
             {
@@ -233,8 +234,8 @@ public class RuntimeObject
         set => FloatingPoints[5] = value;
     }
 
-    public Rectangle SourceRectangle => Source;
-    public Rectangle TargetRectangle => Target with { X = FloatingPoints[0x10], Y = FloatingPoints[0x11] };
+    public Rect SourceRectangle => Source;
+    public Rect TargetRectangle => Target with { X = FloatingPoints[0x10], Y = FloatingPoints[0x11] };
     
     public float FacingRotation
     {
@@ -375,7 +376,7 @@ public class RuntimeObject
 
     void UpdateSourceRectangle()
     {
-        Source = new Rectangle(Header[3], Header[4], Header[1], Header[2]);
+        Source = new Rect(Header[3], Header[4], Header[1], Header[2]);
     }
 
     void UpdateTargetRectangle()
@@ -395,8 +396,8 @@ public class RuntimeObject
     {
         if ((Header[0] & FlagIsMovingToTarget) == FlagIsMovingToTarget)
         {
-            Position = Raymath.Vector2MoveTowards(Position, MoveTarget, FloatingPoints[0x16]);
-            if (Raymath.Vector2Distance(Position, MoveTarget) < 1)
+            Position = MathUtil.Vector2MoveTowards(Position, MoveTarget, FloatingPoints[0x16]);
+            if (MathUtil.Vector2Distance(Position, MoveTarget) < 1)
                 Header[0] &= ~FlagIsMovingToTarget;
         }
         UpdateAction?.Invoke(this);
@@ -412,8 +413,8 @@ public class RuntimeObject
     public void UpdateCollectableBullet()
     {
         var direction = Helper.GetDirection(Position, new Vector2(Box.Player.X, Box.Player.Y));
-        FloatingPoints[2] = Raymath.MoveTowards(FloatingPoints[2], direction.X * 100000, 0.2f);
-        FloatingPoints[6] = Raymath.MoveTowards(FloatingPoints[6], direction.Y * 100000, 0.2f);
+        FloatingPoints[2] = MathUtil.MoveTowards(FloatingPoints[2], direction.X * 100000, 0.2f);
+        FloatingPoints[6] = MathUtil.MoveTowards(FloatingPoints[6], direction.Y * 100000, 0.2f);
         X += FloatingPoints[2];
         Y += FloatingPoints[6];
         RenderRotation += Helper.FindAngle(Position, new Vector2(Box.Player.X, Box.Player.Y)) * 0.09f;
@@ -427,8 +428,8 @@ public class RuntimeObject
     public void UpdateCollectable()
     {
         FloatingPoints[0x5] = MathF.Abs(FloatingPoints[2]) > 0 ? Box.CurrentTick : 0;
-        FloatingPoints[2] = Raymath.MoveTowards(FloatingPoints[2], 0, 0.1f);
-        FloatingPoints[6] = Raymath.MoveTowards(FloatingPoints[6], float.MaxValue, 0.1f);
+        FloatingPoints[2] = MathUtil.MoveTowards(FloatingPoints[2], 0, 0.1f);
+        FloatingPoints[6] = MathUtil.MoveTowards(FloatingPoints[6], float.MaxValue, 0.1f);
         X += FloatingPoints[2];
         Y += FloatingPoints[6];
         if (Helper.IsCollied(TargetRectangle, Box.Player.Collision))

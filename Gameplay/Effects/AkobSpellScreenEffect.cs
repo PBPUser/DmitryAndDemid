@@ -1,7 +1,7 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Common;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 
 namespace DmitryAndDemid.Gameplay.Effects;
@@ -19,7 +19,7 @@ public class AkobSpellScreenEffect : GameplayScreenEffect
 
     public override void ApplyShading(float gameTime)
     {
-        SetShaderValue(Shader, LocationTimeStarted, TimeAppear, ShaderUniformDataType.Float);
+        SetShaderValue(Shader, LocationTimeStarted, TimeAppear, UniformType.Float);
         base.ApplyShading(gameTime);
     }
 }

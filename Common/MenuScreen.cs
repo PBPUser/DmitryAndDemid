@@ -1,13 +1,12 @@
+using DmitryAndDemid.Rendering;
 using System.Globalization;
 using System.IO.Pipes;
 using System.Numerics;
 using Atk;
 using DmitryAndDemid;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 using static DmitryAndDemid.Runtime;
 using DmitryAndDemid.Utils;
-using Raylib_cs;
-using Rectangle = Raylib_cs.Rectangle;
 
 namespace DmitryAndDemid.Common;
 
@@ -41,7 +40,7 @@ public abstract class MenuScreen : ScreenWithTitle
         CreateMenu();
     }
 
-    static RenderTexture2D DrawMenuItem(string text)
+    static TargetHandle DrawMenuItem(string text)
     {
         return Helper.DrawTextScaled(Helper.Translate(text), 16, 8, 4, 2, Runtime.CurrentRuntime.Fonts["newsreader"], "outline");
     }
@@ -68,8 +67,8 @@ public abstract class MenuScreen : ScreenWithTitle
         }
         if (GetTime() - PreviousKeyTimestamp < MenuSwitchCooldown)
             return;
-        if ((IsKeyDown(KeyboardKey.Up) || Controller.IsButtonDown(GamepadButton.LeftFaceUp))&& VerticalDirectionNavigation ||
-            (IsKeyDown(KeyboardKey.Left) || Controller.IsButtonDown(GamepadButton.LeftFaceLeft)) && HorizontalDirectionNavigation)
+        if ((IsKeyDown(KeyCode.Up) || Controller.IsButtonDown(PadButton.LeftFaceUp))&& VerticalDirectionNavigation ||
+            (IsKeyDown(KeyCode.Left) || Controller.IsButtonDown(PadButton.LeftFaceLeft)) && HorizontalDirectionNavigation)
         {
             Helper.PlaySound(CurrentRuntime.Sounds["item-switch"]);
             PreviousKeyTimestamp = GetTime();
@@ -89,8 +88,8 @@ public abstract class MenuScreen : ScreenWithTitle
             } while (z < MenuItems.Count && !MenuItems[SelectedIndex].Enabled);
         }
         else if (
-            ((IsKeyDown(KeyboardKey.Down)) || Controller.IsButtonDown(GamepadButton.LeftFaceDown)) && VerticalDirectionNavigation ||
-            (IsKeyDown(KeyboardKey.Right) || Controller.IsButtonDown(GamepadButton.LeftFaceRight)) && HorizontalDirectionNavigation)
+            ((IsKeyDown(KeyCode.Down)) || Controller.IsButtonDown(PadButton.LeftFaceDown)) && VerticalDirectionNavigation ||
+            (IsKeyDown(KeyCode.Right) || Controller.IsButtonDown(PadButton.LeftFaceRight)) && HorizontalDirectionNavigation)
         {
             PreviousSelectedIndex = SelectedIndex;
             PreviousKeyTimestamp = GetTime();
@@ -110,7 +109,7 @@ public abstract class MenuScreen : ScreenWithTitle
                 z++;
             } while (z < MenuItems.Count && !MenuItems[SelectedIndex].Enabled);
         }
-        else if (IsKeyDown(KeyboardKey.Enter) || IsKeyDown(KeyboardKey.Z) || Controller.IsButtonDown(GamepadButton.RightFaceDown))
+        else if (IsKeyDown(KeyCode.Enter) || IsKeyDown(KeyCode.Z) || Controller.IsButtonDown(PadButton.RightFaceDown))
         {
             PreviousKeyTimestamp = GetTime();
             Helper.PlaySound(CurrentRuntime.Sounds["button"]);
@@ -119,8 +118,8 @@ public abstract class MenuScreen : ScreenWithTitle
             Event = MenuItems[SelectedIndex].Action;
             ItemActivated = true;
         }
-        else if (AllowExitWithEscape && (IsKeyDown(KeyboardKey.Escape) || IsKeyDown(KeyboardKey.X) ||
-                                         Controller.IsButtonDown(GamepadButton.RightFaceRight)))
+        else if (AllowExitWithEscape && (IsKeyDown(KeyCode.Escape) || IsKeyDown(KeyCode.X) ||
+                                         Controller.IsButtonDown(PadButton.RightFaceRight)))
             Exit();
     }
 
@@ -175,9 +174,9 @@ public abstract class MenuScreen : ScreenWithTitle
             }
             scale = SelectedItemScale * offsetState + 1f * (1 - offsetState);
             DrawTextureEx(x.Texture, new Vector2(CurrentX + offset.X, y + offset.Y), 0, scale, 
-                (index == SelectedIndex ? Helper.Mix(Color.Yellow, Color.White, MathF.Abs((t * 
+                (index == SelectedIndex ? Helper.Mix(Rgba.Yellow, Rgba.White, MathF.Abs((t * 
                         (ItemActivated ? 30 : 2)
-                        ) % 2 - 1)) : Color.White) with { A = (byte)(x.Enabled ? 255 : 128) });
+                        ) % 2 - 1)) : Rgba.White) with { A = (byte)(x.Enabled ? 255 : 128) });
             y += (int)(x.Texture.Height * scale);
             index++;
         }
@@ -199,8 +198,8 @@ public abstract class MenuScreen : ScreenWithTitle
         private string text = "";
         private string replace = "";
         public Action<int>? Action;
-        public Texture2D Texture =>  texture.Texture;
-        private RenderTexture2D texture = new RenderTexture2D();
+        public TextureHandle Texture =>  texture.Texture;
+        private TargetHandle texture = new TargetHandle();
         public bool Enabled = true;
         
         public static void AddToRender(MenuItem item)
@@ -228,7 +227,7 @@ public abstract class MenuScreen : ScreenWithTitle
                 CurrentRuntime.Fonts["newsreader"],
                 16 * CurrentRuntime.ScaleF,
                 Helper.Translate(text).Replace("%s", Helper.Translate(replace)),
-                Color.White,
+                Rgba.White,
                 4 * CurrentRuntime.ScaleF
                 );
             //texture=Helper.DrawTextScaled(, 16, 8, 4, 2, Runtime.CurrentRuntime.Fonts["newsreader"], "gradient");

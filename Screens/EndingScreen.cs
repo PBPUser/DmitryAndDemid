@@ -1,3 +1,4 @@
+using DmitryAndDemid.Rendering;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -6,8 +7,7 @@ using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Utils;
 using Gtk;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 using static ImGuiNET.ImGui;
 
 namespace DmitryAndDemid.Screens;
@@ -23,7 +23,7 @@ public class EndingScreen : Screen
     {
         Difficulty = difficulty;
         ShowStaffRoll = showStaffRoll;
-        PreviousSwitch = Raylib.GetTime();
+        PreviousSwitch = Gfx.GetTime();
         Elements = new List<EndingElement>();
         Elements.AddRange(info.AddTexts);
         Elements.AddRange(info.ClearTexts);
@@ -36,7 +36,7 @@ public class EndingScreen : Screen
     
     public override void Render()
     {
-        double time = Raylib.GetTime();
+        double time = Gfx.GetTime();
         byte transparency = Helper.TimeToTransparency(
                 Helper.ComputeObjectTime(time,
                     PreviousSwitchBackground[0],
@@ -52,11 +52,11 @@ public class EndingScreen : Screen
             TimeDisappear,
             1)
         );
-        DrawRectangle(0,0,Runtime.CurrentRuntime.Width,Runtime.CurrentRuntime.Height, Color.Black);
+        DrawRectangle(0,0,Runtime.CurrentRuntime.Width,Runtime.CurrentRuntime.Height, Rgba.Black);
         DrawTextureEx(Runtime.CurrentRuntime.Textures["ending_background.png"], Vector2.Zero, 0,
-            Runtime.CurrentRuntime.ScaleF / 4, Color.White);
-        DrawTextureEx(Backgrounds[0], Vector2.Zero, 0, Runtime.CurrentRuntime.ScaleF / 4f, Color.White with { A = 255 });
-        DrawTextureEx(Backgrounds[1], Vector2.Zero, 0, Runtime.CurrentRuntime.ScaleF / 4f, Color.White with { A = 255 });
+            Runtime.CurrentRuntime.ScaleF / 4, Rgba.White);
+        DrawTextureEx(Backgrounds[0], Vector2.Zero, 0, Runtime.CurrentRuntime.ScaleF / 4f, Rgba.White with { A = 255 });
+        DrawTextureEx(Backgrounds[1], Vector2.Zero, 0, Runtime.CurrentRuntime.ScaleF / 4f, Rgba.White with { A = 255 });
         for (int i = 0; i < 4; i++)
         {
             if (RuntimeTexts[i] == null)
@@ -65,17 +65,17 @@ public class EndingScreen : Screen
                     RuntimeTexts[i].Texture,
                     RuntimeTexts[i].Source,
                     RuntimeTexts[i].Destination,
-                    Vector2.Zero, 0, Color.White
+                    Vector2.Zero, 0, Rgba.White
                 );
         }
-        DrawRectangle(0,0,Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height, Color.Black with {A = tp});
+        DrawRectangle(0,0,Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height, Rgba.Black with {A = tp});
         base.Render();
     }
 
-    public void SwitchPicture(Texture2D image)
+    public void SwitchPicture(TextureHandle image)
     {
         Backgrounds[BackgroundIndex] = image;
-        PreviousSwitchBackground[BackgroundIndex] = Raylib.GetTime();
+        PreviousSwitchBackground[BackgroundIndex] = Gfx.GetTime();
         BackgroundIndex = (BackgroundIndex + 1) % 2;
     }
 
@@ -83,7 +83,7 @@ public class EndingScreen : Screen
     {
         if(RuntimeTexts[LastTextIndex] != null)
             RuntimeTexts[LastTextIndex].Dispose();
-        RuntimeTexts[LastTextIndex] = new RuntimeEndingText(text, Raylib.GetTime(), Y);
+        RuntimeTexts[LastTextIndex] = new RuntimeEndingText(text, Gfx.GetTime(), Y);
         Y += RuntimeTexts[LastTextIndex].Texture.Height;
         LastTextIndex++;
     }
@@ -110,7 +110,7 @@ public class EndingScreen : Screen
         Text($"Previous Switch: {PreviousSwitch}");
         Text($"Background Index: {BackgroundIndex}");
         byte transparency = Helper.TimeToTransparency(
-            Helper.ComputeObjectTime(Raylib.GetTime(),
+            Helper.ComputeObjectTime(Gfx.GetTime(),
                 PreviousSwitchBackground[0],
                 0.5,
                 PreviousSwitchBackground[1],
@@ -127,15 +127,15 @@ public class EndingScreen : Screen
     private double PreviousSwitch;
     private double[] PreviousSwitchBackground = new double[2];
     private int BackgroundIndex = 0;
-    private Texture2D[] Backgrounds = new Texture2D[2];
+    private TextureHandle[] Backgrounds = new TextureHandle[2];
     RuntimeEndingText?[] RuntimeTexts = new RuntimeEndingText[4];
     private int LastTextIndex = 0;
     
     public override void TopUpdate()
     {
         base.TopUpdate();
-        double time = Raylib.GetTime();
-        if (TimeDisappear < Raylib.GetTime())
+        double time = Gfx.GetTime();
+        if (TimeDisappear < Gfx.GetTime())
         {
             Runtime.CurrentRuntime.RemoveScreen(this);
         }
@@ -144,7 +144,7 @@ public class EndingScreen : Screen
             NextIndex();
             return;
         }
-        if ((IsKeyDown(KeyboardKey.Enter)  || Controller.IsButtonDown(Configuration.Config.ShootButton) || IsKeyDown(KeyboardKey.Z))&&time - PreviousSwitch > SwitchDelay)
+        if ((IsKeyDown(KeyCode.Enter)  || Controller.IsButtonDown(Configuration.Config.ShootButton) || IsKeyDown(KeyCode.Z))&&time - PreviousSwitch > SwitchDelay)
         {
             PreviousSwitch = time;
             NextIndex();
@@ -153,16 +153,16 @@ public class EndingScreen : Screen
 
     void NextIndex()
     {
-        if (TimeDisappear < Raylib.GetTime() + 0.5)
+        if (TimeDisappear < Gfx.GetTime() + 0.5)
             return;
         Index++;
         if (Elements.Count <= Index)
         {
-            TimeDisappear = (float)(Raylib.GetTime() + 0.5);
+            TimeDisappear = (float)(Gfx.GetTime() + 0.5);
             return;
         }
         var element = Elements[Index];
-        PreviousSwitch = Raylib.GetTime();
+        PreviousSwitch = Gfx.GetTime();
         element.Apply(this);
     }
 
@@ -172,7 +172,7 @@ public class EndingScreen : Screen
         public int X, Y;
         private double TimeAppear;
         private double TimeDisappear;
-        private RenderTexture2D RenderTexture;
+        private TargetHandle RenderTexture;
         
         public RuntimeEndingText(string text, double time, int y)
         {
@@ -188,16 +188,16 @@ public class EndingScreen : Screen
         
         public void Disappear()
         {
-            TimeDisappear = Raylib.GetTime() + 0.5; 
+            TimeDisappear = Gfx.GetTime() + 0.5; 
         }
 
-        public Texture2D Texture => RenderTexture.Texture;
-        public Rectangle Source;
-        public Rectangle Destination => new Rectangle(X, Y, Source.Width, (float)(Source.Height * Helper.ComputeObjectTime(Raylib.GetTime(), TimeAppear, 0.5, TimeDisappear + 0.5, 0.5)));
+        public TextureHandle Texture => RenderTexture.Texture;
+        public Rect Source;
+        public Rect Destination => new Rect(X, Y, Source.Width, (float)(Source.Height * Helper.ComputeObjectTime(Gfx.GetTime(), TimeAppear, 0.5, TimeDisappear + 0.5, 0.5)));
         
         public void Dispose()
         {
-            Raylib.UnloadRenderTexture(RenderTexture);
+            UnloadRenderTexture(RenderTexture);
         }
     }
 }

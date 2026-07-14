@@ -8,7 +8,7 @@
       "version": "1.0.0",
       "restore": {
         "projectUniqueName": "/home/iwuwka/Documents/DmitryAndDemid/DmitryAndDemid.csproj",
-        "projectName": "DmitryAndDemid",
+        "projectName": "aag2",
         "projectPath": "/home/iwuwka/Documents/DmitryAndDemid/DmitryAndDemid.csproj",
         "packagesPath": "/home/iwuwka/.nuget/packages/",
         "outputPath": "/home/iwuwka/Documents/DmitryAndDemid/obj/",
@@ -20,6 +20,7 @@
           "net10.0"
         ],
         "sources": {
+          "/usr/share/dotnet/library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -68,6 +69,14 @@
               "target": "Package",
               "version": "[7.0.2, )"
             },
+            "Silk.NET.Input": {
+              "target": "Package",
+              "version": "[2.23.0, )"
+            },
+            "Silk.NET.OpenGL": {
+              "target": "Package",
+              "version": "[2.23.0, )"
+            },
             "Silk.NET.Vulkan": {
               "target": "Package",
               "version": "[2.23.0, )"
@@ -83,6 +92,14 @@
             "Silk.NET.Windowing": {
               "target": "Package",
               "version": "[2.23.0, )"
+            },
+            "StbImageSharp": {
+              "target": "Package",
+              "version": "[2.30.15, )"
+            },
+            "StbTrueTypeSharp": {
+              "target": "Package",
+              "version": "[1.26.12, )"
             },
             "System.CodeDom": {
               "target": "Package",

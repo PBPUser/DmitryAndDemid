@@ -1,8 +1,8 @@
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Utils;
-using Raylib_cs;
-using static Raylib_cs.Raylib;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Backgrounds;
 
@@ -22,7 +22,7 @@ public class DrogichinBackground : StageBackground
         
     };
     
-    private static Shader DrogichinCloudsShader;
+    private static ShaderHandle DrogichinCloudsShader;
     private static int LastTick = 0;
     
     static DrogichinBackground()
@@ -37,13 +37,13 @@ public class DrogichinBackground : StageBackground
         DrogichinCloudsShader = Runtime.CurrentRuntime.Shaders["drogichin_clouds"];
         LocationDrogichinCloudsTime = GetShaderLocation(DrogichinCloudsShader, "time");
         LocationDrogichinCloudsTime = GetShaderLocation(DrogichinCloudsShader, "rotation");
-        Dest = new Rectangle(192, 224, Source.Width, Source.Height);
+        Dest = new Rect(192, 224, Source.Width, Source.Height);
     }
 
     private int LocationDrogichinCloudsTime;
     private int LocationDrogichinCloudsRotation;
-    private static Rectangle Source;
-    private Rectangle Dest;
+    private static Rect Source;
+    private Rect Dest;
 
     DrogichinPoint Get(int tick, float delta)
     {
@@ -53,7 +53,7 @@ public class DrogichinBackground : StageBackground
         return DrogichinPoint.GetPointBetween(p1, p2, tick%LastTick, delta);
     }
 
-    private RenderTexture2D Temp;
+    private TargetHandle Temp;
     
     protected override void Update(int tick, float delta)
     {
@@ -62,18 +62,18 @@ public class DrogichinBackground : StageBackground
         BeginTextureMode(Temp);
         DrawTexturePro(
             Runtime.CurrentRuntime.Textures["drogichinmap.png"],
-            Source, Dest, new Vector2(point.X, point.Y), point.Rotation, Color.White);
+            Source, Dest, new Vector2(point.X, point.Y), point.Rotation, Rgba.White);
         EndTextureMode();
     }
 
     private float Rotation;
 
-    protected override void Render(RenderTexture2D texture, int tick, float delta)
+    protected override void Render(TargetHandle texture, int tick, float delta)
     {
-        SetShaderValue(DrogichinCloudsShader, LocationDrogichinCloudsRotation, Rotation, ShaderUniformDataType.Float);
-        SetShaderValue(DrogichinCloudsShader, LocationDrogichinCloudsTime, tick / 60f + delta, ShaderUniformDataType.Float);
+        SetShaderValue(DrogichinCloudsShader, LocationDrogichinCloudsRotation, Rotation, UniformType.Float);
+        SetShaderValue(DrogichinCloudsShader, LocationDrogichinCloudsTime, tick / 60f + delta, UniformType.Float);
         BeginShaderMode(DrogichinCloudsShader);
-        DrawTexturePro(Temp.Texture, Helper.GetFullSourceRenderTexture(Temp), new Rectangle(0,0,384,448),Vector2.Zero, 0, Color.White);
+        DrawTexturePro(Temp.Texture, Helper.GetFullSourceRenderTexture(Temp), new Rect(0,0,384,448),Vector2.Zero, 0, Rgba.White);
         EndShaderMode();
     }
 

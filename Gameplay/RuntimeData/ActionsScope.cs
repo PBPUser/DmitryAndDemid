@@ -1,8 +1,9 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using System.Collections.Frozen;
 using System.Numerics;
 using DmitryAndDemid.Gameplay.Effects;
 using DmitryAndDemid.Utils;
-using Raylib_cs;
 
 namespace DmitryAndDemid.Gameplay.RuntimeData;
 
@@ -125,7 +126,7 @@ public static class ActionsScope
         };
         dictionary["toilet_bullet#spell2#easy"] = obj =>
         {
-            obj.Velocity = Raymath. Vector2MoveTowards(obj.Velocity, Helper.GetDirection(obj.Position, obj.Box.Player.Position), 0.01f);
+            obj.Velocity = MathUtil. Vector2MoveTowards(obj.Velocity, Helper.GetDirection(obj.Position, obj.Box.Player.Position), 0.01f);
             obj.Position += obj.Velocity * obj.Speed;
             obj.RenderRotation = Helper.FindAngle(Vector2.Zero, obj.Velocity);
         };

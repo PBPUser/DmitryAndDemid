@@ -1,9 +1,10 @@
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 using System.Numerics;
 using System.Text.Json;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Utils;
-using Raylib_cs;
 
 namespace DmitryAndDemid.Screens;
 
@@ -11,7 +12,7 @@ public class MusicRoomScreen : MenuScreen
 {
     private MusicInfo[] Infos;
     private int CurrentDescriptionIndex = 0;
-    private RenderTexture2D[] Descriptions;
+    private TargetHandle[] Descriptions;
     public int FontSize;
     
     public MusicRoomScreen()
@@ -38,7 +39,7 @@ public class MusicRoomScreen : MenuScreen
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
         string[] files = Directory.GetFiles("Assets/Music/Descriptions");
         Infos = new MusicInfo[files.Length];
-        Descriptions = new RenderTexture2D[files.Length];
+        Descriptions = new TargetHandle[files.Length];
         for (int i = 0; i < files.Length; i++)
             Infos[i] = JsonSerializer.Deserialize<MusicInfo>(File.ReadAllText(files[i])) ?? new MusicInfo();
         Infos = Infos.OrderBy(x => x.Number).ToArray();
@@ -53,7 +54,7 @@ public class MusicRoomScreen : MenuScreen
 
     public override void Render()
     {
-        float time = (float)Raylib.GetTime();
+        float time = (float)GetTime();
         float s =
             Helper.EaseInOutElasticF(Helper.ComputeObjectTime(time, TimeAppear, 1f, TimeDisappear, 1f));
         CurrentY = (int)(Runtime.CurrentRuntime.Height*(1-s) + s*128*Runtime.CurrentRuntime.ScaleF);
@@ -66,13 +67,13 @@ public class MusicRoomScreen : MenuScreen
         {
             state[i] = (float)Helper.ComputeObjectTimeStart(time - (i * 0.05), 
                 DescriptionSwitchTime, 0.25);
-            Raylib.DrawTexturePro(Descriptions[CurrentDescriptionIndex].Texture, 
+            DrawTexturePro(Descriptions[CurrentDescriptionIndex].Texture, 
                 rc with { Height = rc.Height / 4, Y = rc.Height / 4 * i },
                 rc with { X = 120 * Runtime.CurrentRuntime.ScaleF, 
                     Y = 360 * Runtime.CurrentRuntime.ScaleF + (i * rc.Height / 4),
                     Height = rc.Height / 4},
                 Vector2.Zero, 0, 
-                Color.White with {A = Helper.TimeToTransparency(state[i])});
+                Rgba.White with {A = Helper.TimeToTransparency(state[i])});
         }
     }
 
@@ -87,7 +88,7 @@ public class MusicRoomScreen : MenuScreen
     {
         if (index >= Infos.Length)
             return;
-        DescriptionSwitchTime = Raylib.GetTime();
+        DescriptionSwitchTime = GetTime();
         CurrentDescriptionIndex = index;
     }
 }

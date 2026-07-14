@@ -1,4 +1,5 @@
-using Raylib_cs;
+using DmitryAndDemid.Rendering;
+using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Common;
 
@@ -9,7 +10,7 @@ public abstract class StageBackground
         
     }
 
-    protected virtual void Render(RenderTexture2D texture, int tick, float delta)
+    protected virtual void Render(TargetHandle texture, int tick, float delta)
     {
         
     }
@@ -24,11 +25,11 @@ public abstract class StageBackground
         
     }
     
-    public void Draw(RenderTexture2D texture, int tick, float delta)
+    public void Draw(TargetHandle texture, int tick, float delta)
     {
         Update(tick, delta);
-        Raylib.BeginTextureMode(texture);
+        BeginTextureMode(texture);
         Render(texture, tick, delta);
-        Raylib.EndTextureMode();
+        EndTextureMode();
     }
 }

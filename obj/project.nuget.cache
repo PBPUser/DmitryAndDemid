@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "m46EvzELSA8=",
+  "dgSpecHash": "9/LrHsJn3yQ=",
   "success": true,
   "projectFilePath": "/home/iwuwka/Documents/DmitryAndDemid/DmitryAndDemid.csproj",
   "expectedPackageFiles": [
@@ -27,13 +27,19 @@
     "/home/iwuwka/.nuget/packages/rlimgui-cs/3.2.0/rlimgui-cs.3.2.0.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/silk.net.core/2.23.0/silk.net.core.2.23.0.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/silk.net.glfw/2.23.0/silk.net.glfw.2.23.0.nupkg.sha512",
+    "/home/iwuwka/.nuget/packages/silk.net.input/2.23.0/silk.net.input.2.23.0.nupkg.sha512",
+    "/home/iwuwka/.nuget/packages/silk.net.input.common/2.23.0/silk.net.input.common.2.23.0.nupkg.sha512",
+    "/home/iwuwka/.nuget/packages/silk.net.input.glfw/2.23.0/silk.net.input.glfw.2.23.0.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/silk.net.maths/2.23.0/silk.net.maths.2.23.0.nupkg.sha512",
+    "/home/iwuwka/.nuget/packages/silk.net.opengl/2.23.0/silk.net.opengl.2.23.0.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/silk.net.vulkan/2.23.0/silk.net.vulkan.2.23.0.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/silk.net.vulkan.extensions.ext/2.23.0/silk.net.vulkan.extensions.ext.2.23.0.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/silk.net.vulkan.extensions.khr/2.23.0/silk.net.vulkan.extensions.khr.2.23.0.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/silk.net.windowing/2.23.0/silk.net.windowing.2.23.0.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/silk.net.windowing.common/2.23.0/silk.net.windowing.common.2.23.0.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/silk.net.windowing.glfw/2.23.0/silk.net.windowing.glfw.2.23.0.nupkg.sha512",
+    "/home/iwuwka/.nuget/packages/stbimagesharp/2.30.15/stbimagesharp.2.30.15.nupkg.sha512",
+    "/home/iwuwka/.nuget/packages/stbtruetypesharp/1.26.12/stbtruetypesharp.1.26.12.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/system.codedom/10.0.7/system.codedom.10.0.7.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/ultz.native.glfw/3.4.0/ultz.native.glfw.3.4.0.nupkg.sha512",
     "/home/iwuwka/.nuget/packages/microsoft.aspnetcore.app.ref/10.0.4/microsoft.aspnetcore.app.ref.10.0.4.nupkg.sha512"
