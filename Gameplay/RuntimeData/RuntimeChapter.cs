@@ -28,6 +28,9 @@ public class RuntimeChapter
     public readonly TargetHandle? BossTitleTexture;
     public readonly TargetHandle? ChapterTitleTexture;
     public readonly TextureHandle? SpellcardTexture;
+
+    /// <summary>The spell card's name — also the key under which PlayerData records tries/successes.</summary>
+    public readonly string SpellcardTitle = "";
     public readonly GameBox GameBox;
     public int[] Header = new int[128];
 
@@ -52,6 +55,7 @@ public class RuntimeChapter
         {
             SpellcardTexture = Runtime.CurrentRuntime.Textures[chapterInfo.SpellcardTexture];
             MaxScore = chapterInfo.Header[4];
+            SpellcardTitle = chapterInfo.SpellcardTitle;
             var size = Helper.GetTitleTextSize(chapterInfo.SpellcardTitle);
             ChapterTitleTexture = LoadRenderTexture((int)size.X, (int)size.Y);
             Helper.DrawChapterTitleText(ChapterTitleTexture.Value, chapterInfo.SpellcardTitle);

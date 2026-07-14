@@ -1,0 +1,47 @@
+{
+ "blockSize": 88,
+ "blockBinding": 1,
+ "uniforms": [
+  {
+   "name": "res",
+   "offset": 16,
+   "type": "vec2"
+  },
+  {
+   "name": "border_width",
+   "offset": 24,
+   "type": "float"
+  },
+  {
+   "name": "border_color",
+   "offset": 32,
+   "type": "vec4"
+  },
+  {
+   "name": "color_top",
+   "offset": 48,
+   "type": "vec4"
+  },
+  {
+   "name": "color_bottom",
+   "offset": 64,
+   "type": "vec4"
+  },
+  {
+   "name": "time",
+   "offset": 80,
+   "type": "float"
+  },
+  {
+   "name": "highlight_strength",
+   "offset": 84,
+   "type": "float"
+  }
+ ],
+ "samplers": [
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
+}

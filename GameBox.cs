@@ -28,6 +28,10 @@ public class GameBox : IDisposable
     public int TickOffset = 0;
     public int CurrentTick = 0;
     public bool IsFailed = false;
+
+    /// <summary>The spell.failed wording chosen when the current card was failed. Picked once — the key has
+    /// several variants and Translate() randomises, so resolving it per frame would make the word flicker.</summary>
+    string SpellFailedText = "";
     public bool InChapterDelay = false;
     FileStageInfo[] Stages;
     List<RuntimeObject> ObjectsAddQueue = new();
@@ -300,6 +304,8 @@ public class GameBox : IDisposable
                 if (distance < collision / 2)
                 {
                     Player.Die();
+                    if (!IsFailed)
+                        SpellFailedText = Helper.Translate("spell.failed");  // 4 variants; pick one, once
                     IsFailed = true;
                     RemoveObject(obj);
                     continue;
@@ -526,6 +532,7 @@ public class GameBox : IDisposable
             ChapterTitleAppear = GetTime();
             ChapterTitleDisappear = float.MaxValue;
             IsFailed = false;
+            SpellFailedText = "";
             ChapterScoreCurrent = ScoreChapterMax = ChapterInfo.MaxScore;
             AddScreenEffect(new SpellCardAttackScreenEffect(this, Vector2.Zero, 0, GetTime(), GetTime()+2));
         }
@@ -635,19 +642,29 @@ public class GameBox : IDisposable
         BeginTextureMode(UIAboveGameplay);
         float appearTimer = (float)Helper.ComputeObjectTime(time,TimerAppear, .5f, TimerDisappear, .5);
         ClearBackground(Transparent);
+
+        // Where the spell card's name actually lands this frame. It slides in and scales down, so the score
+        // line below it has to be positioned from these values rather than recomputed — otherwise it drifts
+        // away from the title during the animation.
+        Vector2 titlePosition = Vector2.Zero;
+        float titleDrawnHeight = 0;
+        float titleRightEdge = 0;
+
         if (RenderChapterTitle)
         {
             float appear1 = MathF.Pow((float)Helper.ComputeObjectTimeStart(time,ChapterTitleAppear, 1),2);
             float appear3 = (float)Helper.ComputeObjectTimeStart(time,ChapterTitleDisappear, 1);
             float scaling = (1 - appear1) * 9 + 1;
-            DrawTextureEx(ChapterInfo!.ChapterTitleTexture!.Value.Texture, 
-                new Vector2(
-                    UIAboveGameplay.Texture.Width - (scaling * (1-appear3) * ChapterInfo!.ChapterTitleTexture!.Value.Texture.Width),
-                    300 * Runtime.CurrentRuntime.ScaleF * (0.075f+1-appear2)
-                    ),
+            titlePosition = new Vector2(
+                UIAboveGameplay.Texture.Width - (scaling * (1-appear3) * ChapterInfo!.ChapterTitleTexture!.Value.Texture.Width),
+                300 * Runtime.CurrentRuntime.ScaleF * (0.075f+1-appear2));
+            titleDrawnHeight = ChapterInfo!.ChapterTitleTexture!.Value.Texture.Height * scaling;
+            titleRightEdge = titlePosition.X + ChapterInfo!.ChapterTitleTexture!.Value.Texture.Width * scaling;
+
+            DrawTextureEx(ChapterInfo!.ChapterTitleTexture!.Value.Texture,
+                titlePosition,
                 0, scaling,
                 Rgba.White with {A = Helper.TimeToTransparency(appear1)});
-            DrawText($"Score max: {ChapterScoreCurrent} of {ScoreChapterMax}", 0, 64, 24, Rgba.White);
         }
         foreach (var overlay in GameplayOverlays)
             overlay.DrawOverlay();
@@ -656,8 +673,13 @@ public class GameBox : IDisposable
         if(typeI > 1 && !InChapterDelay)
             Helper.DrawTimer((int)(UIAboveGameplay.Texture.Width - (appearTimer)*Helper.TimerTextureSize.X), 0, (ChapterInfo.TickStart + ChapterInfo!.Length - CurrentTickWithOffset) < (ChapterInfo!.Length > 600 ? 300 : 600));
         EndTextureMode();
-        if(RenderChapterTitle )
-            Helper.DrawSpellSubtitle(UIAboveGameplay, ChapterScoreCurrent, 0, 0, UIAboveGameplay.Texture.Width -  ChapterInfo!.ChapterTitleTexture!.Value.Texture.Width,(int)(300 * Runtime.CurrentRuntime.ScaleF * (0.063f+1-appear2)));
+        if (RenderChapterTitle)
+        {
+            (int total, int success) = GetSpellcardRecord(ChapterInfo!.SpellcardTitle);
+            // Hangs off the bottom-RIGHT of the name, following it as it slides and scales in.
+            Helper.DrawSpellSubtitle(UIAboveGameplay, IsFailed ? -1 : ChapterScoreCurrent, total, success,
+                (int)titleRightEdge, (int)(titlePosition.Y + titleDrawnHeight), SpellFailedText);
+        }
         if (IsUIUpdateRequired)
         {
             RedrawUI();
@@ -718,6 +740,16 @@ public class GameBox : IDisposable
         }
     }
     
+    /// <summary>This player's record on a spell card: (attempts, successes). Zeroes if never tried.</summary>
+    (int Total, int Success) GetSpellcardRecord(string spellName)
+    {
+        if (string.IsNullOrEmpty(spellName))
+            return (0, 0);
+        if (!PlayerData.Instance.Persons.TryGetValue(ProtogonistId, out var person))
+            return (0, 0);
+        return person.SpellcardTries.TryGetValue(spellName, out var record) ? record : (0, 0);
+    }
+
     public void UpdateUI()
     {
         IsUIUpdateRequired = true;

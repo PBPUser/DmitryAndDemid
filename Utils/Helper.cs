@@ -320,6 +320,9 @@ public static class Helper
     private static TargetHandle SubtitleBufferTexture;
     private static float SpellFontSize;
 
+    /// <summary>Design units (x UI scale) for the score line under a spell card's name.</summary>
+    private const float SpellSubtitleFontSize = 11;
+
     static void PrepareSpellSubtitleTextures()
     {
         SpellFontSize = BonusCountSize *  Runtime.CurrentRuntime.ScaleF;
@@ -339,30 +342,125 @@ public static class Helper
     /// <param name="total"></param>
     /// <param name="success"></param>
     /// <returns>Used Texture Width</returns>
-    public static int DrawSpellSubtitle(TargetHandle renderTexture2D, int score, int total, int success, int posX = 0, int posY = 0)
+    /// <summary>
+    /// The score line that sits UNDER the spell card's name: the current bonus, styled with the
+    /// text_frame shader (gradient + frame + a highlight sweep while the card is live), followed by the
+    /// player's record on this card as good/total.
+    ///
+    /// Formatting rules: more than 99 successes prints "master" instead of the pair; more than 99 attempts
+    /// prints "99+" instead of the number.
+    /// </summary>
+    /// <summary>
+    /// The score line under a spell card's name: "bonus: <score>" and "attempt: <good>/<total>", styled with
+    /// the text_frame shader.
+    ///
+    /// Rules: a failed card shows <paramref name="failedText"/> in place of the score; more than 99 successes
+    /// prints spell.master instead of the pair; more than 99 attempts prints "99+" instead of the number.
+    /// </summary>
+    /// <param name="score">The bonus, or -1 when the card has been failed.</param>
+    /// <param name="failedText">
+    /// The already-picked spell.failed wording. It is passed in rather than translated here because that key
+    /// has four variants and Translate() picks at random — resolving it every frame would make the word
+    /// flicker.
+    /// </param>
+    /// <param name="rightX">RIGHT edge to align to — the name slides in from far left at up to 10x scale.</param>
+    public static int DrawSpellSubtitle(TargetHandle target, int score, int total, int success,
+        int rightX = 0, int posY = 0, string failedText = "")
     {
-        string bonusValue = (score == -1 ? Translate("spell.failed") : score.ToString()) + " ";
-        string spellValue = success > 99 ? Transliterate("spell.master") : $"{success:00}/{(total > 99 ? "99+" : $"{total:00}")}";
-        var padding = Runtime.CurrentRuntime.ScaleF * 4;
-        DrawTextOutline(out var temp2, TimerFont, SpellFontSize, bonusValue, Rgba.White, 0);
-        DrawTextOutline(out var temp4, TimerFont, SpellFontSize, spellValue, Rgba.White, 0);
-        //var rectangle = GetFullSourceRenderTexture(temp1);
-        //var rectangle2 = GetFullSource(temp1.Texture);
-        //BeginTextureMode(renderTexture2D);
-        //DrawTexture(temp1.Texture, posX, posY, Rgba.White);
-        //posX += temp1.Texture.Width;
-        //DrawTexture(temp2.Texture, posX, posY, Rgba.White);
-        //posX += temp2.Texture.Width;
-        //DrawTexture(temp3.Texture, posX, posY, Rgba.White);
-        //posX += temp3.Texture.Width;
-        //DrawTexture(temp4.Texture, posX, posY, Rgba.White);
-        //posX += temp4.Texture.Width;
-        // NOTE: there used to be an EndTextureMode() here with no matching Begin — the Begin above is
-        // commented out. Raylib tolerated it (End just unbinds to the window), but it is a genuine
-        // imbalance: with the frame composited into a render target it popped that target instead.
-        UnloadRenderTexture(temp2);
-        UnloadRenderTexture(temp4);
-        return posX;
+        bool failed = score < 0;
+
+        string bonusLabel = Translate("spell.bonus");
+        string attemptLabel = Translate("spell.attempt");
+        string bonusValue = failed ? failedText : score.ToString();
+        string triesValue = success > 99
+            ? Translate("spell.master")
+            : $"{success:00}/{(total > 99 ? "99+" : $"{total:00}")}";
+
+        float fontSize = SpellSubtitleFontSize * Runtime.CurrentRuntime.ScaleF;
+        float border = 2 * Runtime.CurrentRuntime.ScaleF;
+
+        // Labels: quiet, no sweep. Values: the bonus is "live" (gold, sweeping) unless the card was failed,
+        // in which case it goes red; the attempt record is a static white.
+        DrawTextFramed(out TargetHandle bonusTitle, TimerFont, fontSize, bonusLabel,
+            new Rgba(190, 205, 255), new Rgba(120, 140, 200), Rgba.Black, border);
+        DrawTextFramed(out TargetHandle bonus, TimerFont, fontSize, bonusValue,
+            failed ? new Rgba(255, 150, 150) : new Rgba(255, 240, 170),
+            failed ? new Rgba(200, 30, 30) : new Rgba(255, 150, 20),
+            Rgba.Black, border, failed ? 0f : 0.65f);
+        DrawTextFramed(out TargetHandle attemptTitle, TimerFont, fontSize, attemptLabel,
+            new Rgba(190, 205, 255), new Rgba(120, 140, 200), Rgba.Black, border);
+        DrawTextFramed(out TargetHandle tries, TimerFont, fontSize, triesValue,
+            Rgba.White, new Rgba(170, 170, 190), Rgba.Black, border);
+
+        float gap = 10 * Runtime.CurrentRuntime.ScaleF;
+        TargetHandle[] parts = [bonusTitle, bonus, attemptTitle, tries];
+        float lineWidth = parts.Sum(p => p.Texture.Width) + gap;   // one gap, between the two pairs
+
+        float posX = rightX - lineWidth;
+        // The name zooms in at up to 10x, which would fling this line off the overlay while that plays.
+        posY = Math.Clamp(posY, 0, target.Texture.Height - bonus.Texture.Height);
+        posX = Math.Clamp(posX, 0, Math.Max(0, target.Texture.Width - lineWidth));
+
+        BeginTextureMode(target);
+        float x = posX;
+        for (int i = 0; i < parts.Length; i++)
+        {
+            TargetHandle part = parts[i];
+            DrawTexturePro(part.Texture, GetFullSourceRenderTexture(part),
+                new Rect(x, posY, part.Texture.Width, part.Texture.Height), Vector2.Zero, 0, Rgba.White);
+            x += part.Texture.Width;
+            if (i == 1)
+                x += gap;   // space between "bonus: N" and "attempt: N/N"
+        }
+        EndTextureMode();
+
+        foreach (TargetHandle part in parts)
+            UnloadRenderTexture(part);
+        return (int)posX;
+    }
+
+    /// <summary>
+    /// Renders text with a frame (outline) and a vertical gradient, using Assets/Shaders/text_frame.fs.
+    ///
+    /// The frame grows OUTWARD from the glyphs, so the text is first drawn into a padded scratch target —
+    /// without the padding the shader would dilate into the edge of the texture and the frame would be
+    /// clipped. Pass highlightStrength > 0 for the animated sweep (used to emphasise the score during a
+    /// spell card); 0 gives a static gradient.
+    /// </summary>
+    public static void DrawTextFramed(out TargetHandle texture, FontHandle font, float fontSize, string text,
+        Rgba colorTop, Rgba colorBottom, Rgba borderColor, float borderWidth, float highlightStrength = 0f)
+    {
+        Vector2 measure = MeasureTextEx(font, text, fontSize, 1);
+        float padding = MathF.Ceiling(borderWidth) + 2;
+        Vector2 size = measure + new Vector2(padding * 2);
+
+        TargetHandle mask = LoadRenderTexture((int)size.X, (int)size.Y);
+        BeginTextureMode(mask);
+        ClearBackground(Rgba.Blank);
+        DrawTextEx(font, text, new Vector2(padding), fontSize, 1, Rgba.White);
+        EndTextureMode();
+
+        ShaderHandle shader = Runtime.CurrentRuntime.Shaders["text_frame"];
+        SetShaderValue(shader, GetShaderLocation(shader, "res"), size, UniformType.Vec2);
+        SetShaderValue(shader, GetShaderLocation(shader, "border_width"), borderWidth, UniformType.Float);
+        SetShaderValue(shader, GetShaderLocation(shader, "border_color"), borderColor.ToVector4(), UniformType.Vec4);
+        SetShaderValue(shader, GetShaderLocation(shader, "color_top"), colorTop.ToVector4(), UniformType.Vec4);
+        SetShaderValue(shader, GetShaderLocation(shader, "color_bottom"), colorBottom.ToVector4(), UniformType.Vec4);
+        SetShaderValue(shader, GetShaderLocation(shader, "time"), (float)GetTime(), UniformType.Float);
+        SetShaderValue(shader, GetShaderLocation(shader, "highlight_strength"), highlightStrength, UniformType.Float);
+
+        texture = LoadRenderTexture((int)size.X, (int)size.Y);
+        BeginTextureMode(texture);
+        ClearBackground(Rgba.Blank);
+        BeginShaderMode(shader);
+        DrawTexturePro(mask.Texture,
+            GetFullSourceRenderTexture(mask),
+            new Rect(0, 0, size.X, size.Y),
+            Vector2.Zero, 0, Rgba.White);
+        EndShaderMode();
+        EndTextureMode();
+
+        UnloadRenderTexture(mask);
     }
 
     public static void DrawTextOutline(out TargetHandle texture, FontHandle font, float fontSize, string text, Rgba color, float padding)

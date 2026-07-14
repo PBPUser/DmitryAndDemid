@@ -39,7 +39,7 @@ vec2 rotate(vec2 coord, vec2 pivot, float x, float y, float z){
 
 float tex(vec2 uv){
     if(mod(abs(uv),1) != uv)
-        return 0;
+        return 0.0;
     return texture(textureCursor, uv)[0];
 }
 

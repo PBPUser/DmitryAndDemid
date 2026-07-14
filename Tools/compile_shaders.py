@@ -82,6 +82,13 @@ def vulkanize(source: str) -> str:
         source = "\n".join(lines)
         source = re.sub(r"\bgl_FragColor\b", "_fragColorOut", source)
 
+        # Several shaders (boss_health_bar, ...) `return;` out of main WITHOUT writing the output, meaning
+        # "do not draw this pixel". That leaves the fragment output UNDEFINED. GL/NVIDIA hands back zeros, so
+        # on OpenGL it looks like a no-op; SPIR-V genuinely leaves the variable uninitialised, and the boss
+        # health bar's full-screen quad then sprayed garbage over the whole gameplay overlay.
+        # Zero-initialise the output so an unwritten fragment blends as fully transparent, matching GL.
+        source = re.sub(r"(void\s+main\s*\([^)]*\)\s*\{)", r"\1\n    _fragColorOut = vec4(0.0);", source, count=1)
+
     source = re.sub(r"\btexture2D\s*\(", "texture(", source)
     source = re.sub(r"\btextureCube\s*\(", "texture(", source)
     source = re.sub(r"\bsampler\b(?!\dD)", "_smp", source)      # 'sampler' used as a parameter name

@@ -440,3 +440,6 @@
 /home/iwuwka/Documents/DmitryAndDemid/obj/Debug/net10.0/refint/aag2.dll
 /home/iwuwka/Documents/DmitryAndDemid/obj/Debug/net10.0/aag2.pdb
 /home/iwuwka/Documents/DmitryAndDemid/obj/Debug/net10.0/ref/aag2.dll
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/text_frame.fs
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/vulkan/text_frame.frag.json
+/home/iwuwka/Documents/DmitryAndDemid/bin/Debug/net10.0/Assets/Shaders/vulkan/text_frame.frag.spv

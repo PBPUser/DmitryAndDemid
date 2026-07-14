@@ -103,7 +103,7 @@ public class Runtime
         ScaleF = (float)Scale;
         var size = 100 * ScaleF;
         Engine.Platform.OpenWindow(width, height,
-            $"AAG2 ~ UcTopu9I o6 DmuTpuu u3 Dporu4uHa & DeMuDa CepreeBu4a [{Engine.BackendName}]");
+            $"AAG2 ~ Subhumanian Fartalism [{Engine.BackendName}]");
         SetWindowMode(Config.FullScreenType);
         Backbuffer = LoadRenderTexture(Width, Height);
         var sugarTexture = LoadTexture("Assets/Textures/sugar_logo.png");

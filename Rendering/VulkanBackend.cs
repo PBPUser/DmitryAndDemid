@@ -958,7 +958,19 @@ public sealed unsafe class VulkanBackend : IBackend
         Vk.BindImageMemory(Device, image, memory, 0);
 
         // Everything lives in GENERAL: valid both as a colour attachment and as a sampled image.
-        OutsidePass(cmd => LayoutBarrier(cmd, image, ImageLayout.Undefined, ImageLayout.General));
+        //
+        // The clear is NOT cosmetic. A fresh Vulkan image contains garbage, whereas GL/Raylib hand back a
+        // zeroed FBO texture — and the game relies on that: the spell card's effect chain composites through
+        // targets it never fully covers, so on Vulkan the uninitialised memory showed through as per-pixel
+        // speckle noise all over the playfield.
+        OutsidePass(cmd =>
+        {
+            LayoutBarrier(cmd, image, ImageLayout.Undefined, ImageLayout.General);
+
+            ClearColorValue clear = new(0, 0, 0, 0);
+            ImageSubresourceRange range = new(ImageAspectFlags.ColorBit, 0, 1, 0, 1);
+            Vk.CmdClearColorImage(cmd, image, ImageLayout.General, in clear, 1, in range);
+        });
 
         int id = NextId++;
         Textures[id] = new VkTexture
@@ -1574,6 +1586,16 @@ public sealed unsafe class VulkanBackend : IBackend
         ShaderHandle shaderHandle = ActiveShader.IsValid ? ActiveShader : DefaultShader;
         if (!Shaders.TryGetValue(shaderHandle.Id, out VkShader? shader))
             return;
+
+        // A NEGATIVE DESTINATION extent means "same rectangle", not "flip": the game builds LeftDest from
+        // UILeftSource.Size, and that source is the flipped (0, H, W, -H) form, so the HUD's dest height
+        // arrives as -1200. Raylib draws that as if it were positive (the flip comes from the negative
+        // SOURCE); building the quad literally puts it at y in [-1200, 0], off the top of the screen — which
+        // is exactly why the whole right-hand HUD strip was missing on this backend.
+        if (dest.Width < 0)
+            dest.Width = -dest.Width;
+        if (dest.Height < 0)
+            dest.Height = -dest.Height;
 
         // Raylib's flip semantics, relied on by every render-target draw (see SilkGLBackend for the detail).
         bool flipX = false;

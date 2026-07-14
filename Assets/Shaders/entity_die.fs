@@ -22,7 +22,7 @@ vec4 invert(vec2 uvs, bool invert, float il){
 
 float c1leavesColor(vec2 uv){
   if(mod(uv,1) != uv)
-    return 0;
+    return 0.0;
   return texture(textureLeaves, uv)[3];
 }
 

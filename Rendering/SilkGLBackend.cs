@@ -652,6 +652,16 @@ public sealed unsafe class SilkGLBackend : IBackend
         // is not subtle: the game flips every render target by passing a negative height (e.g. 0,0,384,-448),
         // and naively dividing that into a negative V makes CLAMP_TO_EDGE pin every row to texel row 0 —
         // i.e. the first pixel smeared across the whole quad.
+        // A NEGATIVE DESTINATION extent means "same rectangle", not "flip": the game builds LeftDest from
+        // UILeftSource.Size, and that source is the flipped (0, H, W, -H) form, so the HUD's dest height
+        // arrives as -1200. Raylib draws that as if it were positive (the flip comes from the negative
+        // SOURCE); building the quad literally puts it at y in [-1200, 0], off the top of the screen — which
+        // is exactly why the whole right-hand HUD strip was missing on this backend.
+        if (dest.Width < 0)
+            dest.Width = -dest.Width;
+        if (dest.Height < 0)
+            dest.Height = -dest.Height;
+
         // Raylib's DrawTexturePro flip arithmetic, verbatim. Note it deliberately produces texture
         // coordinates OUTSIDE [0,1] for the (0, H, W, -H) source form the game uses for render targets, and
         // relies on GL_REPEAT wrapping to bring them back. Reproduce both or the frame smears: with
