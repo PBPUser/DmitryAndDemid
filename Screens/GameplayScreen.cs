@@ -212,6 +212,7 @@ public class GameplayScreen : Screen
             UILeftSource,
             LeftDest,
             Vector2.Zero, 0, Rgba.White);
+        TouchControls.Draw();
         if (time - TimeAppear > 2f)
             return;
         DrawTexturePro(Runtime.CurrentRuntime.Textures["difficulties_ingame.png"],

@@ -29,6 +29,7 @@ public sealed class LauncherWindow
     private readonly Scale SensitivityScale;
     private readonly CheckButton VSyncCheck;
     private readonly CheckButton AskCheck;
+    private readonly CheckButton TouchCheck;
     private readonly Label RendererDescription;
 
     private static readonly (FullScreenType Mode, string Label)[] WindowModes =
@@ -79,6 +80,10 @@ public sealed class LauncherWindow
 
         VSyncCheck = new CheckButton("Vertical sync") { Active = Configuration.Config.UseVSYNC };
         AskCheck = new CheckButton("Show this window on every start") { Active = Configuration.Config.AlwaysAsk };
+        TouchCheck = new CheckButton("Touch controls (drag the playfield to move, on-screen BOMB / FOCUS)")
+        {
+            Active = Configuration.Config.TouchControls,
+        };
         RendererDescription = new Label { Xalign = 0, Yalign = 0, Justify = Justification.Left };
         SensitivityScale = new Scale(Orientation.Horizontal, MinSensitivity, MaxSensitivity, 0.05);
 
@@ -86,6 +91,7 @@ public sealed class LauncherWindow
 
         // Top: the loose checkboxes, as in the reference dialog.
         root.Add(VSyncCheck);
+        root.Add(TouchCheck);
         root.Add(AskCheck);
 
         // Middle: two columns of framed groups.
@@ -308,6 +314,7 @@ public sealed class LauncherWindow
 
         Configuration.Config.GamepadSensitivity = (float)SensitivityScale.Value;
         Configuration.Config.UseVSYNC = VSyncCheck.Active;
+        Configuration.Config.TouchControls = TouchCheck.Active;
         Configuration.Config.AlwaysAsk = AskCheck.Active;
         Configuration.Config.Save();
     }
