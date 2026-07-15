@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="configure"
+        android:enabled="true"
+        android:icon="@mipmap/icon"
+        android:shortcutShortLabel="@string/shortcut_config_short"
+        android:shortcutLongLabel="@string/shortcut_config_long">
+        <intent
+            android:action="co.sugar.aag2.CONFIGURE"
+            android:targetPackage="co.sugar.aag2"
+            android:targetClass="co.sugar.aag2.MainActivity" />
+    </shortcut>
+</shortcuts>

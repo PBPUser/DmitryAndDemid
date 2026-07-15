@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Opt into the back-invocation dispatcher so the back gesture/button reaches the Activity's registered
+         OnBackInvokedCallback (Escape) instead of finishing the Activity. -->
+    <application android:enableOnBackInvokedCallback="true" />
+</manifest>

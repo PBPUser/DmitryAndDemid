@@ -1,0 +1,88 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Android build of the game.
+
+    It compiles the game's own sources directly rather than referencing DmitryAndDemid.csproj: that project is
+    the desktop executable (GTK, Raylib, Vulkan, ImGui), and none of those exist here. What is left out is
+    listed in the Compile/Exclude below; everything else — the whole game — is shared source, built with
+    ANDROID defined.
+
+    The host itself is thin: MainActivity owns a GLSurfaceView, and the game's Silk/OpenGL backend attaches to
+    that context (Runtime.StartAndroid) and is stepped once per frame (Runtime.RunFrame).
+
+    Prerequisite: a JDK between 17 and 21 (the .NET Android SDK refuses anything outside that range). This
+    machine has only a JDK 11 with a compiler — the 21 and 26 installs are JREs, with no javac — so the APK
+    stage cannot run here until one is installed:
+
+        sudo pacman -S jdk21-openjdk
+
+    Build:
+      ANDROID_HOME=$HOME/Android/Sdk JAVA_HOME=/usr/lib/jvm/java-21-openjdk \
+        dotnet build Android/DmitryAndDemid.Android.csproj -c Release
+
+    Install to a running device/emulator:  ... -t:Install
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <ApplicationId>co.sugar.aag2</ApplicationId>
+    <ApplicationVersion>2</ApplicationVersion>
+    <ApplicationDisplayVersion>0.02a</ApplicationDisplayVersion>
+    <RootNamespace>DmitryAndDemid</RootNamespace>
+    <AssemblyName>aag2</AssemblyName>
+
+    <!-- ANDROID compiles out GTK, the Raylib/Vulkan backends and the ImGui editors; DEBUG would drag ImGui
+         back in, so this target is Release-shaped regardless of configuration. -->
+    <DefineConstants>$(DefineConstants);ANDROID</DefineConstants>
+
+    <!-- Stage scripts are compiled at runtime through Roslyn, which needs a JIT. -->
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <PublishTrimmed>false</PublishTrimmed>
+
+    <!-- The marshal-methods optimisation (on by default in Release) failed to register the Activity's JNI
+         entry points here — the app died with UnsatisfiedLinkError on n_onCreate. The reflection-based
+         registration is slower to start but reliable. (LinkMode is left at the Release default of SdkOnly;
+         forcing None double-dexes mono.android.jar, and it would not trim the app's own types anyway.) -->
+    <AndroidEnableMarshalMethods>false</AndroidEnableMarshalMethods>
+  </PropertyGroup>
+
+  <!-- The game, minus everything platform-bound. -->
+  <ItemGroup>
+    <Compile Include="..\**\*.cs"
+             Exclude="..\bin\**;..\obj\**;..\Launcher\**;..\Android\**;
+                      ..\Program.cs;
+                      ..\PreconfigWindow.cs;
+                      ..\Rendering\RaylibBackend.cs;
+                      ..\Rendering\RaylibAudio.cs;
+                      ..\Rendering\VulkanBackend.cs;
+                      ..\Screens\StageEditorScreen.cs;
+                      ..\Screens\GameplayEditorScreen.cs;
+                      ..\Screens\DropEditorScreen.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LuaCSharp" Version="0.5.5" />
+    <PackageReference Include="LZMA-SDK" Version="22.1.1" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="5.3.0" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
+    <PackageReference Include="StbImageSharp" Version="2.30.15" />
+    <PackageReference Include="StbTrueTypeSharp" Version="1.26.12" />
+    <PackageReference Include="System.CodeDom" Version="10.0.7" />
+  </ItemGroup>
+
+  <!-- The assets travel inside the APK and are unpacked on first run (AndroidAssetSource): an APK's assets
+       are not files, and the game's loaders all want paths. -->
+  <ItemGroup>
+    <AndroidAsset Include="..\Assets\**\*">
+      <Link>Assets\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </AndroidAsset>
+  </ItemGroup>
+
+</Project>
