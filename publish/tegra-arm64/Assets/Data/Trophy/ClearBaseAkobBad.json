@@ -1,0 +1,8 @@
+{
+  "Description": "А теперь выйди, и войди нормально\nПройти основную игру за АКОБА с депозитом",
+  "ID": "clearas_akob_bad",
+  "Index": 8,
+  "HasAction": true,
+  "ActionType": "ending",
+  "ActionInfo": "akob_bad"
+}

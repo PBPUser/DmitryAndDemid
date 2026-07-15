@@ -102,7 +102,13 @@ public class FileEntityInfo
         return fileEntityInfo;
     }
     
-    public void Save(ref BitPackage bitPackage)
+    /// <summary>
+    /// Packs the boolean flags and drop scenarios back into <see cref="Header"/> (bit 0 word plus the drop
+    /// slots), the inverse of the bit-unpacking in <see cref="Load"/>. Called at the top of <see cref="Save"/>
+    /// so the binary layout matches the flags, and by the JSON importer so a hand-authored entity — which sets
+    /// the friendly bools, not the raw bits — produces the same <see cref="Header"/> a binary load would.
+    /// </summary>
+    public void PackFlags()
     {
         Header[0] = IsBullet ? 1 : 0;
         Header[0] |= IsGroupChild ? 0x2 : 0;
@@ -120,8 +126,13 @@ public class FileEntityInfo
             Header[0] |= OverrideDeathColor ? 0x800 : 0;
             Header[4] = BadDrop.ToInt32();
             Header[5] = GoodDrop.ToInt32();
-            Header[0] |= IsFinalChapterBoss ? 0x100000 : 0;  
+            Header[0] |= IsFinalChapterBoss ? 0x100000 : 0;
         }
+    }
+
+    public void Save(ref BitPackage bitPackage)
+    {
+        PackFlags();
         for(int i = 0; i < 16; i++)
             bitPackage.WriteVarLong(Header[i]);
         for(int i = 0; i < 16; i++)

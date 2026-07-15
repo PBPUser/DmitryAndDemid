@@ -9,8 +9,12 @@ namespace DmitryAndDemid.Screens;
 
 public class CreditsScreen : Screen
 {
-    public CreditsScreen()
+    private readonly GameplayScreen? ClearedRun;
+
+    public CreditsScreen(GameplayScreen? clearedRun = null)
     {
+        ClearedRun = clearedRun;
+        PlayerData.Instance.SetMusicUnlocked(10, true);   // staff-roll theme unlocked in the music room
         BgTarget = Helper.GetFullscreenSource();
         NikitosJumpingTexture = LoadRenderTexture(Runtime.CurrentRuntime.Width * 4, (int)(Runtime.CurrentRuntime.Height * .75f));
         DmitryEatingTexture = LoadRenderTexture(Runtime.CurrentRuntime.Width * 4, (int)(Runtime.CurrentRuntime.Height * .75f));
@@ -169,17 +173,29 @@ public class CreditsScreen : Screen
 #endif
         base.Render();
     }
-#if DEBUG
     public override void TopUpdate()
     {
+        // The staff roll is the last thing in a clear; let the player leave it back to the main menu once it has
+        // been up long enough to not swallow the button press that started it.
+        if ((IsKeyDown(KeyCode.Escape) || IsKeyDown(KeyCode.X) || IsKeyDown(KeyCode.Enter) || IsKeyDown(KeyCode.Z))
+            && GetTime() - TimeAppear > 1f)
+        {
+            Runtime.CurrentRuntime.RemoveScreen(this);
+            // After the staff roll of a real clear, go to the results (name entry); a bare credits view (editor
+            // preview / debug restart) just returns to wherever it came from.
+            if (ClearedRun != null)
+                Runtime.CurrentRuntime.AddScreen(new ResultsScreen(ClearedRun));
+            return;
+        }
+#if DEBUG
         if (IsKeyDown(KeyCode.J) && GetTime() - TimeAppear > 1f)
         {
             Runtime.CurrentRuntime.RemoveScreen(this);
             Runtime.CurrentRuntime.AddScreen(new CreditsScreen());
             Unload();
         }
-    }
 #endif
+    }
 
     public override void Unload()
     {

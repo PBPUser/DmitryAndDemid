@@ -1,0 +1,12 @@
+{
+ "blockSize": 72,
+ "blockBinding": 10,
+ "uniforms": [
+  {
+   "name": "mvp",
+   "offset": 0,
+   "type": "mat4"
+  }
+ ],
+ "samplers": []
+}

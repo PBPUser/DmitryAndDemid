@@ -21,6 +21,22 @@ public abstract class MenuScreen : ScreenWithTitle
     protected int CurrentY = 0;
     protected int CurrentX = 0;
     protected int SelectedIndex = 0;
+    /// <summary>When set, a list longer than the visible area is drawn as a window of rows that follows the
+    /// selection instead of overflowing off the bottom of the screen. Opt-in per screen so menus that already
+    /// fit (main menu, difficulty, pause…) are unaffected. Used by Settings, Music Room and the list-select.</summary>
+    protected bool EnableScrolling = false;
+    /// <summary>When &gt; 0 (and <see cref="EnableScrolling"/> is on) the visible window is capped to exactly
+    /// this many rows regardless of how much vertical room there is; 0 means "as many as fit". Keeps the window
+    /// a fixed height even while the appear animation slides <see cref="CurrentY"/> around. The music room uses
+    /// 7.</summary>
+    protected int MaxVisibleItems = 0;
+    /// <summary>Index of the first item in the visible window when <see cref="EnableScrolling"/> windows the
+    /// list. Only moves when the selection leaves the window, so the cursor travels within the window and the
+    /// list scrolls at its edges.</summary>
+    private int ScrollFirstIndex = 0;
+    /// <summary>Eased, fractional form of <see cref="ScrollFirstIndex"/> — the list slides toward the target
+    /// each frame instead of jumping, giving smooth scrolling.</summary>
+    private float ScrollFirstFloat = 0;
     protected float SelectedItemScale = 1f;
     protected double AnimationStartedAt = 0;
     protected double AnimationStartedIndex = 0;
@@ -202,6 +218,38 @@ public abstract class MenuScreen : ScreenWithTitle
     private readonly List<(Rect Bounds, int Index, bool Enabled)> ItemHitboxes = new();
     private int PreviousTouchCount;
 
+    /// <summary>Whether touch drives the menus: always on Android, on desktop only with touch controls on.</summary>
+    protected static bool TouchActive =>
+#if ANDROID
+        true;
+#else
+        Configuration.Config.TouchControls;
+#endif
+
+    /// <summary>Bounds of the item drawn last frame (backbuffer coords), or default if it was not drawn.</summary>
+    protected Rect ItemBounds(int index)
+    {
+        foreach ((Rect bounds, int idx, bool _) in ItemHitboxes)
+            if (idx == index)
+                return bounds;
+        return default;
+    }
+
+    /// <summary>The primary touch point mapped into backbuffer coords; false when no finger is down.</summary>
+    protected bool TryGetTouchPoint(out Vector2 point)
+    {
+        point = default;
+        if (Engine.Input.TouchCount == 0)
+            return false;
+        Rect present = CurrentRuntime.PresentRect;
+        if (present.Width <= 0 || present.Height <= 0)
+            return false;
+        Vector2 window = Engine.Input.GetTouchPosition(0);
+        point = new Vector2((window.X - present.X) / present.Width * CurrentRuntime.Width,
+            (window.Y - present.Y) / present.Height * CurrentRuntime.Height);
+        return true;
+    }
+
     /// <summary>
     /// A tap selects the item under the finger and activates it. Touch positions arrive in real window
     /// pixels; the game draws into a letterboxed backbuffer, so they are mapped back through PresentRect into
@@ -293,31 +341,101 @@ public abstract class MenuScreen : ScreenWithTitle
     protected void DrawMenu()
     {
         ItemHitboxes.Clear();
-        Vector2 offset;
-        int y = CurrentY;
-        int index = 0;
         double cIndex = ComputeAnimationIndexLoop();
-        float offsetState = 0;
-        float scale = 0;
         float t = (float)GetTime();
         float swapNoise = 1-(float)Helper.ComputeObjectTimeStart(t, AnimationStartedAt, 0.25);
-        foreach (var x in MenuItems)
+        int count = MenuItems.Count;
+
+        // Decide whether to window+scroll: opt-in, uniform row height, and only when the list is taller than
+        // the room below CurrentY. Rows in these menus are uniform, so one item's texture height sizes them all.
+        float itemHeight = count > 0 ? MenuItems[0].Texture.Height : 0;
+        bool windowed = EnableScrolling && itemHeight >= 1;
+        int maxVisible = count;
+        if (windowed)
         {
-            offsetState = (float)Math.Abs(1-Math.Clamp(Math.Abs(cIndex - index), 0, 1));
-            offset = offsetState * SelectedItemOffset;
-            if (index == SelectedIndex)
+            if (MaxVisibleItems > 0)
             {
-                offset += swapNoise*SelectedNoise*new Vector2(MathF.Sin(t*100+24), MathF.Cos(t*100));
+                // Hard per-screen cap (e.g. the music room's 7): a fixed-size window independent of the
+                // available height, so it stays put while the appear animation slides CurrentY around.
+                maxVisible = MaxVisibleItems;
             }
-            scale = SelectedItemScale * offsetState + 1f * (1 - offsetState);
-            ItemHitboxes.Add((new Rect(CurrentX, y, x.Texture.Width * scale, x.Texture.Height * scale),
+            else
+            {
+                int bottomMargin = (int)(6 * CurrentRuntime.ScaleF);
+                int available = CurrentRuntime.Height - CurrentY - bottomMargin;
+                maxVisible = Math.Max(1, (int)(available / itemHeight));
+            }
+            windowed = count > maxVisible;
+        }
+
+        if (!windowed)
+        {
+            // Original behaviour, unchanged: draw every item top-to-bottom, each advancing by its own height.
+            ScrollFirstIndex = 0;
+            ScrollFirstFloat = 0;
+            int y0 = CurrentY;
+            for (int index = 0; index < count; index++)
+            {
+                var x = MenuItems[index];
+                float offsetState = (float)Math.Abs(1-Math.Clamp(Math.Abs(cIndex - index), 0, 1));
+                Vector2 offset = offsetState * SelectedItemOffset;
+                if (index == SelectedIndex)
+                    offset += swapNoise*SelectedNoise*new Vector2(MathF.Sin(t*100+24), MathF.Cos(t*100));
+                float scale = SelectedItemScale * offsetState + 1f * (1 - offsetState);
+                ItemHitboxes.Add((new Rect(CurrentX, y0, x.Texture.Width * scale, x.Texture.Height * scale),
+                    index, x.Enabled));
+                DrawTextureEx(x.Texture, new Vector2(CurrentX + offset.X, y0 + offset.Y), 0, scale,
+                    (index == SelectedIndex ? Helper.Mix(Rgba.Yellow, Rgba.White, MathF.Abs((t *
+                            (ItemActivated ? 30 : 2)
+                            ) % 2 - 1)) : Rgba.White) with { A = (byte)(x.Enabled ? 255 : 128) });
+                y0 += (int)(x.Texture.Height * scale);
+            }
+            return;
+        }
+
+        // Windowed smooth scroll: keep the selected row inside the window, then ease a fractional scroll
+        // position toward that integer target so the list slides rather than jumping. Rows fade out toward the
+        // top and bottom of the window (a transparency gradient) so content dissolves in/out instead of clipping.
+        if (SelectedIndex < ScrollFirstIndex)
+            ScrollFirstIndex = SelectedIndex;
+        else if (SelectedIndex >= ScrollFirstIndex + maxVisible)
+            ScrollFirstIndex = SelectedIndex - maxVisible + 1;
+        ScrollFirstIndex = Math.Clamp(ScrollFirstIndex, 0, count - maxVisible);
+        ScrollFirstFloat = MathF.Abs(ScrollFirstFloat - ScrollFirstIndex) < 0.003f
+            ? ScrollFirstIndex
+            : Helper.Mix(ScrollFirstFloat, ScrollFirstIndex, 0.2f);
+
+        float viewTop = CurrentY;
+        float viewBottom = CurrentY + maxVisible * itemHeight;
+        float fadeZone = itemHeight * 1.25f;
+
+        for (int index = 0; index < count; index++)
+        {
+            var x = MenuItems[index];
+            float y = CurrentY + (index - ScrollFirstFloat) * itemHeight;
+            if (y + itemHeight < viewTop - fadeZone || y > viewBottom + fadeZone)
+                continue;   // fully outside the window (plus fade margin) — no draw, no hitbox
+
+            // Transparency gradient: full opacity in the middle of the window, fading to 0 across the last
+            // fadeZone pixels at either edge.
+            float centerY = y + itemHeight / 2f;
+            float edgeFade = Math.Clamp((centerY - viewTop) / fadeZone, 0f, 1f)
+                           * Math.Clamp((viewBottom - centerY) / fadeZone, 0f, 1f);
+            if (edgeFade <= 0.02f)
+                continue;
+
+            float offsetState = (float)Math.Abs(1-Math.Clamp(Math.Abs(cIndex - index), 0, 1));
+            Vector2 offset = offsetState * SelectedItemOffset;
+            if (index == SelectedIndex)
+                offset += swapNoise*SelectedNoise*new Vector2(MathF.Sin(t*100+24), MathF.Cos(t*100));
+            float scale = SelectedItemScale * offsetState + 1f * (1 - offsetState);
+            ItemHitboxes.Add((new Rect(CurrentX, (int)y, x.Texture.Width * scale, x.Texture.Height * scale),
                 index, x.Enabled));
-            DrawTextureEx(x.Texture, new Vector2(CurrentX + offset.X, y + offset.Y), 0, scale,
-                (index == SelectedIndex ? Helper.Mix(Rgba.Yellow, Rgba.White, MathF.Abs((t * 
-                        (ItemActivated ? 30 : 2)
-                        ) % 2 - 1)) : Rgba.White) with { A = (byte)(x.Enabled ? 255 : 128) });
-            y += (int)(x.Texture.Height * scale);
-            index++;
+            Rgba color = index == SelectedIndex
+                ? Helper.Mix(Rgba.Yellow, Rgba.White, MathF.Abs((t * (ItemActivated ? 30 : 2)) % 2 - 1))
+                : Rgba.White;
+            byte alpha = (byte)((x.Enabled ? 255 : 128) * edgeFade);
+            DrawTextureEx(x.Texture, new Vector2(CurrentX + offset.X, y + offset.Y), 0, scale, color with { A = alpha });
         }
     }
 
@@ -340,6 +458,15 @@ public abstract class MenuScreen : ScreenWithTitle
         public TextureHandle Texture =>  texture.Texture;
         private TargetHandle texture = new TargetHandle();
         public bool Enabled = true;
+
+        // Rendering style, overridable per item (the replay list uses a compact monospace font). Changing any of
+        // these re-renders the item's texture, so object-initializer overrides take effect on the first draw.
+        private string fontKey = "newsreader";
+        private float fontSize = 16f;
+        private float padding = 4f;
+        public string FontKey { get => fontKey; set { if (fontKey == value) return; fontKey = value; AddToRender(this); } }
+        public float FontSize { get => fontSize; set { if (fontSize == value) return; fontSize = value; AddToRender(this); } }
+        public float Padding { get => padding; set { if (padding == value) return; padding = value; AddToRender(this); } }
         
         public static void AddToRender(MenuItem item)
         {
@@ -363,11 +490,11 @@ public abstract class MenuScreen : ScreenWithTitle
                 UnloadRenderTexture(texture);
             Helper.DrawTextGradient(
                 out texture,
-                CurrentRuntime.Fonts["newsreader"],
-                16 * CurrentRuntime.ScaleF,
+                CurrentRuntime.Fonts[fontKey],
+                fontSize * CurrentRuntime.ScaleF,
                 Helper.Translate(text).Replace("%s", Helper.Translate(replace)),
                 Rgba.White,
-                4 * CurrentRuntime.ScaleF
+                padding * CurrentRuntime.ScaleF
                 );
             //texture=Helper.DrawTextScaled(, 16, 8, 4, 2, Runtime.CurrentRuntime.Fonts["newsreader"], "gradient");
         }

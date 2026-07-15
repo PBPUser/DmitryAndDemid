@@ -1,0 +1,7 @@
+{
+  "Texture": "bullets.png",
+  "SpritePosition": { "X": 24, "Y": 0 },
+  "SourceSize": {"X": 6, "Y": 32 },
+  "Collision": 4,
+  "Effect": "akob_bullet"
+}

@@ -10,6 +10,15 @@
     <!-- Shipped executable names: the game is aag2, the configurator is custom (Launcher/). -->
     <AssemblyName>aag2</AssemblyName>
     <RootNamespace>DmitryAndDemid</RootNamespace>
+
+    <!-- Icon embedded into the Windows .exe (ignored on non-Windows builds). Generated from
+         Assets/Textures/game_logo.png; see also the Launcher, which points at the same file. -->
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+
+    <!-- linux-x64 is the desktop build; linux-arm64 targets the Tegra X1 (Nintendo Switch under L4T/switchroot
+         Ubuntu, Jetson TX1, Shield TV). Publish the arm64 device build self-contained so the runtime ships with
+         it (self-contained). See Tools/publish_tegra.sh. -->
+    <RuntimeIdentifiers>linux-x64;linux-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -58,6 +67,17 @@
   
   <ItemGroup>
     <Folder Include="Assets\Data\SpellCards\" />
+    <Folder Include="Assets\Data\StagesJson\" />
   </ItemGroup>
+
+  <!-- Compile the JSON stages (Assets/Data/StagesJson/*.json) into packed .sid at build time. Opt-in: it
+       re-runs the just-built game headlessly (see the compile-stages arg in Program.cs). Enable with
+       `dotnet build -p:CompileStages=true`. It runs in the output folder, reading the copied StagesJson and
+       writing SpellCards there; failures never break the build (ContinueOnError). You can also compile from the
+       Stage Editor's "Compile JSON to SID" menu item. -->
+  <Target Name="CompileStagesFromJson" AfterTargets="Build" Condition="'$(CompileStages)' == 'true'">
+    <Exec Command="dotnet &quot;$(TargetDir)aag2.dll&quot; --compile-stages"
+          WorkingDirectory="$(TargetDir)" ContinueOnError="true" />
+  </Target>
 
 </Project>

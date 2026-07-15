@@ -1,0 +1,10 @@
+{
+  "ID": "sugar",
+  "Speed": 2,
+  "FocusSpeed": 1,
+  "WeaponClassName": "AkobPlayerWeapon",
+  "ArtName": "sugar_art.png",
+  "Description": "akob_art.png",
+  "DialogArtName": "sugar_dialog_arts.png",
+  "Sprite": "akob_sprite.png"
+}

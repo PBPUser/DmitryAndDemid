@@ -10,7 +10,54 @@ public class SettingsScreen : MenuScreen
 {
     // The adjustable rows, referenced directly so the left/right handler and the label updates do not depend
     // on positions that shift between platforms. Window/renderer are null on Android (those rows are absent).
-    private MenuItem? SfxItem, MusicItem, WindowItem, RendererItem, FramerateItem;
+    private MenuItem? SfxItem, MusicItem, WindowItem, RendererItem, FramerateItem, ResolutionItem;
+
+    /// <summary>4:3 internal resolutions offered in-game. The configurator offers the same set.</summary>
+    private static readonly string[] Resolutions =
+        ["640x480", "800x600", "960x720", "1280x960", "1600x1200", "1920x1440"];
+
+    // The slider glyphs: a fixed-width bar like <====----->, so the row width never jumps as the value moves.
+    private const int BarSegments = 16;
+
+    private static string Bar(float fraction)
+    {
+        int filled = (int)MathF.Round(Math.Clamp(fraction, 0f, 1f) * BarSegments);
+        return "<" + new string('=', filled) + new string('-', BarSegments - filled) + ">";
+    }
+
+    /// <summary>Opens a list to pick a resolution; applies on restart (a live change means reloading fonts).</summary>
+    private void OpenResolutionList()
+    {
+        Runtime.CurrentRuntime.AddScreen(new ListSelectScreen(
+            Runtime.CurrentRuntime.Textures["settings.png"],
+            Resolutions.Select(r => (r, (System.Action)(() =>
+            {
+                if (r == Configuration.Config.Resolution)
+                    return;
+                Configuration.Config.Resolution = r;
+                Configuration.Config.Save();
+                if (ResolutionItem != null)
+                    ResolutionItem.Replace = r;
+                RestartNotice = (float)GetTime();
+            })))));
+    }
+
+    /// <summary>Opens a list to pick a renderer; applies on the next launch (the backend owns the window).</summary>
+    private void OpenRendererList()
+    {
+        Runtime.CurrentRuntime.AddScreen(new ListSelectScreen(
+            Runtime.CurrentRuntime.Textures["settings.png"],
+            Renderers.Select(r => (Helper.Translate(r.Display), (System.Action)(() =>
+            {
+                if (r.Key == Configuration.Config.Renderer)
+                    return;
+                Configuration.Config.Renderer = r.Key;
+                Configuration.Config.Save();
+                if (RendererItem != null)
+                    RendererItem.Replace = RendererLabel();
+                RestartNotice = (float)GetTime();
+            })))));
+    }
 
     public SettingsScreen()
     {
@@ -33,14 +80,15 @@ public class SettingsScreen : MenuScreen
 
     public override void CreateMenu()
     {
+        EnableScrolling = true;   // the settings list is longer than the screen — scroll to follow the cursor
         SetTitle(Runtime.CurrentRuntime.Textures["settings.png"]);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
 
         // Items are matched by REFERENCE below, not by index — the rows present differ per platform (Android
         // has no window mode and no renderer switch), and hard indices silently broke when a row was dropped.
-        SfxItem = new MenuItem("settings.sfx", $"{Configuration.Config.SFXVolume * 100:00}", a => {});
+        SfxItem = new MenuItem("settings.sfx", Bar(Configuration.Config.SFXVolume), a => {});
         MenuItems.Add(SfxItem);
-        MusicItem = new MenuItem("settings.music", $"{Configuration.Config.MusicVolume * 100:00}", a => {});
+        MusicItem = new MenuItem("settings.music", Bar(Configuration.Config.MusicVolume), a => {});
         MenuItems.Add(MusicItem);
 #if !ANDROID
         // The window mode is meaningless on Android — the game always owns the full surface — so this row and
@@ -58,12 +106,46 @@ public class SettingsScreen : MenuScreen
             vsyncItem.Replace = $"{Configuration.Config.UseVSYNC}";
         };
         MenuItems.Add(vsyncItem);
-        FramerateItem = new MenuItem("settings.framerate", $"{Configuration.Config.FrameCap}", a => {});
+        // On-screen touch controls (playfield drag + BOMB/FOCUS). Live — no restart.
+        MenuItem touchItem = new("settings.touch", $"{Configuration.Config.TouchControls}", null);
+        touchItem.Action = a =>
+        {
+            Configuration.Config.TouchControls = !Configuration.Config.TouchControls;
+            Configuration.Config.Save();
+            touchItem.Replace = $"{Configuration.Config.TouchControls}";
+        };
+        MenuItems.Add(touchItem);
+        // Hold-shoot-to-focus (auto slowdown). Live — no restart.
+        MenuItem autoSlowItem = new("settings.autoslow", $"{Configuration.Config.AutoSlowdownOnShoot}", null);
+        autoSlowItem.Action = a =>
+        {
+            Configuration.Config.AutoSlowdownOnShoot = !Configuration.Config.AutoSlowdownOnShoot;
+            Configuration.Config.Save();
+            autoSlowItem.Replace = $"{Configuration.Config.AutoSlowdownOnShoot}";
+        };
+        MenuItems.Add(autoSlowItem);
+        // Reposition the on-screen controls and toggle the stick / shoot button. Opens a drag editor.
+        MenuItems.Add(new MenuItem("settings.touch_layout", "",
+            a => Runtime.CurrentRuntime.AddScreen(new TouchLayoutScreen())));
+        // Portrait/vertical presentation. Changing it re-sizes the backbuffer and re-lays every screen, so it
+        // applies on restart.
+        MenuItem verticalItem = new("settings.vertical", $"{Configuration.Config.Vertical}", null);
+        verticalItem.Action = a =>
+        {
+            Configuration.Config.Vertical = !Configuration.Config.Vertical;
+            Configuration.Config.Save();
+            verticalItem.Replace = $"{Configuration.Config.Vertical}";
+            RestartNotice = (float)GetTime();
+        };
+        MenuItems.Add(verticalItem);
+        FramerateItem = new MenuItem("settings.framerate", FramerateBar(), a => {});
         MenuItems.Add(FramerateItem);
+        // Resolution and renderer are a fixed set of discrete choices, so Enter opens a list to pick from
+        // rather than nudging a slider. Both apply on restart (the backbuffer/backend can't be rebuilt live).
+        ResolutionItem = new MenuItem("settings.resolution", Configuration.Config.Resolution, a => OpenResolutionList());
+        MenuItems.Add(ResolutionItem);
 #if !ANDROID
-        // Left/Right picks the renderer; Enter restarts into it. It cannot be swapped live — every texture,
-        // shader and render target is owned by the backend, and the window itself is created by it.
-        RendererItem = new MenuItem("settings.renderer", RendererLabel(), a => ApplyRenderer());
+        RendererItem = new MenuItem("settings.renderer", RendererLabel(), a => OpenRendererList());
         MenuItems.Add(RendererItem);
 #endif
         MenuItems.Add(new MenuItem("settings.controller", "", a => Runtime.CurrentRuntime.AddScreen(new GamepadSettingsScreen())));
@@ -73,7 +155,7 @@ public class SettingsScreen : MenuScreen
         CurrentY = (int)(Runtime.CurrentRuntime.Scale * 192);
     }
 
-    private TargetHandle RendererNotice;
+    private TargetHandle RestartNoticeTexture;
 
     public override void Render()
     {
@@ -83,20 +165,89 @@ public class SettingsScreen : MenuScreen
         DrawMenu();
         DrawTitle();
 
-        // Attention when the renderer was just changed: it only takes effect on restart, so flash a red notice
-        // for a few seconds rather than let the change pass silently.
-        float since = time - RendererChangedNotice;
+        // Attention when a restart-only setting (renderer, resolution) was just changed: it takes effect on
+        // restart, so flash a red notice for a few seconds rather than let the change pass silently.
+        float since = time - RestartNotice;
         if (since is >= 0 and < 5f)
         {
-            if (RendererNotice.Id == 0)
-                RendererNotice = Helper.DrawTextScaled(Helper.Translate("settings.renderer_restart"), 18, 6, 4, 2,
+            if (RestartNoticeTexture.Id == 0)
+                RestartNoticeTexture = Helper.DrawTextScaled(Helper.Translate("settings.restart_required"), 18, 6, 4, 2,
                     Runtime.CurrentRuntime.Fonts["newsreader"], "outline");
             float blink = 0.5f + 0.5f * MathF.Sin(time * 8f);
-            var tex = RendererNotice.Texture;
+            var tex = RestartNoticeTexture.Texture;
             DrawTexture(tex,
                 (Runtime.CurrentRuntime.Width - tex.Width) / 2,
                 (int)(Runtime.CurrentRuntime.Height - tex.Height - 24 * Runtime.CurrentRuntime.ScaleF),
                 new Rgba(255, 60, 60, (byte)(255 * blink)));
+        }
+    }
+
+    // The frame-rate presets a slider snaps to (-1 = uncapped).
+    private static readonly int[] FrameCaps = [-1, 30, 60, 120, 144, 240];
+
+    /// <summary>The frame-rate row's value: the bar, plus the fps for a real cap (uncapped shows the bar only).</summary>
+    private static string FramerateBar()
+    {
+        int i = Array.IndexOf(FrameCaps, Configuration.Config.FrameCap);
+        float frac = i < 0 ? 0.5f : i / (float)(FrameCaps.Length - 1);
+        return Configuration.Config.FrameCap < 1 ? Bar(frac) : $"{Bar(frac)} {Configuration.Config.FrameCap}";
+    }
+
+    /// <summary>
+    /// The value-nudge rows and how to read/write them as a 0..1 fraction, so the <c>&lt;===---&gt;</c> bars
+    /// and touch-drag drive them uniformly. Resolution and renderer are NOT here — they are pick-from-a-list.
+    /// </summary>
+    private IEnumerable<(MenuItem? Item, Func<float> Get, Action<float> Set)> Sliders()
+    {
+        yield return (SfxItem, () => Configuration.Config.SFXVolume, f =>
+        {
+            Runtime.CurrentRuntime.SFXVolume = Configuration.Config.SFXVolume = f;
+            SfxItem!.Replace = Bar(f);
+            Configuration.Config.Save();
+        });
+        yield return (MusicItem, () => Configuration.Config.MusicVolume, f =>
+        {
+            Runtime.CurrentRuntime.MusicVolume = Configuration.Config.MusicVolume = f;
+            MusicItem!.Replace = Bar(f);
+            Configuration.Config.Save();
+        });
+        yield return (FramerateItem, () =>
+        {
+            int i = Array.IndexOf(FrameCaps, Configuration.Config.FrameCap);
+            return i < 0 ? 0.5f : i / (float)(FrameCaps.Length - 1);
+        }, f =>
+        {
+            int i = (int)MathF.Round(f * (FrameCaps.Length - 1));
+            Configuration.Config.FrameCap = FrameCaps[Math.Clamp(i, 0, FrameCaps.Length - 1)];
+            SetTargetFPS(Configuration.Config.FrameCap);
+            FramerateItem!.Replace = FramerateBar();
+            Runtime.CurrentRuntime.IsFrameCap240 = Configuration.Config.FrameCap == 240;
+            Configuration.Config.Save();
+        });
+    }
+
+    // A tall touch strip over each slider row, so dragging anywhere along it sets the value. In unscaled units.
+    private const float SliderWidth = 340f;
+
+    /// <summary>Drives the slider under the finger (only when touch is the input method).</summary>
+    private void UpdateTouchSliders()
+    {
+        if (!TouchActive || !TryGetTouchPoint(out System.Numerics.Vector2 p))
+            return;
+        float barW = SliderWidth * Runtime.CurrentRuntime.ScaleF;
+        foreach ((MenuItem? item, Func<float> _, Action<float> set) in Sliders())
+        {
+            if (item == null)
+                continue;
+            Rect b = ItemBounds(MenuItems.IndexOf(item));
+            if (b.Width <= 0)
+                continue;
+            if (p.Y >= b.Y && p.Y <= b.Y + b.Height && p.X >= CurrentX && p.X <= CurrentX + barW)
+            {
+                set(Math.Clamp((p.X - CurrentX) / barW, 0f, 1f));
+                PreviousKeyTimestamp = GetTime();
+                return;
+            }
         }
     }
 
@@ -150,22 +301,8 @@ public class SettingsScreen : MenuScreen
         return restartPending ? display + " *" : display;
     }
 
-    void CycleRenderer(int direction)
-    {
-        int index = Array.FindIndex(Renderers, r => r.Key == Configuration.Config.Renderer);
-        if (index < 0)
-            index = 0;
-        index = (index + direction + Renderers.Length) % Renderers.Length;
-
-        Configuration.Config.Renderer = Renderers[index].Key;
-        Configuration.Config.Save();
-        if (RendererItem != null)
-            RendererItem.Replace = RendererLabel();
-        RendererChangedNotice = (float)GetTime();   // flag the "restart required" attention line
-    }
-
-    /// <summary>When the renderer was last changed, so Render can flash a "restart required" notice.</summary>
-    private float RendererChangedNotice = float.MinValue;
+    /// <summary>When a restart-only setting was last changed, so Render can flash a "restart required" notice.</summary>
+    private float RestartNotice = float.MinValue;
 
     /// <summary>
     /// Restarts the process on the selected renderer. The backend owns the window and every GPU resource,
@@ -197,6 +334,7 @@ public class SettingsScreen : MenuScreen
     public override void TopUpdate()
     {
         base.TopUpdate();
+        UpdateTouchSliders();
         double time = GetTime();
         MenuItem selected = SelectedIndex >= 0 && SelectedIndex < MenuItems.Count ? MenuItems[SelectedIndex] : null!;
 
@@ -218,35 +356,35 @@ public class SettingsScreen : MenuScreen
             AnimationStartedAt = PreviousKeyTimestamp = time;
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
 
+            // Keyboard/pad left-right nudges the same rows the touch bars do, and shows the same <===---> bar.
             if (selected == SfxItem)
             {
                 Runtime.CurrentRuntime.SFXVolume = Configuration.Config.SFXVolume = Math.Clamp(Runtime.CurrentRuntime.SFXVolume + delta, 0, 1);
-                SfxItem.Replace = $"{Configuration.Config.SFXVolume * 100:00}";
+                SfxItem.Replace = Bar(Configuration.Config.SFXVolume);
                 Configuration.Config.Save();
             }
             else if (selected == MusicItem)
             {
                 Runtime.CurrentRuntime.MusicVolume = Configuration.Config.MusicVolume = Math.Clamp(Runtime.CurrentRuntime.MusicVolume + delta, 0, 1);
-                MusicItem!.Replace = $"{Configuration.Config.MusicVolume * 100:00}";
+                MusicItem!.Replace = Bar(Configuration.Config.MusicVolume);
                 Configuration.Config.Save();
             }
             else if (selected == WindowItem)
                 CycleWindowMode(delta > 0 ? 1 : -1);
-            else if (selected == RendererItem)
-                CycleRenderer(delta > 0 ? 1 : -1);
             else if (selected == FramerateItem)
             {
-                delta *= 600;
-                Configuration.Config.FrameCap = (int)(Configuration.Config.FrameCap + delta);
-                if (Configuration.Config.FrameCap < 1)
-                    Configuration.Config.FrameCap = -1;
-                else if (Configuration.Config.FrameCap > 1 && Configuration.Config.FrameCap < 30)
-                    Configuration.Config.FrameCap = 30;
+                // Step through the same presets the slider snaps to.
+                int i = Array.IndexOf(FrameCaps, Configuration.Config.FrameCap);
+                if (i < 0)
+                    i = 2;
+                i = Math.Clamp(i + (delta > 0 ? 1 : -1), 0, FrameCaps.Length - 1);
+                Configuration.Config.FrameCap = FrameCaps[i];
                 SetTargetFPS(Configuration.Config.FrameCap);
-                FramerateItem!.Replace = $"{Configuration.Config.FrameCap}";
-                Configuration.Config.Save();
+                FramerateItem!.Replace = FramerateBar();
                 Runtime.CurrentRuntime.IsFrameCap240 = Configuration.Config.FrameCap == 240;
+                Configuration.Config.Save();
             }
+            // Resolution and renderer are opened as lists (Enter/tap), not nudged here.
         }
     }
 }

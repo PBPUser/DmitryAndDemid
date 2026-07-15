@@ -33,22 +33,44 @@ public class SpellPracticeCardSelect : MenuScreen
 
         SetTitle(Runtime.CurrentRuntime.Textures["spell_practice.png"]);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
+        SelectedIndex = 1;   // skip the first difficulty header so the cursor opens on a real card
     }
+
+    /// <summary>The four playable difficulties (Easy..Max) each card can be practised at; Extra is a separate
+    /// mode and never a main-game spell-practice tier.</summary>
+    private const int DifficultyCount = 4;
 
     public override void CreateMenu()
     {
-        for (int i = 0; i < Stage.Chapters.Length; i++)
-        {
-            FileChapterInfo chapter = Stage.Chapters[i];
-            if ((ChapterType)chapter.Header[0] != ChapterType.Spell)
-                continue;
+        // The list can run long once every card is repeated across four difficulties — window it.
+        EnableScrolling = true;
+        MaxVisibleItems = 12;
 
-            int index = i;   // captured per row, not the loop variable
-            MenuItems.Add(new MenuItem(BuildLabel(chapter), "", _ => Start(index)));
+        // Grouped by difficulty: a (dimmed, unselectable) header per tier, then every spell card in the stage
+        // listed beneath it. Picking a card starts practice at THAT tier, so the same card can be drilled on
+        // Easy or on Max — and difficulty-gated cards (e.g. the two-toilet colour spam, Hard+) behave exactly
+        // as they would in a real run at that difficulty.
+        for (int d = 0; d < DifficultyCount; d++)
+        {
+            int difficulty = d;
+            MenuItems.Add(new MenuItem($"-- {DifficultyName(d)} --", "", null) { Enabled = false });
+
+            for (int i = 0; i < Stage.Chapters.Length; i++)
+            {
+                FileChapterInfo chapter = Stage.Chapters[i];
+                if ((ChapterType)chapter.Header[0] != ChapterType.Spell)
+                    continue;
+
+                int index = i;   // captured per row, not the loop variable
+                MenuItems.Add(new MenuItem(BuildLabel(chapter), "", _ => Start(index, difficulty)));
+            }
         }
 
         MenuItems.Add(new MenuItem("ingame.exit", "", _ => Exit()));
     }
+
+    private static string DifficultyName(int d) =>
+        d >= 0 && d < Helper.DifficultyIds.Length ? Helper.DifficultyIds[d] : d.ToString();
 
     /// <summary>"name   good/total   maxscore", with the master / 99+ rules.</summary>
     private string BuildLabel(FileChapterInfo chapter)
@@ -69,11 +91,12 @@ public class SpellPracticeCardSelect : MenuScreen
     private (int Total, int Success) GetRecord(string spellName) =>
         PlayerData.Instance.GetSpellcardRecord(Protogonist.ID, spellName, true);
 
-    private void Start(int chapterIndex)
+    private void Start(int chapterIndex, int difficulty)
     {
         Helper.PlaySound(Runtime.CurrentRuntime.Sounds["swap"]);
 
-        Runtime.CurrentRuntime.AddScreen(new GameplayScreen(Protogonist, Difficulty, [Stage], chapterIndex, true));
+        Runtime.CurrentRuntime.AddScreen(new GameplayScreen(Protogonist, difficulty, [Stage], chapterIndex, true,
+            mode: GameType.SpellPractice));
 
         TiledLoadingScreen? loading = null;
         loading = new TiledLoadingScreen(3, 0.5, () => Runtime.CurrentRuntime.RemoveScreen(loading!), true, 0);

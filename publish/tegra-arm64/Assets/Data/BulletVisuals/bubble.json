@@ -1,0 +1,7 @@
+{
+  "Texture": "emit_bubble",
+  "RenderType": 0,
+  "RenderSize": { "X": 96, "Y": 96 },
+  "SourceSize": {"X": 96, "Y": 96 },
+  "Collision": 4
+}

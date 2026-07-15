@@ -19,7 +19,15 @@ public class PlayerController : PlayerControllerBase
     {
         TouchControls.Update();
 
-        int speed = IsKeyDown(KeyCode.LeftShift) ? player.FocusSpeed : player.Speed;
+        // Focus (slow movement) engages on the focus key/button, and — when the option is on — also while the
+        // shoot button is held, so the player can slow down without a separate finger/key ("auto slowdown").
+        bool shootButton = IsKeyDown(KeyCode.Z) || Controller.IsButtonDown(Configuration.Config.ShootButton)
+                           || TouchControls.ShootHeld;
+        bool focus = IsKeyDown(KeyCode.LeftShift) || Controller.IsButtonDown(Configuration.Config.FocusButton)
+                     || TouchControls.FocusHeld
+                     || (Configuration.Config.AutoSlowdownOnShoot && shootButton);
+
+        int speed = focus ? player.FocusSpeed : player.Speed;
         Vector2 positionChange = Vector2.Zero;
         byte movement = 0;
         float
@@ -52,23 +60,30 @@ public class PlayerController : PlayerControllerBase
         player.X += positionChange.X;
         player.Y += positionChange.Y;
 
-        // Touch: the ship follows the finger 1:1 (in playfield units), so this is applied on top of the
-        // keyboard/pad movement rather than through it. NOTE: only the four direction bits above are written
-        // into the replay, so a run played on touch does not reproduce from its .rpy — see Movements below.
-        if (TouchControls.IsDragging)
+        // Touch movement, applied on top of the keyboard/pad movement rather than through it. Two styles:
+        // the virtual stick pushes the ship at the keyboard's per-tick speed in the deflected direction; the
+        // drag style has the ship follow the finger 1:1 (in playfield units). Both zero out when touch is off.
+        // NOTE: only the four direction bits above are written into the replay, so a run played on touch does
+        // not reproduce from its .rpy — see Movements below.
+        if (Configuration.Config.TouchStick)
+        {
+            int touchSpeed = TouchControls.FocusHeld ? player.FocusSpeed : player.Speed;
+            player.X += TouchControls.MoveVector.X * touchSpeed;
+            player.Y += TouchControls.MoveVector.Y * touchSpeed;
+        }
+        else if (TouchControls.IsDragging)
         {
             player.X += TouchControls.DragDelta.X;
             player.Y += TouchControls.DragDelta.Y;
         }
 
-        player.IsFocused = IsKeyDown(KeyCode.LeftShift) || Controller.IsButtonDown(Configuration.Config.FocusButton)
-                           || TouchControls.FocusHeld;
+        player.IsFocused = focus;
         if (player.IsFocused)
             movement += 1;
         movement <<= 1;
-        // Dragging holds fire, as in every touch danmaku — otherwise a thumb is needed for a shoot button.
+        // Touch fires while moving (as in every touch danmaku) and also whenever the SHOOT button is held.
         player.IsShooting = IsKeyDown(KeyCode.Z) || Controller.IsButtonDown(Configuration.Config.ShootButton)
-                            || TouchControls.IsDragging;
+                            || TouchControls.WantsFire;
         if (player.IsShooting)
             movement += 1;
         movement <<= 1;

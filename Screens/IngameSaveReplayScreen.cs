@@ -52,14 +52,30 @@ public class IngameSaveReplayScreen : Screen
         }
     }
 
+    /// <summary>The slot's replay filename. Must match what Save writes below (dash, not underscore).</summary>
+    private static string SlotPath(int i) => $"Replays/aab020-{i:0000}.rpy";
+
     string ReadFile(int i)
     {
-        string final = $"No. {i:00} -------- --/--/-- --:-- %P----- ------- --- ---%";
-        string path = $"Replays/aab020_{i:0000}.rpy";
+        string empty = $"No. {i:00} -------- --/--/-- --:-- ------- --- --- ---";
+        string path = SlotPath(i);
         if (!File.Exists(path))
-            return final.Replace("%P", "--");
-        var header = Replay.ReadHeader(path);
-        return final;
+            return empty;
+
+        Replay.ReplayJson? header;
+        try { header = Replay.ReadHeader(path); }
+        catch { return empty; }
+        if (header == null)
+            return empty;
+
+        // Actually fill the slot line from the header (it used to be read and then thrown away, so every used
+        // slot rendered as the blank template). Format mirrors the save line built in TopUpdate.
+        DateTime t = header.Timestamp;
+        string difficulty = header.Difficulty >= 0 && header.Difficulty < Helper.DifficultyIds.Length
+            ? Helper.DifficultyIds[header.Difficulty]
+            : header.Difficulty.ToString();
+        string nickname = string.IsNullOrWhiteSpace(header.Nickname) ? "--------" : header.Nickname.PadRight(8, '-');
+        return $"No. {i:00} {nickname} {t.Year % 100:00}/{t.Month:00}/{t.Day:00} {t.Hour:00}:{t.Minute:00} {header.Person,7} {difficulty} {header.Stage} {header.Slowdown}%";
     }
 
     public override void Render()
@@ -151,7 +167,7 @@ public class IngameSaveReplayScreen : Screen
                     }
                     rJson.Nickname = Current;
                     var r = new Replay(Controller.Movements, rJson);
-                    r.Save($"Replays/aab020-{Index:0000}.rpy");
+                    r.Save(SlotPath(Index));
                     return;
                 }
                 if (a == null)

@@ -1,0 +1,8 @@
+{
+  "Description": "Уф. уф. уф...\nПройти основную игру за АКОБА не используя депозит",
+  "ID": "clearas_akob_good",
+  "Index": 5,
+  "HasAction": true,
+  "ActionType": "ending",
+  "ActionInfo": "akob_good"
+}

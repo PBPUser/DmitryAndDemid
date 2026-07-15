@@ -21,20 +21,23 @@ public class Replay
 
     public static Replay Load(byte[] file)
     {
-        int infoLength = BitConverter.ToInt32(file, 0);
-        int dataLength = BitConverter.ToInt32(file, 4);
-        byte[] header = new byte[infoLength];
+        // Layout written by Export(): [dataLength:4][jsonLength:4][json][data]. The read has to use the same
+        // field order and offsets — earlier it read them swapped and copied from the wrong offset, which never
+        // round-tripped.
+        int dataLength = BitConverter.ToInt32(file, 0);
+        int jsonLength = BitConverter.ToInt32(file, 4);
+        byte[] header = new byte[jsonLength];
         byte[] data = new byte[dataLength];
-        Array.Copy(file, 8, header, 0, infoLength);
-        Array.Copy(file, 0, data, 8+infoLength, dataLength);
-        return new Replay(data,JsonSerializer.Deserialize<ReplayJson>(Encoding.UTF8.GetString(header)));
+        Array.Copy(file, 8, header, 0, jsonLength);
+        Array.Copy(file, 8 + jsonLength, data, 0, dataLength);
+        return new Replay(data, JsonSerializer.Deserialize<ReplayJson>(Encoding.UTF8.GetString(header)));
     }
 
     public static ReplayJson? ReadHeader(string fileName)
     {
         byte[] file = System.IO.File.ReadAllBytes(fileName);
-        int infoLength = BitConverter.ToInt32(file, 0);
-        return JsonSerializer.Deserialize<ReplayJson>(Encoding.UTF8.GetString(file, 4, infoLength));
+        int jsonLength = BitConverter.ToInt32(file, 4);   // the json length lives at offset 4, after dataLength
+        return JsonSerializer.Deserialize<ReplayJson>(Encoding.UTF8.GetString(file, 8, jsonLength));
     }
 
     public void Save(string fileName)

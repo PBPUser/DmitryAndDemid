@@ -1,0 +1,17 @@
+{
+ "blockSize": 32,
+ "blockBinding": 0,
+ "uniforms": [
+  {
+   "name": "u_time",
+   "offset": 16,
+   "type": "float"
+  },
+  {
+   "name": "pos",
+   "offset": 24,
+   "type": "vec2"
+  }
+ ],
+ "samplers": []
+}

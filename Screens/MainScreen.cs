@@ -52,11 +52,25 @@ public class MainScreen : MenuScreen
         RCPersonTarget2 = new Rect(Runtime.CurrentRuntime.Width - titlePersonWidth, titlePersonY, titlePersonWidth, titlePersonHeight);
         RCPersonSource = new Rect(0, 0, SelectedPerson.Width, SelectedPerson.Height);
 
-        int logoCenterWidth = (int)(250 * Runtime.CurrentRuntime.Scale);
-        int logoCenterHeight = (int)(100 * Runtime.CurrentRuntime.Scale);
-        int logoCenterX = (int)((Runtime.CurrentRuntime.Width - logoCenterWidth) * 0.45f);
-        LogoTargetCenter1 = new Rect(logoCenterX, -logoCenterHeight, logoCenterWidth, logoCenterHeight * 0.7f);
-        LogoTargetCenter2 = new Rect(logoCenterX, (int)(Runtime.CurrentRuntime.Scale * 32), logoCenterWidth, logoCenterHeight);
+        // The title logo is scaled to fill ~90% of the screen and drawn rotated 45° (see Render). A rotated
+        // rectangle's axis-aligned bounding box is bigger than the rectangle itself, so the size is derived from
+        // that bounding box — that way the *rotated* logo (not just its unrotated rect) fits inside 90% of the
+        // screen. Uses the logo texture's real aspect ratio so it is not stretched.
+        var logoTex = Runtime.CurrentRuntime.Textures["game_logo.png"];
+        LogoSourceCenter = Helper.GetFullSource(logoTex);
+        float logoAspect = (float)logoTex.Width / logoTex.Height;
+        // bbox side after a 45° rotation = (w + h) * cos45°, with h = w / aspect  →  bbox = w * k
+        float k = (1f + 1f / logoAspect) * 0.70710678f;
+        float fitBudget = 0.9f * Math.Min(Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height);
+        int logoCenterWidth = (int)(fitBudget / k);
+        int logoCenterHeight = (int)(logoCenterWidth / logoAspect);
+        int logoCenterX = Runtime.CurrentRuntime.Width / 2;
+        int logoCenterY = Runtime.CurrentRuntime.Height / 2;
+        int bboxHalf = (int)(logoCenterWidth * k / 2);
+        // Drawn origin-centred (see Render), so these are the logo's CENTRE point. It rests dead-centre and
+        // drops in from fully above the top edge, growing slightly into place.
+        LogoTargetCenter1 = new Rect(logoCenterX, -bboxHalf, logoCenterWidth * 0.85f, logoCenterHeight * 0.85f);
+        LogoTargetCenter2 = new Rect(logoCenterX, logoCenterY, logoCenterWidth, logoCenterHeight);
         CurrentY = (int)(160 * Runtime.CurrentRuntime.Scale);
         MusicRoom = new MusicRoomScreen();
         SelectedItemOffset = new Vector2(8, 0) * Runtime.CurrentRuntime.ScaleF;
@@ -71,7 +85,7 @@ public class MainScreen : MenuScreen
     static Rgba DarkRed = new Rgba(178, 0, 0, 255); // was Color(0.7f,0,0,1) — Raylib's float ctor is 0..1
     static Rect LogoSourceLeft = new Rect(0, 0, 260, 190);
     static Rect LogoSourceRight = new Rect(810, 0, 270, 105);
-    static Rect LogoSourceCenter = new Rect(0, 0, 1000, 400);
+    Rect LogoSourceCenter;   // the game_logo texture's real full-source rect; set in the constructor
     public bool IsOnTop = false;
 
     Rect LogoTargetLeft;
@@ -90,12 +104,86 @@ public class MainScreen : MenuScreen
         TimeAppearMenu = Math.Max(5.5, GetTime() - AppearTime);
         TimeDisappearMenu = 99999999999;
         IsOnTop = true;
+        LastActivityTime = GetTime();   // start counting idle time fresh whenever the title regains focus
     }
 
     public override void Deactivated()
     {
         TimeDisappearMenu = GetTime() - AppearTime + 0.5;
         IsOnTop = false;
+    }
+
+    // Attract mode: after a spell of inactivity on the title screen, play one of the saved replays as a demo,
+    // cycling through them. The demo (a GameplayScreen with IsDemo) sits over the menu and returns here on any
+    // input, on death, or when its run clears.
+    private const double DemoIdleSeconds = 20;
+    private double LastActivityTime;
+    private int DemoIndex;
+
+    public override void TopUpdate()
+    {
+        if (AttractInput.AnyInput())
+            LastActivityTime = GetTime();
+        else if (IsOnTop && GetTime() - LastActivityTime > DemoIdleSeconds)
+            StartDemo();
+        base.TopUpdate();
+    }
+
+    private void StartDemo()
+    {
+        LastActivityTime = GetTime();   // reset even if it fails, so a broken replay does not retry every frame
+        string[] replays = ReplayLauncher.FindReplays();
+        if (replays.Length == 0)
+            return;
+        GameplayScreen? demo = ReplayLauncher.Build(replays[DemoIndex % replays.Length], demo: true);
+        DemoIndex++;
+        if (demo == null)
+            return;
+        Runtime.CurrentRuntime.AddScreen(demo);
+        // Cover the demo's start-up with a plain black fade + rotating fifo (a subtler treatment than the tiled
+        // loading animation used when entering a real game), then reveal the demo when it fades out.
+        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["swap"]);
+        BlackLoadingScreen? loader = null;
+        loader = new BlackLoadingScreen(1.2, 0.4, () => Runtime.CurrentRuntime.RemoveScreen(loader), true, 0);
+        Runtime.CurrentRuntime.AddScreen(loader);
+    }
+
+    private const int PizzaCount = 10;
+    private static float Frac(float v) => v - MathF.Floor(v);
+
+    /// <summary>
+    /// Decorative pizzas drifting slowly up the title screen and lazily spinning, each bobbing side to side.
+    /// Purely a function of time and index (a stable per-pizza pseudo-random spread), so there is no state to
+    /// carry — mirrors the falling-forks backdrop other screens use.
+    /// </summary>
+    private void DrawFloatingPizzas(float time, float appear)
+    {
+        if (!Runtime.CurrentRuntime.Textures.TryGetValue("pizza.png", out TextureHandle pizza))
+            return;
+        float width = Runtime.CurrentRuntime.Width;
+        float height = Runtime.CurrentRuntime.Height;
+        float scale = Runtime.CurrentRuntime.ScaleF;
+        Rect source = new(0, 0, pizza.Width, pizza.Height);
+        for (int i = 0; i < PizzaCount; i++)
+        {
+            float r1 = Frac(MathF.Sin(i * 12.9898f) * 43758.55f);
+            float r2 = Frac(MathF.Sin(i * 78.233f) * 12543.13f);
+            float r3 = Frac(MathF.Sin(i * 39.425f) * 21783.19f);
+
+            float size = (28f + r1 * 34f) * scale;
+            float drawScale = size / pizza.Height;
+            float floatSpeed = (12f + r1 * 16f) * scale;
+            float span = height + size * 2;
+            // drift upward (wrapping), sway sideways, spin lazily
+            float y = span - ((time * floatSpeed + r2 * span) % span) - size;
+            float x = r3 * width + MathF.Sin(time * (0.4f + r2 * 0.5f) + i) * 36f * scale;
+            float rotation = time * (18f + r1 * 30f) + i * 53f;
+
+            Rgba tint = Rgba.White with { A = (byte)(150 * appear) };
+            DrawTexturePro(pizza, source,
+                new Rect(x, y, pizza.Width * drawScale, pizza.Height * drawScale),
+                new Vector2(pizza.Width * drawScale / 2, pizza.Height * drawScale / 2), rotation, tint);
+        }
     }
 
     public override void Render()
@@ -116,9 +204,9 @@ public class MainScreen : MenuScreen
         var bg = Helper.Mix(Rgba.Black, Rgba.White, (float)appear2);
 #endif
         DrawRectangle(0, 0, Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height, bg);
+        DrawFloatingPizzas(time, (float)appear2);
         var color1 = Helper.Mix(Rgba.Black, Rgba.Red, (float)appear2);
         var color2 = Helper.Mix(Rgba.Black, DarkRed, (float)appear2);
-        DrawTexturePro(Runtime.CurrentRuntime.Textures["game_logo.png"], LogoSourceCenter, Helper.Mix(LogoTargetCenter1, LogoTargetCenter2, Helper.EaseInOutElasticF(appear3)), Vector2.Zero, 0f, Rgba.White);
         CurrentX = (int)((16 - (Helper.Pow2F(1 - appear5) * 384)) * Runtime.CurrentRuntime.Scale);
 #if DEBUG
         CurrentX = IsOnTop ? 0 : -10000;
@@ -129,6 +217,20 @@ public class MainScreen : MenuScreen
         DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceLeft, LogoTargetLeft, Vector2.Zero, 0f, Rgba.White with { A = Helper.TimeToTransparency(appear25) });
         DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceRight, LogoTargetRight, Vector2.Zero, 0f, Rgba.White with { A = Helper.TimeToTransparency(appear25) });
         DrawTexturePro(SelectedPerson, RCPersonSource, Helper.Mix(RCPersonTarget1, RCPersonTarget2, appear4), Vector2.Zero, 0f, Rgba.White);
+        // The title logo, drawn AFTER the person so it sits ABOVE (in front of) them. Centred, rotated 45°, and
+        // lit through the neon_sign shader so it glows and flickers like an old sign; origin at its own centre so
+        // placement and rotation pivot are the logo's middle. Still uses the elastic drop-in animation.
+        var logoDest = Helper.Mix(LogoTargetCenter1, LogoTargetCenter2, Helper.EaseInOutElasticF(appear3));
+        // Once it has dropped in, the title floats gently up and down — the same bob the manual page uses in
+        // its view mode.
+        logoDest.Y += MathF.Sin(time * 1.6f) * 9f * Runtime.CurrentRuntime.ScaleF * appear3;
+        var logoOrigin = new Vector2(logoDest.Width / 2, logoDest.Height / 2);
+        var neon = Runtime.CurrentRuntime.Shaders["neon_sign"];
+        SetShaderValue(neon, GetShaderLocation(neon, "time"), time, UniformType.Float);
+        SetShaderValue(neon, GetShaderLocation(neon, "resolution"), LogoSourceCenter.Size, UniformType.Vec2);
+        BeginShaderMode(neon);
+        DrawTexturePro(Runtime.CurrentRuntime.Textures["game_logo.png"], LogoSourceCenter, logoDest, logoOrigin, 45f, Rgba.White);
+        EndShaderMode();
         var source = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["Version"]);
         DrawTexturePro(
             Runtime.CurrentRuntime.Textures["Copyright"],
@@ -193,16 +295,16 @@ public class MainScreen : MenuScreen
         MenuItems.Add(new MenuItem("menu.extra", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Extra))));
         MenuItems.Add(new MenuItem("menu.practice", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Practice))));
         MenuItems.Add(new MenuItem("menu.spell", "", a => Runtime.CurrentRuntime.AddScreen(new PersonSelectScreen(GameType.SpellPractice, 0))));
-        MenuItems.Add(new MenuItem("menu.replay", "", a => {}));
-        MenuItems.Add(new MenuItem("menu.stats", "", a => {}));
+        MenuItems.Add(new MenuItem("menu.replay", "", a => Runtime.CurrentRuntime.AddScreen(new ReplayScreen())));
+        MenuItems.Add(new MenuItem("menu.stats", "", a => Runtime.CurrentRuntime.AddScreen(new ScoreScreen())));
         MenuItems.Add(new MenuItem("menu.music", "", a => Runtime.CurrentRuntime.AddScreen(MusicRoom)));
         MenuItems.Add(new MenuItem("menu.trophy", "", a => Runtime.CurrentRuntime.AddScreen(TrophyScreen)));
         MenuItems.Add(new MenuItem("menu.settings", "", a => Runtime.CurrentRuntime.AddScreen(new SettingsScreen())));
-        MenuItems.Add(new MenuItem("menu.manual", "", a => Runtime.CurrentRuntime.AddScreen(MusicRoom)));
+        MenuItems.Add(new MenuItem("menu.manual", "", a => Runtime.CurrentRuntime.AddScreen(new ManualScreen())));
         MenuItems.Add(new MenuItem("menu.exit", "", a => Environment.Exit(0)));
         MenuItems[j].Enabled = PlayerData.Instance.IsExtraUnlocked;
         MenuItems[j + 1].Enabled = PlayerData.Instance.IsStageUnlocked(0);
-        MenuItems[j + 2].Enabled = PlayerData.Instance.Persons.Any(x => x.Value.MainScoreRecords.Length > 0);
+        MenuItems[j + 2].Enabled = true;   // the score menu is always viewable (it shows a per-character board)
     }
 
     public override void PreRender(double delta)

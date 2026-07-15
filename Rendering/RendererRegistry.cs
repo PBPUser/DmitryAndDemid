@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace DmitryAndDemid.Rendering;
 
 /// <summary>
@@ -10,13 +12,30 @@ namespace DmitryAndDemid.Rendering;
 /// </summary>
 public static class RendererRegistry
 {
+    /// <summary>
+    /// The Raylib-cs NuGet package ships a native <c>libraylib.so</c> for linux-x64 only — there is no
+    /// linux-arm64 build in the package. On ARMv8 targets (Tegra X1 / L4T, Jetson, Shield) the Raylib backend
+    /// would fault with DllNotFound the moment it is touched, so it is hidden there and Silk.NET/OpenGL — which
+    /// binds the system libGL and needs no bundled native — becomes the default. Vulkan stays offered because
+    /// L4T's mesa exposes it.
+    /// </summary>
+    public static bool RaylibSupported =>
+        !(RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
+          RuntimeInformation.ProcessArchitecture == Architecture.Arm64);
+
     /// <summary>Key is what goes into config.json / --renderer=; Name matches IBackend.Name.</summary>
-    public static readonly (string Key, string Name)[] Available =
-    [
-        ("raylib", "Raylib"),
-        ("silk", "Silk.NET/OpenGL"),
-        ("vulkan", "Vulkan"),
-    ];
+    public static (string Key, string Name)[] Available => RaylibSupported
+        ?
+        [
+            ("raylib", "Raylib"),
+            ("silk", "Silk.NET/OpenGL"),
+            ("vulkan", "Vulkan"),
+        ]
+        :
+        [
+            ("silk", "Silk.NET/OpenGL"),
+            ("vulkan", "Vulkan"),
+        ];
 
     public static string NameOf(string key) =>
         Available.FirstOrDefault(r => r.Key == key).Name ?? key;

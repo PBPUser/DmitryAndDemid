@@ -1,3 +1,4 @@
+using System;
 using DmitryAndDemid.Rendering;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -259,7 +260,7 @@ public static class Helper
         LocationOutlinePosition = GetShaderLocation(OutlineShader, "pos");
         TimerFontSize *= Runtime.CurrentRuntime.ScaleF;
         TimerFontSpacing *= Runtime.CurrentRuntime.ScaleF;
-        TimerTextureSize = MeasureTextEx(TimerFont, "00",  TimerFontSize, TimerFontSpacing) * 1.2f;
+        TimerTextureSize = MeasureTextEx(TimerFont, "00.00",  TimerFontSize, TimerFontSpacing) * 1.2f;
         TimerPos = TimerTextureSize / 12f; 
         TempTimerTexture = LoadRenderTexture((int)TimerTextureSize.X, (int)TimerTextureSize.Y);
         TempTimerTexture2 = LoadRenderTexture((int)TimerTextureSize.X, (int)TimerTextureSize.Y);
@@ -321,6 +322,31 @@ public static class Helper
     private static TargetHandle SpellTexture;
     private static TargetHandle SubtitleBufferTexture;
     private static float SpellFontSize;
+
+    // Persistent scratch/output targets for the spell-card subtitle, reused across frames. Each frame a card
+    // is on screen DrawSpellSubtitle used to allocate and free ~8 render textures (a mask + a framed output
+    // for each of four text parts), churning GPU framebuffers for the whole duration of the card. Each of the
+    // four parts keeps its own mask + output; both are (re)allocated only when that part's pixel size changes
+    // (never per frame), so a part's mask never thrashes against a differently-sized neighbour.
+    private static readonly TargetHandle[] SubtitleMasks = new TargetHandle[4];
+    private static readonly Vector2[] SubtitleMaskSizes = { Vector2.Zero, Vector2.Zero, Vector2.Zero, Vector2.Zero };
+    private static readonly TargetHandle[] SubtitleParts = new TargetHandle[4];
+    private static readonly Vector2[] SubtitlePartSizes = { Vector2.Zero, Vector2.Zero, Vector2.Zero, Vector2.Zero };
+
+    /// <summary>Ensures <paramref name="handle"/> is a render texture of exactly <paramref name="size"/>,
+    /// reallocating only when the size differs from <paramref name="currentSize"/>. A <paramref name="currentSize"/>
+    /// of <see cref="Vector2.Zero"/> means "not yet allocated" (nothing to free).</summary>
+    static void EnsureRenderTexture(ref TargetHandle handle, ref Vector2 currentSize, Vector2 size)
+    {
+        int w = Math.Max(1, (int)size.X);
+        int h = Math.Max(1, (int)size.Y);
+        if ((int)currentSize.X == w && (int)currentSize.Y == h)
+            return;
+        if (currentSize != Vector2.Zero)
+            UnloadRenderTexture(handle);
+        handle = LoadRenderTexture(w, h);
+        currentSize = new Vector2(w, h);
+    }
 
     /// <summary>Design units (x UI scale) for the score line under a spell card's name.</summary>
     private const float SpellSubtitleFontSize = 11;
@@ -389,19 +415,26 @@ public static class Helper
 
         // Labels: quiet, no sweep. Values: the bonus is "live" (gold, sweeping) unless the card was failed,
         // in which case it goes red; the attempt record is a static white.
-        DrawTextFramed(out TargetHandle bonusTitle, TimerFont, fontSize, bonusLabel,
+        // Rendered into persistent, reused targets (see SubtitleParts) so no GPU render texture is allocated
+        // or freed on a normal frame — only when a part's pixel size actually changes (e.g. the bonus value
+        // gains a digit). The four parts are all alive at once for the composite below, so each has its own.
+        DrawTextFramedInto(ref SubtitleMasks[0], ref SubtitleMaskSizes[0], ref SubtitleParts[0], ref SubtitlePartSizes[0],
+            TimerFont, fontSize, bonusLabel,
             new Rgba(190, 205, 255), new Rgba(120, 140, 200), Rgba.Black, border);
-        DrawTextFramed(out TargetHandle bonus, TimerFont, fontSize, bonusValue,
+        DrawTextFramedInto(ref SubtitleMasks[1], ref SubtitleMaskSizes[1], ref SubtitleParts[1], ref SubtitlePartSizes[1],
+            TimerFont, fontSize, bonusValue,
             failed ? new Rgba(255, 150, 150) : new Rgba(255, 240, 170),
             failed ? new Rgba(200, 30, 30) : new Rgba(255, 150, 20),
             Rgba.Black, border, failed ? 0f : 0.65f);
-        DrawTextFramed(out TargetHandle attemptTitle, TimerFont, fontSize, attemptLabel,
+        DrawTextFramedInto(ref SubtitleMasks[2], ref SubtitleMaskSizes[2], ref SubtitleParts[2], ref SubtitlePartSizes[2],
+            TimerFont, fontSize, attemptLabel,
             new Rgba(190, 205, 255), new Rgba(120, 140, 200), Rgba.Black, border);
-        DrawTextFramed(out TargetHandle tries, TimerFont, fontSize, triesValue,
+        DrawTextFramedInto(ref SubtitleMasks[3], ref SubtitleMaskSizes[3], ref SubtitleParts[3], ref SubtitlePartSizes[3],
+            TimerFont, fontSize, triesValue,
             Rgba.White, new Rgba(170, 170, 190), Rgba.Black, border);
 
         float gap = 10 * Runtime.CurrentRuntime.ScaleF;
-        TargetHandle[] parts = [bonusTitle, bonus, attemptTitle, tries];
+        TargetHandle[] parts = SubtitleParts;
         float lineWidth = parts.Sum(p => p.Texture.Width) + gap;   // one gap, between the two pairs
 
         float posX = rightX - lineWidth;
@@ -409,7 +442,7 @@ public static class Helper
         float slide = (1f - appear) * 12f * Runtime.CurrentRuntime.ScaleF;
         Rgba tint = Rgba.White with { A = TimeToTransparency(appear) };
         // The name zooms in at up to 10x, which would fling this line off the overlay while that plays.
-        posY = Math.Clamp(posY, 0, target.Texture.Height - bonus.Texture.Height);
+        posY = Math.Clamp(posY, 0, target.Texture.Height - parts[1].Texture.Height);
         posX = Math.Clamp(posX, 0, Math.Max(0, target.Texture.Width - lineWidth));
 
         BeginTextureMode(target);
@@ -425,27 +458,30 @@ public static class Helper
         }
         EndTextureMode();
 
-        foreach (TargetHandle part in parts)
-            UnloadRenderTexture(part);
+        // Deliberately NOT unloaded — the part targets persist and are reused next frame. Freeing them here
+        // (as the original did) is what made the game allocate and destroy render textures every frame a
+        // spell card was active.
         return (int)posX;
     }
 
     /// <summary>
-    /// Renders text with a frame (outline) and a vertical gradient, using Assets/Shaders/text_frame.fs.
-    ///
-    /// The frame grows OUTWARD from the glyphs, so the text is first drawn into a padded scratch target —
-    /// without the padding the shader would dilate into the edge of the texture and the frame would be
-    /// clipped. Pass highlightStrength > 0 for the animated sweep (used to emphasise the score during a
+    /// Renders text with a frame (outline) and a vertical gradient, using Assets/Shaders/text_frame.fs, into a
+    /// caller-owned persistent mask and output target that are reused across frames. The frame grows OUTWARD
+    /// from the glyphs, so the text is first drawn into a padded scratch (the mask) — without the padding the
+    /// shader would dilate into the edge of the texture and the frame would be clipped. Nothing is allocated or
+    /// freed unless the text's pixel size changes, so the per-frame spell-card subtitle does not churn GPU
+    /// render textures. Pass highlightStrength > 0 for the animated sweep (used to emphasise the score during a
     /// spell card); 0 gives a static gradient.
     /// </summary>
-    public static void DrawTextFramed(out TargetHandle texture, FontHandle font, float fontSize, string text,
-        Rgba colorTop, Rgba colorBottom, Rgba borderColor, float borderWidth, float highlightStrength = 0f)
+    static void DrawTextFramedInto(ref TargetHandle mask, ref Vector2 maskSize, ref TargetHandle texture,
+        ref Vector2 textureSize, FontHandle font, float fontSize, string text, Rgba colorTop, Rgba colorBottom,
+        Rgba borderColor, float borderWidth, float highlightStrength = 0f)
     {
         Vector2 measure = MeasureTextEx(font, text, fontSize, 1);
         float padding = MathF.Ceiling(borderWidth) + 2;
         Vector2 size = measure + new Vector2(padding * 2);
 
-        TargetHandle mask = LoadRenderTexture((int)size.X, (int)size.Y);
+        EnsureRenderTexture(ref mask, ref maskSize, size);
         BeginTextureMode(mask);
         ClearBackground(Rgba.Blank);
         DrawTextEx(font, text, new Vector2(padding), fontSize, 1, Rgba.White);
@@ -460,7 +496,7 @@ public static class Helper
         SetShaderValue(shader, GetShaderLocation(shader, "time"), (float)GetTime(), UniformType.Float);
         SetShaderValue(shader, GetShaderLocation(shader, "highlight_strength"), highlightStrength, UniformType.Float);
 
-        texture = LoadRenderTexture((int)size.X, (int)size.Y);
+        EnsureRenderTexture(ref texture, ref textureSize, size);
         BeginTextureMode(texture);
         ClearBackground(Rgba.Blank);
         BeginShaderMode(shader);
@@ -470,8 +506,6 @@ public static class Helper
             Vector2.Zero, 0, Rgba.White);
         EndShaderMode();
         EndTextureMode();
-
-        UnloadRenderTexture(mask);
     }
 
     public static void DrawTextOutline(out TargetHandle texture, FontHandle font, float fontSize, string text, Rgba color, float padding)
@@ -700,7 +734,10 @@ public static class Helper
 
     public static void PrepareTimer(int ticks)
     {
-        string text = $"{Math.Clamp(ticks/60, 0, 99):00}";
+        // Seconds plus the 1/100 fraction. Ticks are 60/sec, so hundredths = ticks%60 * 100/60 (the same idiom
+        // the end-of-card splash uses). Clamp to >=0 first so the modulo never goes negative near time-out.
+        int clamped = Math.Max(0, ticks);
+        string text = $"{Math.Clamp(clamped / 60, 0, 99):00}.{clamped % 60 * 100 / 60:00}";
         BeginTextureMode(TempTimerTexture);
         ClearBackground(Rgba.Black with {A=0});
         DrawTextPro(TimerFont, text, TimerPos,

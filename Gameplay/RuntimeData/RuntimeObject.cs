@@ -40,7 +40,8 @@ public class RuntimeObject
         FlagIsFinalBossChapter = 0x100000,
         FlagIsCollectable = 0x10000, 
         FlagIsMovingToTarget = 0x20000,
-        FlagInvincible = 0x40000;
+        FlagInvincible = 0x40000,
+        FlagIsLaser = 0x80000;
 
     public static FileEntityInfo[] CollectableFEIs = new FileEntityInfo[8];
     public static FileEntityInfo MagicalToilet;
@@ -369,6 +370,40 @@ public class RuntimeObject
     {
         get => FloatingPoints[0x13];
         set => FloatingPoints[0x13] = value;
+    }
+
+    // ---- Laser (a straight beam projectile). A laser reuses Position (0x10/0x11) as its emitter end and
+    // RenderRotation (0x5) as its angle; the fields below live in otherwise-unused scratch slots. Its life runs
+    // telegraph → fire → fade, measured in ticks from CreatedAt. See FlagIsLaser handling in GameBox.
+    public float LaserLength { get => FloatingPoints[0x50]; set => FloatingPoints[0x50] = value; }
+    public float LaserWidth  { get => FloatingPoints[0x51]; set => FloatingPoints[0x51] = value; }
+    public int LaserTelegraphTicks { get => Header[0x50]; set => Header[0x50] = value; }
+    public int LaserFireTicks      { get => Header[0x51]; set => Header[0x51] = value; }
+    public int LaserFadeTicks      { get => Header[0x52]; set => Header[0x52] = value; }
+    public int LaserLifetime => LaserTelegraphTicks + LaserFireTicks + LaserFadeTicks;
+
+    /// <summary>Builds a straight-beam laser and wires its self-removal at end of life. The beam is dangerous
+    /// only during its fire phase (handled by the collision code). Add it to the box with <c>AddObject</c>.</summary>
+    public static RuntimeObject MakeLaser(GameBox box, Vector2 origin, float angleRadians, float length,
+        float width, int telegraphTicks, int fireTicks, int fadeTicks)
+    {
+        var laser = new RuntimeObject { Box = box };
+        laser.Header[0] = FlagIsLaser | FlagDangerousRelatedToPlayer;
+        laser.Health = 1;   // keep it out of the Health<=0 entity-death path (LoadFromFile does this for bullets)
+        laser.Position = origin;
+        laser.RenderRotation = angleRadians;
+        laser.LaserLength = length;
+        laser.LaserWidth = width;
+        laser.LaserTelegraphTicks = telegraphTicks;
+        laser.LaserFireTicks = fireTicks;
+        laser.LaserFadeTicks = fadeTicks;
+        laser.CreatedAt = box.CurrentTick;
+        laser.UpdateAction = o =>
+        {
+            if (o.Box.CurrentTick - o.CreatedAt >= o.LaserLifetime)
+                o.Box.RemoveObject(o);
+        };
+        return laser;
     }
 
     public int SpawnId => Header[2];

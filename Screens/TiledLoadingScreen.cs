@@ -64,7 +64,11 @@ public class TiledLoadingScreen : Screen
     public override void Render()
     {
         float time = (float)GetTime();
-        float fade = (float)(time < TimeAppear + Fade ? (time - TimeAppear) / Fade : time > TimeAppear + LoadingTime - Fade ? 1 - (TimeAppear + LoadingTime - Fade - time)/Fade : .99f); 
+        // Cover fully from the very first frame instead of wiping in from transparent. The screen underneath
+        // (the gameplay being loaded) is not ready yet, so a swap-in wipe would briefly expose it — the flash
+        // this transition is meant to hide. Hold covered, then only wipe OUT at the end to reveal the loaded
+        // gameplay.
+        float fade = (float)(time > TimeAppear + LoadingTime - Fade ? 1 - (TimeAppear + LoadingTime - Fade - time)/Fade : .99f);
         BeginTextureMode(LoadingBuffer);
         SetShaderValue(LoadingShaderTiles, GetShaderLocation(LoadingShaderTiles,"time"), time, UniformType.Float);
         SetShaderValue(LoadingShaderTiles, GetShaderLocation(LoadingShaderTiles,"outputRes"), LoadingTarget.Size, UniformType.Vec2);

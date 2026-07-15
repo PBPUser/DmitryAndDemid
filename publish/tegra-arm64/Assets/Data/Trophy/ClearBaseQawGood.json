@@ -1,0 +1,8 @@
+{
+  "Description": "qwa qwa\nПройти основную игру за Qaw не используя депозит",
+  "ID": "clearas_qaw_good",
+  "Index": 7,
+  "HasAction": true,
+  "ActionType": "ending",
+  "ActionInfo": "qaw_good"
+}

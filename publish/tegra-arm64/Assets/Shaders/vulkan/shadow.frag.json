@@ -1,0 +1,22 @@
+{
+ "blockSize": 32,
+ "blockBinding": 1,
+ "uniforms": [
+  {
+   "name": "depth",
+   "offset": 16,
+   "type": "float"
+  },
+  {
+   "name": "res",
+   "offset": 24,
+   "type": "vec2"
+  }
+ ],
+ "samplers": [
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
+}

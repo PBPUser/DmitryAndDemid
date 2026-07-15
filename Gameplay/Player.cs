@@ -287,6 +287,41 @@ public class Player
     private const int RestoreAnimationLength = 60;
     public int RestoreTick = 0;
     
+    /// <summary>
+    /// Overwrites the life / bomb stock outright, bypassing the property setters' side effects (extend jingle,
+    /// bomb top-up, the &lt;0 game-over). Used to seed a run for a mode — full practice starts maxed, spell
+    /// practice starts empty.
+    /// </summary>
+    public void SetLivesAndBombs(int lives, int bombCount)
+    {
+        heartPoints = lives;
+        bombs = bombCount;
+        heartSpices = 0;
+        bombsSpices = 0;
+        GameBox.UpdateUI();
+    }
+
+    /// <summary>
+    /// Brings the player back after a continue: a fresh default life / bomb stock, re-centred, and eased back in
+    /// through the usual death-cooldown entrance. Writes the backing fields directly so reviving from a negative
+    /// life count doesn't re-trigger game-over through the HeartPoints setter.
+    /// </summary>
+    public void Revive()
+    {
+        heartPoints = 2;
+        bombs = 3;
+        heartSpices = 0;
+        bombsSpices = 0;
+        power = 300;
+        X = 192;
+        Y = 400;
+        CollisionEnabled = false;
+        IsInDeathCooldown = true;   // brief entrance + invulnerability, like a normal respawn
+        Weapon.DefocusTimestamp = GameBox.CurrentTick;
+        Weapon.UpdatePower();
+        GameBox.UpdateUI();
+    }
+
     public void Die()
     {
         float angle = -MathF.PI / 7;

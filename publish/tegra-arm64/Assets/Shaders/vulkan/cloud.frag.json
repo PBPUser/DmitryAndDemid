@@ -1,0 +1,32 @@
+{
+ "blockSize": 44,
+ "blockBinding": 0,
+ "uniforms": [
+  {
+   "name": "radius",
+   "offset": 16,
+   "type": "float"
+  },
+  {
+   "name": "dimenssions",
+   "offset": 24,
+   "type": "vec2"
+  },
+  {
+   "name": "angle",
+   "offset": 32,
+   "type": "float"
+  },
+  {
+   "name": "width",
+   "offset": 36,
+   "type": "float"
+  },
+  {
+   "name": "size",
+   "offset": 40,
+   "type": "float"
+  }
+ ],
+ "samplers": []
+}

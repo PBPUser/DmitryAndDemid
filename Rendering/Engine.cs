@@ -36,7 +36,9 @@ public static class Engine
 #else
         "silk" or "silk.net" or "opengl" or "gl" => new SilkGLBackend(),
         "vulkan" or "vk" => new VulkanBackend(),
-        "raylib" or "" => new RaylibBackend(),
+        // On linux-arm64 (Tegra/L4T) there is no native libraylib.so, so raylib — and the empty/default key —
+        // fall back to Silk instead of faulting with DllNotFound. See RendererRegistry.RaylibSupported.
+        "raylib" or "" => RendererRegistry.RaylibSupported ? new RaylibBackend() : new SilkGLBackend(),
         _ => throw new ArgumentException(
             $"Unknown renderer '{name}'. Known: {string.Join(", ", Available.Select(r => r.Key))}."),
 #endif

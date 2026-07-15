@@ -1,0 +1,26 @@
+{
+ "blockSize": 40,
+ "blockBinding": 1,
+ "uniforms": [
+  {
+   "name": "realTime",
+   "offset": 20,
+   "type": "float"
+  },
+  {
+   "name": "position",
+   "offset": 32,
+   "type": "vec2"
+  }
+ ],
+ "samplers": [
+  {
+   "name": "textureCursor",
+   "binding": 2
+  },
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
+}

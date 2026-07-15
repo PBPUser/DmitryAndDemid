@@ -14,12 +14,22 @@ public class FileDialogInfo
     public bool SwitchMusic = false;
     public bool ShowBossName = false;
 
-    public void Save(ref BitPackage package)
+    /// <summary>
+    /// Packs the boolean flags into <see cref="Header"/>[0], the inverse of the bit-unpacking in
+    /// <see cref="Load"/>. Called at the top of <see cref="Save"/> and by the JSON importer so a hand-authored
+    /// dialog line (which sets the friendly bools) produces the same <see cref="Header"/> a binary load would.
+    /// </summary>
+    public void PackFlags()
     {
         Header[0] = IsPlayerDialog ? 1 : 0;
         Header[0] |= SwitchReaction ? 2 : 0;
         Header[0] |= SwitchMusic ? 4 : 0;
         Header[0] |= ShowBossName ? 8 : 0;
+    }
+
+    public void Save(ref BitPackage package)
+    {
+        PackFlags();
         for(int i = 0; i < 4; i++)
             package.WriteVarLong(Header[i]);
         package.WriteString(Text);

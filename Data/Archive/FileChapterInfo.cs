@@ -45,9 +45,15 @@ public class FileChapterInfo
     public bool UseCreateScript = false;
     public bool ApplyShader = false;
     
-    public void Save(ref BitPackage package)
+    /// <summary>
+    /// Packs the boolean flags into <see cref="Header"/>[1] (and the dialog count into Header[4]), the inverse
+    /// of the bit-unpacking in <see cref="Load"/>. Called at the top of <see cref="Save"/> so the binary layout
+    /// matches the flags, and by the JSON importer so a hand-authored chapter — which sets the friendly bools,
+    /// not the raw bits — produces the same <see cref="Header"/> a binary load would. Note Header[0] (the chapter
+    /// Type) is authored directly and is not a flag, so it is left untouched here.
+    /// </summary>
+    public void PackFlags()
     {
-        package.WriteString(Id??"");
         Header[1] = TimeoutCard ? 1 : 0;
         Header[1] |= BossInvincible ? 0x2 : 0;
         Header[1] |= HasDialogs ? 0x4 : 0;
@@ -56,6 +62,12 @@ public class FileChapterInfo
         Header[1] |= ApplyShader ? 0x20 : 0;
         if(HasDialogs && Header[0] != 3)
             Header[4] = Dialogs.Length;
+    }
+
+    public void Save(ref BitPackage package)
+    {
+        package.WriteString(Id??"");
+        PackFlags();
         for(int i =0;i<Header.Length;i++)
             package.WriteVarLong(Header[i]);
         package.WriteString(SpellcardTitle);

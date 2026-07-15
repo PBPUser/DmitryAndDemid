@@ -1,0 +1,8 @@
+{
+  "Description": "Дмитрий, приятного аппетита\nПройти игру на хардкорном режиме сложности",
+  "ID": "clear_hard",
+  "Index": 2,
+  "HasAction": true,
+  "ActionType": "ending",
+  "ActionInfo": "hard"
+}

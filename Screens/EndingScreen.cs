@@ -20,10 +20,14 @@ public class EndingScreen : Screen
     private int Difficulty = 0;
     
     
-    public EndingScreen(int difficulty, EndingInfo info, bool showStaffRoll)
+    private GameplayScreen? ClearedRun;
+
+    public EndingScreen(int difficulty, EndingInfo info, bool showStaffRoll, GameplayScreen? clearedRun = null)
     {
         Difficulty = difficulty;
         ShowStaffRoll = showStaffRoll;
+        ClearedRun = clearedRun;
+        PlayerData.Instance.SetMusicUnlocked(9, true);   // ending theme is now unlocked in the music room
         PreviousSwitch = Gfx.GetTime();
         Elements = new List<EndingElement>();
         Elements.AddRange(info.AddTexts);
@@ -139,6 +143,10 @@ public class EndingScreen : Screen
         if (TimeDisappear < Gfx.GetTime())
         {
             Runtime.CurrentRuntime.RemoveScreen(this);
+            // The ending has played out; roll straight into the staff roll when this clear asked for it,
+            // carrying the run forward so the staff roll can hand off to the results / replay-save screens.
+            if (ShowStaffRoll)
+                Runtime.CurrentRuntime.AddScreen(new CreditsScreen(ClearedRun));
         }
         if (time - PreviousSwitch > AutoSwitchDelay)
         {

@@ -1,0 +1,17 @@
+{
+ "blockSize": 68,
+ "blockBinding": 0,
+ "uniforms": [
+  {
+   "name": "position",
+   "offset": 16,
+   "type": "vec2"
+  },
+  {
+   "name": "progress",
+   "offset": 64,
+   "type": "float"
+  }
+ ],
+ "samplers": []
+}

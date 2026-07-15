@@ -8,6 +8,9 @@
     <AssemblyName>custom</AssemblyName>
     <RootNamespace>DmitryAndDemid.Launcher</RootNamespace>
 
+    <!-- Windows .exe icon (ignored elsewhere). The .ico lives at the repo root, shared with the game. -->
+    <ApplicationIcon>..\icon.ico</ApplicationIcon>
+
     <!-- Build straight into the game's output folder: the configurator ships beside the game and edits the
          config.json that sits there. Shared dependencies (GtkSharp and friends) are the same package
          versions the game uses, so they land on identical files. -->

@@ -12,10 +12,30 @@ public class PlayerData
     long Flags = 0;
     long Nicknames = 0;
     long Music = 0;
+    long Trophies = 0;
     public Dictionary<string, PersonPlayerData> Persons = new();
+
+    /// <summary>Whether trophy <paramref name="i"/> has been earned; locked trophies read as ** in the list.</summary>
+    public bool IsTrophyUnlocked(int i)
+    {
+        long a = 1L << i;
+        return (Trophies & a) == a;
+    }
+
+    public void SetTrophyUnlocked(int i, bool state)
+    {
+        long a = 1L << i;
+        if (state)
+            Trophies |= a;
+        else
+            Trophies &= ~a;
+        Save();
+    }
 
     public bool IsMusicUnlocked(int i)
     {
+        if (i == 0)
+            return true;   // the title theme (song 0) is always available
         long a = 1 << i;
         return (Music & a) == a;
     }
@@ -102,10 +122,66 @@ public class PlayerData
         Save();
     }
 
+    /// <summary>The stored record for a character, or null if it has never been played.</summary>
+    public PersonPlayerData? GetPerson(string personId) =>
+        personId != null && Persons.TryGetValue(personId, out PersonPlayerData? p) ? p : null;
+
+    /// <summary>The stored record for a character, creating (but not yet saving) an empty one if absent.</summary>
+    public PersonPlayerData GetOrCreatePerson(string personId)
+    {
+        if (!Persons.TryGetValue(personId, out PersonPlayerData? p))
+            Persons[personId] = p = new PersonPlayerData();
+        return p;
+    }
+
+    /// <summary>
+    /// Records one finished run for a character: bumps games-played, wins (when cleared) and time-spent, and
+    /// inserts the score into that difficulty's best-ten board. Difficulty is 0..DifficultyCount-1
+    /// (Easy..Extra); out-of-range difficulties are ignored. Persists immediately, like the other setters.
+    /// </summary>
+    public void RecordGame(string personId, int difficulty, int score, bool won, long durationSeconds,
+        int stage, float percentage, string? name = null)
+    {
+        if (string.IsNullOrEmpty(personId) ||
+            difficulty < 0 || difficulty >= PersonPlayerData.DifficultyCount)
+            return;
+        PersonPlayerData person = GetOrCreatePerson(personId);
+        person.GamesPlayed++;
+        if (won)
+            person.Wins++;
+        person.TimeSpentSeconds += Math.Max(0, durationSeconds);
+        InsertScore(person.ScoreRecords[difficulty],
+            new PersonPlayerScoreRecord(name ?? LastName, score, TodayInt(), stage, percentage));
+        Save();
+    }
+
+    /// <summary>Today's date packed as YYYYMMDD, the encoding the score board's date column reads.</summary>
+    static int TodayInt()
+    {
+        DateTime now = DateTime.Now;
+        return now.Year * 10000 + now.Month * 100 + now.Day;
+    }
+
+    /// <summary>Inserts a record into a high-to-low board, shifting the tail down and dropping the last entry.</summary>
+    static void InsertScore(PersonPlayerScoreRecord[] board, PersonPlayerScoreRecord record)
+    {
+        int at = Array.FindIndex(board, r => record.Score > r.Score);
+        if (at < 0)
+            return;   // did not beat any existing entry
+        for (int i = board.Length - 1; i > at; i--)
+            board[i] = board[i - 1];
+        board[at] = record;
+    }
+
     static PlayerData()
     {
         if (File.Exists(FileName))
-            Instance = Load();
+        {
+            // A save written by an older layout (before per-difficulty boards and the games/wins/time counters)
+            // would read back misaligned; fall back to a fresh record rather than bricking startup.
+            try { Instance = Load(); }
+            catch { Instance = new PlayerData(); }
+        }
     }
 
     static PlayerData Load()
@@ -116,6 +192,7 @@ public class PlayerData
         data.Flags = package.ReadVarLong();
         data.Nicknames =  package.ReadVarLong();
         data.Music = package.ReadVarLong();
+        data.Trophies = package.ReadVarLong();
         var length = package.ReadVarLong();
         for (int i = 0; i < length; i++)
             data.Persons[package.ReadString()] = PersonPlayerData.ReadFromPackage(ref package);
@@ -130,6 +207,7 @@ public class PlayerData
         package.WriteVarLong(Flags);
         package.WriteVarLong(Nicknames);
         package.WriteVarLong(Music);
+        package.WriteVarLong(Trophies);
         package.WriteVarLong(Persons.Count);
         var arr = Persons.ToArray();
         for (int i = 0; i < Persons.Count; i++)
@@ -137,10 +215,12 @@ public class PlayerData
             package.WriteString(arr[i].Key);
             SaveTries(ref package, arr[i].Value.SpellcardTries);
             SaveTries(ref package, arr[i].Value.SpellcardPracticesTries);
-            for(int j = 0; j < 10; j++)
-                arr[i].Value.MainScoreRecords[j].WriteToPackage(ref package);
-            for(int j = 0; j < 10; j++)
-                arr[i].Value.ExtraScoreRecords[j].WriteToPackage(ref package);
+            package.WriteVarLong(arr[i].Value.GamesPlayed);
+            package.WriteVarLong(arr[i].Value.Wins);
+            package.WriteVarLong(arr[i].Value.TimeSpentSeconds);
+            for (int d = 0; d < PersonPlayerData.DifficultyCount; d++)
+                for (int j = 0; j < PersonPlayerData.ScoresPerDifficulty; j++)
+                    arr[i].Value.ScoreRecords[d][j].WriteToPackage(ref package);
         }
         package.Dispose();
     }
@@ -169,17 +249,30 @@ public class PlayerData
     
     public class PersonPlayerData
     {
+        /// <summary>Easy, Normal, Hard, Max, Extra — the difficulties the difficulty menu offers, in order.</summary>
+        public const int DifficultyCount = 5;
+        public const int ScoresPerDifficulty = 10;
+
         public PersonPlayerData()
         {
-            for (int i = 0; i < 10; i++)
+            for (int d = 0; d < DifficultyCount; d++)
             {
-                MainScoreRecords[i] = new(DEFAULT_NICKNAME, (int)Math.Pow(10, 10 - i), -1, -1, -1);
-                ExtraScoreRecords[i] = new("--------", (int)Math.Pow(10, 10 - i), -1, -1, -1);
+                ScoreRecords[d] = new PersonPlayerScoreRecord[ScoresPerDifficulty];
+                for (int i = 0; i < ScoresPerDifficulty; i++)
+                    ScoreRecords[d][i] = new(DEFAULT_NICKNAME, (int)Math.Pow(10, 10 - i), -1, -1, -1);
             }
         }
-        
-        public PersonPlayerScoreRecord[] MainScoreRecords = new PersonPlayerScoreRecord[10];
-        public PersonPlayerScoreRecord[] ExtraScoreRecords = new PersonPlayerScoreRecord[10];
+
+        /// <summary>Best <see cref="ScoresPerDifficulty"/> scores per difficulty (indexed 0..DifficultyCount-1),
+        /// each kept sorted high-to-low. Replaces the old flat Main/Extra pair so the score menu can show a
+        /// separate board per difficulty.</summary>
+        public PersonPlayerScoreRecord[][] ScoreRecords = new PersonPlayerScoreRecord[DifficultyCount][];
+        /// <summary>Total finished runs with this character (any difficulty).</summary>
+        public int GamesPlayed = 0;
+        /// <summary>Cleared runs with this character.</summary>
+        public int Wins = 0;
+        /// <summary>Total wall time spent in runs with this character, in whole seconds.</summary>
+        public long TimeSpentSeconds = 0;
         public Dictionary<string, (int, int)> SpellcardTries = new();
         public Dictionary<string, (int, int)> SpellcardPracticesTries = new();
 
@@ -188,10 +281,12 @@ public class PlayerData
             PersonPlayerData data = new();
             data.SpellcardTries = LoadTries(ref package);
             data.SpellcardPracticesTries = LoadTries(ref package);
-            for(int i = 0; i < 10; i++)
-                data.MainScoreRecords[i] = PersonPlayerScoreRecord.ReadFromPackage(ref package);
-            for(int i = 0; i < 10; i++)
-                data.ExtraScoreRecords[i] = PersonPlayerScoreRecord.ReadFromPackage(ref package);
+            data.GamesPlayed = (int)package.ReadVarLong();
+            data.Wins = (int)package.ReadVarLong();
+            data.TimeSpentSeconds = package.ReadVarLong();
+            for (int d = 0; d < DifficultyCount; d++)
+                for (int i = 0; i < ScoresPerDifficulty; i++)
+                    data.ScoreRecords[d][i] = PersonPlayerScoreRecord.ReadFromPackage(ref package);
             return data;
         }
     }

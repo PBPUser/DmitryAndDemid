@@ -8,6 +8,7 @@
     [0x00020] Clear Protected
     [0x00040] Dangerous for player
     [0x10000] Is Collectable
+    [0x80000] Is Laser (straight beam; see laser fields below)
 }
 [0x1] Group Id
 [0x2] Transparency
@@ -82,3 +83,10 @@ Floating Points:
 [0x21] GameBox Position Y Delta
 [0x22] GameBox Position Z Delta
 [0x23] GameBox Rotation Delta
+[0x50] Laser Length (Is Laser only; emitter = Position 0x10/0x11, angle = Rendering Rotation 0x5)
+[0x51] Laser Width
+
+# HEADER (Is Laser only) — beam life in ticks, phases run telegraph -> fire -> fade from Created At
+[0x50] Laser Telegraph Ticks
+[0x51] Laser Fire Ticks
+[0x52] Laser Fade Ticks

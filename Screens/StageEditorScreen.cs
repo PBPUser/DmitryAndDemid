@@ -81,6 +81,25 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
             Save();
         if(MenuItem("Reload"))
             Reload();
+        // JSON round-trip: export the stage to an editable .json beside the .sid, re-import it, or "compile"
+        // (import the .json and write the .sid) — the same pipeline the headless --compile-stages build step uses.
+        if (MenuItem("Export JSON"))
+            StageJson.Save(Info, Path.ChangeExtension(FileName, ".json"));
+        if (MenuItem("Import JSON"))
+        {
+            string json = Path.ChangeExtension(FileName, ".json");
+            if (File.Exists(json))
+                Info = StageJson.Load(json);
+        }
+        if (MenuItem("Compile JSON->SID"))
+        {
+            string json = Path.ChangeExtension(FileName, ".json");
+            if (File.Exists(json))
+            {
+                Info = StageJson.Load(json);
+                Save();
+            }
+        }
         if (MenuItem("Info"))
         {
             ShowChaptersList = true;

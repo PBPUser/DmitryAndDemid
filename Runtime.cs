@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using static DmitryAndDemid.Rendering.Gfx;
 using static DmitryAndDemid.Configuration;
+using DmitryAndDemid.Backgrounds;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Rendering;
@@ -99,12 +100,16 @@ public class Runtime
             Platform.FatalError(error);
             Environment.Exit(0);
         }
+        // Vertical mode: a portrait window/backbuffer. Everything is laid out from Width/Height/Scale, so the
+        // swap flips the whole game to portrait.
+        if (Config.Vertical && width > height)
+            (width, height) = (height, width);
         Width = width;
         Height = height;
         SFXVolume = Config.SFXVolume;
         MusicVolume = Config.MusicVolume;
         FullScreenRect = new(0, 0, Width, Height);
-        Scale = width / 640d;
+        Scale = Width / 640d;
         ScaleF = (float)Scale;
         var size = 100 * ScaleF;
         Engine.Platform.OpenWindow(width, height,
@@ -167,16 +172,30 @@ public class Runtime
             backend.Audio = audio;   // must be set before Load(), which loads every sound
         backend.AttachExternalContext(gl, surfaceWidth, surfaceHeight);
 
-        // The game always renders at its own 4:3 internal resolution and Present() letterboxes that onto
-        // whatever the surface happens to be, so a phone's aspect ratio needs no special handling here.
-        Width = 640;
-        Height = 480;
+        // The game renders at a fixed 4:3 internal resolution that Present() letterboxes onto the surface, so
+        // the phone's own aspect needs no handling here. The resolution is the configured one (higher = a
+        // sharper letterboxed image); 640x480 if the config value is unusable.
+        if (Helper.GetResolutionFromString(Config.Resolution, out (int width, int height) res) && res.width > 0 && res.height > 0)
+        {
+            Width = res.width;
+            Height = res.height;
+        }
+        else
+        {
+            Width = 640;
+            Height = 480;
+        }
+        // Vertical mode renders into a portrait backbuffer: keep the configured pixel budget but make it taller
+        // than wide. Every screen reads Width/Height/Scale, so this flips the whole game to portrait.
+        if (Config.Vertical && Width > Height)
+            (Width, Height) = (Height, Width);
         SFXVolume = Config.SFXVolume;
         MusicVolume = Config.MusicVolume;
         FullScreenRect = new(0, 0, Width, Height);
         Scale = Width / 640d;
         ScaleF = (float)Scale;
 
+        WindowMode = FullScreenType.Borderless;   // the Activity surface is always fullscreen
         Backbuffer = LoadRenderTexture(Width, Height);
         Time = GetTime();
         ScreenLoading = new LoadingScreen();
@@ -486,6 +505,7 @@ public class Runtime
         Screens.Last().TopUpdate();
         #if DEBUG
         UpdateTextureView();
+        UpdateBackgroundTester();
         #endif
     }
 
@@ -507,6 +527,10 @@ public class Runtime
         QueueToAdd.Clear();
         Screens.RemoveAll(x => QueueToRemove.Contains(x));
         QueueToRemove.Clear();
+        // Reset the render-from floor whenever the stack changes. An opaque screen (gameplay) re-raises it in
+        // its own PreRender every frame it is present; without this reset it stayed raised after that screen was
+        // removed, so Render() kept skipping the menu underneath — a blank menu after leaving gameplay once.
+        UpdateRenderFrom = 0;
         ScreenRefreshRequired = false;
         if (lastScreen != Screens.LastOrDefault())
         {
@@ -536,9 +560,16 @@ public class Runtime
         Engine.Renderer.ResetTargets();
 
         Present();
-        DrawFPS(0, 0);
+        // FPS counter: in windowed mode the window corner is the game corner, but when fullscreen/letterboxed
+        // (0,0) lands in a black bar, so put it at the top-left of the actual game area instead.
+        if (WindowMode == FullScreenType.Window)
+            DrawFPS(0, 0);
+        else
+            DrawFPS((int)PresentRect.X + 4, (int)PresentRect.Y + 4);
 #if DEBUG
-        if (TextureViewerOpen)
+        if (BackgroundTesterOpen)
+            DrawBackgroundTester();
+        else if (TextureViewerOpen)
             DrawTextureView();
         else
         {
@@ -782,6 +813,98 @@ public class Runtime
                 SetValueMode = false;
             ImGui.End();
         }
+        Engine.Backend.EndDebugUi();
+    }
+
+    // ---- Background tester (Ctrl+B) ------------------------------------------------------------
+    // Cycle every StageBackground implementation live with Left/Right, without reaching a stage or
+    // editing GameBox.cs:634. Mirrors the texture viewer above: inline state + an Update/Draw pair,
+    // toggled by a Ctrl combo and debounced on wall time (there is no IsKeyPressed).
+    private static readonly (string Name, Func<StageBackground> Make)[] BackgroundTesterFactories =
+    {
+        ("HousesBackground", () => new HousesBackground()),
+        ("DrogichinBackground", () => new DrogichinBackground()),
+        ("SillyBackground (empty)", () => new SillyBackground()),
+        ("Swap: Houses <-> Drogichin", () => new SwapStageBackground(new HousesBackground(), new DrogichinBackground())),
+    };
+    private bool BackgroundTesterOpen = false;
+    private int BackgroundTesterId = 0;
+    private int BackgroundTesterBuiltId = -1;
+    private StageBackground? BackgroundTesterInstance;
+    private TargetHandle BackgroundTesterTarget;
+    private bool BackgroundTesterTargetReady = false;
+    private double BackgroundTesterLastKey = 0;
+
+    void UpdateBackgroundTester()
+    {
+        if (GetTime() - TextureViewerDelay < BackgroundTesterLastKey)
+            return;
+        if (IsKeyDown(KeyCode.LeftControl) && IsKeyDown(KeyCode.B))
+        {
+            BackgroundTesterOpen = !BackgroundTesterOpen;
+            if (BackgroundTesterOpen)
+                TextureViewerOpen = false;   // the two testers are mutually exclusive
+            BackgroundTesterLastKey = GetTime();
+            return;
+        }
+        if (!BackgroundTesterOpen)
+            return;
+        if (IsKeyDown(KeyCode.Right))
+        {
+            BackgroundTesterId = (BackgroundTesterId + 1) % BackgroundTesterFactories.Length;
+            BackgroundTesterLastKey = GetTime();
+            return;
+        }
+        if (IsKeyDown(KeyCode.Left))
+        {
+            BackgroundTesterId = (BackgroundTesterId + BackgroundTesterFactories.Length - 1) % BackgroundTesterFactories.Length;
+            BackgroundTesterLastKey = GetTime();
+            return;
+        }
+        if (IsKeyDown(KeyCode.Escape))
+        {
+            BackgroundTesterOpen = false;
+            BackgroundTesterLastKey = GetTime();
+        }
+    }
+
+    void DrawBackgroundTester()
+    {
+        if (!BackgroundTesterTargetReady)
+        {
+            BackgroundTesterTarget = LoadRenderTexture(384, 448);
+            BackgroundTesterTargetReady = true;
+        }
+        if (BackgroundTesterInstance == null || BackgroundTesterBuiltId != BackgroundTesterId)
+        {
+            BackgroundTesterInstance?.Dispose();
+            BackgroundTesterInstance = BackgroundTesterFactories[BackgroundTesterId].Make();
+            BackgroundTesterBuiltId = BackgroundTesterId;
+        }
+
+        // animate from wall time at the sim rate, exactly as GameBox feeds StageBackground.Draw
+        double t = GetTime();
+        int tick = (int)(t * 60);
+        float delta = (float)(t * 60 - tick);
+        BackgroundTesterInstance.Draw(BackgroundTesterTarget, tick, delta);
+
+        DrawRectangle(0, 0, Width, Height, Rgba.Black);
+        // aspect-fit the 384x448 playfield into the window, centered and undistorted
+        float scale = Height / 448f;
+        float w = 384f * scale;
+        float x = (Width - w) / 2f;
+        DrawTexturePro(BackgroundTesterTarget.Texture,
+            Helper.GetFullSourceRenderTexture(BackgroundTesterTarget),
+            new Rect(x, 0, w, Height), Vector2.Zero, 0, Rgba.White);
+
+        if (!Engine.Backend.SupportsDebugUi)
+            return;
+        Engine.Backend.BeginDebugUi();
+        ImGui.Begin("Background Tester");
+        ImGui.Text($"[{BackgroundTesterId + 1}/{BackgroundTesterFactories.Length}] {BackgroundTesterFactories[BackgroundTesterId].Name}");
+        ImGui.Text("Left / Right: cycle backgrounds");
+        ImGui.Text("Ctrl+B or Esc: close");
+        ImGui.End();
         Engine.Backend.EndDebugUi();
     }
 #endif

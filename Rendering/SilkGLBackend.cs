@@ -250,7 +250,7 @@ public sealed unsafe class SilkGLBackend : IBackend
     public int Fps => FpsValue;
 
     public void DrawFpsCounter(int x, int y) => DrawText(GetDefaultFont(), $"{FpsValue} FPS",
-        new Vector2(x, y), 20, 2, Rgba.Lime);
+        new Vector2(x, y), 44, 3, Rgba.Lime);
 
     // ---- frame ----------------------------------------------------------------------------
 

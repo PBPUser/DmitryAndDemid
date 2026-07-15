@@ -1,0 +1,22 @@
+{
+ "blockSize": 24,
+ "blockBinding": 1,
+ "uniforms": [
+  {
+   "name": "time",
+   "offset": 16,
+   "type": "float"
+  },
+  {
+   "name": "rotation",
+   "offset": 20,
+   "type": "float"
+  }
+ ],
+ "samplers": [
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
+}

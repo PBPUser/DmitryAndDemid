@@ -1,0 +1,17 @@
+{
+ "blockSize": 32,
+ "blockBinding": 1,
+ "uniforms": [
+  {
+   "name": "time",
+   "offset": 16,
+   "type": "float"
+  }
+ ],
+ "samplers": [
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
+}

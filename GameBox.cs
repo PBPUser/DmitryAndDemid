@@ -47,15 +47,28 @@ public class GameBox : IDisposable
     int StageIndex = 0;
     bool RequiresRefresh;
     bool IsSpellPractice;
-    bool IsPractice;
-    
+    public bool IsPractice;
+    bool IsReplay;   // playback (replay viewer / title demo): never mutates the player's progress
+    /// <summary>True only for the title-screen attract demo (a subset of replays). Set on the owning screen via
+    /// an object-initializer after construction, so read it lazily through here rather than caching it.</summary>
+    public bool IsDemo => GameplayScreen.IsDemo;
+
     int ComputeCurrentTickFromStartingTime => (int)(GetTime() * TargetTPS);
     
-    public GameBox(GameplayScreen screen, ProtogonistData data, FileStageInfo[] stages, int chapter, int difficulty, bool isPractice)
+    public GameBox(GameplayScreen screen, ProtogonistData data, FileStageInfo[] stages, int chapter, int difficulty, bool isPractice,
+        PlayerControllerBase? controller = null, GameType mode = GameType.Default)
     {
         GameplayScreen = screen;
+        Mode = mode;
         IsPractice = isPractice;
-        Player = new Player(this, data, new PlayerController());
+        // Spell practice is a subset of practice: it keeps its own records and, unlike a full practice run,
+        // ends after the single card the player picked (see NextChapter).
+        IsSpellPractice = mode == GameType.SpellPractice;
+        // A supplied controller (a ReplayController) drives playback; live play passes none and gets the human one.
+        // Playback (replay viewer or the title-screen demo) must not touch the player's progress — no stage
+        // unlocks, no spell-card records — so remember whether this box is a replay.
+        IsReplay = controller is ReplayController;
+        Player = new Player(this, data, controller ?? new PlayerController());
         ProtogonistId = data.ID;
         Difficulty = difficulty;
         Stages = stages;
@@ -72,12 +85,58 @@ public class GameBox : IDisposable
         SignalGameplayOverlay = new SignalGameplayOverlay(this);
         AddOverlay(SignalGameplayOverlay);
         AddOverlay(new ItemGetBorderLineOverlay(this));
+        // Seed the life/bomb stock per mode: spell practice is a bare single-life attempt (0 spare lives, no
+        // bombs), while full practice hands the player a maxed-out stock to freely experiment with. The main
+        // game and extra keep the character's default starting stock.
+        if (Mode == GameType.SpellPractice)
+            Player.SetLivesAndBombs(0, 0);
+        else if (Mode == GameType.Practice)
+            Player.SetLivesAndBombs(MaxLives, MaxBombs);
         UpdateUI();
+    }
+
+    /// <summary>The most lives / bombs the HUD can show (8 slots); what full practice seeds the player with.</summary>
+    public const int MaxLives = 8;
+    public const int MaxBombs = 8;
+
+    /// <summary>Which mode started this run. Continues are a main-game (Default) affordance only.</summary>
+    public GameType Mode;
+
+    /// <summary>How many continues a run may spend before game-over is final.</summary>
+    public const int MaxContinues = 5;
+
+    /// <summary>True while the player may still spend a continue: a live main-game run under the cap.</summary>
+    public bool CanContinue => Mode == GameType.Default && !IsReplay && Continue < MaxContinues;
+
+    /// <summary>Continues still available to spend on the current game-over.</summary>
+    public int ContinuesRemaining => Math.Max(0, MaxContinues - Continue);
+
+    /// <summary>
+    /// Spends a continue: revives the player with a fresh life/bomb stock and lifts the game-over, resuming the
+    /// run from where it fell. No-op once the cap is reached or outside the main game.
+    /// </summary>
+    public void UseContinue()
+    {
+        if (!CanContinue)
+            return;
+        ClearBullets();
+        Player.Revive();
+        IsGameOver = false;   // the setter unpauses and bumps the continue count
     }
     
     #region Update
 
     public const int DelayBetweenChapters = 120;
+
+    /// <summary>How long (seconds) a normal last-stage clear takes to fade all gameplay to black.</summary>
+    public const float ClearFadeDuration = 4f;
+
+    /// <summary>Set when a normal (non-practice) run reaches the end of the last stage; starts the fade-out.</summary>
+    public bool Cleared { get; private set; }
+    private float ClearedAt;
+
+    /// <summary>0 before/at the clear, ramping to 1 (fully black) over <see cref="ClearFadeDuration"/>.</summary>
+    public float ClearFade => Cleared ? Math.Clamp((GetTime() - ClearedAt) / ClearFadeDuration, 0f, 1f) : 0f;
     public void Update()
     {
         BoxUpdate();
@@ -191,6 +250,9 @@ public class GameBox : IDisposable
                 Player.HeartSpices++;
             if (IsKeyDown(KeyCode.H))
                 Player.HeartSpices--;
+            if (IsKeyDown(KeyCode.R))
+                // test laser: fires straight down the player's column from the top edge (telegraph .75s, fire 2s)
+                SpawnLaser(new Vector2(Player.X, 0), MathF.PI / 2f, 480, 24, 45, 120, 30);
             if(IsKeyDown(KeyCode.L))
                 UpdateUI();
             if (IsKeyDown(KeyCode.Z))
@@ -245,7 +307,10 @@ public class GameBox : IDisposable
             obj.FloatingPoints[0x21] = obj.FloatingPoints[0x11] - y;
             obj.FloatingPoints[0x22] = obj.FloatingPoints[0x12] - z;
             obj.FloatingPoints[0x23] = obj.FloatingPoints[0x5] - r;
-            if (obj.X < -32 || obj.Y < -32 || obj.X > 416 || obj.Y > 480)
+            // Lasers are exempt from the offscreen cull: a beam is commonly anchored at a screen edge (or fired
+            // from just outside), and it removes itself when its life ends rather than by leaving the box.
+            if ((obj.Header[0] & RuntimeObject.FlagIsLaser) != RuntimeObject.FlagIsLaser &&
+                (obj.X < -32 || obj.Y < -32 || obj.X > 416 || obj.Y > 480))
             {
                 RemoveObject(obj);
                 continue;
@@ -312,6 +377,26 @@ public class GameBox : IDisposable
             if ((bitMask & RuntimeObject.FlagDangerousRelatedToPlayer) ==
                 RuntimeObject.FlagDangerousRelatedToPlayer)
             {
+                if ((bitMask & RuntimeObject.FlagIsLaser) == RuntimeObject.FlagIsLaser)
+                {
+                    // A laser only kills during its fire phase. Hit-test the player point against the beam
+                    // segment (a capsule of half-width LaserWidth/2). It is not removed on hit and never grazes.
+                    int lage = CurrentTick - obj.CreatedAt;
+                    if (lage >= obj.LaserTelegraphTicks && lage < obj.LaserTelegraphTicks + obj.LaserFireTicks)
+                    {
+                        Vector2 p1 = obj.Position;
+                        Vector2 p2 = p1 + Helper.GetDirection(obj.RenderRotation) * obj.LaserLength;
+                        float dist = MathUtil.PointSegmentDistance(new Vector2(Player.X, Player.Y), p1, p2);
+                        if (dist < Player.CollisionRadius / 2 + obj.LaserWidth / 2)
+                        {
+                            Player.Die();
+                            if (!IsFailed)
+                                SpellFailedText = Helper.Translate("spell.failed");
+                            IsFailed = true;
+                        }
+                    }
+                    continue;
+                }
                 var distance = MathUtil.Vector2Distance(new(Player.X, Player.Y), obj.Position);
                 var collision = Player.CollisionRadius + obj.CollisionScale * obj.FloatingPoints[0x13];
                 if (distance < collision / 2)
@@ -380,6 +465,59 @@ public class GameBox : IDisposable
             }
     }
 
+    /// <summary>Spawns a straight-beam laser: telegraph (thin warning) → fire (lethal) → fade. Angle in radians
+    /// (screen space, +Y is down); length/width in playfield pixels; phase lengths in ticks (60 per second).</summary>
+    public RuntimeObject SpawnLaser(Vector2 origin, float angleRadians, float length, float width,
+        int telegraphTicks, int fireTicks, int fadeTicks)
+    {
+        var laser = RuntimeObject.MakeLaser(this, origin, angleRadians, length, width, telegraphTicks, fireTicks, fadeTicks);
+        AddObject(laser);
+        return laser;
+    }
+
+    void DrawLaser(RuntimeObject obj)
+    {
+        int age = CurrentTick - obj.CreatedAt;
+        int tele = obj.LaserTelegraphTicks, fire = obj.LaserFireTicks, fade = obj.LaserFadeTicks;
+        float length = obj.LaserLength, fullWidth = obj.LaserWidth;
+        float angleDeg = obj.RenderRotation * 180f / MathF.PI;
+
+        float width;
+        Rgba beam, core;
+        if (age < tele)
+        {
+            // telegraph: a thin flickering warning line, so the player can dodge before it fires
+            width = MathF.Max(1.5f, fullWidth * 0.14f);
+            byte a = (byte)(255 * (0.30f + 0.30f * MathF.Abs(MathF.Sin(age * 0.7f))));
+            beam = new Rgba(255, 70, 90, a);
+            core = new Rgba(255, 210, 210, a);
+        }
+        else if (age < tele + fire)
+        {
+            // fire: full-width beam with a hot white core, snapping to full width over the first few ticks
+            float ignite = Math.Clamp((age - tele) / 3f, 0f, 1f);
+            width = fullWidth * (0.55f + 0.45f * ignite);
+            beam = new Rgba(255, 40, 60, 235);
+            core = new Rgba(255, 255, 255, 255);
+        }
+        else
+        {
+            // fade: shrink and fade out
+            float p = fade > 0 ? Math.Clamp((age - tele - fire) / (float)fade, 0f, 1f) : 1f;
+            width = fullWidth * (1f - p);
+            beam = new Rgba(255, 40, 60, (byte)(235 * (1f - p)));
+            core = new Rgba(255, 255, 255, (byte)(255 * (1f - p)));
+        }
+        if (width < 0.5f)
+            return;
+
+        // Both quads are pinned at the emitter (origin at their left-centre) and rotated to the beam angle, so
+        // the beam extends `length` px along the angle from (obj.X, obj.Y).
+        DrawRectanglePro(new Rect(obj.X, obj.Y, length, width), new Vector2(0, width / 2f), angleDeg, beam);
+        float cw = width * 0.42f;
+        DrawRectanglePro(new Rect(obj.X, obj.Y, length, cw), new Vector2(0, cw / 2f), angleDeg, core);
+    }
+
     public void AddScreenEffect(GameplayScreenEffect effect)
     {
         ScreenEffectsToAdd.Add(effect);
@@ -404,6 +542,21 @@ public class GameBox : IDisposable
         RequiresRefresh = true;
     }
     
+    /// <summary>
+    /// Spawns bullet entity <paramref name="i"/> tinted to <paramref name="color"/> (an 0xRRGGBB int). The
+    /// colour is baked into the bullet at load time from its template's Header[4], so it is set just for this
+    /// spawn and restored, leaving the shared template untouched for every other spawner.
+    /// </summary>
+    public RuntimeObject SpawnObject(int i, int color)
+    {
+        var template = StageInfo.Entities[i];
+        int previous = template.Header[4];
+        template.Header[4] = color;
+        RuntimeObject spawned = SpawnObject(i);
+        template.Header[4] = previous;
+        return spawned;
+    }
+
     public RuntimeObject SpawnObject(int i)
     {
         if(!StageInfo.Entities[i].IsBullet)
@@ -506,7 +659,14 @@ public class GameBox : IDisposable
     
     public void LoadStage(FileStageInfo stage, int chapter, int difficulty)
     {
-        PlayerData.Instance.SetStageUnlocked(stage.Header[1], true);
+        if (!IsReplay)
+        {
+            PlayerData.Instance.SetStageUnlocked(stage.Header[1], true);
+            // Reaching a stage unlocks its music (and the boss music) in the music room. Header[2]/[8] index the
+            // music list; unlock by the entry's Number, which is what the music room keys on.
+            UnlockMusicByListIndex(stage.Header[2]);
+            UnlockMusicByListIndex(stage.Header[8]);
+        }
         StageInfo = RuntimeStageInfo.LoadFromFile(stage, difficulty, this);
         AddOverlay(new StageTitleOverlay(this, stage.Header[1]) { TimeAppear = GetTime() + 5f });
 
@@ -516,11 +676,37 @@ public class GameBox : IDisposable
         NextChapter();
     }
 
+    /// <summary>Unlocks the music-room entry at the given music-list index (by its Number), if any.</summary>
+    static void UnlockMusicByListIndex(int listIndex)
+    {
+        if (listIndex < 0 || listIndex >= MusicInfo.MusicInformations.Count)
+            return;
+        MusicInfo? m = MusicInfo.MusicInformations[listIndex];
+        if (m != null)
+            PlayerData.Instance.SetMusicUnlocked(m.Number, true);
+    }
+
     public void NextChapter()
     {
+        // Once a normal run has been cleared the update loop keeps calling this (the run is not paused so the
+        // fade can keep ticking); bail out so the last chapter is not recorded again and again.
+        if (Cleared)
+            return;
+
         // The card we are leaving, if it was one, goes into the player's record before we move on.
         if (ChapterInfo is { Type: ChapterType.Spell })
             RecordSpellAttempt(ChapterInfo.SpellcardTitle, !IsFailed && !SpellTimedOut);
+
+        // Spell practice plays exactly the one card the player picked. On the initial load ChapterInfo is still
+        // null (nothing has played yet), so we fall through and load the chosen card; once that card is what we
+        // are leaving, end straight into the game-over / retry menu instead of advancing into the rest of the
+        // stage — which previously either played on through later chapters or left the run frozen with no menu.
+        if (IsSpellPractice && ChapterInfo != null)
+        {
+            ChapterInfo.Unload();
+            IsGameOver = true;   // leave ChapterInfo in place (unloaded) — the same shape as the practice end below
+            return;
+        }
 
         ChapterIndex++;
         ChapterInfo?.Unload();
@@ -532,7 +718,15 @@ public class GameBox : IDisposable
             }
             else
             {
-                
+                // Normal run reached the end of the last stage (Extra is unimplemented and IsSpellPractice is
+                // never set, so getting here already means a Default run). Begin the slow fade-out of all
+                // gameplay. Deliberately NOT setting IsPaused/IsGameOver: those freeze GetTime(), and the fade
+                // is driven off it.
+                if (!IsSpellPractice)
+                {
+                    Cleared = true;
+                    ClearedAt = GetTime();
+                }
             }
             return;
         }
@@ -543,6 +737,7 @@ public class GameBox : IDisposable
         ChapterScoreShown = false;
         RenderChapterTitle = false;
         RenderBossTitle = false;
+        FireBackgroundEvent("chapter", ChapterIndex);
         if (ChapterInfo.Type == ChapterType.Spell)
         {
             // TODO: Play SpellCard SoundHandle
@@ -557,6 +752,10 @@ public class GameBox : IDisposable
             SpellFailedText = "";
             ChapterScoreCurrent = ScoreChapterMax = ChapterInfo.MaxScore;
             AddScreenEffect(new SpellCardAttackScreenEffect(this, Vector2.Zero, 0, GetTime(), GetTime()+2));
+            // Volumetric circles pouring out of the spell's focus point (192,96 — the same anchor the spell
+            // background shader uses), fading out over the same 2s the attack banner plays.
+            AddScreenEffect(new CirclesScreenEffect(this, new Vector2(192, 96), 0, GetTime(), GetTime()+2));
+            FireBackgroundEvent("spell");
         }
         else if (ChapterInfo.Type == ChapterType.NonSpell)
         {
@@ -601,7 +800,14 @@ public class GameBox : IDisposable
     }
     #endregion
     #region Render
-    private static StageBackground StageBackgroundObject = new DrogichinBackground();
+    private static StageBackground StageBackgroundObject = new HousesBackground();
+
+    /// <summary>
+    /// Raises a named event at the current stage background. Backgrounds ignore events by default; one that
+    /// overrides <see cref="StageBackground.OnEvent"/> can react to it. Fired at natural gameplay beats (chapter
+    /// start, spell card) below, and public so entity/chapter behaviour can raise its own cues.
+    /// </summary>
+    public void FireBackgroundEvent(string name, float value = 0f) => StageBackgroundObject.OnEvent(name, value);
     private static Rgba Transparent = Rgba.Black with { A = 0 };
     public List<GameplayScreenEffect> ScreenEffects = new();
     public TargetHandle Background, Box, UIAboveGameplay, UILeft;
@@ -633,6 +839,11 @@ public class GameBox : IDisposable
         Player.Draw();
         foreach (var obj in BoxObjects)
         {
+            if ((obj.Header[0] & RuntimeObject.FlagIsLaser) == RuntimeObject.FlagIsLaser)
+            {
+                DrawLaser(obj);
+                continue;
+            }
             #if DEBUG
             if(IsKeyDown(KeyCode.A))
                 DrawRectangle((int)(obj.TargetRectangle.X-obj.Origin.X), (int)(obj.TargetRectangle.Y-obj.Origin.X), (int)obj.TargetRectangle.Width,
@@ -680,7 +891,7 @@ public class GameBox : IDisposable
             float scaling = (1 - appear1) * 9 + 1;
             titlePosition = new Vector2(
                 UIAboveGameplay.Texture.Width - (scaling * (1-appear3) * ChapterInfo!.ChapterTitleTexture!.Value.Texture.Width),
-                300 * Runtime.CurrentRuntime.ScaleF * (0.075f+1-appear2));
+                120 * Runtime.CurrentRuntime.ScaleF * (0.075f+1-appear2));
             titleDrawnHeight = ChapterInfo!.ChapterTitleTexture!.Value.Texture.Height * scaling;
             titleRightEdge = titlePosition.X + ChapterInfo!.ChapterTitleTexture!.Value.Texture.Width * scaling;
 
@@ -692,9 +903,40 @@ public class GameBox : IDisposable
         foreach (var overlay in GameplayOverlays)
             overlay.DrawOverlay();
         if (RenderBossTitle)
-            DrawTexture(ChapterInfo!.BossTitleTexture!.Value.Texture, (int)(Runtime.CurrentRuntime.ScaleF * 4),(int)(Runtime.CurrentRuntime.ScaleF * 4),Rgba.White);
+        {
+            float sf = Runtime.CurrentRuntime.ScaleF;
+            var bossTex = ChapterInfo!.BossTitleTexture!.Value.Texture;
+            DrawTexture(bossTex, (int)(sf * 4), (int)(sf * 4), Rgba.White);
+
+            // A row of stars under the antagonist's (boss) title: one per remaining spell of this boss the
+            // player has already seen ("unlocked"). Left-aligned beneath the title — slightly smaller than the
+            // old row and packed with a much tighter gap. The star shader gives each a scrolling rainbow body.
+            int stars = UnlockedRemainingSpells();
+            if (stars > 0)
+            {
+                TextureHandle star = Runtime.CurrentRuntime.Textures["star.png"];
+                float starSize = 13 * sf, starGap = 0.5f * sf;
+                float starX0 = sf * 4;
+                float starY = sf * 4 + bossTex.Height + 2 * sf;
+                ShaderHandle starShader = Runtime.CurrentRuntime.Shaders["star"];
+                SetShaderValue(starShader, GetShaderLocation(starShader, "time"), (float)Gfx.GetTime(), UniformType.Float);
+                SetShaderValue(starShader, GetShaderLocation(starShader, "res"), new Vector2(star.Width, star.Height), UniformType.Vec2);
+                SetShaderValue(starShader, GetShaderLocation(starShader, "alpha"), 1f, UniformType.Float);
+                BeginShaderMode(starShader);
+                for (int i = 0; i < stars; i++)
+                {
+                    float starX = starX0 + i * (starSize + starGap);
+                    DrawTexturePro(star, new Rect(0, 0, star.Width, star.Height),
+                        new Rect(starX, starY, starSize, starSize), Vector2.Zero, 0, Rgba.White);
+                }
+                EndShaderMode();
+            }
+        }
         if(typeI > 1 && !InChapterDelay)
-            Helper.DrawTimer((int)(UIAboveGameplay.Texture.Width - (appearTimer)*Helper.TimerTextureSize.X), 0, (ChapterInfo.TickStart + ChapterInfo!.Length - CurrentTickWithOffset) < (ChapterInfo!.Length > 600 ? 300 : 600));
+            Helper.DrawTimer(
+                (int)((UIAboveGameplay.Texture.Width - Helper.TimerTextureSize.X) / 2f),   // horizontally centered
+                (int)(-(1 - appearTimer) * Helper.TimerTextureSize.Y),                       // slides down into place
+                (ChapterInfo.TickStart + ChapterInfo!.Length - CurrentTickWithOffset) < (ChapterInfo!.Length > 600 ? 300 : 600));
         if (IsDialogActive)
             Dialog!.Draw(UIAboveGameplay);
         EndTextureMode();
@@ -746,8 +988,13 @@ public class GameBox : IDisposable
     bool RenderChapterTitle = false;
     bool RenderBossTitle = false;
     
-    public int ChapterTick => CurrentTick + TickOffset - ChapterInfo.TickStart; 
-    public int CurrentTickWithOffset => CurrentTick + TickOffset; 
+    public int ChapterTick => CurrentTick + TickOffset - ChapterInfo.TickStart;
+    public int CurrentTickWithOffset => CurrentTick + TickOffset;
+
+    /// <summary>The run's current score (read-only view for the post-clear results screen).</summary>
+    public int FinalScore => score;
+    /// <summary>How many continues the player has used this run; 0 means a no-continue clear.</summary>
+    public int ContinuesUsed => Continue;
     
     int Score
     {
@@ -829,8 +1076,36 @@ public class GameBox : IDisposable
     /// ran the timer out. Nothing in the game wrote these counters before, so every card read back as 00/00
     /// however many times it had been played.
     /// </summary>
-    void RecordSpellAttempt(string spellName, bool captured) =>
+    void RecordSpellAttempt(string spellName, bool captured)
+    {
+        if (IsReplay)
+            return;
         PlayerData.Instance.AddSpellcardTry(ProtogonistId, spellName, captured, IsPractice);
+    }
+
+    /// <summary>
+    /// How many of this boss's spell cards the player has already seen in an earlier run ("unlocked" — a
+    /// recorded attempt in either normal or practice) and has still to fight in this encounter (the current
+    /// chapter onward). Drawn as a row of stars under the spell/non-spell title, shrinking as the boss is
+    /// worked through.
+    /// </summary>
+    private int UnlockedRemainingSpells()
+    {
+        if (StageInfo == null)
+            return 0;
+        int count = 0;
+        for (int i = ChapterIndex; i < StageInfo.Chapters.Length; i++)
+        {
+            RuntimeChapter chapter = StageInfo.Chapters[i];
+            if (chapter.Type != ChapterType.Spell)
+                continue;
+            bool seen = PlayerData.Instance.GetSpellcardRecord(ProtogonistId, chapter.SpellcardTitle, false).Total > 0
+                        || PlayerData.Instance.GetSpellcardRecord(ProtogonistId, chapter.SpellcardTitle, true).Total > 0;
+            if (seen)
+                count++;
+        }
+        return count;
+    }
 
     public void UpdateUI()
     {
@@ -933,8 +1208,10 @@ public class GameBox : IDisposable
             {
                 IsPaused = true;
                 GameoverTimestamp = GetTime();
+                if (!IsReplay)
+                    PlayerData.Instance.SetMusicUnlocked(11, true);   // game-over theme
             }
-            else if(Continue < 5)
+            else if(Continue < MaxContinues)
             {
                 IsPaused = false;
                 Continue++;

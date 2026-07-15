@@ -33,8 +33,10 @@ public class TrophyScreen : ScreenWithTitle
         Description = new TargetHandle[files.Length];
         for (int i = 0; i < files.Length; i++)
         {
-            Menu[i] = Helper.DrawTextScaled($"{i:00}",
-                32, 8, 4, 2, 
+            // Earned trophies show their number; still-locked ones are masked as **.
+            string label = PlayerData.Instance.IsTrophyUnlocked(i) ? $"{i:00}" : "**";
+            Menu[i] = Helper.DrawTextScaled(label,
+                32, 8, 4, 2,
                 Runtime.CurrentRuntime.Fonts["newsreader"],
                 "gradient");
         }
@@ -57,11 +59,23 @@ public class TrophyScreen : ScreenWithTitle
                 start = (Runtime.CurrentRuntime.Width - Menu[0].Texture.Width * Math.Min(Menu.Length - i, Columns)) / 2;
                 row = i / Columns;
             }
-            DrawTexturePro(Menu[i].Texture,
-                rc,
-                rc with {X = start + (i % Columns) * Menu[0].Texture.Width, Y = (YFrom) + (Runtime.CurrentRuntime.Height * (1-Helper.EaseInOutElasticF((float)Helper.ComputeObjectTime(time, TimeAppear + (.02f * i), 1, TimeDisappear + (.02f * i), 1)))) + (row) * Menu[0].Texture.Height },
-                Vector2.Zero, 0, Index == i ? Rgba.Yellow : Rgba.White
-                );
+            float itemW = Menu[0].Texture.Width, itemH = Menu[0].Texture.Height;
+            float baseX = start + (i % Columns) * itemW;
+            float baseY = (YFrom) + (Runtime.CurrentRuntime.Height * (1-Helper.EaseInOutElasticF((float)Helper.ComputeObjectTime(time, TimeAppear + (.02f * i), 1, TimeDisappear + (.02f * i), 1)))) + (row) * itemH;
+            Rect dest = rc with { X = baseX, Y = baseY };
+            if (Index == i)
+            {
+                // Selected trophy: a persistent slight enlarge plus a gentle shake, punchier right after a switch.
+                float pop = (float)Math.Clamp(1 - (time - ItemSwitchTime) / 0.25f, 0, 1);
+                float scale = 1.16f;
+                float sf = Runtime.CurrentRuntime.ScaleF;
+                Vector2 shake = new Vector2(MathF.Sin(time * 90f), MathF.Cos(time * 78f)) * 2.5f * sf * (0.4f + pop);
+                float dw = itemW * (scale - 1f), dh = itemH * (scale - 1f);
+                dest = new Rect(baseX - dw / 2f + shake.X, baseY - dh / 2f + shake.Y, itemW * scale, itemH * scale);
+            }
+            // A bit less bright than pure white/yellow so the grid reads softer.
+            Rgba tint = Index == i ? new Rgba(210, 185, 70, 255) : new Rgba(185, 185, 185, 255);
+            DrawTexturePro(Menu[i].Texture, rc, dest, Vector2.Zero, 0, tint);
         }
         base.Render();
     }

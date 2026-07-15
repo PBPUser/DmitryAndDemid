@@ -25,6 +25,13 @@ public class StageTitleOverlay(GameBox box, int index) : GameplayOverlay(box, 0.
     
     protected override void Draw()
     {
+        // The stage title splash is suppressed during the title-screen attract demo — the demo should read as
+        // background footage, not announce its stage.
+        if (Box.IsDemo)
+        {
+            base.Draw();
+            return;
+        }
         DrawTexturePro(Texture, Source4, Destination4 with { Position = Destination4.Position + new Vector2(MathF.Sin(Box.GetTime()), MathF.Cos(Box.GetTime() * 1.5f)) * 16 * Runtime.CurrentRuntime.ScaleF }, Origin, MathF.Sin(Box.GetTime()) * 1.5f, Rgba.White with {A=Helper.TimeToTransparency(StateX(1.5f))});
         DrawTexturePro(Texture, Source1, Destination1, Vector2.Zero, 0, Rgba.White with {A=Helper.TimeToTransparency(State)});
         DrawTexturePro(Texture, Source2, Destination2, Vector2.Zero, 0, Rgba.White with {A=Helper.TimeToTransparency(StateX(.5f))});

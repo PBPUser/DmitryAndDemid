@@ -1,0 +1,37 @@
+{
+ "blockSize": 52,
+ "blockBinding": 1,
+ "uniforms": [
+  {
+   "name": "colDiffuse",
+   "offset": 0,
+   "type": "vec4"
+  },
+  {
+   "name": "resolution",
+   "offset": 16,
+   "type": "vec2"
+  },
+  {
+   "name": "output_resolution",
+   "offset": 24,
+   "type": "vec2"
+  },
+  {
+   "name": "position",
+   "offset": 32,
+   "type": "vec2"
+  },
+  {
+   "name": "opacity",
+   "offset": 48,
+   "type": "int"
+  }
+ ],
+ "samplers": [
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
+}

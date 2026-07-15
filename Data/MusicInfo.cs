@@ -17,4 +17,7 @@ public class MusicInfo
     [JsonInclude] public string Description = "Unknown";
     [JsonInclude] public string File = "";
     [JsonInclude] public string InGameName = "";
+    /// <summary>Shown in the music room in place of <see cref="Title"/> until the player has unlocked the song
+    /// (heard it in gameplay, or during game over / the staff roll / an ending).</summary>
+    [JsonInclude] public string NonUnlockedMusicRoomTitle = "??? ???????";
 }

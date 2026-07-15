@@ -46,6 +46,47 @@ public class MainActivity : Activity
     private GLSurfaceView View = null!;
     private GameRenderer Renderer = null!;
     private BackCallback? BackHandler;   // held so the Java dispatcher's callback is not GC'd
+    private global::Android.Views.View? SplashOverlay;   // sugar.png shown while assets load; removed when ready
+
+    /// <summary>Builds the black splash with sugar.png centered, loaded straight from the APK. Null if absent.</summary>
+    private global::Android.Views.View? BuildSplashOverlay()
+    {
+        try
+        {
+            using Stream stream = base.Assets!.Open("Textures/sugar.png");
+            global::Android.Graphics.Bitmap? bitmap = global::Android.Graphics.BitmapFactory.DecodeStream(stream);
+            if (bitmap == null)
+                return null;
+
+            global::Android.Widget.ImageView image = new(this);
+            image.SetImageBitmap(bitmap);
+            image.SetScaleType(global::Android.Widget.ImageView.ScaleType.CenterInside!);
+
+            global::Android.Widget.FrameLayout overlay = new(this);
+            overlay.SetBackgroundColor(global::Android.Graphics.Color.Black);
+            overlay.AddView(image, new global::Android.Widget.FrameLayout.LayoutParams(
+                global::Android.Views.ViewGroup.LayoutParams.WrapContent,
+                global::Android.Views.ViewGroup.LayoutParams.WrapContent)
+            {
+                Gravity = global::Android.Views.GravityFlags.Center,
+            });
+            return overlay;
+        }
+        catch (Exception exception)
+        {
+            global::Android.Util.Log.Info("aag2", $"no sugar.png splash: {exception.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>Removes the splash once the game is drawing. Idempotent; runs on the UI thread.</summary>
+    private void HideSplash()
+    {
+        if (SplashOverlay == null)
+            return;
+        (SplashOverlay.Parent as global::Android.Views.ViewGroup)?.RemoveView(SplashOverlay);
+        SplashOverlay = null;
+    }
 
     protected override void OnCreate(Bundle? savedInstanceState)
     {
@@ -57,6 +98,12 @@ public class MainActivity : Activity
         string storage = FilesDir?.AbsolutePath ?? CacheDir!.AbsolutePath;
         AndroidPlatform.DataDirectory = storage;
         AndroidPlatform.FatalErrorHandler = message => global::Android.Util.Log.Error("aag2", message);
+
+        // Orientation follows the config: portrait for vertical mode, landscape otherwise. Set at runtime
+        // rather than baked into the [Activity] attribute so a config change takes effect on the next launch.
+        RequestedOrientation = Configuration.Config.Vertical
+            ? ScreenOrientation.SensorPortrait
+            : ScreenOrientation.SensorLandscape;
 
         // Launched from the "Configure" app shortcut: open the game directly on its settings screen.
         if (Intent?.Action == "co.sugar.aag2.CONFIGURE")
@@ -76,7 +123,24 @@ public class MainActivity : Activity
         View.RenderMode = Rendermode.Continuously;
 
         Window?.AddFlags(WindowManagerFlags.KeepScreenOn);
-        SetContentView(View);
+
+        // A centered sugar.png splash over the GL surface while the assets unpack and load — that work runs
+        // synchronously on the GL thread (see GameRenderer.OnSurfaceChanged), so nothing is presented until it
+        // finishes and the surface would otherwise be blank. The splash is a plain Android view drawn on top of
+        // the GLSurfaceView (loaded straight from the APK, before the assets are even unpacked); it is removed
+        // once the game has rendered a frame. If the asset is missing the game just starts on a black screen.
+        global::Android.Widget.FrameLayout root = new(this);
+        root.AddView(View, new global::Android.Widget.FrameLayout.LayoutParams(
+            global::Android.Views.ViewGroup.LayoutParams.MatchParent,
+            global::Android.Views.ViewGroup.LayoutParams.MatchParent));
+        SplashOverlay = BuildSplashOverlay();
+        if (SplashOverlay != null)
+            root.AddView(SplashOverlay, new global::Android.Widget.FrameLayout.LayoutParams(
+                global::Android.Views.ViewGroup.LayoutParams.MatchParent,
+                global::Android.Views.ViewGroup.LayoutParams.MatchParent));
+        Renderer.OnReady = () => RunOnUiThread(HideSplash);
+
+        SetContentView(root);
         EnterImmersive();
 
         // Android 13+ delivers back through this dispatcher (and on 15+ targets OnBackPressed is not called at
@@ -235,6 +299,11 @@ public class GameRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
     private SilkGLBackend? Backend;
     private bool Failed;
 
+    /// <summary>Invoked once the game has drawn its first frames (or failed), so the Activity drops the splash.</summary>
+    public Action? OnReady;
+    private bool Ready;
+    private int ReadyFrames;
+
     /// <summary>Written from the UI thread, read from the GL thread; a torn read costs at most one frame.</summary>
     public volatile Vector2[] Touches = [];
 
@@ -305,10 +374,26 @@ public class GameRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
             DrawLogged = true;
         }
         if (Game == null)
+        {
+            // Startup failed: drop the splash so it does not sit over a dead screen forever.
+            if (Failed && !Ready)
+            {
+                Ready = true;
+                OnReady?.Invoke();
+            }
             return;
+        }
 
         Backend?.SetTouches(Touches);
         Game.RunFrame();
+
+        // Remove the splash only after the game has actually presented a couple of frames, so there is no blank
+        // gap between the splash coming off and the first game frame appearing.
+        if (!Ready && ++ReadyFrames >= 2)
+        {
+            Ready = true;
+            OnReady?.Invoke();
+        }
     }
 
     /// <summary>

@@ -2072,7 +2072,7 @@ public sealed unsafe class VulkanBackend : IBackend
     public int Fps => FpsValue;
 
     public void DrawFpsCounter(int x, int y) =>
-        DrawText(GetDefaultFont(), $"{FpsValue} FPS", new Vector2(x, y), 20, 2, Rgba.Lime);
+        DrawText(GetDefaultFont(), $"{FpsValue} FPS", new Vector2(x, y), 44, 3, Rgba.Lime);
 
     public bool IsKeyDown(KeyCode key) =>
         Keyboard != null && SilkKey(key) is { } k && Keyboard.IsKeyPressed(k);

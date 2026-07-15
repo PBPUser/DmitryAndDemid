@@ -18,6 +18,8 @@ public class ReplayController : PlayerController
     
     public override void Update(Player player, int tick)
     {
+        if (tick < 0 || tick >= Replay.Data.Length)
+            return;
         Vector2 positionChange = Vector2.Zero;
         int tickData = Replay.Data[tick];
         player.IsBombing = tickData % 2 == 1;
@@ -37,6 +39,8 @@ public class ReplayController : PlayerController
         tickData >>= 1;
         player.X += positionChange.X;
         player.Y += positionChange.Y;
-        base.Update(player, tick);
+        // Deliberately NOT calling base.Update: that is PlayerController.Update, which re-reads live keyboard/
+        // pad/touch input and would fight the replay (and overwrite the movement buffer). Playback is driven
+        // solely by Replay.Data above.
     }
 }

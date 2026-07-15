@@ -25,6 +25,18 @@ public static class MathUtil
 
     public static float Vector2Distance(Vector2 a, Vector2 b) => Vector2.Distance(a, b);
 
+    /// <summary>Shortest distance from point <paramref name="p"/> to the line segment a→b. Used for laser
+    /// beam collision (the beam is a capsule: this distance compared against its half-width).</summary>
+    public static float PointSegmentDistance(Vector2 p, Vector2 a, Vector2 b)
+    {
+        Vector2 ab = b - a;
+        float lenSq = ab.LengthSquared();
+        if (lenSq < 1e-6f)
+            return Vector2.Distance(p, a);           // degenerate segment — it's a point
+        float t = Clamp01(Vector2.Dot(p - a, ab) / lenSq);
+        return Vector2.Distance(p, a + ab * t);
+    }
+
     public static Vector2 Vector2MoveTowards(Vector2 from, Vector2 to, float maxDistance)
     {
         Vector2 delta = to - from;

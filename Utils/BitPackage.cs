@@ -225,7 +225,6 @@ public class BitPackage : IDisposable, IAsyncDisposable
     {
         List<byte> bytes = new();
         byte c = 0;
-        Console.WriteLine(String.Join(" ",BitConverter.GetBytes(value).Select(x => Convert.ToString(x, 2).PadLeft(8, '0'))));
         for (int i = 0;; i++)
         {
             c = (byte)((value % ContinueByte) | ContinueByte);
@@ -235,10 +234,8 @@ public class BitPackage : IDisposable, IAsyncDisposable
             if (value == 0)
                 break;
         }
-        Console.WriteLine();
         bytes.Reverse();
         bytes[^1] ^= ContinueByte;
-        Console.WriteLine(String.Join(" ",bytes.Select(x => Convert.ToString(x, 2).PadLeft(8, '0'))));
         Write(bytes.ToArray());
     }
 

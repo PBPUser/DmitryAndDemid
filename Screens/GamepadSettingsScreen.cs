@@ -47,9 +47,13 @@ public class GamepadSettingsScreen : MenuScreen
         base.TopUpdate();
         if (SelectedIndex >= 5)
             return;
-        PadButton padButton = (PadButton)GetGamepadButtonPressed();
-        if (padButton == PadButton.Unknown)
+        // GetGamepadButtonPressed() is PadButton? and is null when nothing is pressed (every frame, on the
+        // backends without a real "last pressed" query). The old unconditional (PadButton) cast unboxed that
+        // null and threw the moment this screen opened.
+        PadButton? pressed = GetGamepadButtonPressed();
+        if (pressed is null or PadButton.Unknown)
             return;
+        PadButton padButton = pressed.Value;
         MenuItems[SelectedIndex].Replace = padButton.ToString();
         switch (SelectedIndex)
         {

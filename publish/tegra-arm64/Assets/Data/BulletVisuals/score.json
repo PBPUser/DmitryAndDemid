@@ -1,0 +1,7 @@
+{
+  "Texture": "collectables.png",
+  "RenderType": 1,
+  "RenderSize": { "X": 12, "Y": 12 },
+  "SpritePosition": { "X": 16, "Y": 0 },
+  "Collision": 4
+}

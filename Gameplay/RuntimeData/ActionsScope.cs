@@ -12,6 +12,27 @@ public static class ActionsScope
     public static FrozenDictionary<string, RuntimeChapterReferenceAction> ChapterActions;
     public static FrozenDictionary<string, RuntimeObjectReferenceAction> ObjectActions;
 
+    // Yellow, brown, green-yellow — the palette for the two-toilet colour-spam spell (Hard & Max only).
+    private static readonly int[] SpamColors = { 0xFFFF00, 0x8B4513, 0xADFF2F };
+
+    /// <summary>Toilet behaviour for that spell: fires a slowly-rotating ring of bullets, cycling the palette.</summary>
+    private static readonly RuntimeObjectReferenceAction ColorSpamToilet = obj =>
+    {
+        if (obj.Box.ChapterTick < 30 || obj.Box.ChapterTick % 20 != 0)
+            return;
+        const int ring = 10;
+        int color = SpamColors[(obj.Box.ChapterTick / 20) % SpamColors.Length];
+        float baseAngle = obj.Box.ChapterTick * 0.12f;
+        for (int k = 0; k < ring; k++)
+        {
+            var b = obj.Box.SpawnObject(0, color);
+            b.X = obj.X;
+            b.Y = obj.Y;
+            b.FacingRotation = b.RenderRotation = baseAngle + k * (MathF.PI * 2f / ring);
+            b.Speed = 2.2f;
+        }
+    };
+
     static ActionsScope()
     {
         RebuildObjectActionsList();
@@ -25,12 +46,29 @@ public static class ActionsScope
         {
 
         };
+        // Two toilets that spew a bunch of yellow / brown / green-yellow bullets. This spell exists only on Hard
+        // and Max — on Easy/Normal it spawns nothing (the card simply times out).
+        dictionary["toilets#colorspam#create"] = c =>
+        {
+            if (c.GameBox.Difficulty < 2)
+                return;
+            for (int side = 0; side < 2; side++)
+            {
+                float x = side == 0 ? 112f : 272f;
+                var toilet = c.GameBox.SpawnObject(7);
+                toilet.X = x;
+                toilet.Y = -16;
+                toilet.SetMoveToTarget(4, new Vector2(x, 96));
+                toilet.UpdateAction = ColorSpamToilet;
+            }
+        };
         dictionary["nikitos#spell1#easy_create"] = c =>
         {
             var nPerson = c.GameBox.SpawnObject(2);
             nPerson.X = -8;
             nPerson.Y = -8;
-            nPerson.Header[0x50] = 4;
+            int diff = Math.Clamp(c.GameBox.Difficulty, 0, 3);
+            nPerson.Header[0x50] = Math.Max(2, 4 - diff);   // faster bullet cadence on harder difficulties
             nPerson.Header[0x51] = 120;
             nPerson.Header[0x5B] = 1;
             var rnd = new Random((int)(c.GameBox.Player.X + c.GameBox.Player.Y));
@@ -43,7 +81,8 @@ public static class ActionsScope
         {
             var nPerson = c.GameBox.SpawnObject(3);
             nPerson.SetMoveToTarget(2, new Vector2(192, 80));
-            nPerson.Header[0x50] = 4;
+            int diff = Math.Clamp(c.GameBox.Difficulty, 0, 3);
+            nPerson.Header[0x50] = Math.Max(2, 4 - diff);   // faster bullet cadence on harder difficulties
             nPerson.Header[0x51] = 120;
             nPerson.Header[0x5B] = 1;
         };
@@ -114,7 +153,7 @@ public static class ActionsScope
                 var c = obj.Box.SpawnObject(6);
                 c.X = obj.X;
                 c.Y = obj.Y;
-                c.Speed = 2;
+                c.Speed = 2 + Math.Clamp(obj.Box.Difficulty, 0, 3) * 0.5f;   // faster on harder difficulties
                 c.FacingRotation = c.RenderRotation = MathF.PI / 2;
                 c.Velocity = new Vector2(0, -1);
                 obj.SetMoveToTarget(4, new Vector2(obj.X, 128));
@@ -139,13 +178,17 @@ public static class ActionsScope
             var time = c.Box.CurrentTick - c.CreatedAt + c.Header[0x5A];
             if (time % c.Header[0x50] == 0 && time > 0)
             {
-                var angle = Helper.FindAngle(c.Position, new Vector2(c.Box.Player.X, c.Box.Player.Y));
-                var d = c.Box.SpawnObject(0);
-                d.FacingRotation = d.RenderRotation =
-                    (float)(c.FloatingPoints[0x5c] + (Math.PI / 2) * (Math.Abs(c.FloatingPoints[0x5D] % 10) - 5) / 5);
-                d.X = c.X;
-                d.Y = c.Y;
-                d.Speed = 6f;
+                int diff = Math.Clamp(c.Box.Difficulty, 0, 3);
+                float baseAngle = (float)(c.FloatingPoints[0x5c] + (Math.PI / 2) * (Math.Abs(c.FloatingPoints[0x5D] % 10) - 5) / 5);
+                int count = 1 + diff;                       // 1..4 bullets, fanned out with difficulty
+                for (int k = 0; k < count; k++)
+                {
+                    var d = c.Box.SpawnObject(0);
+                    d.FacingRotation = d.RenderRotation = baseAngle + (k - (count - 1) / 2f) * 0.18f;
+                    d.X = c.X;
+                    d.Y = c.Y;
+                    d.Speed = 6f + diff * 0.5f;             // and a touch faster
+                }
                 c.FloatingPoints[0x5D]++;
             }
 
