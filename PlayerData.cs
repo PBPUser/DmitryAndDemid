@@ -6,7 +6,7 @@ namespace DmitryAndDemid;
 
 public class PlayerData
 {
-    private const string FileName = "scoreaag2.gsy";
+    private static string FileName => Utils.Platform.DataPath("scoreaag2.gsy");
     public static PlayerData Instance { get; } = new PlayerData();
     public string LastName = "";
     long Flags = 0;
@@ -75,6 +75,33 @@ public class PlayerData
         Save();
     }
     
+    /// <summary>
+    /// A spell card's record for one character: (attempts, captures). Spell practice keeps its own counters,
+    /// separate from the ones earned in a real run — that is what SpellcardPracticesTries is for.
+    /// </summary>
+    public (int Total, int Success) GetSpellcardRecord(string personId, string spellName, bool practice)
+    {
+        if (string.IsNullOrEmpty(spellName) || personId == null)
+            return (0, 0);
+        if (!Persons.TryGetValue(personId, out PersonPlayerData? person))
+            return (0, 0);
+        Dictionary<string, (int, int)> tries = practice ? person.SpellcardPracticesTries : person.SpellcardTries;
+        return tries.TryGetValue(spellName, out (int, int) record) ? record : (0, 0);
+    }
+
+    /// <summary>Counts one finished attempt on a card, and a capture with it if the player pulled it off.</summary>
+    public void AddSpellcardTry(string personId, string spellName, bool captured, bool practice)
+    {
+        if (string.IsNullOrEmpty(spellName) || string.IsNullOrEmpty(personId))
+            return;
+        if (!Persons.TryGetValue(personId, out PersonPlayerData? person))
+            Persons[personId] = person = new PersonPlayerData();
+        Dictionary<string, (int, int)> tries = practice ? person.SpellcardPracticesTries : person.SpellcardTries;
+        (int total, int success) = tries.TryGetValue(spellName, out (int, int) record) ? record : (0, 0);
+        tries[spellName] = (total + 1, success + (captured ? 1 : 0));
+        Save();
+    }
+
     static PlayerData()
     {
         if (File.Exists(FileName))

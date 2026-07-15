@@ -30,12 +30,12 @@ void main(){
 	vec2 p[8];
 	for(int i = 0; i < 8; i++)
 	{
-		p[i] = vec2(forks1[i/4][i%4], 0.0625 * i); 
+		p[i] = vec2(forks1[i/4][i%4], 0.0625 * float(i)); 
 	}
 	float currentIndex = (1-(fragTexCoord.y+1)) * 8;
 	float iD = mod(currentIndex, 1.);
 	int cI1 = int(currentIndex);
-	int cI2 = int(currentIndex+1)%8;
+	int cI2 = int(currentIndex+1.0)%8;
 	float jv1 = clamp(p[cI1][0],-2,2);
 	float jv2 = clamp(p[cI2][0],-2,2);
 	float sx = jv1 + (jv2-jv1)*iD;
@@ -43,7 +43,7 @@ void main(){
 		transparency = 0;
 	for(int i = 0; i < 8; i++)
 	{
-		p[i] = vec2(forks1[i/4+2][i%4], 0.0625 * i); 
+		p[i] = vec2(forks1[i/4+2][i%4], 0.0625 * float(i)); 
 	}
 	jv1 = clamp(p[cI1][0],-1,1);
 	jv2 = clamp(p[cI2][0],-1,1);

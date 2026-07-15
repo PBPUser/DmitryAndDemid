@@ -73,10 +73,11 @@ void main(){
   mat4x2[16] arr;
   for(int i = 0; i < arr.length(); i++)
   {
-    arr[i][0] = vec2(pseudoRandom(2.4+i), pseudoRandom(i-2.0) + 1);
-    arr[i][1] = vec2(pseudoRandom(4.1+i), pseudoRandom(i-5.7) * 2);
-    arr[i][2] = vec2((pseudoRandom(5.2+i) - .5) * 10, (pseudoRandom(-1.4)) * 2);
-    arr[i][3] = vec2(pseudoRandom(9.1+i), 3 * (pseudoRandom(i-3.7) * 0.5 + 0.5));
+    float fi = float(i);
+    arr[i][0] = vec2(pseudoRandom(2.4+fi), pseudoRandom(fi-2.0) + 1.0);
+    arr[i][1] = vec2(pseudoRandom(4.1+fi), pseudoRandom(fi-5.7) * 2.0);
+    arr[i][2] = vec2((pseudoRandom(5.2+fi) - .5) * 10.0, (pseudoRandom(-1.4)) * 2.0);
+    arr[i][3] = vec2(pseudoRandom(9.1+fi), 3.0 * (pseudoRandom(fi-3.7) * 0.5 + 0.5));
   }
   ftc.y = 1-ftc.y;
   ftc = ftc * res;

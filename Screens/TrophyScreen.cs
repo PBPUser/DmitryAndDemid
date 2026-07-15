@@ -2,7 +2,6 @@ using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Utils;
-using Gdk;
 using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Screens;
@@ -29,8 +28,7 @@ public class TrophyScreen : ScreenWithTitle
 
     void Load()
     {
-        string[] files = Directory.GetFiles("Assets/Data/Trophy",
-            "*.json");
+        string[] files = Assets.Files("Assets/Data/Trophy", "*.json");
         Menu = new TargetHandle[files.Length];
         Description = new TargetHandle[files.Length];
         for (int i = 0; i < files.Length; i++)

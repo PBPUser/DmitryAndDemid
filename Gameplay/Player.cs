@@ -7,7 +7,6 @@ using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay.GameplayOverlays;
 using DmitryAndDemid.Utils;
-using Gtk;
 
 namespace DmitryAndDemid.Gameplay;
 

@@ -8,7 +8,7 @@ namespace DmitryAndDemid.Data;
 
 public class MusicInfo
 {
-    public static List<MusicInfo?> MusicInformations = Directory.GetFiles("Assets/Music/Descriptions")
+    public static List<MusicInfo?> MusicInformations = Assets.Files("Assets/Music/Descriptions")
         .Select(x => JsonSerializer.Deserialize<MusicInfo>(System.IO.File.ReadAllText(x))).ToList();
     public static string[] MusicNames = MusicInformations.Select(x => x == null ? "(HoJlb)" : Helper.Transliterate( x.Title)).ToArray();
     

@@ -37,7 +37,7 @@ public class MusicRoomScreen : MenuScreen
         var font = Runtime.CurrentRuntime.Fonts["newsreader"];
         SetTitle(Runtime.CurrentRuntime.Textures["music_room.png"]);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
-        string[] files = Directory.GetFiles("Assets/Music/Descriptions");
+        string[] files = Assets.Files("Assets/Music/Descriptions");
         Infos = new MusicInfo[files.Length];
         Descriptions = new TargetHandle[files.Length];
         for (int i = 0; i < files.Length; i++)

@@ -4,13 +4,14 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using static DmitryAndDemid.Rendering.Gfx;
 using static DmitryAndDemid.Configuration;
-using Gtk;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Rendering;
 using DmitryAndDemid.Screens;
 using DmitryAndDemid.Utils;
+#if DEBUG
 using ImGuiNET;
+#endif
 
 namespace DmitryAndDemid;
 
@@ -23,10 +24,16 @@ public class Runtime
 
     }
 
-    public static string BaseVertexShader = File.ReadAllText("Assets/Shaders/base.vs");
+    // Loaded on first use, NOT in a static field initializer. Reading it at type-init time meant that merely
+    // touching any Runtime static — e.g. Runtime.OpenSettingsOnStart in the Activity's OnCreate — tried to read
+    // base.vs before the Android asset source was installed (that happens later, on the GL thread), and the
+    // whole type initializer threw. It is only used by the desktop editor, so lazy costs nothing.
+    private static string? _baseVertexShader;
+    public static string BaseVertexShader => _baseVertexShader ??= Assets.ReadAllText("Assets/Shaders/base.vs");
+
     public static Rgba TransparentWhite = Rgba.White with { A = 0 };
     public static Rgba TransparentBlack = Rgba.Black with { A = 0 };
-    public string VersionString = "0.01a";
+    public string VersionString = "0.02a";
     public double Time;
     public int Width;
     public int Height;
@@ -89,9 +96,7 @@ public class Runtime
         }
         if (isErrored)
         {
-            var dialog = new MessageDialog(null, DialogFlags.Modal, MessageType.Info, ButtonsType.Ok, error);
-            dialog.Run();
-            dialog.Destroy();
+            Platform.FatalError(error);
             Environment.Exit(0);
         }
         Width = width;
@@ -104,9 +109,10 @@ public class Runtime
         var size = 100 * ScaleF;
         Engine.Platform.OpenWindow(width, height,
             $"AAG2 ~ Subhumanian Fartalism [{Engine.BackendName}]");
+        Engine.Platform.SetWindowIcon("Assets/Textures/icon.png");
         SetWindowMode(Config.FullScreenType);
         Backbuffer = LoadRenderTexture(Width, Height);
-        var sugarTexture = LoadTexture("Assets/Textures/sugar_logo.png");
+        var sugarTexture = LoadTexture(Assets.Resolve("Assets/Textures/sugar_logo.png"));
         if (Engine.Backend.SupportsDebugUi)
             Engine.Backend.SetupDebugUi();
         BeginDrawing();
@@ -131,14 +137,53 @@ public class Runtime
         AddScreen(ScreenLoading);
         await Load();
         while (!WindowShouldClose() || DisableClose)
-        {
-            c = GetTime();
-            PreRender(Time - c);
-            Render();
-            Time = c;
-        }
+            RunFrame();
         Engine.Platform.CloseWindow();
     }
+
+    /// <summary>
+    /// One frame. Desktop spins this in its own loop; Android cannot — there the Activity's GLSurfaceView
+    /// owns the loop and calls this from onDrawFrame, so the body has to be reachable on its own.
+    /// </summary>
+    public void RunFrame()
+    {
+        double now = GetTime();
+        PreRender(Time - now);
+        Render();
+        Time = now;
+    }
+
+#if ANDROID
+    /// <summary>
+    /// Android startup: the GL context and the surface already exist (the Activity made them), so this is
+    /// <see cref="Start"/> minus everything to do with owning a window.
+    /// </summary>
+    public async Task StartAndroid(Silk.NET.OpenGL.GL gl, int surfaceWidth, int surfaceHeight,
+        IAudio? audio = null)
+    {
+        SilkGLBackend backend = new();
+        Engine.Use(backend);
+        if (audio != null)
+            backend.Audio = audio;   // must be set before Load(), which loads every sound
+        backend.AttachExternalContext(gl, surfaceWidth, surfaceHeight);
+
+        // The game always renders at its own 4:3 internal resolution and Present() letterboxes that onto
+        // whatever the surface happens to be, so a phone's aspect ratio needs no special handling here.
+        Width = 640;
+        Height = 480;
+        SFXVolume = Config.SFXVolume;
+        MusicVolume = Config.MusicVolume;
+        FullScreenRect = new(0, 0, Width, Height);
+        Scale = Width / 640d;
+        ScaleF = (float)Scale;
+
+        Backbuffer = LoadRenderTexture(Width, Height);
+        Time = GetTime();
+        ScreenLoading = new LoadingScreen();
+        AddScreen(ScreenLoading);
+        await Load();
+    }
+#endif
 
     /// <summary>
     /// Switches presentation mode and persists it. Live-switchable: the internal resolution never changes,
@@ -277,22 +322,33 @@ public class Runtime
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// Set by the Android "Configure" app shortcut: the game opens straight into its settings screen. The
+    /// desktop configurator is a separate GTK app, so this path is Android's stand-in for it.
+    /// </summary>
+    public static bool OpenSettingsOnStart;
+
     void SwitchToMain()
     {
         ScreenMain = new MainScreen();
         RemoveScreen(ScreenLoading);
         AddScreen(ScreenMain);
+        if (OpenSettingsOnStart)
+        {
+            OpenSettingsOnStart = false;
+            AddScreen(new SettingsScreen());
+        }
     }
 
     void LoadAudio()
     {
-        foreach (var file in Directory.GetFiles("Assets/Sounds"))
+        foreach (var file in Assets.Files("Assets/Sounds"))
             Sounds[Path.GetFileNameWithoutExtension(file)] = LoadSound(file);
     }
     
     void LoadTextures()
     {
-        foreach (var x in Directory.GetFiles("Assets/Textures", "*.png"))
+        foreach (var x in Assets.Files("Assets/Textures", "*.png"))
             Textures[Path.GetFileName(x)] = LoadTexture(x);
         Textures["MenuItemSelectionGradient1"] = Helper.RenderSelectionBackground(200, 200, 0);
         Textures["MenuBackground"] = Helper.FillTextureWithColor(Rgba.Black with { A = 128 }, Width, Height).Texture;
@@ -341,27 +397,34 @@ public class Runtime
         {
             IncludeFields = true
         };
-        foreach (var x in Directory.GetFiles("Assets/Data/BulletVisuals"))
+        foreach (var x in Assets.Files("Assets/Data/BulletVisuals"))
             BulletVisualPresets[Path.GetFileNameWithoutExtension(x)] =
                 JsonSerializer.Deserialize<BulletRenderingInfo>(File.ReadAllText(x), jso);
     }
 
     void LoadShaders()
     {
-        string[] fragmentShaders = Directory.GetFiles("Assets/Shaders", "*.fs").OrderBy(x => x).ToArray();
+        string[] fragmentShaders = Assets.Files("Assets/Shaders", "*.fs").OrderBy(x => x).ToArray();
         foreach (var x in fragmentShaders)
         {
             string vertexFile = x.Remove(x.Length - 3, 3) + ".vs";
             string shaderKey = x.Remove(x.Length - 3, 3).Replace("\\", "/").Split("/").Last();
             try
             {
+                // Anything the driver says about *this* shader, and not the one before it.
+                ShaderDiagnostics.Clear();
                 if (File.Exists(vertexFile))
                     Shaders.Add(shaderKey, LoadShader(vertexFile, x));
                 else
-                    Shaders.Add(shaderKey, LoadShader("Assets/Shaders/base.vs", x));
+                    Shaders.Add(shaderKey, LoadShader(Assets.Resolve("Assets/Shaders/base.vs"), x));
                 if (Shaders[shaderKey].Id == 0)
                 {
-                    ScreenLoading.SetADPText("Failed to load shader: " + x, false);
+                    string reason = ShaderDiagnostics.HasError
+                        ? ShaderDiagnostics.LastError
+                        : "no compiler log — the driver gave no reason";
+                    string message = $"Failed to load shader: {x}\n{reason}";
+                    Console.Error.WriteLine(message);
+                    ScreenLoading.SetADPText(message, false);
                     ADPTriggered = true;
                 }
             }
@@ -376,7 +439,7 @@ public class Runtime
     void LoadFonts()
     {
         int fSize = (int)(64 * ScaleF);
-        foreach (var font in Directory.GetFiles("Assets/Fonts"))
+        foreach (var font in Assets.Files("Assets/Fonts"))
         {
             Fonts[Path.GetFileNameWithoutExtension(font)] = LoadFontEx(font, fSize, [], 0);
         }
@@ -492,6 +555,7 @@ public class Runtime
         EndDrawing();
      }
 
+#if DEBUG
     private bool UseWhiteBackground = false;
     
     void UpdateTextureView()
@@ -720,6 +784,7 @@ public class Runtime
         }
         Engine.Backend.EndDebugUi();
     }
+#endif
 
     private UniformType UniformType = UniformType.Float;
     private string FieldText = "";

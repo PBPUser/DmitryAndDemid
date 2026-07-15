@@ -108,7 +108,7 @@ public class BulletRenderingInfo
     }
     
     #if DEBUG
-    public static string BaseVS = File.ReadAllText("Assets/Shaders/base.vs");
+    public static string BaseVS = Assets.ReadAllText("Assets/Shaders/base.vs");
     public string TextureShaderText = "";
     private bool TextureShaderOverriden = false;
     

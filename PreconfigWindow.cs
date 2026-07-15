@@ -1,3 +1,4 @@
+#if !ANDROID
 using DmitryAndDemid.Rendering;
 using static DmitryAndDemid.Rendering.Gfx;
 using DmitryAndDemid.Data;
@@ -152,3 +153,5 @@ public class PreconfigWindow
         Application.Run();
     }
 }
+
+#endif

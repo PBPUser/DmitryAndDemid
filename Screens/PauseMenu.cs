@@ -3,7 +3,9 @@ using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Utils;
+#if DEBUG
 using ImGuiNET;
+#endif
 using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Screens;
@@ -16,6 +18,10 @@ public class PauseMenu : MenuScreen
     {
         GameplayScreen = screen;
         CurrentY = (int)(256 * Runtime.CurrentRuntime.ScaleF);
+
+        // In-game pause keeps the old reflex: Escape closes it outright instead of walking the cursor down to
+        // "exit", which here means abandoning the run.
+        EscapeFocusesExitItem = false;
     }
 
     public override void CreateMenu()

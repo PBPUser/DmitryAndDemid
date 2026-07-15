@@ -4,6 +4,8 @@ using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using DmitryAndDemid.Utils;
+
 namespace DmitryAndDemid.Data;
 
 public class EntityVisual
@@ -12,7 +14,7 @@ public class EntityVisual
 
     static EntityVisual()
     {
-        foreach (var file in Directory.GetFiles("Assets/Data/EntityVisuals"))
+        foreach (var file in Assets.Files("Assets/Data/EntityVisuals"))
             Visuals[Path.GetFileNameWithoutExtension(file)] = JsonSerializer.Deserialize<EntityVisual>(File.ReadAllText(file), new JsonSerializerOptions()
             {
                 IncludeFields = true

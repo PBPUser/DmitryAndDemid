@@ -8,9 +8,13 @@ namespace DmitryAndDemid.Screens;
 
 public class SettingsScreen : MenuScreen
 {
+    // The adjustable rows, referenced directly so the left/right handler and the label updates do not depend
+    // on positions that shift between platforms. Window/renderer are null on Android (those rows are absent).
+    private MenuItem? SfxItem, MusicItem, WindowItem, RendererItem, FramerateItem;
+
     public SettingsScreen()
     {
-        
+
     }
 
     public override void Exiting()
@@ -31,31 +35,45 @@ public class SettingsScreen : MenuScreen
     {
         SetTitle(Runtime.CurrentRuntime.Textures["settings.png"]);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
-        MenuItems.Add(new MenuItem("settings.sfx", $"{Configuration.Config.SFXVolume * 100:00}", a => {}));
-        MenuItems.Add(new MenuItem("settings.music", $"{Configuration.Config.MusicVolume * 100:00}", a => {}));
-        MenuItems.Add(new MenuItem("settings.fullscreen", $"{Configuration.Config.FullScreenType}",
-            a => CycleWindowMode(1)));
-        MenuItems.Add(new MenuItem("settings.vsync", $"{Configuration.Config.UseVSYNC}",
-            a =>
-            {
-                Configuration.Config.UseVSYNC = !Configuration.Config.UseVSYNC;
-                Configuration.Config.Save();
-                Engine.Platform.SetVSync(Configuration.Config.UseVSYNC);
-                MenuItems[3].Replace = $"{Configuration.Config.UseVSYNC}";
-            }));
-        MenuItems.Add(new MenuItem("settings.framerate", $"{Configuration.Config.FrameCap}", a =>
-        {
 
-        }));
+        // Items are matched by REFERENCE below, not by index — the rows present differ per platform (Android
+        // has no window mode and no renderer switch), and hard indices silently broke when a row was dropped.
+        SfxItem = new MenuItem("settings.sfx", $"{Configuration.Config.SFXVolume * 100:00}", a => {});
+        MenuItems.Add(SfxItem);
+        MusicItem = new MenuItem("settings.music", $"{Configuration.Config.MusicVolume * 100:00}", a => {});
+        MenuItems.Add(MusicItem);
+#if !ANDROID
+        // The window mode is meaningless on Android — the game always owns the full surface — so this row and
+        // the renderer switch (which relaunches the process) are desktop-only.
+        WindowItem = new MenuItem("settings.fullscreen", $"{Configuration.Config.FullScreenType}",
+            a => CycleWindowMode(1));
+        MenuItems.Add(WindowItem);
+#endif
+        MenuItem vsyncItem = new("settings.vsync", $"{Configuration.Config.UseVSYNC}", null);
+        vsyncItem.Action = a =>
+        {
+            Configuration.Config.UseVSYNC = !Configuration.Config.UseVSYNC;
+            Configuration.Config.Save();
+            Engine.Platform.SetVSync(Configuration.Config.UseVSYNC);
+            vsyncItem.Replace = $"{Configuration.Config.UseVSYNC}";
+        };
+        MenuItems.Add(vsyncItem);
+        FramerateItem = new MenuItem("settings.framerate", $"{Configuration.Config.FrameCap}", a => {});
+        MenuItems.Add(FramerateItem);
+#if !ANDROID
         // Left/Right picks the renderer; Enter restarts into it. It cannot be swapped live — every texture,
         // shader and render target is owned by the backend, and the window itself is created by it.
-        MenuItems.Add(new MenuItem("settings.renderer", RendererLabel(), a => ApplyRenderer()));
+        RendererItem = new MenuItem("settings.renderer", RendererLabel(), a => ApplyRenderer());
+        MenuItems.Add(RendererItem);
+#endif
         MenuItems.Add(new MenuItem("settings.controller", "", a => Runtime.CurrentRuntime.AddScreen(new GamepadSettingsScreen())));
         MenuItems.Add(new MenuItem("settings.default", "", a => {}));
         MenuItems.Add(new MenuItem("ingame.exit", "", a => Exit()));
         CurrentX = (int)(Runtime.CurrentRuntime.Scale * 32);
         CurrentY = (int)(Runtime.CurrentRuntime.Scale * 192);
     }
+
+    private TargetHandle RendererNotice;
 
     public override void Render()
     {
@@ -64,6 +82,22 @@ public class SettingsScreen : MenuScreen
         DrawBackground();
         DrawMenu();
         DrawTitle();
+
+        // Attention when the renderer was just changed: it only takes effect on restart, so flash a red notice
+        // for a few seconds rather than let the change pass silently.
+        float since = time - RendererChangedNotice;
+        if (since is >= 0 and < 5f)
+        {
+            if (RendererNotice.Id == 0)
+                RendererNotice = Helper.DrawTextScaled(Helper.Translate("settings.renderer_restart"), 18, 6, 4, 2,
+                    Runtime.CurrentRuntime.Fonts["newsreader"], "outline");
+            float blink = 0.5f + 0.5f * MathF.Sin(time * 8f);
+            var tex = RendererNotice.Texture;
+            DrawTexture(tex,
+                (Runtime.CurrentRuntime.Width - tex.Width) / 2,
+                (int)(Runtime.CurrentRuntime.Height - tex.Height - 24 * Runtime.CurrentRuntime.ScaleF),
+                new Rgba(255, 60, 60, (byte)(255 * blink)));
+        }
     }
 
     private static readonly FullScreenType[] WindowModes =
@@ -83,10 +117,9 @@ public class SettingsScreen : MenuScreen
         index = (index + direction + WindowModes.Length) % WindowModes.Length;
 
         Runtime.CurrentRuntime.SetWindowMode(WindowModes[index]); // persists to config itself
-        MenuItems[2].Replace = $"{WindowModes[index]}";
+        if (WindowItem != null)
+            WindowItem.Replace = $"{WindowModes[index]}";
     }
-
-    private const int RendererItemIndex = 5;
 
     /// <summary>
     /// Config value -> display name. Keep the KEYS in step with Engine.Create; the names are for the player.
@@ -126,8 +159,13 @@ public class SettingsScreen : MenuScreen
 
         Configuration.Config.Renderer = Renderers[index].Key;
         Configuration.Config.Save();
-        MenuItems[RendererItemIndex].Replace = RendererLabel();
+        if (RendererItem != null)
+            RendererItem.Replace = RendererLabel();
+        RendererChangedNotice = (float)GetTime();   // flag the "restart required" attention line
     }
+
+    /// <summary>When the renderer was last changed, so Render can flash a "restart required" notice.</summary>
+    private float RendererChangedNotice = float.MinValue;
 
     /// <summary>
     /// Restarts the process on the selected renderer. The backend owns the window and every GPU resource,
@@ -160,7 +198,9 @@ public class SettingsScreen : MenuScreen
     {
         base.TopUpdate();
         double time = GetTime();
-        if (SelectedIndex == 0 && LastTimeShootSoundTestPlayed + TimeShootSoundTestDelay < time)
+        MenuItem selected = SelectedIndex >= 0 && SelectedIndex < MenuItems.Count ? MenuItems[SelectedIndex] : null!;
+
+        if (selected == SfxItem && LastTimeShootSoundTestPlayed + TimeShootSoundTestDelay < time)
         {
             LastTimeShootSoundTestPlayed = time;
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["dead"]);
@@ -177,36 +217,35 @@ public class SettingsScreen : MenuScreen
                 return;
             AnimationStartedAt = PreviousKeyTimestamp = time;
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
-            switch (SelectedIndex)
+
+            if (selected == SfxItem)
             {
-                case 0:
-                    Runtime.CurrentRuntime.SFXVolume = Configuration.Config.SFXVolume = Math.Clamp(Runtime.CurrentRuntime.SFXVolume + delta, 0, 1);  
-                    MenuItems[0].Replace = $"{Configuration.Config.SFXVolume*100:00}";
-                    Configuration.Config.Save();
-                    break;
-                case 1:
-                    Runtime.CurrentRuntime.MusicVolume = Configuration.Config.MusicVolume = Math.Clamp(Runtime.CurrentRuntime.MusicVolume + delta, 0, 1);  
-                    MenuItems[1].Replace = $"{Configuration.Config.MusicVolume*100:00}";
-                    Configuration.Config.Save();
-                    break;
-                case 2:
-                    CycleWindowMode(delta > 0 ? 1 : -1);
-                    break;
-                case RendererItemIndex:
-                    CycleRenderer(delta > 0 ? 1 : -1);
-                    break;
-                case 4:
-                    delta *= 600;
-                    Configuration.Config.FrameCap = (int)(Configuration.Config.FrameCap + delta);
-                    if (Configuration.Config.FrameCap < 1)
-                        Configuration.Config.FrameCap = -1;
-                    else if(Configuration.Config.FrameCap > 1 && Configuration.Config.FrameCap < 30)
-                        Configuration.Config.FrameCap = 30;
-                    SetTargetFPS(Configuration.Config.FrameCap);
-                    MenuItems[4].Replace = $"{Configuration.Config.FrameCap}";
-                    Configuration.Config.Save();
-                    Runtime.CurrentRuntime.IsFrameCap240 =  Configuration.Config.FrameCap == 240;
-                    break;
+                Runtime.CurrentRuntime.SFXVolume = Configuration.Config.SFXVolume = Math.Clamp(Runtime.CurrentRuntime.SFXVolume + delta, 0, 1);
+                SfxItem.Replace = $"{Configuration.Config.SFXVolume * 100:00}";
+                Configuration.Config.Save();
+            }
+            else if (selected == MusicItem)
+            {
+                Runtime.CurrentRuntime.MusicVolume = Configuration.Config.MusicVolume = Math.Clamp(Runtime.CurrentRuntime.MusicVolume + delta, 0, 1);
+                MusicItem!.Replace = $"{Configuration.Config.MusicVolume * 100:00}";
+                Configuration.Config.Save();
+            }
+            else if (selected == WindowItem)
+                CycleWindowMode(delta > 0 ? 1 : -1);
+            else if (selected == RendererItem)
+                CycleRenderer(delta > 0 ? 1 : -1);
+            else if (selected == FramerateItem)
+            {
+                delta *= 600;
+                Configuration.Config.FrameCap = (int)(Configuration.Config.FrameCap + delta);
+                if (Configuration.Config.FrameCap < 1)
+                    Configuration.Config.FrameCap = -1;
+                else if (Configuration.Config.FrameCap > 1 && Configuration.Config.FrameCap < 30)
+                    Configuration.Config.FrameCap = 30;
+                SetTargetFPS(Configuration.Config.FrameCap);
+                FramerateItem!.Replace = $"{Configuration.Config.FrameCap}";
+                Configuration.Config.Save();
+                Runtime.CurrentRuntime.IsFrameCap240 = Configuration.Config.FrameCap == 240;
             }
         }
     }

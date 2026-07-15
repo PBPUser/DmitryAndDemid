@@ -1,11 +1,17 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+#if !ANDROID
 using Silk.NET.Input;
+#endif
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
+#if !ANDROID
 using Silk.NET.Windowing;
+#endif
 using StbImageSharp;
 using StbTrueTypeSharp;
+
+using DmitryAndDemid.Utils;
 
 namespace DmitryAndDemid.Rendering;
 
@@ -30,11 +36,15 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     public string Name => "Silk.NET/OpenGL";
 
+#if !ANDROID
     private IWindow Window = null!;
+#endif
     private GL Gl = null!;
+#if !ANDROID
     private IInputContext Input = null!;
     private IKeyboard? Keyboard;
     private IMouse? Mouse;
+#endif
 
     private uint QuadVao, QuadVbo, QuadEbo;
     private uint DefaultProgram;
@@ -51,6 +61,7 @@ public sealed unsafe class SilkGLBackend : IBackend
     private int NextId = 1;
 
     private int FrameWidth, FrameHeight;   // dimensions of whatever we are currently drawing into
+    private int SurfaceWidth, SurfaceHeight;   // Android: the fixed GLSurfaceView size, for window-space draws
     private double StartTime;
     private int FrameCounter;
     private double FpsAccumulator;
@@ -93,6 +104,10 @@ public sealed unsafe class SilkGLBackend : IBackend
     }
 
     // ---- window ---------------------------------------------------------------------------
+    // Android has no window of its own: the Activity's GLSurfaceView owns the surface and the context, and
+    // AttachExternalContext (below) takes it from there. Everything in this section is GLFW-shaped and only
+    // exists on desktop; the Android stubs at the end of the section answer the same interface.
+#if !ANDROID
 
     public void OpenWindow(int width, int height, string title)
     {
@@ -109,6 +124,7 @@ public sealed unsafe class SilkGLBackend : IBackend
         Window.Initialize();
 
         Gl = GL.GetApi(Window);
+        IsGles = (Gl.GetStringS(StringName.Version) ?? "").Contains("OpenGL ES", StringComparison.OrdinalIgnoreCase);
         Input = Window.CreateInput();
         Keyboard = Input.Keyboards.FirstOrDefault();
         Mouse = Input.Mice.FirstOrDefault();
@@ -117,12 +133,12 @@ public sealed unsafe class SilkGLBackend : IBackend
         Gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
         BuildQuad();
-        DefaultProgram = BuildProgram(File.ReadAllText(BaseVertexShaderPath), DefaultFragmentSource);
+        DefaultProgram = BuildProgram(Assets.ReadAllText(ShaderPath(BaseVertexShaderPath)), DefaultFragmentSource);
         WhitePixel = CreateSolidTexture(255, 255, 255, 255);
 
         StartTime = (double)Environment.TickCount64 / 1000.0;
-        FrameWidth = width;
-        FrameHeight = height;
+        SurfaceWidth = FrameWidth = width;
+        SurfaceHeight = FrameHeight = height;
     }
 
     public void CloseWindow() => Window?.Close();
@@ -176,6 +192,49 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     public void SetVSync(bool enabled) => Window.VSync = enabled;
 
+    public void SetWindowIcon(string path)
+    {
+        if (!Assets.Exists(path))
+            return;
+        ImageResult image = ImageResult.FromMemory(Assets.ReadAllBytes(path), ColorComponents.RedGreenBlueAlpha);
+        // Silk wants the pixels pinned for the duration of the call; a RawImage over the managed array does it.
+        var raw = new Silk.NET.Core.RawImage(image.Width, image.Height, image.Data);
+        Window.SetWindowIcon([raw]);
+    }
+
+#else   // ANDROID
+
+    public void OpenWindow(int width, int height, string title) =>
+        throw new NotSupportedException("On Android the Activity owns the surface; use AttachExternalContext.");
+
+    public void CloseWindow() { }
+
+    /// <summary>Android decides when the app ends; the game never closes its own window.</summary>
+    public bool ShouldClose => false;
+
+    public void SetWindowSize(int width, int height) { }
+
+    public WindowMode CurrentWindowMode => WindowMode.Borderless;
+
+    // The surface size is fixed for the Activity's lifetime; FrameWidth/Height, by contrast, tracks whatever
+    // is currently bound (a render target during target draws), so the window size must come from here, not
+    // from FrameWidth — otherwise Present() reads a target's size and mis-scales the whole frame.
+    public int WindowWidth => SurfaceWidth;
+    public int WindowHeight => SurfaceHeight;
+    public int MonitorWidth => SurfaceWidth;
+    public int MonitorHeight => SurfaceHeight;
+
+    /// <summary>Always fullscreen — there is no other mode on a phone.</summary>
+    public void ApplyWindowMode(WindowMode mode, int windowedWidth, int windowedHeight) { }
+
+    /// <summary>The compositor paces the frames; GLSurfaceView is already vsynced.</summary>
+    public void SetVSync(bool enabled) { }
+
+    /// <summary>The launcher icon is an Android resource (@drawable/icon); there is no window icon to set.</summary>
+    public void SetWindowIcon(string path) { }
+
+#endif
+
     public void SetTargetFps(int fps)
     {
         // Silk drives its own loop timing; the game paces itself off Time, so nothing to do here.
@@ -197,16 +256,23 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     public void BeginFrame()
     {
+#if !ANDROID
         Window.DoEvents();
         FrameWidth = Window.Size.X;
         FrameHeight = Window.Size.Y;
+#else
+        FrameWidth = SurfaceWidth;
+        FrameHeight = SurfaceHeight;
+#endif
         Gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
         Gl.Viewport(0, 0, (uint)FrameWidth, (uint)FrameHeight);
     }
 
     public void EndFrame()
     {
-        Window.SwapBuffers();
+#if !ANDROID
+        Window.SwapBuffers();   // on Android GLSurfaceView swaps for us, after onDrawFrame returns
+#endif
 
         FrameCounter++;
         double now = Time;
@@ -222,10 +288,10 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     public TextureHandle LoadTexture(string path)
     {
-        if (!File.Exists(path))
+        if (!Assets.Exists(path))
             return TextureHandle.None;
 
-        using FileStream stream = File.OpenRead(path);
+        using Stream stream = Assets.OpenRead(path);
         ImageResult image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
         return CreateTexture(image.Data, image.Width, image.Height);
     }
@@ -373,24 +439,67 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     private void BindWindow()
     {
-        Gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-        Gl.Viewport(0, 0, (uint)Window.Size.X, (uint)Window.Size.Y);
+#if !ANDROID
         FrameWidth = Window.Size.X;
         FrameHeight = Window.Size.Y;
+#else
+        FrameWidth = SurfaceWidth;
+        FrameHeight = SurfaceHeight;
+#endif
+        Gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        Gl.Viewport(0, 0, (uint)FrameWidth, (uint)FrameHeight);
     }
 
     // ---- shaders --------------------------------------------------------------------------
 
+    /// <summary>
+    /// True when the context is OpenGL ES rather than desktop GL — i.e. Android. ES rejects the game's
+    /// #version 330/400 shaders outright, so on ES the backend loads the generated ES variants instead
+    /// (Assets/Shaders/gles, produced by Tools/compile_gles_shaders.py).
+    /// </summary>
+    public bool IsGles { get; private set; }
+
+    private const string GlesShaderDirectory = "Assets/Shaders/gles";
+
+    private string ShaderPath(string path)
+    {
+        if (!IsGles)
+            return path;
+        string es = $"{GlesShaderDirectory}/{Path.GetFileName(path)}";
+        return Assets.Exists(es) ? es : path;
+    }
+
     public ShaderHandle LoadShader(string? vertexPath, string fragmentPath)
     {
-        string vertex = File.ReadAllText(vertexPath ?? BaseVertexShaderPath);
-        string fragment = File.ReadAllText(fragmentPath);
+        string vertex = Assets.ReadAllText(ShaderPath(vertexPath ?? BaseVertexShaderPath));
+        string fragment = Assets.ReadAllText(ShaderPath(fragmentPath));
         return LoadShaderFromSource(vertex, fragment);
+    }
+
+    /// <summary>
+    /// Adopts a GL context created by the host instead of opening a window — this is how Android runs, where
+    /// the Activity's GLSurfaceView owns the context and the surface, and there is no GLFW at all.
+    /// </summary>
+    public void AttachExternalContext(GL gl, int width, int height)
+    {
+        Gl = gl;
+        IsGles = (Gl.GetStringS(StringName.Version) ?? "").Contains("OpenGL ES", StringComparison.OrdinalIgnoreCase);
+
+        Gl.Enable(EnableCap.Blend);
+        Gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
+        BuildQuad();
+        DefaultProgram = BuildProgram(Assets.ReadAllText(ShaderPath(BaseVertexShaderPath)), DefaultFragmentSource);
+        WhitePixel = CreateSolidTexture(255, 255, 255, 255);
+
+        StartTime = (double)Environment.TickCount64 / 1000.0;
+        SurfaceWidth = FrameWidth = width;
+        SurfaceHeight = FrameHeight = height;
     }
 
     public ShaderHandle LoadShaderFromSource(string? vertexSource, string fragmentSource)
     {
-        uint program = BuildProgram(vertexSource ?? File.ReadAllText(BaseVertexShaderPath), fragmentSource);
+        uint program = BuildProgram(vertexSource ?? Assets.ReadAllText(BaseVertexShaderPath), fragmentSource);
         if (program == 0)
             return ShaderHandle.None;
         int id = NextId++;
@@ -422,7 +531,11 @@ public sealed unsafe class SilkGLBackend : IBackend
         Gl.LinkProgram(program);
         Gl.GetProgram(program, ProgramPropertyARB.LinkStatus, out int linked);
         if (linked == 0)
-            Console.WriteLine($"SilkGL: shader link failed: {Gl.GetProgramInfoLog(program)}");
+        {
+            string log = Gl.GetProgramInfoLog(program);
+            Console.WriteLine($"SilkGL: shader link failed: {log}");
+            ShaderDiagnostics.Report($"link failed: {log}");
+        }
 
         Gl.DeleteShader(vs);
         Gl.DeleteShader(fs);
@@ -437,7 +550,9 @@ public sealed unsafe class SilkGLBackend : IBackend
         Gl.GetShader(shader, ShaderParameterName.CompileStatus, out int ok);
         if (ok != 0)
             return shader;
-        Console.WriteLine($"SilkGL: {type} compile failed: {Gl.GetShaderInfoLog(shader)}");
+        string infoLog = Gl.GetShaderInfoLog(shader);
+        Console.WriteLine($"SilkGL: {type} compile failed: {infoLog}");
+        ShaderDiagnostics.Report($"{(type == ShaderType.VertexShader ? "vertex" : "fragment")} shader: {infoLog}");
         Gl.DeleteShader(shader);
         return 0;
     }
@@ -750,8 +865,27 @@ public sealed unsafe class SilkGLBackend : IBackend
         Gl.BindVertexArray(0);
     }
 
-    private const string DefaultFragmentSource = """
+    // The built-in shader that draws a plain textured quad. Two spellings of the same program: desktop GLSL
+    // and GL ES (which rejects "#version 330" and needs a precision qualifier). Picked by IsGles, same as the
+    // file-backed shaders.
+    private string DefaultFragmentSource => IsGles ? EsDefaultFragmentSource : GlDefaultFragmentSource;
+
+    private const string GlDefaultFragmentSource = """
         #version 330
+        in vec2 fragTexCoord;
+        in vec4 fragColor;
+        uniform sampler2D texture0;
+        uniform vec4 colDiffuse;
+        out vec4 finalColor;
+        void main()
+        {
+            finalColor = texture(texture0, fragTexCoord) * colDiffuse * fragColor;
+        }
+        """;
+
+    private const string EsDefaultFragmentSource = """
+        #version 300 es
+        precision highp float;
         in vec2 fragTexCoord;
         in vec4 fragColor;
         uniform sampler2D texture0;
@@ -767,7 +901,7 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     public FontHandle LoadFont(string path, int size)
     {
-        byte[] ttf = File.ReadAllBytes(path);
+        byte[] ttf = Assets.ReadAllBytes(path);
 
         // Size the atlas to the font, don't assume. The game loads fonts at 64 * uiScale, which is 160px at
         // 1600x1200 — 95 glyphs at that size need ~2048², not the 1024² a fixed atlas would give, and
@@ -873,8 +1007,8 @@ public sealed unsafe class SilkGLBackend : IBackend
         if (DefaultFontHandle.IsValid)
             return DefaultFontHandle;
         // Fall back to any font shipped with the game.
-        string? any = Directory.Exists("Assets/Fonts")
-            ? Directory.GetFiles("Assets/Fonts").FirstOrDefault()
+        string? any = Assets.DirectoryExists("Assets/Fonts")
+            ? Assets.Files("Assets/Fonts").FirstOrDefault()
             : null;
         DefaultFontHandle = any != null ? LoadFont(any, 32) : FontHandle.None;
         return DefaultFontHandle;
@@ -931,6 +1065,9 @@ public sealed unsafe class SilkGLBackend : IBackend
     }
 
     // ---- input ----------------------------------------------------------------------------
+    // Keyboard, mouse and gamepads come from Silk's GLFW input, which does not exist on Android; there the
+    // only input is touch, which the Activity pushes in through SetTouches.
+#if !ANDROID
 
     public bool IsKeyDown(KeyCode key) =>
         Keyboard != null && SilkKey(key) is { } k && Keyboard.IsKeyPressed(k);
@@ -985,7 +1122,7 @@ public sealed unsafe class SilkGLBackend : IBackend
         if (Input == null)
             return false;
         foreach (IGamepad pad in Input.Gamepads.Where(g => g.IsConnected))
-            foreach (Button b in pad.Buttons)
+            foreach (Silk.NET.Input.Button b in pad.Buttons)
                 if (b.Pressed && (int)b.Name == (int)button)
                     return true;
         return false;
@@ -1016,28 +1153,87 @@ public sealed unsafe class SilkGLBackend : IBackend
         return value;
     }
 
+#else   // ANDROID
+
+    // Hardware keyboards do exist on Android (docks, Bluetooth); the Activity forwards key events here so the
+    // game's keyboard controls work identically to desktop. Empty when only touch is used.
+    // Written from the UI thread (key events, the back gesture), read from the GL thread each frame, so every
+    // access is locked.
+    private readonly HashSet<KeyCode> PressedKeys = new();
+
+    public void SetKeyState(KeyCode key, bool pressed)
+    {
+        lock (PressedKeys)
+        {
+            if (pressed)
+                PressedKeys.Add(key);
+            else
+                PressedKeys.Remove(key);
+        }
+    }
+
+    public bool IsKeyDown(KeyCode key)
+    {
+        lock (PressedKeys)
+            return PressedKeys.Contains(key);
+    }
+    public bool IsMouseDown(MouseBtn button) => false;
+    public Vector2 MousePosition => Vector2.Zero;
+    public Vector2 MouseDelta => Vector2.Zero;
+    public float MouseWheel => 0;
+    public int GamepadCount => 0;
+    public void RefreshGamepads() { }
+    public bool IsPadDown(PadButton button) => false;
+    public float GetPadAxis(PadAxis axis) => 0;
+    public PadButton? GetPressedPadButton() => null;
+
+#endif
+
     /// <summary>
-    /// No touch API in Silk.NET's windowing layer, so the mouse stands in for one finger while the left
-    /// button is held. That is enough to exercise the touch controls on a desktop.
+    /// No touch API in Silk.NET's windowing layer, so on desktop the mouse stands in for one finger while the
+    /// left button is held. On Android the Activity pushes the real touch points in.
     /// </summary>
+#if ANDROID
+    /// <summary>
+    /// Live touch points, in surface pixels, pushed in by the Activity — Android delivers touches through the
+    /// view's event queue, not through Silk's input (which is GLFW and does not exist here).
+    /// </summary>
+    private Vector2[] Touches = [];
+
+    public void SetTouches(Vector2[] touches) => Touches = touches;
+
+    public int TouchCount => Touches.Length;
+
+    public Vector2 GetTouchPosition(int index) =>
+        index >= 0 && index < Touches.Length ? Touches[index] : Vector2.Zero;
+#else
     public int TouchCount => Mouse != null && Mouse.IsButtonPressed(Silk.NET.Input.MouseButton.Left) ? 1 : 0;
 
     public Vector2 GetTouchPosition(int index) => index == 0 ? MousePosition : Vector2.Zero;
+#endif
 
+#if !ANDROID
     public PadButton? GetPressedPadButton()
     {
         if (Input == null)
             return null;
         foreach (IGamepad pad in Input.Gamepads.Where(g => g.IsConnected))
-            foreach (Button b in pad.Buttons)
+            foreach (Silk.NET.Input.Button b in pad.Buttons)
                 if (b.Pressed)
                     return (PadButton)(int)b.Name;
         return null;
     }
+#endif
 
     // ---- audio (still Raylib's mixer — window-independent; the seam to replace with OpenAL) ----
 
+#if ANDROID
+    // Injected by the Android host before startup (SoundPool-backed); silent until then. Raylib's mixer has
+    // no Android build, so audio there is Android-native rather than shared.
+    public IAudio Audio { get; set; } = new NullAudio();
+#else
     private readonly RaylibAudio Audio = new();
+#endif
 
     public bool IsAvailable => Audio.IsAvailable;
 
@@ -1100,6 +1296,8 @@ public sealed unsafe class SilkGLBackend : IBackend
         Shaders.Clear();
         Fonts.Clear();
 
+#if !ANDROID
         Window?.Dispose();
+#endif
     }
 }

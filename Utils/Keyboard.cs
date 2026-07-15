@@ -1,6 +1,5 @@
 using DmitryAndDemid.Rendering;
 using System.Numerics;
-using Gtk;
 using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Utils;

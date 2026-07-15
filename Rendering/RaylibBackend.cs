@@ -5,6 +5,8 @@ using RlBlendMode = Raylib_cs.BlendMode;
 using RlColor = Raylib_cs.Color;
 using RlRectangle = Raylib_cs.Rectangle;
 
+using DmitryAndDemid.Utils;
+
 namespace DmitryAndDemid.Rendering;
 
 /// <summary>
@@ -153,8 +155,8 @@ public sealed class RaylibBackend : IBackend
 
     public ShaderHandle LoadShader(string? vertexPath, string fragmentPath)
     {
-        Shader shader = Raylib.LoadShader(vertexPath ?? BaseVertexShaderPath, fragmentPath);
-        return RegisterShader(shader, File.Exists(fragmentPath) ? File.ReadAllText(fragmentPath) : "");
+        Shader shader = Raylib.LoadShader(Assets.Resolve(vertexPath ?? BaseVertexShaderPath), Assets.Resolve(fragmentPath));
+        return RegisterShader(shader, Assets.Exists(fragmentPath) ? Assets.ReadAllText(fragmentPath) : "");
     }
 
     public ShaderHandle LoadShaderFromSource(string? vertexSource, string fragmentSource)
@@ -166,7 +168,13 @@ public sealed class RaylibBackend : IBackend
     private ShaderHandle RegisterShader(Shader shader, string fragmentSource)
     {
         if (!Raylib.IsShaderValid(shader))
+        {
+            // Raylib compiles inside the native library; whatever the driver said arrived through the trace
+            // callback ShaderDiagnostics installed, so there is nothing to add here beyond the fallback.
+            if (!ShaderDiagnostics.HasError)
+                ShaderDiagnostics.Report("driver rejected the shader (no compiler log)");
             return ShaderHandle.None;
+        }
         int id = NextId++;
         Shaders[id] = new ShaderRecord(shader, ShaderSource.ParseUniformNames(fragmentSource));
         return new ShaderHandle(id);
@@ -337,7 +345,21 @@ public sealed class RaylibBackend : IBackend
 
     public void EndFrame() => Raylib.EndDrawing();
 
-    public void OpenWindow(int width, int height, string title) => Raylib.InitWindow(width, height, title);
+    public void OpenWindow(int width, int height, string title)
+    {
+        // Before the window, so the GL context creation and every later shader compile is logged through us.
+        ShaderDiagnostics.CaptureRaylibLog();
+        Raylib.InitWindow(width, height, title);
+    }
+
+    public void SetWindowIcon(string path)
+    {
+        if (!Assets.Exists(path))
+            return;
+        Image icon = Raylib.LoadImage(Assets.Resolve(path));
+        Raylib.SetWindowIcon(icon);
+        Raylib.UnloadImage(icon);
+    }
 
     public void CloseWindow() => Raylib.CloseWindow();
 

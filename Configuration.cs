@@ -12,8 +12,8 @@ public class Configuration
     static Configuration()
     {
         Config = new Configuration();
-        if (File.Exists("config.json"))
-            Config = JsonSerializer.Deserialize<Configuration>(File.ReadAllText("config.json")) ?? new Configuration();
+        if (File.Exists(Utils.Platform.DataPath("config.json")))
+            Config = JsonSerializer.Deserialize<Configuration>(File.ReadAllText(Utils.Platform.DataPath("config.json"))) ?? new Configuration();
     }
 
     [JsonInclude] public string Resolution = "1280x960";
@@ -54,6 +54,6 @@ public class Configuration
 
     public void Save()
     {
-        File.WriteAllText("config.json", JsonSerializer.Serialize(this));
+        File.WriteAllText(Utils.Platform.DataPath("config.json"), JsonSerializer.Serialize(this));
     }
 }

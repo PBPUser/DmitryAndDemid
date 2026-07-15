@@ -17,27 +17,31 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GtkSharp" Version="3.24.24.95" />
     <PackageReference Include="LuaCSharp" Version="0.5.5" />
     <PackageReference Include="LZMA-SDK" Version="22.1.1" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="5.3.0" />
-    <PackageReference Include="Raylib-cs" Version="7.0.2" />
-    <PackageReference Include="rlImgui-cs" Version="3.2.0" />
     <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
     <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.Vulkan" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Windowing" Version="2.23.0" />
     <PackageReference Include="StbImageSharp" Version="2.30.15" />
     <PackageReference Include="StbTrueTypeSharp" Version="1.26.12" />
     <PackageReference Include="System.CodeDom" Version="10.0.7" />
   </ItemGroup>
-  
+
   <ItemGroup>
-    <!-- The configurator is its own executable (Launcher/DmitryAndDemid.Launcher.csproj). -->
+    <PackageReference Include="GtkSharp" Version="3.24.24.95" />
+    <PackageReference Include="Raylib-cs" Version="7.0.2" />
+    <PackageReference Include="rlImgui-cs" Version="3.2.0" />
+    <PackageReference Include="Silk.NET.Vulkan" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.23.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Both of these are their own projects: the configurator (Launcher/) and the Android host (Android/). -->
     <Compile Remove="Launcher\**" />
+    <Compile Remove="Android\**" />
   </ItemGroup>
 
   <ItemGroup>

@@ -29,11 +29,17 @@ public static class Engine
     /// <summary>Adding a renderer means implementing IBackend, adding a line here, and one to Available.</summary>
     public static IBackend Create(string name) => name.Trim().ToLowerInvariant() switch
     {
+#if ANDROID
+        // Android has exactly one backend: GL ES through Silk, on the context the Activity owns. Raylib ships
+        // no Android native and the Vulkan backend is bound to a desktop surface, so neither can be built.
+        _ => new SilkGLBackend(),
+#else
         "silk" or "silk.net" or "opengl" or "gl" => new SilkGLBackend(),
         "vulkan" or "vk" => new VulkanBackend(),
         "raylib" or "" => new RaylibBackend(),
         _ => throw new ArgumentException(
             $"Unknown renderer '{name}'. Known: {string.Join(", ", Available.Select(r => r.Key))}."),
+#endif
     };
 
     public static void Use(IBackend backend)

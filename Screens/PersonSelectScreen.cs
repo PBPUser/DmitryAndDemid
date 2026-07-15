@@ -44,7 +44,7 @@ public class PersonSelectScreen : MenuScreen
 
     public override void CreateMenu()
     {
-        Files = Directory.GetFiles("Assets/Data/PlayablePersons/", "*.json");
+        Files = Assets.Files("Assets/Data/PlayablePersons/", "*.json");
         ArtTextures = new TextureHandle[Files.Length];
         DescriptionTextures = new TextureHandle[Files.Length];
         int i = 0;
@@ -123,7 +123,7 @@ public class PersonSelectScreen : MenuScreen
             Runtime.CurrentRuntime.AddScreen(new PracticeScreen(protogonistData, Difficulty));
         else if (GameType == GameType.Default)
         {
-            string stagePath = Directory.GetFiles("Assets/Data/SpellCards")[0];
+            string stagePath = Assets.Files("Assets/Data/SpellCards")[0];
             var bitPackage = BitPackage.OpenStreamReadPackage(stagePath);
             UseTLS = true;
             var gamePlayScreen = new GameplayScreen(protogonistData, Difficulty, [FileStageInfo.Load(ref bitPackage)], 0, false);
@@ -135,6 +135,9 @@ public class PersonSelectScreen : MenuScreen
         }
         else
         {
+            // SetProtogonistData existed but was never called — the spell-practice screen had no idea who
+            // the player had picked.
+            SpellPracticeScreen.Instance.SetProtogonistData(protogonistData, Difficulty);
             Runtime.CurrentRuntime.AddScreen(SpellPracticeScreen.Instance);
         }
 

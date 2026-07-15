@@ -12,14 +12,14 @@ public class LoadingScreen : Screen
     public LoadingScreen()
     {
         Padding = (int)(16 * CurrentRuntime.Scale);
-        SugarTexture = LoadTexture("Assets/Textures/sugar_logo.png");
-        ADPTexture = LoadTexture("Assets/Textures/anti_dolboeb_protect.png");
-        FifoLoading = LoadTexture("Assets/Textures/fifo_loading.png");
-        RaylibTexture = LoadTexture("Assets/Textures/raylib.png");
-        RaylibBasicTexture = LoadTexture("Assets/Textures/raylib_basic_libs.png");
-        RaylibExtraTexture = LoadTexture("Assets/Textures/raylib_extra_libs.png");
-        RaylibCsTexture = LoadTexture("Assets/Textures/raylib_cs.png");
-        HuffTexture = LoadTexture("Assets/Textures/huffbuzz.png");
+        SugarTexture = LoadTexture(Assets.Resolve("Assets/Textures/sugar_logo.png"));
+        ADPTexture = LoadTexture(Assets.Resolve("Assets/Textures/anti_dolboeb_protect.png"));
+        FifoLoading = LoadTexture(Assets.Resolve("Assets/Textures/fifo_loading.png"));
+        RaylibTexture = LoadTexture(Assets.Resolve("Assets/Textures/raylib.png"));
+        RaylibBasicTexture = LoadTexture(Assets.Resolve("Assets/Textures/raylib_basic_libs.png"));
+        RaylibExtraTexture = LoadTexture(Assets.Resolve("Assets/Textures/raylib_extra_libs.png"));
+        RaylibCsTexture = LoadTexture(Assets.Resolve("Assets/Textures/raylib_cs.png"));
+        HuffTexture = LoadTexture(Assets.Resolve("Assets/Textures/huffbuzz.png"));
         int size = (int)(100 * CurrentRuntime.Scale);
         SugarSource = new Rect(0, 0, 400, 400);
         SugarTarget = new Rect((CurrentRuntime.Width - size) / 2, (CurrentRuntime.Height - size) / 2, size, size);

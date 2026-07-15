@@ -1,3 +1,4 @@
+#if DEBUG
 using DmitryAndDemid.Rendering;
 using static DmitryAndDemid.Rendering.Gfx;
 using DmitryAndDemid.Common;
@@ -39,4 +40,5 @@ public class DropEditorScreen : Screen
         base.DrawImgui();
     }
 }
+#endif
 #endif

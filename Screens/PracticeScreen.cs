@@ -4,6 +4,8 @@ using System.Text.Json;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 
+using DmitryAndDemid.Utils;
+
 namespace DmitryAndDemid.Screens;
 
 public class PracticeScreen : MenuScreen
@@ -22,7 +24,7 @@ public class PracticeScreen : MenuScreen
 
     public override void CreateMenu()
     {
-        FileNames = Directory.GetFiles("Assets/Data/Stages", "*.json");
+        FileNames = Assets.Files("Assets/Data/Stages", "*.json");
         foreach (var x in FileNames)
             MenuItems.Add(new MenuItem(x, "", a => OpenLevel(x)));
     }

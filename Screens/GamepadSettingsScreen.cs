@@ -1,7 +1,9 @@
 using DmitryAndDemid.Rendering;
 using DmitryAndDemid.Common;
 using static DmitryAndDemid.Rendering.Gfx;
+#if DEBUG
 using static ImGuiNET.ImGui;
+#endif
 
 namespace DmitryAndDemid.Screens;
 
@@ -67,6 +69,7 @@ public class GamepadSettingsScreen : MenuScreen
         DrawMenu();
     }
 
+#if DEBUG
     public override void DrawImgui()
     {
         Begin("Gamepad Options");
@@ -74,4 +77,5 @@ public class GamepadSettingsScreen : MenuScreen
             Exit();
         End();
     }
+#endif
 }

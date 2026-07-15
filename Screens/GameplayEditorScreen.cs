@@ -1,3 +1,4 @@
+#if DEBUG
 using DmitryAndDemid.Rendering;
 using System.Net.Mime;
 using System.Numerics;
@@ -77,19 +78,19 @@ public class GameplayEditorScreen : Screen
     private float LoadingScreenFadeState = 1f;
     private float LoadingFifoShowDelay = 2f;
     private string SelectedShaderText = "";
-    private string LoadingShaderText = File.ReadAllText("Assets/Shaders/loading.fs");
-    private string LoadingSwapShaderText = File.ReadAllText("Assets/Shaders/loading_swap.fs");
+    private string LoadingShaderText = Assets.ReadAllText("Assets/Shaders/loading.fs");
+    private string LoadingSwapShaderText = Assets.ReadAllText("Assets/Shaders/loading_swap.fs");
     private bool LoadingShaderOverriden = false;
     private bool LoadingSwapShaderOverriden = false;
     private TextureHandle LoadingTexture = Runtime.CurrentRuntime.Textures["loading.png"];
-    private string[] Endings = Directory.GetFiles("Assets/Data/Endings")
+    private string[] Endings = Assets.Files("Assets/Data/Endings")
         .Select(x => File.ReadAllText(x)).ToArray();
-    private string[] EndingNames = Directory.GetFiles("Assets/Data/Endings")
+    private string[] EndingNames = Assets.Files("Assets/Data/Endings")
         .Select(x => Path.GetFileNameWithoutExtension(x)).ToArray();
     private int EndingIndex = 0;
     private bool ShowError = false;
     private string ErrorText = "";
-    private string[] SpellCards => Directory.GetFiles("Assets/Data/SpellCards").Select(x => x.Split('/').Last()).ToArray();
+    private string[] SpellCards => Assets.Files("Assets/Data/SpellCards").Select(x => x.Split('/').Last()).ToArray();
     private string SpellcardFilename => SpellCards[SpellcardIndex];
     private string CustomSpellcardFilename = "";
     private int SpellcardIndex = 0;
@@ -552,7 +553,7 @@ public class GameplayEditorScreen : Screen
                 }
                 if (InputTextMultiline("ShaderHandle text", ref ShaderText, 65536, new Vector2(640, 480), ImGuiInputTextFlags.AllowTabInput))
                 {
-                    var sh = LoadShaderFromMemory(File.ReadAllText("Assets/Shaders/base.vs"), ShaderText);
+                    var sh = LoadShaderFromMemory(Assets.ReadAllText("Assets/Shaders/base.vs"), ShaderText);
                     if (!IsShaderValid(sh))
                     {   
                         UnloadShader(sh);
@@ -775,3 +776,4 @@ public class GameplayEditorScreen : Screen
         base.Unload();
     }
 }
+#endif

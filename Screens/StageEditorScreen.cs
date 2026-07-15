@@ -1,3 +1,4 @@
+#if DEBUG
 using DmitryAndDemid.Rendering;
 using static DmitryAndDemid.Rendering.Gfx;
 using System.Numerics;
@@ -10,9 +11,7 @@ using DmitryAndDemid.Utils;
 using ImGuiNET;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
-using Pango;
 using static ImGuiNET.ImGui;
-using Script = Pango.Script;
 
 namespace DmitryAndDemid.Screens;
 
@@ -44,7 +43,13 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
     private string[] Scripts =>
         TabItem == 3 ? ActionsScope.ChapterActions.Keys.ToArray() : ActionsScope.ObjectActions.Keys.ToArray();
 
-    private string[] Visuals => 
+    /// <summary>The character sheets a dialog line can pick a portrait from — every *_dialog_art*.png asset.</summary>
+    private static string[] DialogArts = Runtime.CurrentRuntime.Textures.Keys
+        .Where(x => x.Contains("dialog_art"))
+        .OrderBy(x => x)
+        .ToArray();
+
+    private string[] Visuals =>
         Info.Entities[SelectedObjectIndex].IsBullet ?
         Runtime.CurrentRuntime.BulletVisualPresets.Keys.ToArray() :
         EntityVisual.Visuals.Keys.ToArray();
@@ -429,7 +434,25 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                                 InputTextMultiline("Dialog Text",
                                     ref Info.Chapters[SelectedObjectIndex].Dialogs[SelectedTextureIndex].Text, 65536,
                                     new Vector2(640, 480));
-                                
+
+                                // Everything below is in the file format (see Data/Archive/FileDialogInfo.sp)
+                                // and is what the dialog renderer reads; without these the only thing a line
+                                // could say was its text, spoken by nobody.
+                                FileDialogInfo dialog = Info.Chapters[SelectedObjectIndex].Dialogs[SelectedTextureIndex];
+                                Checkbox("Player speaks", ref dialog.IsPlayerDialog);
+                                Checkbox("Show boss name", ref dialog.ShowBossName);
+
+                                int artIndex = Math.Max(0, Array.IndexOf(DialogArts, dialog.CharacterTexture));
+                                if (Combo("Character art", ref artIndex, DialogArts, DialogArts.Length))
+                                    dialog.CharacterTexture = DialogArts[artIndex];
+
+                                Checkbox("Switch reaction", ref dialog.SwitchReaction);
+                                if (dialog.SwitchReaction)
+                                    InputInt("Reaction frame", ref dialog.Header[2]);
+
+                                Checkbox("Switch music", ref dialog.SwitchMusic);
+                                if (dialog.SwitchMusic)
+                                    Combo("Music", ref dialog.Header[3], MusicInfo.MusicNames, MusicInfo.MusicNames.Length);
                             }
                         }
                         
@@ -610,3 +633,4 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
         public float Y = 0;
     }
 }
+#endif

@@ -28,6 +28,7 @@ public class GameBox : IDisposable
     public int TickOffset = 0;
     public int CurrentTick = 0;
     public bool IsFailed = false;
+    bool SpellTimedOut = false;
 
     /// <summary>The spell.failed wording chosen when the current card was failed. Picked once — the key has
     /// several variants and Translate() randomises, so resolving it per frame would make the word flicker.</summary>
@@ -103,6 +104,17 @@ public class GameBox : IDisposable
     {
         if (IsPaused)
             return;
+
+        // A dialog holds the whole simulation: no ticks, no spawns, no timer. GetTime() is frozen with it, so
+        // the chapter resumes exactly where it stopped instead of fast-forwarding through the ticks the
+        // conversation took.
+        if (IsDialogActive)
+        {
+            Dialog!.Update();
+            if (Dialog.Finished)
+                EndDialog();
+            return;
+        }
         if (CurrentTick >= ComputeCurrentTickFromStartingTime)
             return;
         Score = (int)MathUtil.MoveTowards(Score, ScoreTarget, MathF.Max((ScoreTarget - Score) / 30f, 10));
@@ -150,6 +162,7 @@ public class GameBox : IDisposable
                 Helper.PlaySound(Runtime.CurrentRuntime.Sounds["fault"]);
                 SpellcardStopwatch!.Stop();
                 SpellcardStopwatch = null;
+                SpellTimedOut = true;   // ran the clock out: an attempt, but not a capture
             }
         }
         #if DEBUG
@@ -496,11 +509,19 @@ public class GameBox : IDisposable
         PlayerData.Instance.SetStageUnlocked(stage.Header[1], true);
         StageInfo = RuntimeStageInfo.LoadFromFile(stage, difficulty, this);
         AddOverlay(new StageTitleOverlay(this, stage.Header[1]) { TimeAppear = GetTime() + 5f });
+
+        // `chapter` used to be accepted and then ignored: NextChapter() always advanced from -1 to 0, so a
+        // spell-practice run could only ever start on the stage's first chapter. Start where we were asked to.
+        ChapterIndex = chapter - 1;
         NextChapter();
     }
 
     public void NextChapter()
     {
+        // The card we are leaving, if it was one, goes into the player's record before we move on.
+        if (ChapterInfo is { Type: ChapterType.Spell })
+            RecordSpellAttempt(ChapterInfo.SpellcardTitle, !IsFailed && !SpellTimedOut);
+
         ChapterIndex++;
         ChapterInfo?.Unload();
         if (StageInfo!.Chapters.Length <= ChapterIndex)
@@ -532,6 +553,7 @@ public class GameBox : IDisposable
             ChapterTitleAppear = GetTime();
             ChapterTitleDisappear = float.MaxValue;
             IsFailed = false;
+            SpellTimedOut = false;
             SpellFailedText = "";
             ChapterScoreCurrent = ScoreChapterMax = ChapterInfo.MaxScore;
             AddScreenEffect(new SpellCardAttackScreenEffect(this, Vector2.Zero, 0, GetTime(), GetTime()+2));
@@ -541,6 +563,7 @@ public class GameBox : IDisposable
             RenderBossTitle = true;
         }
         InChapterDelay = false;
+        StartDialog();
         ChapterInfo.CreateScript?.Invoke(ChapterInfo);
     }
     
@@ -672,23 +695,30 @@ public class GameBox : IDisposable
             DrawTexture(ChapterInfo!.BossTitleTexture!.Value.Texture, (int)(Runtime.CurrentRuntime.ScaleF * 4),(int)(Runtime.CurrentRuntime.ScaleF * 4),Rgba.White);
         if(typeI > 1 && !InChapterDelay)
             Helper.DrawTimer((int)(UIAboveGameplay.Texture.Width - (appearTimer)*Helper.TimerTextureSize.X), 0, (ChapterInfo.TickStart + ChapterInfo!.Length - CurrentTickWithOffset) < (ChapterInfo!.Length > 600 ? 300 : 600));
+        if (IsDialogActive)
+            Dialog!.Draw(UIAboveGameplay);
         EndTextureMode();
         if (RenderChapterTitle)
         {
             (int total, int success) = GetSpellcardRecord(ChapterInfo!.SpellcardTitle);
+            // Fades/slides in about 0.6s after the name starts appearing, over ~0.5s, so it settles in a beat
+            // behind the title rather than popping in with it.
+            float subtitleAppear = (float)Helper.ComputeObjectTimeStart(time, ChapterTitleAppear + 0.6f, 0.5);
             // Hangs off the bottom-RIGHT of the name, following it as it slides and scales in.
             Helper.DrawSpellSubtitle(UIAboveGameplay, IsFailed ? -1 : ChapterScoreCurrent, total, success,
-                (int)titleRightEdge, (int)(titlePosition.Y + titleDrawnHeight), SpellFailedText);
+                (int)titleRightEdge, (int)(titlePosition.Y + titleDrawnHeight), SpellFailedText, subtitleAppear);
         }
         if (IsUIUpdateRequired)
         {
             RedrawUI();
             IsUIUpdateRequired = false;
         }
+#if DEBUG
         DebugStrings.Add($"PauseTimestamp: {PauseTimestamp}");
         DebugStrings.Add($"CountTimeFrom: {CountTimeFrom}");
         DebugStrings.Add($"Box Time: {GetTime()}");
         DebugStrings.Add($"Raylib Time: {GetTime()}");
+#endif
     }
     #endregion
     #region UI
@@ -740,15 +770,67 @@ public class GameBox : IDisposable
         }
     }
     
-    /// <summary>This player's record on a spell card: (attempts, successes). Zeroes if never tried.</summary>
-    (int Total, int Success) GetSpellcardRecord(string spellName)
+    #region Dialogs
+
+    /// <summary>The conversation currently on screen, if any.</summary>
+    public RuntimeDialog? Dialog;
+
+    private bool isDialogActive;
+    private float DialogTimestamp;
+
+    public bool IsDialogActive
     {
-        if (string.IsNullOrEmpty(spellName))
-            return (0, 0);
-        if (!PlayerData.Instance.Persons.TryGetValue(ProtogonistId, out var person))
-            return (0, 0);
-        return person.SpellcardTries.TryGetValue(spellName, out var record) ? record : (0, 0);
+        get => isDialogActive;
+        private set
+        {
+            if (value == isDialogActive)
+                return;
+            if (value)
+                // Read the clock before freezing it — GetTime() answers with DialogTimestamp from here on.
+                DialogTimestamp = GetTime();
+            else
+                // Put the clock back where the dialog froze it: GetTime() is Gfx.GetTime() - CountTimeFrom.
+                CountTimeFrom = Gfx.GetTime() - DialogTimestamp;
+            isDialogActive = value;
+        }
     }
+
+    /// <summary>Opens the chapter's conversation, if it has one. Called as the chapter starts.</summary>
+    void StartDialog()
+    {
+        if (ChapterInfo is not { HasDialogs: true } || ChapterInfo.Dialogs.Length == 0)
+            return;
+
+        Dialog?.Unload();
+        Dialog = new RuntimeDialog(ChapterInfo.Dialogs, Player.ProtogonistData, this);
+        if (Dialog.Finished)
+        {
+            Dialog = null;
+            return;
+        }
+        IsDialogActive = true;
+    }
+
+    void EndDialog()
+    {
+        IsDialogActive = false;
+        Dialog?.Unload();
+        Dialog = null;
+    }
+
+    #endregion
+
+    /// <summary>This player's record on a spell card: (attempts, successes). Zeroes if never tried.</summary>
+    (int Total, int Success) GetSpellcardRecord(string spellName) =>
+        PlayerData.Instance.GetSpellcardRecord(ProtogonistId, spellName, IsPractice);
+
+    /// <summary>
+    /// Bump the record for the spell card that just ended. Captured means the player neither died on it nor
+    /// ran the timer out. Nothing in the game wrote these counters before, so every card read back as 00/00
+    /// however many times it had been played.
+    /// </summary>
+    void RecordSpellAttempt(string spellName, bool captured) =>
+        PlayerData.Instance.AddSpellcardTry(ProtogonistId, spellName, captured, IsPractice);
 
     public void UpdateUI()
     {
@@ -818,6 +900,8 @@ public class GameBox : IDisposable
             return GameoverTimestamp;
         if (IsPaused)
             return (float)(PauseTimestamp - CountTimeFrom);
+        if (isDialogActive)
+            return DialogTimestamp;
         return (float)(Gfx.GetTime() - CountTimeFrom);
     }
     

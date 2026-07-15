@@ -16,6 +16,9 @@ public class RuntimeChapter
     public readonly int LocPosition;
     public readonly int LocTime;
     public readonly bool HasDialogs;
+
+    /// <summary>The chapter's authored dialog lines. Loaded from the .sid all along; nothing played them.</summary>
+    public readonly FileDialogInfo[] Dialogs = [];
     public readonly bool UseUpdateScript;
     public readonly bool UseCreateScript;
     public readonly ChapterType Type;
@@ -42,6 +45,7 @@ public class RuntimeChapter
         TimeoutCard = chapterInfo.TimeoutCard;
         BossInvincible = chapterInfo.BossInvincible;
         HasDialogs = chapterInfo.HasDialogs;
+        Dialogs = chapterInfo.Dialogs;
         UseUpdateScript = chapterInfo.UseUpdateScript;
         UseCreateScript = chapterInfo.UseCreateScript;
         Type = (ChapterType)chapterInfo.Header[0];

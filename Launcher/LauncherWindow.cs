@@ -78,6 +78,12 @@ public sealed class LauncherWindow
         Window = new Window("AAG2 — Configuration") { Resizable = false, BorderWidth = 8 };
         Window.DeleteEvent += (_, _) => Application.Quit();
 
+        // The configurator's own icon. Resolved next to the executable, which is where the game's assets are
+        // copied (custom and aag2 share an output directory).
+        string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Textures", "custom.png");
+        if (File.Exists(iconPath))
+            Window.SetIconFromFile(iconPath);
+
         VSyncCheck = new CheckButton("Vertical sync") { Active = Configuration.Config.UseVSYNC };
         AskCheck = new CheckButton("Show this window on every start") { Active = Configuration.Config.AlwaysAsk };
         TouchCheck = new CheckButton("Touch controls (drag the playfield to move, on-screen BOMB / FOCUS)")

@@ -2,6 +2,8 @@ using DmitryAndDemid.Rendering;
 using static DmitryAndDemid.Rendering.Gfx;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
+using DmitryAndDemid.Data.Archive;
+using DmitryAndDemid.Utils;
 
 namespace DmitryAndDemid.Screens;
 
@@ -9,6 +11,8 @@ public class SpellPracticeScreen : MenuScreen
 {
     public static SpellPracticeScreen Instance = new();
     private ProtogonistData ProtogonistData;
+    private int Difficulty;
+    private string[] StageFiles = [];
     
     SpellPracticeScreen()
     {
@@ -20,11 +24,29 @@ public class SpellPracticeScreen : MenuScreen
 
     public override void CreateMenu()
     {
-        MenuItems.Add(new MenuItem("practice.stage", "1", i => {}));
-        MenuItems.Add(new MenuItem("practice.stage", "2", i => {}));
-        MenuItems.Add(new MenuItem("practice.stage", "3", i => {}));
-        MenuItems.Add(new MenuItem("practice.stage", "ex", i => {}));
+        // Built from the stages that actually exist, rather than four hard-coded rows whose actions did
+        // nothing.
+        StageFiles = Assets.DirectoryExists("Assets/Data/SpellCards")
+            ? Assets.Files("Assets/Data/SpellCards", "*.sid").OrderBy(f => f).ToArray()
+            : [];
+
+        for (int i = 0; i < StageFiles.Length; i++)
+        {
+            int index = i;
+            MenuItems.Add(new MenuItem("practice.stage", $"{i + 1}", _ => OpenStage(index)));
+        }
+
+        MenuItems.Add(new MenuItem("ingame.exit", "", _ => Exit()));
         base.CreateMenu();
+    }
+
+    private void OpenStage(int index)
+    {
+        BitPackage package = BitPackage.OpenStreamReadPackage(StageFiles[index]);
+        FileStageInfo stage = FileStageInfo.Load(ref package);
+        package.Dispose();
+
+        Runtime.CurrentRuntime.AddScreen(new SpellPracticeCardSelect(stage, ProtogonistData, Difficulty));
     }
 
     public override void Render()
@@ -37,8 +59,9 @@ public class SpellPracticeScreen : MenuScreen
         base.Render();
     }
 
-    public void SetProtogonistData(ProtogonistData pData)
+    public void SetProtogonistData(ProtogonistData pData, int difficulty)
     {
         ProtogonistData = pData;
+        Difficulty = difficulty;
     }
 }

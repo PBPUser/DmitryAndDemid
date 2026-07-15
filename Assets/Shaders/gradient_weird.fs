@@ -21,8 +21,8 @@ float getSmoothColor(vec2 uv, float border_width){
     float dy = 1. / res.y * border_width;
     
     float color = 0.;
-    for(int x = 0; x < border_width; x++)
-    for(int y = 0; y < border_width; y++)
+    for(float x = 0.0; x < border_width; x++)
+    for(float y = 0.0; y < border_width; y++)
         color += texture(texture0, uv+vec2(dx*(x-border_width/2), dy*(y-border_width/2)))[3] / max(1., abs((x-border_width)*(y-border_width)));
     color /= pow(border_width, 2.);
     return color;

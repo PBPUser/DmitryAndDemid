@@ -9,6 +9,9 @@ public interface IPlatform : IDisposable
     void CloseWindow();
     bool ShouldClose { get; }
 
+    /// <summary>Sets the window/taskbar icon from a PNG on disk. No-op where the platform has no window icon.</summary>
+    void SetWindowIcon(string path);
+
     void SetWindowSize(int width, int height);
 
     /// <summary>

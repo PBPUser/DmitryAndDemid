@@ -7,7 +7,6 @@ using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Gameplay.Effects;
 using DmitryAndDemid.Gameplay.RuntimeData;
 using DmitryAndDemid.Utils;
-using Gtk;
 
 namespace DmitryAndDemid.Gameplay.PlayerWeapons;
 

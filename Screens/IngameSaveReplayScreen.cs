@@ -4,7 +4,6 @@ using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Utils;
-using Gtk;
 
 namespace DmitryAndDemid.Screens;
 

@@ -5,7 +5,6 @@ using System.Text.Json;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay;
 using Microsoft.CSharp.RuntimeBinder;
-using Pango;
 using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Utils;
@@ -233,7 +232,10 @@ public static class Helper
     private static float TimerFontSpacing = 2;
     private static TargetHandle TempTimerTexture, TempTimerTexture2;
     private static Rect TimerRectangleSource, TimerRectangleTarget;
-    private static FontHandle TimerFont = Runtime.CurrentRuntime.Fonts["kodemono"];
+    // Resolved on use, not in a static field initializer: the fonts dictionary is filled during Load(), and
+    // touching Helper before that (as Android's earlier, eager static-init timing does) would otherwise throw
+    // KeyNotFound before the font is even loaded.
+    private static FontHandle TimerFont => Runtime.CurrentRuntime.Fonts["kodemono"];
     private static int LocationOutlineResolution;
     private static int LocationOutlineFullResolution;
     private static int LocationOutlinePosition;
@@ -365,8 +367,14 @@ public static class Helper
     /// </param>
     /// <param name="rightX">RIGHT edge to align to — the name slides in from far left at up to 10x scale.</param>
     public static int DrawSpellSubtitle(TargetHandle target, int score, int total, int success,
-        int rightX = 0, int posY = 0, string failedText = "")
+        int rightX = 0, int posY = 0, string failedText = "", float appear = 1f)
     {
+        // appear (0..1) fades and slides this line in a beat after the card name, so it does not pop in with
+        // the title. Fully hidden at 0, so skip the work entirely.
+        appear = Math.Clamp(appear, 0f, 1f);
+        if (appear <= 0f)
+            return 0;
+
         bool failed = score < 0;
 
         string bonusLabel = Translate("spell.bonus");
@@ -397,6 +405,9 @@ public static class Helper
         float lineWidth = parts.Sum(p => p.Texture.Width) + gap;   // one gap, between the two pairs
 
         float posX = rightX - lineWidth;
+        // Slide up into place as it fades in, and fade with the same factor.
+        float slide = (1f - appear) * 12f * Runtime.CurrentRuntime.ScaleF;
+        Rgba tint = Rgba.White with { A = TimeToTransparency(appear) };
         // The name zooms in at up to 10x, which would fling this line off the overlay while that plays.
         posY = Math.Clamp(posY, 0, target.Texture.Height - bonus.Texture.Height);
         posX = Math.Clamp(posX, 0, Math.Max(0, target.Texture.Width - lineWidth));
@@ -407,7 +418,7 @@ public static class Helper
         {
             TargetHandle part = parts[i];
             DrawTexturePro(part.Texture, GetFullSourceRenderTexture(part),
-                new Rect(x, posY, part.Texture.Width, part.Texture.Height), Vector2.Zero, 0, Rgba.White);
+                new Rect(x, posY + slide, part.Texture.Width, part.Texture.Height), Vector2.Zero, 0, tint);
             x += part.Texture.Width;
             if (i == 1)
                 x += gap;   // space between "bonus: N" and "attempt: N/N"
@@ -579,9 +590,15 @@ public static class Helper
 
     public static void DrawTextAliasedA(out TargetHandle texture, FontHandle font, float fontSize, float spacing, string text, Rgba color)
     {
+        // DrawTextAliased only takes the `unscaled` output in DEBUG (the texture previewer wants it), so the
+        // call has to match — passing it in Release did not compile, which is why no Release build worked.
+#if DEBUG
         TargetHandle unscaled = new TargetHandle();
         DrawTextAliased(out texture, out unscaled, font, fontSize, spacing, text, color);
         UnloadRenderTexture(unscaled);
+#else
+        DrawTextAliased(out texture, font, fontSize, spacing, text, color);
+#endif
     }
     
     public static void DrawTimerSplash(TargetHandle renderTexture, int ticks, double time)
@@ -1058,9 +1075,9 @@ public static class Helper
     private static SoundHandle[] SoundAlieases = new SoundHandle[4096];
     
     static Dictionary<string, string> TransliterationDictionary = 
-        JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText("Assets/Data/cyrilic-transliteration-table.json"));
+        JsonSerializer.Deserialize<Dictionary<string, string>>(Assets.ReadAllText("Assets/Data/cyrilic-transliteration-table.json"));
     static Dictionary<string, string> TranslationDictionary = 
-        JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText("Assets/Data/translation.json"));
+        JsonSerializer.Deserialize<Dictionary<string, string>>(Assets.ReadAllText("Assets/Data/translation.json"));
 
     public static string Translate(string j57v)
     {

@@ -6,7 +6,9 @@ using DmitryAndDemid.Data;
 using System.Numerics;
 using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Utils;
+#if DEBUG
 using ImGuiNET;
+#endif
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DmitryAndDemid.Screens;

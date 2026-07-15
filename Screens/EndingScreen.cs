@@ -6,9 +6,10 @@ using System.Text.Json;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Utils;
-using Gtk;
 using static DmitryAndDemid.Rendering.Gfx;
+#if DEBUG
 using static ImGuiNET.ImGui;
+#endif
 
 namespace DmitryAndDemid.Screens;
 

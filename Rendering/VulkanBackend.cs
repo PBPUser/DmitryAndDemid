@@ -14,6 +14,8 @@ using Buffer = Silk.NET.Vulkan.Buffer;
 using Image = Silk.NET.Vulkan.Image;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
+using DmitryAndDemid.Utils;
+
 namespace DmitryAndDemid.Rendering;
 
 /// <summary>
@@ -1069,9 +1071,9 @@ public sealed unsafe class VulkanBackend : IBackend
 
     public TextureHandle LoadTexture(string path)
     {
-        if (!Ready || !File.Exists(path))
+        if (!Ready || !Assets.Exists(path))
             return TextureHandle.None;
-        using FileStream stream = File.OpenRead(path);
+        using Stream stream = Assets.OpenRead(path);
         ImageResult image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
         return CreateTexture(image.Data, image.Width, image.Height);
     }
@@ -1147,16 +1149,18 @@ public sealed unsafe class VulkanBackend : IBackend
         string vertexSpv = $"{dir}/{vertexName}.vert.spv";
         string fragmentSpv = $"{dir}/{fragmentName}.frag.spv";
 
-        if (!File.Exists(vertexSpv) || !File.Exists(fragmentSpv))
+        if (!Assets.Exists(vertexSpv) || !Assets.Exists(fragmentSpv))
         {
+            string missing = !Assets.Exists(fragmentSpv) ? fragmentSpv : vertexSpv;
             Console.WriteLine($"Vulkan: no SPIR-V for {vertexName}/{fragmentName} — run Tools/compile_shaders.py");
+            ShaderDiagnostics.Report($"no compiled SPIR-V at {missing} — run Tools/compile_shaders.py");
             return ShaderHandle.None;
         }
 
         VkShader shader = new()
         {
-            Vertex = CreateModule(File.ReadAllBytes(vertexSpv)),
-            Fragment = CreateModule(File.ReadAllBytes(fragmentSpv)),
+            Vertex = CreateModule(Assets.ReadAllBytes(vertexSpv)),
+            Fragment = CreateModule(Assets.ReadAllBytes(fragmentSpv)),
             VertexReflection = ReadReflection($"{dir}/{vertexName}.vert.json"),
             FragmentReflection = ReadReflection($"{dir}/{fragmentName}.frag.json"),
         };
@@ -1178,8 +1182,8 @@ public sealed unsafe class VulkanBackend : IBackend
     }
 
     private static Reflection ReadReflection(string path) =>
-        File.Exists(path)
-            ? JsonSerializer.Deserialize<Reflection>(File.ReadAllText(path)) ?? new Reflection()
+        Assets.Exists(path)
+            ? JsonSerializer.Deserialize<Reflection>(Assets.ReadAllText(path)) ?? new Reflection()
             : new Reflection();
 
     private ShaderModule CreateModule(byte[] spirv)
@@ -1789,7 +1793,7 @@ public sealed unsafe class VulkanBackend : IBackend
         if (!Ready)
             return FontHandle.None;
 
-        byte[] ttf = File.ReadAllBytes(path);
+        byte[] ttf = Assets.ReadAllBytes(path);
         int cellSize = size + 2;
         int columns = (int)MathF.Ceiling(MathF.Sqrt(95f));
         int atlas = 256;
@@ -1876,7 +1880,7 @@ public sealed unsafe class VulkanBackend : IBackend
     {
         if (DefaultFontHandle.IsValid || !Ready)
             return DefaultFontHandle;
-        string? any = Directory.Exists("Assets/Fonts") ? Directory.GetFiles("Assets/Fonts").FirstOrDefault() : null;
+        string? any = Assets.DirectoryExists("Assets/Fonts") ? Assets.Files("Assets/Fonts").FirstOrDefault() : null;
         DefaultFontHandle = any != null ? LoadFont(any, 32) : FontHandle.None;
         return DefaultFontHandle;
     }
@@ -1975,6 +1979,14 @@ public sealed unsafe class VulkanBackend : IBackend
     }
 
     public void SetVSync(bool enabled) => Window.VSync = enabled;
+
+    public void SetWindowIcon(string path)
+    {
+        if (!Assets.Exists(path))
+            return;
+        ImageResult image = ImageResult.FromMemory(Assets.ReadAllBytes(path), ColorComponents.RedGreenBlueAlpha);
+        Window.SetWindowIcon([new Silk.NET.Core.RawImage(image.Width, image.Height, image.Data)]);
+    }
 
     public void SetTargetFps(int fps)
     {

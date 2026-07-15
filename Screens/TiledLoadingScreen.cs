@@ -2,7 +2,6 @@ using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Utils;
-using ImGuiNET;
 using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Screens;

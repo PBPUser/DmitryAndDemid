@@ -35,7 +35,7 @@ vec2 nearest(vec2 sp1, vec2 sp2, vec2 point){
 
 void main()
 {
-	float t = time * 1000f;
+	float t = time * 1000.0;
 	vec2 p = fragTexCoord;
 	vec2 pr = size * p;
 	vec2 opr = pr;
