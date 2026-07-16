@@ -31,6 +31,9 @@ public class MainScreen : MenuScreen
 
     public MainScreen() : base()
     {
+#if SWITCH
+        Runtime.SwTrace("[ms] ctor body enter (base done)");
+#endif
         AllowExitWithEscape = false;
 
         Size = (int)(Runtime.CurrentRuntime.Scale * 32);
@@ -39,8 +42,14 @@ public class MainScreen : MenuScreen
         LogoTargetRight = new Rect(Runtime.CurrentRuntime.Width - (float)(135 * Runtime.CurrentRuntime.Scale), 0, (float)(135 * Runtime.CurrentRuntime.Scale), (float)(52 * Runtime.CurrentRuntime.Scale));
 
         Configuration.Config.FastLoading = true;
+#if SWITCH
+        Runtime.SwTrace("[ms] before Config.Save");
+#endif
         Configuration.Config.Save();
-        
+#if SWITCH
+        Runtime.SwTrace("[ms] after Config.Save");
+#endif
+
         TitleIndex = new Random().Next(0, PersonImageNames.Count());
         SelectedPerson = Runtime.CurrentRuntime.Textures[PersonImageNames[TitleIndex]];
 
@@ -72,10 +81,19 @@ public class MainScreen : MenuScreen
         LogoTargetCenter1 = new Rect(logoCenterX, -bboxHalf, logoCenterWidth * 0.85f, logoCenterHeight * 0.85f);
         LogoTargetCenter2 = new Rect(logoCenterX, logoCenterY, logoCenterWidth, logoCenterHeight);
         CurrentY = (int)(160 * Runtime.CurrentRuntime.Scale);
+#if SWITCH
+        Runtime.SwTrace("[ms] before new MusicRoomScreen()");
+#endif
         MusicRoom = new MusicRoomScreen();
         SelectedItemOffset = new Vector2(8, 0) * Runtime.CurrentRuntime.ScaleF;
         SelectedItemScale = 1.2f;
+#if SWITCH
+        Runtime.SwTrace("[ms] before new TrophyScreen()");
+#endif
         TrophyScreen = new TrophyScreen();
+#if SWITCH
+        Runtime.SwTrace("[ms] ctor body done");
+#endif
     }
 #if DEBUG
     private int LineX = 0, LineY = 0;
@@ -280,6 +298,9 @@ public class MainScreen : MenuScreen
 
     public override void CreateMenu()
     {
+#if SWITCH
+        Runtime.SwTrace("[ms] CreateMenu enter");
+#endif
         int j = 1;
 #if DEBUG
         // The editor is an ImGui screen, and ImGui only runs on the Raylib backend (Engine.Backend
@@ -302,9 +323,15 @@ public class MainScreen : MenuScreen
         MenuItems.Add(new MenuItem("menu.settings", "", a => Runtime.CurrentRuntime.AddScreen(new SettingsScreen())));
         MenuItems.Add(new MenuItem("menu.manual", "", a => Runtime.CurrentRuntime.AddScreen(new ManualScreen())));
         MenuItems.Add(new MenuItem("menu.exit", "", a => Environment.Exit(0)));
+#if SWITCH
+        Runtime.SwTrace("[ms] CreateMenu: accessing PlayerData.Instance");
+#endif
         MenuItems[j].Enabled = PlayerData.Instance.IsExtraUnlocked;
         MenuItems[j + 1].Enabled = PlayerData.Instance.IsStageUnlocked(0);
         MenuItems[j + 2].Enabled = true;   // the score menu is always viewable (it shows a per-character board)
+#if SWITCH
+        Runtime.SwTrace("[ms] CreateMenu done");
+#endif
     }
 
     public override void PreRender(double delta)

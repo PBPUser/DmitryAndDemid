@@ -256,7 +256,9 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     public void BeginFrame()
     {
-#if !ANDROID
+        // SWITCH, like Android, drives GL through an SDL-owned external context (SdlGlBackend) — there is no GLFW
+        // Window to poll or swap, and the surface size is the one AttachExternalContext was given.
+#if !ANDROID && !SWITCH
         Window.DoEvents();
         FrameWidth = Window.Size.X;
         FrameHeight = Window.Size.Y;
@@ -270,8 +272,8 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     public void EndFrame()
     {
-#if !ANDROID
-        Window.SwapBuffers();   // on Android GLSurfaceView swaps for us, after onDrawFrame returns
+#if !ANDROID && !SWITCH
+        Window.SwapBuffers();   // on Android GLSurfaceView / on Switch SdlGlBackend swaps for us instead
 #endif
 
         FrameCounter++;
@@ -318,6 +320,29 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     private TextureHandle CreateSolidTexture(byte r, byte g, byte b, byte a) =>
         CreateTexture([r, g, b, a], 1, 1);
+
+    /// <summary>
+    /// Upload a texture from RGBA pixels already in NATIVE memory (e.g. an SDL_Surface) instead of a managed
+    /// byte[]. Skips the Large Object Heap allocation that <see cref="ImageResult"/> makes — essential on the
+    /// Switch/mono-nx interpreter, whose ~21 MB LOS can't hold a single 3840×2880 (44 MB) decode. Rows must be
+    /// tightly packed (pitch == width*4, which SDL's RGBA32 surfaces are). Used by SdlGlBackend's LoadTexture.
+    /// </summary>
+    public TextureHandle CreateTextureFromNativePixels(IntPtr rgba, int width, int height)
+    {
+        uint id = Gl.GenTexture();
+        Gl.BindTexture(TextureTarget.Texture2D, id);
+        Gl.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgba8, (uint)width, (uint)height, 0,
+            PixelFormat.Rgba, PixelType.UnsignedByte, (void*)rgba);
+        Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Nearest);
+        Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Nearest);
+        Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.Repeat);
+        Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.Repeat);
+        Gl.BindTexture(TextureTarget.Texture2D, 0);
+
+        int handle = NextId++;
+        Textures[handle] = new GlTexture { Id = id, Width = width, Height = height };
+        return new TextureHandle(handle);
+    }
 
     public void UnloadTexture(TextureHandle texture)
     {
@@ -439,7 +464,7 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     private void BindWindow()
     {
-#if !ANDROID
+#if !ANDROID && !SWITCH
         FrameWidth = Window.Size.X;
         FrameHeight = Window.Size.Y;
 #else

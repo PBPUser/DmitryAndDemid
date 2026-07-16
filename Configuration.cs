@@ -22,6 +22,9 @@ public class Configuration
     [JsonInclude] public float SFXVolume = 0.9f;
     [JsonInclude] public float MusicVolume = 1.0f;
     [JsonInclude] public bool FastLoading = false;
+    // Headless sim-throughput benchmark. Set true (or pass --bench) to run RunBench instead of the menu loop
+    // and print ticks/sec. Used to measure whether an interpreter (mono-nx / Switch) can hold 60 TPS under load.
+    [JsonInclude] public bool Bench = false;
     [JsonInclude] public bool UseVSYNC = true;
     [JsonInclude] public int FrameCap = -1;
 

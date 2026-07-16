@@ -1,0 +1,12 @@
+{
+ "blockSize": 40,
+ "blockBinding": 0,
+ "uniforms": [
+  {
+   "name": "color",
+   "offset": 16,
+   "type": "vec3"
+  }
+ ],
+ "samplers": []
+}

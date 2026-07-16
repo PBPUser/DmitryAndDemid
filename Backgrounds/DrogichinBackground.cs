@@ -48,7 +48,7 @@ public class DrogichinBackground : StageBackground
     DrogichinPoint Get(int tick, float delta)
     {
         var p1 = Points.Where(x => x.Tick <= (tick%LastTick)).Last();
-        var p2 = Points[(Points.IndexOf(p1) + 1 % Points.Length)];
+        var p2 = Points[(Array.IndexOf(Points, p1) + 1 % Points.Length)];
         
         return DrogichinPoint.GetPointBetween(p1, p2, tick%LastTick, delta);
     }

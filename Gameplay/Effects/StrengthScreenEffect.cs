@@ -17,8 +17,8 @@ public class StrengthScreenEffect : GameplayScreenEffect
         LocationTimeStarted = GetShaderLocation(Shader, "timeStarted");
         Layer = EffectLayer.BackgroundAndGameplay;
         TimeCreated = box.GetTime();
-        ParticlesColor = Helper.ColorIntToVector3(particlesColor).AsVector4().WithElement(3, 1);
-        CircleColor = Helper.ColorIntToVector3(circleColor).AsVector4().WithElement(3, 1);
+        ParticlesColor = new Vector4(Helper.ColorIntToVector3(particlesColor), 1f);
+        CircleColor = new Vector4(Helper.ColorIntToVector3(circleColor), 1f);
     }
 
     int LocationLeaves, LocationTimeStarted, LocationParticlesColor, LocationCircleColor;

@@ -82,6 +82,8 @@ public class LoadingScreen : Screen
     {
         float time = (float)GetTime();
         DrawTexturePro(SugarTexture, SugarSource, SugarTarget, Vector2.Zero, 0f, Rgba.White with { A = Helper.TimeToTransparency(Helper.ComputeObjectTime(GetTime(), 0, 0.25, 1.5, 0.25)) });
+        // Build number under the sugar logo — fades in and stays, so it's always clear WHICH build is running
+        // (catches a stale aag2.dll on the SD vs the one just deployed). Auto-incremented every build (see csproj).
         DrawTexturePro(ADPTexture, ADPSource, Helper.Mix(ADPTarget, ADPTargetActive, Helper.EaseInOutElasticF((float)Helper.ComputeObjectTime(GetTime(), ADPActive ? 4 : 999999999, 1, 9999999, .25))), Vector2.Zero, (float)(Helper.ComputeObjectTime(GetTime(), 4, .125, 4.25, .125) * MathF.Sin((float)GetTime())),
             Rgba.White with { A = Helper.TimeToTransparency(Helper.ComputeObjectTime(GetTime(), 1.5, 0.5, ADPActive ? 9999999999 : 3, 0.5)) });
         DrawTexturePro(FifoLoading, FifoSource, FifoTarget, FifoOrigin,
@@ -139,6 +141,15 @@ public class LoadingScreen : Screen
             DrawTexturePro(RaylibExtraTexture, RaylibExtraSource with { X = (j - 7) * 134, Y = (int)((j - 7) / 5) * 133 }, RaylibExtraTarget, Vector2.Zero, 0f,
                 Rgba.White with { A = Helper.TimeToTransparency(Helper.ComputeObjectTime(GetTime(), 7.5 + (j * 1.5), 0.5, 9 + (j * 1.5), 0.5)) }
             );
+    }
+
+    public override void TopUpdate()
+    {
+        // Escape hatch off a stuck error (ADP) screen — e.g. a subsystem that failed to initialise leaves the
+        // loader with no way forward. Plus / Start (or Enter on a keyboard) quits the game rather than stranding
+        // the player. Only active while an error is actually being shown.
+        if (ADPActive && (IsGamepadButtonDown(0, PadButton.MiddleRight) || IsKeyDown(KeyCode.Enter)))
+            Environment.Exit(0);
     }
 
     public void SetADPText(string? text, bool music)

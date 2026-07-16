@@ -23,7 +23,16 @@ public class RuntimeStageInfo
         RuntimeStageInfo stage = new RuntimeStageInfo();
         stage.Index = stageInfo.Header[1];
         stage.MusicID = stageInfo.Header[2];
+#if SWITCH
+        // mono-nx runs the Mono interpreter with no JIT/codegen, so Roslyn's CSharpScript.Create faults on-device.
+        // Shipped content drives behaviour through ActionsScope delegates (see CLAUDE.md), never these compiled
+        // stage Scripts — the field is written here but never executed — so skipping the compile changes nothing
+        // observable. When the SWITCH build eventually strips the Microsoft.CodeAnalysis package, the Scripts
+        // field and this whole seam go with it. See docs/switch-port.md (hard constraint 6).
+        stage.Scripts = [];
+#else
         stage.Scripts = stageInfo.Scripts.Select(x => CSharpScript.Create<object>(x)).ToArray();
+#endif
         stage.Backgrounds = stageInfo.Backgrounds.Select(x => Runtime.CurrentRuntime.Textures[x]).ToArray();
         int tick = 0;
         stage.Chapters = new RuntimeChapter[stageInfo.Chapters.Length];

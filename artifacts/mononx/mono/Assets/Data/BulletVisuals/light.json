@@ -1,0 +1,8 @@
+{
+  "Texture": "bullets.png",
+  "RenderType": 1,
+  "RenderSize": { "X": 11, "Y": 18 },
+  "SpritePosition": { "X": 30, "Y": 0 },
+  "SourceSize": {"X": 11, "Y": 18 },
+  "Collision": 4
+}

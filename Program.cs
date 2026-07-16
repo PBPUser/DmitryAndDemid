@@ -3,6 +3,30 @@ using DmitryAndDemid;
 using DmitryAndDemid.Rendering;
 using DmitryAndDemid.Utils;
 
+#if SWITCH
+// mono-nx has NO attachable managed debugger — the author's own method (notes/writeup.md) is logging + exception
+// stack traces. Two things make that usable for us, and both must run before anything else can throw:
+//   1. UseSystemResourceKeys — without it the StackTrace constructor itself faults on mono-nx while formatting an
+//      exception (per the writeup), so a crash would hide its own trace. This makes traces printable.
+//   2. A last-chance handler that writes the full exception + stack trace to stdout (captured by config.ini's
+//      logging / udp_io_redirect / file_io_redirect) before the process terminates — otherwise a fatal error is
+//      just "Terminating application" with no cause.
+AppContext.SetSwitch("System.Resources.UseSystemResourceKeys", true);
+// System.Text.Json builds fast converters with Reflection.Emit when dynamic code is "supported"; the mono-nx
+// interpreter can't do dynamic codegen and crashes on it (deserializing BulletRenderingInfo's Vector2 fields
+// takes down the app). Declare dynamic code unsupported so STJ uses its reflection-only path — the same state
+// NativeAOT runs in, where reflection-JSON still works fine for these plain data types.
+AppContext.SetSwitch("System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported", false);
+AppDomain.CurrentDomain.UnhandledException += (_, e) => Console.WriteLine("FATAL: " + e.ExceptionObject);
+
+// On mono-nx the process working directory is NOT the game folder, so any relative "config.json" / "Assets/..."
+// path resolves against the wrong place and the game can't find its files. Anchor both the writable data dir
+// (config.json, the save file, replays — via Platform.DataPath) and the read-only asset root (via the Assets
+// seam) to the directory the assembly was actually loaded from, which on the SD card is /mono.
+Platform.DataDirectory = AppContext.BaseDirectory;
+Assets.Source = new FileSystemAssetSource(AppContext.BaseDirectory);
+#endif
+
 // --selftest boots the managed game far enough to prove the port is sound on a given CPU/OS — it loads config,
 // checks the asset source resolves, and reports which backend would be chosen — then exits WITHOUT opening a
 // window or a graphics context. That last part matters: it is the only piece that runs under headless CPU
@@ -24,8 +48,10 @@ if (args.Contains("--export-stages"))
 // The GTK pre-launch dialog is desktop-only. On Android there is no GTK at all — the in-game settings screen
 // (Screens/SettingsScreen.cs, drawn by the renderer like everything else) is the only configuration UI. On
 // linux-arm64 (Tegra X1 / L4T, Jetson, Shield) GTK is likewise skipped so the game has no hard libgtk-3
-// dependency on the device; configuration there goes through the in-game settings screen too.
-#if !ANDROID
+// dependency on the device; configuration there goes through the in-game settings screen too. On Switch
+// homebrew (SWITCH) GtkSharp can't load at all under mono-nx's static-only P/Invoke, so it is compiled out
+// entirely — same as Android — and the in-game settings screen is again the only configuration path.
+#if !ANDROID && !SWITCH
 bool skipGtk = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
                RuntimeInformation.ProcessArchitecture == Architecture.Arm64;
 if (Configuration.Config.AlwaysAsk && !skipGtk)
@@ -33,6 +59,9 @@ if (Configuration.Config.AlwaysAsk && !skipGtk)
 else
 #endif
 {
+    // --bench (desktop) or "Bench": true in config.json (on-device, where no argv is passed) runs the headless
+    // sim-throughput benchmark after asset load instead of the menu loop. See Runtime.RunBench.
+    Runtime.BenchMode = args.Contains("--bench") || Configuration.Config.Bench;
     Runtime.CurrentRuntime = new Runtime();
     Runtime.CurrentRuntime.Start();
 }

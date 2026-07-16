@@ -1,0 +1,10 @@
+{
+  "ID": "akob",
+  "Speed": 2,
+  "FocusSpeed": 1,
+  "WeaponClassName": "AkobPlayerWeapon",
+  "ArtName": "akob_art.png",
+  "Description": "akob_art.png",
+  "DialogArtName": "akob_dialog_arts.png",
+  "Sprite": "akob_sprite.png"
+}

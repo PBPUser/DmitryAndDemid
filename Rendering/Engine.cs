@@ -29,7 +29,18 @@ public static class Engine
     /// <summary>Adding a renderer means implementing IBackend, adding a line here, and one to Available.</summary>
     public static IBackend Create(string name) => name.Trim().ToLowerInvariant() switch
     {
-#if ANDROID
+#if SWITCH
+        // Nintendo Switch homebrew (mono-nx runtime). SDL2 is what mono-nx actually exports, so it is the
+        // working-video default; deko3d stays selectable for a future native fork (it draws nothing on stock
+        // mono-nx, whose dl_shim has no deko3d symbols). The desktop backends rely on dynamic native loading,
+        // which mono-nx's static-only P/Invoke cannot do. See docs/switch-port.md.
+        // The shader-capable GLES path (needs a mono-nx interpreter built with OpenGL). Opt in with renderer "gl"
+        // until it is proven on-device, then it can become the default. SdlBackend (2D, no shaders) is the safe
+        // default that works on the stock interpreter.
+        "gl" or "gles" or "opengl" => new Switch.SdlGlBackend(),
+        "deko3d" or "deko" => new Switch.Deko3dBackend(),
+        _ => new Switch.SdlBackend(),
+#elif ANDROID
         // Android has exactly one backend: GL ES through Silk, on the context the Activity owns. Raylib ships
         // no Android native and the Vulkan backend is bound to a desktop surface, so neither can be built.
         _ => new SilkGLBackend(),

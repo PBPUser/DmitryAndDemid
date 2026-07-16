@@ -1,0 +1,8 @@
+{
+  "Description": "...\nПройти игру на максимальном режиме сложности",
+  "ID": "clear_max",
+  "Index": 3,
+  "HasAction": true,
+  "ActionType": "ending",
+  "ActionInfo": "max"
+}

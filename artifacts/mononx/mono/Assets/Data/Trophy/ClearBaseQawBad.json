@@ -1,0 +1,8 @@
+{
+  "Description": "Zhaba.\nПройти основную игру за qaw с депозитом",
+  "ID": "clearas_qaw_bad",
+  "Index": 10,
+  "HasAction": true,
+  "ActionType": "ending",
+  "ActionInfo": "qaw_bad"
+}

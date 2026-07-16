@@ -27,6 +27,14 @@ public class GameBox : IDisposable
     public int Difficulty;
     public int TickOffset = 0;
     public int CurrentTick = 0;
+
+    /// <summary>
+    /// Benchmark mode: when set, <see cref="BoxUpdate"/> skips the wall-clock tick gate so the sim can be driven
+    /// as fast as the CPU allows (each call = one full tick). Used by the headless <c>--bench</c> / config Bench
+    /// path to measure raw sim throughput — the make-or-break number for the Switch/mono-nx port. Off in normal
+    /// play, where the fixed 60 TPS pacing is essential. See Runtime.RunBench and docs/switch-port.md.
+    /// </summary>
+    public bool BenchMode;
     public bool IsFailed = false;
     bool SpellTimedOut = false;
 
@@ -174,7 +182,7 @@ public class GameBox : IDisposable
                 EndDialog();
             return;
         }
-        if (CurrentTick >= ComputeCurrentTickFromStartingTime)
+        if (!BenchMode && CurrentTick >= ComputeCurrentTickFromStartingTime)
             return;
         Score = (int)MathUtil.MoveTowards(Score, ScoreTarget, MathF.Max((ScoreTarget - Score) / 30f, 10));
         CurrentTick++;

@@ -52,9 +52,15 @@ public class MusicRoomScreen : MenuScreen
         SetTitle(Runtime.CurrentRuntime.Textures["music_room.png"]);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
         string[] files = Assets.Files("Assets/Music/Descriptions");
+#if SWITCH
+        Runtime.SwTrace($"[musicroom] CreateMenu: deserializing {files.Length} MusicInfo files");
+#endif
         Infos = new MusicInfo[files.Length];
         for (int i = 0; i < files.Length; i++)
             Infos[i] = JsonSerializer.Deserialize<MusicInfo>(File.ReadAllText(files[i])) ?? new MusicInfo();
+#if SWITCH
+        Runtime.SwTrace("[musicroom] CreateMenu: MusicInfo deserialize done, building items");
+#endif
         Infos = Infos.OrderBy(x => x.Number).ToArray();
         DescriptionLines = new string[Infos.Length][];
         for (int i = 0; i < Infos.Length; i++)
@@ -67,6 +73,9 @@ public class MusicRoomScreen : MenuScreen
                 : Infos[i].NonUnlockedMusicRoomTitle;
             MenuItems.Add(new MenuItem(title, "", a => PlayMusic()));
         }
+#if SWITCH
+        Runtime.SwTrace("[musicroom] CreateMenu done");
+#endif
         CurrentX = (int)(Runtime.CurrentRuntime.Scale * 32);
         CurrentY = (int)(Runtime.CurrentRuntime.Scale * 64);
     }

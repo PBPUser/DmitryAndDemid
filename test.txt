@@ -1,0 +1,1 @@
+{ path=/usr/lib/bluetooth/bluetoothd ; argv[]=/usr/lib/bluetooth/bluetoothd ; ignore_errors=no ; start_time=[Thu 2026-07-16 18:18:00 +07] ; stop_time=[n/a] ; pid=3841989 ; code=(null) ; status=0/0 }

@@ -16,6 +16,22 @@ public class SettingsScreen : MenuScreen
     private static readonly string[] Resolutions =
         ["640x480", "800x600", "960x720", "1280x960", "1600x1200", "1920x1440"];
 
+    /// <summary>
+    /// The resolutions actually offered on this device. On Switch the chosen value is the internal 4:3 backbuffer
+    /// that gets letterboxed onto the panel, so offering more than the panel shows is pointless: cap it at 720
+    /// tall handheld and 960 tall docked (a 4:3 960-tall frame still fits a 1080p dock output). Dock state comes
+    /// from the real drawable height the backend reports (≈720 handheld / ≈1080 docked). Desktop keeps the full set.
+    /// </summary>
+    private static IEnumerable<string> AllowedResolutions()
+    {
+#if SWITCH
+        int maxHeight = Engine.Platform.MonitorHeight >= 1000 ? 960 : 720;
+        return Resolutions.Where(r => int.TryParse(r.Split('x')[1], out int h) && h <= maxHeight);
+#else
+        return Resolutions;
+#endif
+    }
+
     // The slider glyphs: a fixed-width bar like <====----->, so the row width never jumps as the value moves.
     private const int BarSegments = 16;
 
@@ -30,7 +46,7 @@ public class SettingsScreen : MenuScreen
     {
         Runtime.CurrentRuntime.AddScreen(new ListSelectScreen(
             Runtime.CurrentRuntime.Textures["settings.png"],
-            Resolutions.Select(r => (r, (System.Action)(() =>
+            AllowedResolutions().Select(r => (r, (System.Action)(() =>
             {
                 if (r == Configuration.Config.Resolution)
                     return;
@@ -149,6 +165,7 @@ public class SettingsScreen : MenuScreen
         MenuItems.Add(RendererItem);
 #endif
         MenuItems.Add(new MenuItem("settings.controller", "", a => Runtime.CurrentRuntime.AddScreen(new GamepadSettingsScreen())));
+        MenuItems.Add(new MenuItem("settings.benchmark", "", a => Runtime.CurrentRuntime.AddScreen(new BenchmarkScreen())));
         MenuItems.Add(new MenuItem("settings.default", "", a => {}));
         MenuItems.Add(new MenuItem("ingame.exit", "", a => Exit()));
         CurrentX = (int)(Runtime.CurrentRuntime.Scale * 32);

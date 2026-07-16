@@ -1,0 +1,17 @@
+{
+ "blockSize": 16,
+ "blockBinding": 1,
+ "uniforms": [
+  {
+   "name": "colDiffuse",
+   "offset": 0,
+   "type": "vec4"
+  }
+ ],
+ "samplers": [
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
+}

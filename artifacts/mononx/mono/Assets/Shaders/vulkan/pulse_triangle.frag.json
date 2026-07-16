@@ -1,0 +1,22 @@
+{
+ "blockSize": 24,
+ "blockBinding": 0,
+ "uniforms": [
+  {
+   "name": "colDiffuse",
+   "offset": 0,
+   "type": "vec4"
+  },
+  {
+   "name": "time",
+   "offset": 16,
+   "type": "float"
+  },
+  {
+   "name": "dir",
+   "offset": 20,
+   "type": "float"
+  }
+ ],
+ "samplers": []
+}

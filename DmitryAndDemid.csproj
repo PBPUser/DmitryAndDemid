@@ -2,7 +2,11 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- Desktop/Android run on .NET 10; the Switch homebrew build (mono-nx) runs the Mono interpreter on .NET 9,
+         and a net10 assembly won't load there — so retarget to net9.0 when SwitchBuild is set. Driven by the same
+         SwitchBuild property as the SWITCH constant (PropertyGroup below). -->
+    <TargetFramework Condition=" '$(SwitchBuild)' == 'true' ">net9.0</TargetFramework>
+    <TargetFramework Condition=" '$(SwitchBuild)' != 'true' ">net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -23,6 +27,15 @@
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugType>portable</DebugType>
+  </PropertyGroup>
+
+  <!-- Nintendo Switch homebrew build (mono-nx runtime + deko3d). Opt-in with `-p:SwitchBuild=true`. Defines
+       the SWITCH constant that gates Rendering/Switch/**. This is a Phase-1 scaffold: it does NOT yet produce a
+       runnable .nro — it needs a mono-nx native fork and an offline UAM shader step. See docs/switch-port.md.
+       When a real device build exists, this is also where the desktop-only package references (Silk.NET,
+       Raylib-cs, GtkSharp, Roslyn scripting) get stripped, since none of them can load under static P/Invoke. -->
+  <PropertyGroup Condition=" '$(SwitchBuild)' == 'true' ">
+    <DefineConstants>$(DefineConstants);SWITCH</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -75,6 +88,29 @@
        `dotnet build -p:CompileStages=true`. It runs in the output folder, reading the copied StagesJson and
        writing SpellCards there; failures never break the build (ContinueOnError). You can also compile from the
        Stage Editor's "Compile JSON to SID" menu item. -->
+  <!-- Auto-incrementing build number. Bumps build_number.txt and generates DmitryAndDemid.BuildInfo.Number on
+       every compile, so the loading screen can show WHICH build is actually running — this is how we catch a
+       stale aag2.dll on the device's SD vs the one just built (a real source of confusion during the Switch port). -->
+  <Target Name="IncrementBuildNumber" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <BuildNumberFile>$(MSBuildProjectDirectory)/build_number.txt</BuildNumberFile>
+    </PropertyGroup>
+    <ReadLinesFromFile File="$(BuildNumberFile)" Condition="Exists('$(BuildNumberFile)')">
+      <Output TaskParameter="Lines" ItemName="_BuildNumberLines" />
+    </ReadLinesFromFile>
+    <PropertyGroup>
+      <CurrentBuildNumber>@(_BuildNumberLines)</CurrentBuildNumber>
+      <CurrentBuildNumber Condition="'$(CurrentBuildNumber)' == ''">0</CurrentBuildNumber>
+      <NextBuildNumber>$([MSBuild]::Add($(CurrentBuildNumber), 1))</NextBuildNumber>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(BuildNumberFile)" Lines="$(NextBuildNumber)" Overwrite="true" />
+    <WriteLinesToFile File="$(IntermediateOutputPath)BuildInfo.g.cs" Overwrite="true"
+      Lines="namespace DmitryAndDemid { public static class BuildInfo { public const int Number = $(NextBuildNumber)%3B } }" />
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)BuildInfo.g.cs" />
+    </ItemGroup>
+  </Target>
+
   <Target Name="CompileStagesFromJson" AfterTargets="Build" Condition="'$(CompileStages)' == 'true'">
     <Exec Command="dotnet &quot;$(TargetDir)aag2.dll&quot; --compile-stages"
           WorkingDirectory="$(TargetDir)" ContinueOnError="true" />

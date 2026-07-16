@@ -1,0 +1,27 @@
+{
+ "blockSize": 36,
+ "blockBinding": 1,
+ "uniforms": [
+  {
+   "name": "textureRes",
+   "offset": 16,
+   "type": "vec2"
+  },
+  {
+   "name": "outputRes",
+   "offset": 24,
+   "type": "vec2"
+  },
+  {
+   "name": "time",
+   "offset": 32,
+   "type": "float"
+  }
+ ],
+ "samplers": [
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
+}

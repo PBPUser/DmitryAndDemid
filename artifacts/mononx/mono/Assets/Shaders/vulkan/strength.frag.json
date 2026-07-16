@@ -1,0 +1,41 @@
+{
+ "blockSize": 80,
+ "blockBinding": 1,
+ "uniforms": [
+  {
+   "name": "time",
+   "offset": 16,
+   "type": "float"
+  },
+  {
+   "name": "position",
+   "offset": 24,
+   "type": "vec2"
+  },
+  {
+   "name": "timeStarted",
+   "offset": 32,
+   "type": "float"
+  },
+  {
+   "name": "particlesColor",
+   "offset": 48,
+   "type": "vec4"
+  },
+  {
+   "name": "circleColor",
+   "offset": 64,
+   "type": "vec4"
+  }
+ ],
+ "samplers": [
+  {
+   "name": "textureLeaves",
+   "binding": 2
+  },
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
+}

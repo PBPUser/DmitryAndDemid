@@ -42,6 +42,11 @@ public class Runtime
     public float MusicVolume = 1.0f;
     public bool DisableClose = false;
     bool ADPTriggered = false;
+    /// Wall-clock (<see cref="Gfx.GetTime"/>) deadline at which the loading screen hands off to the main menu.
+    /// Set at the end of <see cref="Load"/> and polled every frame in <see cref="PreRender"/>. This deliberately
+    /// replaces a <c>Task.Delay(...).ContinueWith(...)</c>: on mono-nx (Switch, Mono interpreter) that
+    /// continuation never fires, so the game sat on the loading screen forever while the 60 fps loop ran.
+    double LoadingSwitchAt = double.PositiveInfinity;
     public Rect FullScreenRect;
     private Rect CurrentScoreSource;
     Rect CurrentScoreTarget;
@@ -124,6 +129,17 @@ public class Runtime
         ClearBackground(Rgba.Black);
         BeginTextureMode(Backbuffer);
         ClearBackground(Rgba.Black);
+        bool showBuild = false;
+        #if DEBUG
+        showBuild = true;
+        #endif
+        #if SWITCH
+        showBuild = true;
+        #endif
+        if (showBuild)
+        {
+            DrawText($"Version: {VersionString}; Build: {BuildInfo.Number}; Renderer: {rendererName}", 0, 0, (int)(14 * ScaleF),Rgba.White);
+        }
         DrawTexturePro(sugarTexture,
             new Rect(Vector2.Zero, 400, 400),
             new Rect((Width - size) / 2, (Height - size) / 2, size, size),
@@ -141,6 +157,12 @@ public class Runtime
         ScreenLoading = new LoadingScreen();
         AddScreen(ScreenLoading);
         await Load();
+        if (BenchMode)
+        {
+            RunBench();
+            Engine.Platform.CloseWindow();
+            return;
+        }
         while (!WindowShouldClose() || DisableClose)
             RunFrame();
         Engine.Platform.CloseWindow();
@@ -156,6 +178,32 @@ public class Runtime
         PreRender(Time - now);
         Render();
         Time = now;
+    }
+
+    /// <summary>Set by <c>--bench</c> / config <c>Bench</c>: run <see cref="RunBench"/> instead of the menu loop.</summary>
+    public static bool BenchMode;
+
+    /// <summary>
+    /// Headless sim-throughput benchmark. Builds a real <see cref="GameBox"/> on the first character + stage and
+    /// ticks it as fast as the CPU allows — <see cref="GameBox.BenchMode"/> bypasses the 60 TPS gate — so bullets
+    /// spawn and accumulate and the O(n²) collision cost grows the way it does in real play. Prints ticks/sec:
+    /// the number that decides whether an interpreter (mono-nx / Switch) can hold 60 TPS under load. Renders
+    /// nothing; runs after <see cref="Load"/> so every asset the sim reads is present. See docs/switch-port.md.
+    /// </summary>
+    void RunBench()
+    {
+        Console.WriteLine("[bench] starting headless sim-throughput benchmark");
+        BenchmarkResult r = Benchmark.Run(muteSfx: true);
+        if (r.Error != null)
+        {
+            Console.WriteLine("[bench] FAILED: " + r.Error);
+            return;
+        }
+        Console.WriteLine($"[bench] backend={r.Backend} targetLoad={r.TargetLoad} peakObjs={r.PeakObjects}");
+        Console.WriteLine($"[bench] {r.Ticks} ticks in {r.Seconds:F2}s = {r.TicksPerSec:F0} ticks/s " +
+                          $"({r.RealtimeMultiple:F2}x the 60 TPS budget)");
+        Console.WriteLine($"[bench] GC heap  max={Benchmark.FormatBytes(r.MemMaxBytes)}  " +
+                          $"avg={Benchmark.FormatBytes(r.MemAvgBytes)}  median={Benchmark.FormatBytes(r.MemMedianBytes)}");
     }
 
 #if ANDROID
@@ -314,30 +362,36 @@ public class Runtime
             ADPTriggered = true;
             ScreenLoading.SetADPText("HeBo3MoJHo uHutsuAJlu3upoBaTb 3ByKoByI0 noDcucTemu.", false);
         } 
-        LoadShaders();
-        LoadFonts();
-        LoadTextures();
-        Helper.LoadShaderAttribs();
-        LoadBullets();
-        LoadAudio();
-        #if DEBUG
-        Task.Delay(500).ContinueWith(_ =>
-        #else
-        Task.Delay(Config.FastLoading?3000:33000).ContinueWith(_ =>
-        #endif
+        void Mark(string s)
         {
-            if (!ADPTriggered)
-                AddAction(() =>
-                {
-                    if (IsKeyDown(KeyCode.J))
-                    {
-                        ScreenLoading.SetADPText("Kpajjj AKTUBUPOBAHblJ noJl3OBaTeJlEM..", false);
-                        ADPTriggered = true;
-                    }
-                    else
-                        SwitchToMain();
-                });
-        });
+#if SWITCH
+            Console.WriteLine($"[load] {s}");
+#endif
+        }
+        try
+        {
+            Mark("shaders…");    LoadShaders();
+            Mark("fonts…");      LoadFonts();
+            Mark("textures…");   LoadTextures();
+            Mark("shaderAttribs…"); Helper.LoadShaderAttribs();
+            Mark("bullets…");    LoadBullets();
+            Mark("audio…");      LoadAudio();
+            Mark("load done");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("[load] EXCEPTION: " + ex);
+            throw;
+        }
+        // Arm the loading-screen → main-menu hand-off. Driven from the render loop (PreRender), NOT a
+        // Task.Delay continuation — on mono-nx the threadpool timer never fires it and the game strands on
+        // the loading screen (the 60 fps loop keeps running, nothing switches). GetTime() is wall-clock, so
+        // a per-frame deadline is equivalent on desktop/Android and the only thing that works on Switch.
+        #if DEBUG
+        LoadingSwitchAt = GetTime() + 0.5;
+        #else
+        LoadingSwitchAt = GetTime() + (Config.FastLoading ? 3.0 : 33.0);
+        #endif
         return Task.CompletedTask;
     }
 
@@ -347,11 +401,30 @@ public class Runtime
     /// </summary>
     public static bool OpenSettingsOnStart;
 
+    /// <summary>
+    /// Crash-proof trace for the Switch bring-up: appends one line to <c>/mono/crashtrace.txt</c> and closes the
+    /// handle each call, so the mark survives a hard interpreter crash + <c>svcExitProcess</c> — unlike
+    /// <see cref="Console.WriteLine"/>, whose managed buffer is lost on crash. Read the file back over FTP.
+    /// </summary>
+    public static void SwTrace(string s)
+    {
+#if SWITCH
+        try { System.IO.File.AppendAllText(Utils.Platform.DataPath("crashtrace.txt"), s + "\n"); } catch { }
+#endif
+    }
+
     void SwitchToMain()
     {
+        SwTrace("[switch] new MainScreen()…");
         ScreenMain = new MainScreen();
+#if SWITCH
+        SwTrace("[switch] MainScreen built; swapping screens");
+#endif
         RemoveScreen(ScreenLoading);
         AddScreen(ScreenMain);
+#if SWITCH
+        SwTrace("[switch] SwitchToMain done");
+#endif
         if (OpenSettingsOnStart)
         {
             OpenSettingsOnStart = false;
@@ -368,13 +441,24 @@ public class Runtime
     void LoadTextures()
     {
         foreach (var x in Assets.Files("Assets/Textures", "*.png"))
+        {
+#if SWITCH
+            Console.WriteLine($"[tex] load {Path.GetFileName(x)}");
+#endif
             Textures[Path.GetFileName(x)] = LoadTexture(x);
-        Textures["MenuItemSelectionGradient1"] = Helper.RenderSelectionBackground(200, 200, 0);
-        Textures["MenuBackground"] = Helper.FillTextureWithColor(Rgba.Black with { A = 128 }, Width, Height).Texture;
-        Textures["Copyright"] = Helper.DrawTextScaled(")(U,2026 Konu9lnpaBa Caxap Ko.", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
-        Textures["Version"] = Helper.DrawTextScaled($"Beer {VersionString} (npo6Ha9l Bepcu9I)", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
-        Textures["384x448"] = Helper.FillTextureWithColor(Rgba.White, 384, 448).Texture;
-        PrepareScoreTexture();
+        }
+        void M(string s) {
+#if SWITCH
+            Console.WriteLine($"[tex] {s}");
+#endif
+        }
+        M("selBg");     Textures["MenuItemSelectionGradient1"] = Helper.RenderSelectionBackground(200, 200, 0);
+        M("menuBg");    Textures["MenuBackground"] = Helper.FillTextureWithColor(Rgba.Black with { A = 128 }, Width, Height).Texture;
+        M("copyright"); Textures["Copyright"] = Helper.DrawTextScaled(")(U,2026 Konu9lnpaBa Caxap Ko.", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
+        M("version");   Textures["Version"] = Helper.DrawTextScaled($"Beer {VersionString} (npo6Ha9l Bepcu9I)", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
+        M("384x448");   Textures["384x448"] = Helper.FillTextureWithColor(Rgba.White, 384, 448).Texture;
+        M("scoreTex");  PrepareScoreTexture();
+        M("tex done");
         Textures = Textures.OrderBy(x => x.Key).ToDictionary();
     }
 
@@ -417,8 +501,13 @@ public class Runtime
             IncludeFields = true
         };
         foreach (var x in Assets.Files("Assets/Data/BulletVisuals"))
+        {
+#if SWITCH
+            Console.WriteLine($"[load] bullet {Path.GetFileName(x)}");
+#endif
             BulletVisualPresets[Path.GetFileNameWithoutExtension(x)] =
                 JsonSerializer.Deserialize<BulletRenderingInfo>(File.ReadAllText(x), jso);
+        }
     }
 
     void LoadShaders()
@@ -496,7 +585,24 @@ public class Runtime
     {
         if (ScreenRefreshRequired)
             RefreshScreens();
-        
+
+        // Loading-screen → main-menu hand-off, armed in Load(). Polled here (render loop) instead of via a
+        // Task.Delay continuation, which never fires on mono-nx. Fires once, then disarms.
+        if (GetTime() >= LoadingSwitchAt)
+        {
+            LoadingSwitchAt = double.PositiveInfinity;
+            if (!ADPTriggered)
+            {
+                if (IsKeyDown(KeyCode.J))
+                {
+                    ScreenLoading.SetADPText("Kpajjj AKTUBUPOBAHblJ noJl3OBaTeJlEM..", false);
+                    ADPTriggered = true;
+                }
+                else
+                    SwitchToMain();
+            }
+        }
+
         GamepadCheck();
         for (int i = UpdateRenderFrom; i < Screens.Count; i++)
         {

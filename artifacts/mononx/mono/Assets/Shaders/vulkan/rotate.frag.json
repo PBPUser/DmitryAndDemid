@@ -1,0 +1,32 @@
+{
+ "blockSize": 32,
+ "blockBinding": 1,
+ "uniforms": [
+  {
+   "name": "roll",
+   "offset": 16,
+   "type": "float"
+  },
+  {
+   "name": "pitch",
+   "offset": 20,
+   "type": "float"
+  },
+  {
+   "name": "yaw",
+   "offset": 24,
+   "type": "float"
+  },
+  {
+   "name": "focal",
+   "offset": 28,
+   "type": "float"
+  }
+ ],
+ "samplers": [
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
+}

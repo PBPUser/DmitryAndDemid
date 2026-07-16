@@ -1,0 +1,8 @@
+{
+  "Description": "Прочистить вилкой\nПройти игру на лёгком режиме сложности",
+  "ID": "clear_easy",
+  "Index": 0,
+  "HasAction": true,
+  "ActionType": "ending",
+  "ActionInfo": "easy"
+}

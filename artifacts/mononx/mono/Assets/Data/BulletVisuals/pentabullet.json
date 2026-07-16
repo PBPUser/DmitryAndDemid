@@ -1,0 +1,7 @@
+{
+  "Texture": "pentabullet",
+  "RenderType": 0,
+  "RenderSize": { "X": 16, "Y": 32 },
+  "SourceSize": {"X": 16, "Y": 32 },
+  "Collision": 4
+}

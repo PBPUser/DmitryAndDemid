@@ -1,0 +1,10 @@
+{
+  "ID": "qaw",
+  "Speed": 2,
+  "FocusSpeed": 1,
+  "WeaponClassName": "AkobPlayerWeapon",
+  "ArtName": "qaw_art.png",
+  "Description": "akob_art.png",
+  "DialogArtName": "qaw_dialog_arts.png",
+  "Sprite": "akob_sprite.png"
+}

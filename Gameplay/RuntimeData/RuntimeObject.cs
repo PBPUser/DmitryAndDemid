@@ -225,6 +225,32 @@ public class RuntimeObject
         entity.UpdateTargetRectangle();
         return entity;
     }
+
+    /// <summary>
+    /// A fully independent copy — its own <see cref="Header"/>/<see cref="FloatingPoints"/> arrays plus the same
+    /// behaviour delegates — used only by the benchmark to synthesise heavy bullet load. Unlike
+    /// <see cref="CloneWithPositionSpawnTick"/> (which SHARES the Header array and drops the update action), this
+    /// produces a bullet that moves and despawns on its own, so a crowd of them stresses the update + O(n²)
+    /// collision loops the way a real danmaku scene does.
+    /// </summary>
+    public RuntimeObject DeepCloneForBench()
+    {
+        var c = new RuntimeObject
+        {
+            Header = (int[])Header.Clone(),
+            FloatingPoints = (float[])FloatingPoints.Clone(),
+            Source = Source,
+            Texture = Texture,
+            Box = Box,
+            CreateAction = CreateAction,
+            UpdateAction = UpdateAction,
+            DieAction = DieAction,
+            RemoveAction = RemoveAction,
+        };
+        c.UpdateOrigin();
+        c.UpdateTargetRectangle();
+        return c;
+    }
     
     public Drop BadDrop => new(Header[4]);
     public Drop GoodDrop => new(Header[5]);

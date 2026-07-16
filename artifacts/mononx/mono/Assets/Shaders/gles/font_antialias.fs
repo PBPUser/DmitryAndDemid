@@ -1,0 +1,26 @@
+#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+out vec4 _fragColorOut;
+in vec2 fragTexCoord;
+in vec2 uv;
+in vec4 fragColor;
+uniform sampler2D texture0;
+uniform vec4 colDiffuse;
+uniform vec2 resolution;
+uniform int scale;
+
+void main()
+{
+    _fragColorOut = vec4(0.0);
+    vec2 ftc = fragTexCoord;
+    vec2 texelSize = vec2(1) / resolution;
+    vec2 scaledTexelSize = vec2(1) / (resolution * float(scale));
+    vec4 c = vec4(0);
+    for(float x = 0.0; x < float(scale); x++)
+    for(float y = 0.0; y < float(scale); y++)
+        c += texture(texture0, ftc * float(scale) + scaledTexelSize * vec2(x,y));
+    c /= pow(float(scale), 2.0);
+    _fragColorOut = c;
+}
