@@ -10,3 +10,5 @@ obj/
 # OS
 Thumbs.db
 .DS_Store
+/artifacts/
+/publish/
