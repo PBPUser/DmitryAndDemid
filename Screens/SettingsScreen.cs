@@ -140,6 +140,15 @@ public class SettingsScreen : MenuScreen
             autoSlowItem.Replace = $"{Configuration.Config.AutoSlowdownOnShoot}";
         };
         MenuItems.Add(autoSlowItem);
+        // Point-of-collection hint line at the start of a run. Live — no restart; applies to the next run.
+        MenuItem itemLineItem = new("settings.itemline", $"{Configuration.Config.ShowItemLineHint}", null);
+        itemLineItem.Action = a =>
+        {
+            Configuration.Config.ShowItemLineHint = !Configuration.Config.ShowItemLineHint;
+            Configuration.Config.Save();
+            itemLineItem.Replace = $"{Configuration.Config.ShowItemLineHint}";
+        };
+        MenuItems.Add(itemLineItem);
         // Reposition the on-screen controls and toggle the stick / shoot button. Opens a drag editor.
         MenuItems.Add(new MenuItem("settings.touch_layout", "",
             a => Runtime.CurrentRuntime.AddScreen(new TouchLayoutScreen())));

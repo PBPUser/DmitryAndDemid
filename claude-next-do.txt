@@ -1,18 +1,51 @@
-Create last spellcard in stage 2, which nikitab should spawns bullets from bottom (only if difficulty is hard or max), and create huge bullet that spawns yellow microbullets that rotates 180 degree for about 30 + 10 * (4-difficulty_level) ticks and always moves directed by their rotation
+fix non-smooth transition of nikitos in stage 1 spellcard 1
 
-Create 3rd stage, add default chapter-placeholder,  then, in nikitab spell card (or non-spell if player plays easy/normal difficulty), in spellcard nikitab should appear rotating pizza from that circle from bullets (default and large) and it should be grouped into 2 on easy, 3 on normal/hard and 4 on max, which swaps their state to not attack player every 1/Group_count seconds, when they not attack player - they should be semitransparent with bullets randomly (use player position as seed) in it, that appears from sides, and laser when player plays hard/max difficulty, which rotates from center of pizza, nikitab should be invincible, spellcard background should use nikitab-spellcard-5.png and outlines of forks slowly float from the bottom side
+play boss-appear.ogg every 1000 ticks during benchmark (only if player runned it from settings menu)
 
-Add dialog and first non-spell of "Dmitry", before dialog dmitry appears using strength animation and plays strength sound, in first non-spell
+reorgonize settings into 4 categories, sound, controls, graphics, other
 
-add tag to dialog where music switches to the boss
+add low and high graphics settings, low should turn off shaders on spellcards and backgrounds
 
-add tag that should appear boss name, and display his profile (profile-BOSSNAME.png) with rotating colored fork (profile should have json, and in json boss should have a color)
+fix that when player presses Escape in benchmark, and use translations.json for signs on it
 
-# after player kills toilet that spawns depended on network, it should spawn a piece of bomb
+render mainscreen pizzas above top logos 
 
-spawn collectables with slight velocity
+move difficulty selector up in statistics screen
 
-add piece of heart when player successfully reaches end of non-spell/spell (no timeout, no death, no bomb), if player timed out - game should drop nothing, if player die or use bomb - game should take a star piece
+use bad ending if player 1cced easy mode, and don't unlock extra
 
-add boss splash animation when they takes a spellcard, which should be their semi-transparent art appearing out-of-screen and move out-of-screen, but for dmitry it should use dmitry_top and dmitry_bottom pngs with slow scaling from center and pictures should slow move by y axis from each other and fade in and out (scale should start from 0.7~ times of screen and stop on 2~ times of screen), and use Easeing for scale, that speed-ups ending
+unlock first 6 trophy when player clears game with good, and then bad ending, when player presses enter on it, it should open ending only related to this trophy
 
+unlock trophy from 7, 8, 9, 10 when player cleared the game using easy, normal, hard and max difficulty on any chapter, when player pressed they should open staff roll with difficulty parameter
+
+unlock trophy 11 when player cleared extra mode with any character
+
+unlock trophies 12, 13, 14 when player cleared extra mode (add it) with akob, qaw and sugar
+
+unlock trophy 15 when player cleared all spellcards good once (add it)
+
+unlock trophy 16 when player cleared all spellcards good once in spell practice
+
+unlock trophy 17 when player cleared all spellcards good during main story, and 18 if they do that in extra
+
+unlock trophy 19 or 20 when player cleared main game or extra without using bombs
+
+unlock trophy 21 or 22 when player cleared main game or extra without deathes
+
+unlock trophy 23 or 24 when player cleared main game or extra without death and bombs
+
+unlock trophy 25 if player not used bombs during second stage
+
+unlock trophy 26 if player spawned more than 10 toilets during extra stage
+
+add animations for trophy, display small pizza and text in top-right corner, use trophy.mp3 when player gets that
+
+magnet collectables into network toilet if toilet exists and collectable is not in player magnet area, display information on right side about it (magnet only score, power and full power, but not hearts/stars and pieces)
+
+fix cropped shading of game title in main menu
+
+replace huge bullets with bubble in 3rd nikitab spellcard
+
+find reasons why game freezes, and try fix that
+
+(This thing not complete, just *ignore* it) Add dialog and first non-spell of "Dmitry", before dialog dmitry appears using strength animation and 

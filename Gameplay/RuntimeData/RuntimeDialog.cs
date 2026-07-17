@@ -174,10 +174,8 @@ public class RuntimeDialog
         float drawH = fullH * open;                                   // vertical squeeze/bounce
         Rect win = new Rect(fullX, cy - drawH / 2f, fullW, drawH);
 
-        // Dark panel with a thin accent border.
+        // Dark panel. (The thin accent line that used to sit along the window's top edge is intentionally gone.)
         DrawRectangleRec(win, new Rgba(12, 12, 22, (byte)(225 * Math.Min(1f, open))));
-        Rgba accent = Current.IsPlayer ? new Rgba(90, 200, 120, 255) : new Rgba(230, 100, 120, 255);
-        DrawRectangleRec(new Rect(win.X, win.Y, win.Width, 2 * scale), accent with { A = (byte)(220 * Math.Min(1f, open)) });
 
         // Randomly-placed, randomly-coloured forks dressing the right side of the window (generated once per line).
         TextureHandle fork = Runtime.CurrentRuntime.Textures["vilkaCut.png"];
@@ -202,10 +200,64 @@ public class RuntimeDialog
             float availH = win.Height * 0.82f;
             float ts = MathF.Min(availW / text.Width, availH / text.Height);
             float tw = text.Width * ts, th = text.Height * ts;
+            // No Y-flip: this composites into the UIAboveGameplay render target, where render-texture content
+            // (the boss/chapter titles right above) blits upright with a positive source. The old -Height flip
+            // is what turned the dialog text upside-down.
             DrawTexturePro(text,
-                new Rect(0, 0, text.Width, -text.Height),   // render-texture Y flip
+                new Rect(0, 0, text.Width, text.Height),
                 new Rect(win.X + 12 * scale, win.Y + (win.Height - th) / 2f, tw, th),
                 Vector2.Zero, 0, Rgba.White with { A = (byte)(contentA * 255) });
+        }
+
+        DrawBossNameCard(width, scale, contentA);
+    }
+
+    /// <summary>
+    /// The ShowBossName tag's visual: a card near the top of the playfield with the boss's name, a rotating fork
+    /// tinted in the boss's accent colour, and (if it exists) the profile-&lt;boss&gt;.png art. Everything is drawn
+    /// only when a profile json exists for the speaker; missing art just omits that piece.
+    /// </summary>
+    private void DrawBossNameCard(float width, float scale, float contentA)
+    {
+        Line line = Current;
+        if (!line.ShowBossName || line.Profile == null || contentA <= 0f)
+            return;
+
+        float t = (float)GetTime();
+        byte alpha = (byte)(contentA * 255);
+        Rgba accent = line.Profile.AccentColor() with { A = alpha };
+
+        float art = 56f * scale;                    // profile square / fork size
+        float pad = 8f * scale;
+        float x = width - art - pad * 2f;           // top-right corner (the boss stands on the right)
+        float y = pad;
+
+        // Rotating tinted fork behind the profile.
+        TextureHandle fork = Runtime.CurrentRuntime.Textures["forkCut.png"];
+        Vector2 fsz = Helper.GetSize(fork);
+        float fh = art * 1.35f, fw = fsz.X > 0 ? fh * fsz.X / fsz.Y : fh;
+        DrawTexturePro(fork, new Rect(0, 0, fsz.X, fsz.Y),
+            new Rect(x + art / 2f, y + art / 2f, fw, fh),
+            new Vector2(fw / 2f, fh / 2f), t * 60f, accent);
+
+        // Profile art, only if it exists.
+        if (line.ProfileArt != null)
+        {
+            TextureHandle pa = line.ProfileArt.Value;
+            DrawTexturePro(pa, new Rect(0, 0, pa.Width, pa.Height),
+                new Rect(x, y, art, art), Vector2.Zero, 0, Rgba.White with { A = alpha });
+        }
+
+        // Boss name, right-aligned to the left of the profile square.
+        if (!string.IsNullOrEmpty(line.Profile.Name))
+        {
+            FontHandle font = Runtime.CurrentRuntime.Fonts["newsreader"];
+            float fontSize = 18f * scale;
+            Vector2 m = MeasureTextEx(font, line.Profile.Name, fontSize, 1);
+            Vector2 pos = new Vector2(x - pad - m.X, y + (art - m.Y) / 2f);
+            DrawTextEx(font, line.Profile.Name, pos + new Vector2(1.5f * scale), fontSize, 1,
+                Rgba.Black with { A = alpha });        // shadow
+            DrawTextEx(font, line.Profile.Name, pos, fontSize, 1, accent);
         }
     }
 
@@ -249,9 +301,28 @@ public class RuntimeDialog
         public readonly int PlayerFrame;
         public readonly int BossFrame;
 
+        /// <summary>The ShowBossName tag: when set, the boss's name card (name + optional profile art + a
+        /// rotating tinted fork) is shown for this line. All parts are opt-in by file existence.</summary>
+        public readonly bool ShowBossName;
+        public readonly BossProfile? Profile;
+        public readonly TextureHandle? ProfileArt;
+
         public Line(FileDialogInfo info, ProtogonistData protogonist)
         {
             IsPlayer = info.IsPlayerDialog;
+
+            // Boss-name tag: resolve the boss key from the character art (e.g. "nikitab_dialog_art.png" ->
+            // "nikitab"), then look up its profile json (for the name + accent colour) and the optional
+            // profile-<key>.png art. Both are shown only if they exist — nothing is required to ship.
+            ShowBossName = info.ShowBossName;
+            if (ShowBossName)
+            {
+                string key = BossProfile.KeyFromCharacterTexture(info.CharacterTexture);
+                Profile = BossProfile.Get(key);
+                ProfileArt = Runtime.CurrentRuntime.Textures.TryGetValue($"profile-{key}.png", out TextureHandle pt)
+                    ? pt
+                    : null;
+            }
 
             // Route the line through the game's translator (Helper.Translate): a translation.json key resolves to
             // one of its variants, anything else falls through transliterated — either way it comes back ready to

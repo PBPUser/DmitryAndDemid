@@ -41,7 +41,11 @@ public class RuntimeObject
         FlagIsCollectable = 0x10000, 
         FlagIsMovingToTarget = 0x20000,
         FlagInvincible = 0x40000,
-        FlagIsLaser = 0x80000;
+        FlagIsLaser = 0x80000,
+        // Out-of-bounds "remove-proof": an object with this set is NOT culled when it leaves the playfield
+        // (like lasers). For things that legitimately live off-screen — e.g. a bullet formation that spawns
+        // outside the box and moves in. Bit 21, unused by any other flag / object kind.
+        FlagPersistOffscreen = 0x200000;
 
     public static FileEntityInfo[] CollectableFEIs = new FileEntityInfo[8];
     public static FileEntityInfo MagicalToilet;
@@ -77,6 +81,15 @@ public class RuntimeObject
     /// Nikita Bukin boss and his pizza mount riding in semi-transparent) without affecting the sim. Applied as
     /// the draw tint's alpha; bullets leave this at 1 and control opacity through their shader instead.</summary>
     public float RenderAlpha = 1f;
+
+    /// <summary>When true the object is exempt from the out-of-bounds cull (see GameBox), so it can live and move
+    /// off-screen. Backed by <see cref="FlagPersistOffscreen"/> in <see cref="Header"/>[0].</summary>
+    public bool PersistOffscreen
+    {
+        get => (Header[0] & FlagPersistOffscreen) == FlagPersistOffscreen;
+        set { if (value) Header[0] |= FlagPersistOffscreen; else Header[0] &= ~FlagPersistOffscreen; }
+    }
+
     public int[] Header = new int[128];
     public float[] FloatingPoints = new float[128];
     public TextureHandle Texture;

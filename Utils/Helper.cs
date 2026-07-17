@@ -145,6 +145,7 @@ public static class Helper
         Rect rc2 = new(0, temp.Texture.Height, temp.Texture.Width, temp.Texture.Height);
         DrawTexturePro(temp.Texture, rc2,   rc, Vector2.Zero, 0, Rgba.White);
         EndTextureMode();
+        SetTextureFilter(texture.Texture, FilterMode.Bilinear);   // anti-alias the boss title when it's scaled
         UnloadRenderTexture(temp);
     }
 
@@ -176,6 +177,7 @@ public static class Helper
         DrawTexturePro(temp.Texture, rc2,   rc, Vector2.Zero, 0, Rgba.White);
         EndShaderMode();
         EndTextureMode();
+        SetTextureFilter(texture.Texture, FilterMode.Bilinear);   // anti-alias the chapter/spell title when scaled
         UnloadRenderTexture(temp);
     }
 
@@ -421,17 +423,20 @@ public static class Helper
         DrawTextFramedInto(ref SubtitleMasks[0], ref SubtitleMaskSizes[0], ref SubtitleParts[0], ref SubtitlePartSizes[0],
             TimerFont, fontSize, bonusLabel,
             new Rgba(190, 205, 255), new Rgba(120, 140, 200), Rgba.Black, border);
+        // Score/bonus value: static gradient, no animated sweep (highlightStrength 0). The moving highlight
+        // shader that used to play across the score during a spell card is intentionally removed.
         DrawTextFramedInto(ref SubtitleMasks[1], ref SubtitleMaskSizes[1], ref SubtitleParts[1], ref SubtitlePartSizes[1],
             TimerFont, fontSize, bonusValue,
             failed ? new Rgba(255, 150, 150) : new Rgba(255, 240, 170),
             failed ? new Rgba(200, 30, 30) : new Rgba(255, 150, 20),
-            Rgba.Black, border, failed ? 0f : 0.65f);
+            Rgba.Black, border, 0f);
         DrawTextFramedInto(ref SubtitleMasks[2], ref SubtitleMaskSizes[2], ref SubtitleParts[2], ref SubtitlePartSizes[2],
             TimerFont, fontSize, attemptLabel,
             new Rgba(190, 205, 255), new Rgba(120, 140, 200), Rgba.Black, border);
+        // Attempt record: white with a slight top-to-bottom shadow gradient (plus the black frame below).
         DrawTextFramedInto(ref SubtitleMasks[3], ref SubtitleMaskSizes[3], ref SubtitleParts[3], ref SubtitlePartSizes[3],
             TimerFont, fontSize, triesValue,
-            Rgba.White, new Rgba(170, 170, 190), Rgba.Black, border);
+            new Rgba(255, 255, 255), new Rgba(205, 205, 205), Rgba.Black, border);
 
         float gap = 10 * Runtime.CurrentRuntime.ScaleF;
         TargetHandle[] parts = SubtitleParts;
@@ -574,6 +579,9 @@ public static class Helper
         DrawTexture(temp.Texture, 0, 0, Rgba.White);
         EndShaderMode();
         EndTextureMode();
+        // Bilinear so the baked text stays smooth (anti-aliased) when the UI scales it up/down; render textures
+        // default to point/nearest, which makes scaled menu text jagged.
+        SetTextureFilter(texture.Texture, FilterMode.Bilinear);
         UnloadRenderTexture(temp);
     }
 
@@ -976,9 +984,11 @@ public static class Helper
         DrawTexture(temp.Texture, 0, 0, Rgba.White);
         EndShaderMode();
         EndTextureMode();
+        // Bilinear so the baked text is anti-aliased when the UI scales it (render textures default to point).
+        SetTextureFilter(texture.Texture, FilterMode.Bilinear);
         UnloadRenderTexture(temp);
     }
-    
+
     private static TargetHandle ScoreDigits;
     public static Vector2 ScoreDigitSize;
     

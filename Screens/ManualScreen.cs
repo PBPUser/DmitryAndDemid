@@ -79,6 +79,12 @@ public class ManualScreen : MenuScreen
     private void Move(int direction)
     {
         PreviousKeyTimestamp = GetTime();
+        // Restart the selection-change shake. The base TopUpdate does this on every move, but this screen
+        // overrides TopUpdate, so without stamping the animation fields swapNoise stays 0 and the selected
+        // page title never jitters the way the main menu's does.
+        PreviousSelectedIndex = SelectedIndex;
+        AnimationStartedIndex = SelectedIndex;
+        AnimationStartedAt = GetTime();
         SelectedIndex = (SelectedIndex + direction + MenuItems.Count) % MenuItems.Count;
         Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
     }

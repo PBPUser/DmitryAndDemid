@@ -1,0 +1,166 @@
+========================= REWORKS FROM YOUR ANSWERS (done) =========================
+ A1) attempts color -> white with a slight shadow gradient (Helper.cs).
+ A2) huge bullet now ROTATES 180° itself over 30+10*(4-diff) ticks and sheds micros facing
+     its current rotation; micros fly straight (stage-2 final card).
+ A3+line15) stage-3 pizza REBUILT: a real CIRCLE of large+micro bullets orbiting the centre;
+     one slot refreshes every 3 ticks clockwise; the bullet previously in that slot flies at
+     the player; groups are random (2/3/4), the random idle group is a semi-transparent,
+     non-lethal safe wedge; background -> nikitab_spell_background-4.png. Fork outlines are
+     tiled in the BOTTOM-RIGHT (see note below on shader vs overlay).
+ A4) chapter-end reward is now TimeoutCard-aware (surviving a survival card = clear, not
+     "timeout"). Reading your "drop" as GIVE (matching "drop nothing" in the original):
+       clear -> heart piece,  died/bombed -> star piece,  timed out (killable card) -> nothing.
+     NOTE: this REVERSES the very first task's "TAKE a star piece" into GIVE a star piece on
+     fail. If you actually meant deduct, say so and I'll flip it.
+ A7) stage-3 pizza reward override: clear -> FULL HEART, died/bombed -> STAR (full bomb),
+     timed out -> FULL POWER. (The pizza boss is invincible, so its only non-fail ending is
+     surviving = clear = full heart; the "timeout->full power" branch can't trigger on an
+     invincible card. Tell me if the boss should NOT be invincible so timeout can happen.)
+ A5) boss splash art: left nikitab cards on nikitab_dialog_art.png; the dmitry two-part path
+     is ready and "dima_dialog_arts.png" noted for dmitry's single-art fallback (task 33).
+
+ ONE DEVIATION TO CONFIRM: you asked to "make new shader that tiles outlines of forks
+ right-bottom". I implemented it as an OVERLAY (ForkTilesOverlay, tiled forkCut.png bottom-
+ right) rather than a GLSL fragment shader, because I can't visually verify a shader here and
+ a bad Vulkan .spv can black-screen/crash the backend. Visual result is the same. If you want
+ it as a real per-backend shader, say so and I'll build fork_tiles.fs + gles + vulkan spv.
+====================================================================================
+
+================================ STATUS (overnight) ================================
+Done & building clean (0 errors), booted clean each time:
+  1 manual-menu shake        2 sugar logo centered (borderless)   3 trophy idle shake
+  4 trophy highlight white   5 spell-practice bullets              6 dialog top line removed
+  7 dialogs no longer upside-down   8 item-line hint toggle (Settings)
+  17 spellcard attempts color + score shader removed
+  19 stage-2 FINAL spellcard (bottom bullets hard/max + huge bullet -> 180°-curving yellow micros)
+  21 NEW 3rd stage (placeholder chapter + nikitab rotating-pizza spell; groups 2/3/4, cycling
+     idle wedge, player-seeded side bullets, rotating laser hard/max, invincible boss, forks
+     floating up, bg nikitab_spell_background-5.png) -- stage3.sid compiled, in the campaign
+  25 boss-name dialog tag (name + profile-<key>.png if present + rotating tinted fork; example
+     Profiles/nikitab.json created)
+  27 collectables pop with slight velocity   29 heart piece on clean clear / star piece on
+     death|bomb / nothing on timeout   31 boss splash overlay (generic + dmitry two-part; wired
+     to nikitab final+pizza cards)
+
+NOT done -- needs you:
+  23 "music switches to boss" tag: the tag already exists in data + editor, but the engine has
+     NO music playback at all (see D-A). Can't wire audio without building a music subsystem.
+
+A few DONE tasks have a judgement call I'd like you to confirm (marked DONE below): the
+attempts color (#1 below), the stage-3 approximations (#7), boss-name conventions (D-B), and
+the boss-splash wiring scope (D-C). Everything still builds and runs; change requests are easy.
+===================================================================================
+
+Questions from Claude (answer inline, I'll pick them up next pass):
+
+1) Task "change color of attempts ... in spellcard info":
+   You didn't specify WHICH color. I made the attempt count (e.g. "02/05") a green
+   gradient (top RGB 150,235,160 / bottom 90,175,110) so it reads apart from the gold
+   score and the light-blue labels. If you want a different color, tell me the RGB (or a
+   name like "cyan"/"orange") in Helper.cs DrawSpellSubtitle, SubtitleParts[3].
+   -> Answer: white with slight shadow gradient
+
+2) Task "Create last spellcard in stage 2 ... huge bullet that spawns yellow microbullets":
+   - "rotates 180 degree for about 30 + 10*(4-difficulty) ticks" — does the HUGE bullet
+     itself rotate 180° over that many ticks, then the microbullets it spawned inherit its
+     facing and fly straight? Or do the microbullets each turn 180° over that duration?
+     I'm implementing: the huge bullet spins, and at spawn each microbullet is emitted
+     facing the huge bullet's current rotation and then flies straight along that heading
+     ("always moves directed by their rotation"). Correct?
+   -> Answer: yes
+
+3) Task "Create 3rd stage ... rotating pizza made of a circle of bullets":
+   This is large. A few specifics I assumed — correct me if wrong:
+   - "grouped into N" = the ring of bullets is split into N arcs/sectors; each sector
+     cycles attack<->idle so exactly one (or N-1?) sectors are non-attacking at a time.
+     I assumed: each group is "not attacking" for 1/N of the cycle, staggered, so at any
+     moment one group is idle (semi-transparent) and the rest attack. Right?
+   - Which existing boss art / behavior name should nikitab's stage-3 card reuse? I'll add
+     a new ActionsScope entry "nikitab#spell_pizza" (and a non-spell variant) unless you
+     have a name in mind.
+   - Laser texture/shader to use for hard/max? I'll reuse the existing spellcard laser if
+     there is one; tell me the asset name if a specific one is wanted.
+   -> Answer: circle of bullets, place bullets like its circle, and constantly respawn, by one, every 3 ticks, clockwise-direction, and bullet that be in this place before should fly into player, groups should be random, use nikitab spellcard background 4 and make new shader that tiles outlines of forks right-bottom
+
+4) Task "add piece of heart when player successfully reaches end of non-spell/spell":
+   Collectable Type 5 = HeartPiece (per earlier notes). I'll drop Type 5 on clean clear,
+   nothing on timeout, and REMOVE a star/bomb piece (BombsSpices--) on death/bomb. Confirm
+   "take a star piece" means decrement bomb-pieces (Type 7 currency), not a full star.
+   -> Answer: you should drop star piece if player used bomb or died during spellcard clear, nothing if spellcard timed out and heart piece if player have clear round
+
+6) Task "spawn collectables with slight velocity" (DONE, confirm interpretation):
+   SpawnDrop already scattered power items, so I made all dropped collectables pop with a
+   slight UPWARD velocity (~0.8..2.0 up, ±0.75 sideways) so they arc up then fall under the
+   existing collectable gravity. If you meant something else (e.g. only the new heart/bomb
+   pieces, or a stronger/weaker pop), tell me. GameBox.SpawnCollectableWithPop.
+   -> Answer: it's okay
+
+5) Boss "splash art" assets (task about boss splash animation on spellcard):
+   For the generic bosses I use "<boss>_splash.png"? You only specified dmitry uses
+   dmitry_top.png / dmitry_bottom.png. Tell me the art naming for nikitos/nikitab/etc, or
+   I'll reuse their existing dialog/spellcard art.
+   -> Answer: dima_dialog_arts.png
+
+============================================================================
+DEFERRED TASKS — need a decision from you before I implement (left UNMARKED in
+claude-next-do.txt). Each has a concrete proposal; just say "yes" or correct it.
+============================================================================
+
+7) Task "Create 3rd stage / rotating pizza spellcard" (DONE — note two approximations):
+   - Chapter type is fixed in stage DATA (can't switch spell<->nonspell by difficulty).
+     So I made ONE Spell chapter whose pattern branches on difficulty (gentler on easy/
+     normal via fewer groups/no laser). If you truly want NO spell framing (title/timer)
+     on easy/normal, that needs a data change I can do — say the word.
+   - "idle slice semi-transparent with bullets in it": danmaku bullets take opacity from
+     their shader (not RenderAlpha), so a persistent see-through bullet-slice is awkward. I
+     represented the idle slice as the QUIET SAFE WEDGE (no pizza bullets there) and put the
+     player-position-seeded random bullets coming from the sides in its place. If you want an
+     actual persistent translucent orbiting bullet-disc instead of the emitter approach, tell
+     me and I'll rework it (heavier, needs the bullet opacity uniform).
+   Stage 3 auto-joins the campaign (Assets/Data/SpellCards ordinal sort). Background uses
+   nikitab_spell_background-5.png (your "nikitab-spellcard-5.png"). Boss is invincible; laser
+   sweeps from centre on hard/max; forks float up from the bottom.
+   -> Answer: yes it is, and also, drop full heart instead of heart piece if player clears this spell clear, if they used bombs or died durring spell - drop star, if they timed out - drop full power 
+
+D-A) "add tag to dialog where music switches to the boss"
+   BLOCKER: the engine has NO music playback at all. IAudio (Rendering/IPlatform.cs)
+   only supports one-shot SFX (LoadSound/Play); Helper.UpdatePlayingMusic() literally
+   `throw new NotImplementedException()`. There are no streamed-music APIs in any backend
+   (Vulkan/Silk/Raylib/SDL). The dialog data ALREADY has the tag: FileDialogInfo.SwitchMusic
+   (bit 4) + Header[3] = music index (the stage editor already exposes a "Music" combo for
+   dialog lines, StageEditorScreen.cs:474). So the authoring tag exists; only playback is
+   missing.
+   PROPOSAL: I add a `GameBox.SwitchMusic(int musicIndex)` hook and call it from
+   RuntimeDialog when a line with SwitchMusic is reached (switching to the stage's boss-music
+   index, stage Header[8]). It will be a no-op stub (logs/marks intent) until music playback
+   exists. OR, if you want real audio, that's a separate large task: add streamed-music
+   support to every backend first. Which do you want — the stub hook now, or wait?
+   -> Answer: okay, create music subsystem thats contains a list of loops, by default game should play Start part and first loop, but if needed - Music Subsystem should has method that replaces current playing part, and this part should be played after previous part ends
+
+D-B) "add tag that shows boss name + profile + rotating colored fork" — DONE. Confirm the
+     conventions I chose (easy to change):
+   - Tag = FileDialogInfo.ShowBossName (bit 8, already in data + stage editor).
+   - BOSSNAME derived from the line's CharacterTexture: "nikitab_dialog_art.png" -> "nikitab"
+     (strips .png and _dialog_art(s)/_boss_art/_art). -> looks up texture "profile-nikitab.png"
+     and Assets/Data/Profiles/nikitab.json.
+   - Profile JSON schema: { "Name": "<display name>", "Color": "#RRGGBB" }. I created an
+     example: Assets/Data/Profiles/nikitab.json (Name "Никита Букин", Color #FF9800). Add
+     more per boss as needed.
+   - Rendering: top-right card = rotating forkCut.png tinted with Color, + profile-<key>.png
+     (ONLY if that texture exists — I did NOT create any png), + the Name text in the accent
+     colour. If there's no profile json for the speaker, nothing extra shows (graceful).
+   Change any of these? (color, fork sprite, card position, name source)
+   -> Answer: keep this question, i'll answer it later
+
+D-C) "boss splash animation when they take a spellcard" — DONE (mechanism + wiring).
+   Built Gameplay/GameplayOverlays/BossSplashOverlay.cs with BOTH modes:
+   - Generic: semi-transparent boss art enters from off the top and sweeps off the bottom.
+   - Dmitry two-part (ready for task 33's dmitry): dmitry_top.png/dmitry_bottom.png scale from
+     ~0.7x to ~2x screen (eased, accelerating), halves drift apart on Y, fade in/out.
+   Trigger: ActionsScope.ShowBossSplash(box, artKey="nikitab_dialog_art.png"), called from the
+   stage-2 FINAL and stage-3 PIZZA nikitab cards. It skips silently if the texture is missing.
+   OPEN: I only wired it to the two nikitab cards I authored (using nikitab_dialog_art.png).
+   To play it on EVERY spell card / other bosses, I need either per-boss splash-art names, or
+   your OK to auto-trigger at every spell start using each boss's art. Which? And is
+   nikitab_dialog_art.png the right splash art for nikitab, or is there dedicated splash art?
+   -> Answer: use first art by default

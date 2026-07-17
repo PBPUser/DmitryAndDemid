@@ -38,6 +38,11 @@ public class GameBox : IDisposable
     public bool IsFailed = false;
     bool SpellTimedOut = false;
 
+    /// <summary>Selects the chapter-end reward drops for the CURRENT chapter (set by its create script, consumed
+    /// and reset in NextChapter). 0 = the standard heart-piece/star-piece rule; 1 = the stage-3 pizza finale
+    /// (full heart / full bomb / full power).</summary>
+    public int CustomChapterReward = 0;
+
     /// <summary>The spell.failed wording chosen when the current card was failed. Picked once — the key has
     /// several variants and Translate() randomises, so resolving it per frame would make the word flicker.</summary>
     string SpellFailedText = "";
@@ -92,7 +97,9 @@ public class GameBox : IDisposable
         LoadStage(stages[0], chapter, difficulty);
         SignalGameplayOverlay = new SignalGameplayOverlay(this);
         AddOverlay(SignalGameplayOverlay);
-        AddOverlay(new ItemGetBorderLineOverlay(this));
+        // The point-of-collection hint line is opt-out (Settings → item line hint).
+        if (Configuration.Config.ShowItemLineHint)
+            AddOverlay(new ItemGetBorderLineOverlay(this));
         // Seed the life/bomb stock per mode: spell practice is a bare single-life attempt (0 spare lives, no
         // bombs), while full practice hands the player a maxed-out stock to freely experiment with. The main
         // game and extra keep the character's default starting stock.
@@ -462,8 +469,11 @@ public class GameBox : IDisposable
             obj.FloatingPoints[0x22] = obj.FloatingPoints[0x12] - z;
             obj.FloatingPoints[0x23] = obj.FloatingPoints[0x5] - r;
             // Lasers are exempt from the offscreen cull: a beam is commonly anchored at a screen edge (or fired
-            // from just outside), and it removes itself when its life ends rather than by leaving the box.
+            // from just outside), and it removes itself when its life ends rather than by leaving the box. Objects
+            // explicitly flagged FlagPersistOffscreen (remove-proof) are likewise exempt — e.g. a bullet formation
+            // that spawns outside the box and travels in.
             if ((obj.Header[0] & RuntimeObject.FlagIsLaser) != RuntimeObject.FlagIsLaser &&
+                (obj.Header[0] & RuntimeObject.FlagPersistOffscreen) != RuntimeObject.FlagPersistOffscreen &&
                 (obj.X < -32 || obj.Y < -32 || obj.X > 416 || obj.Y > 480))
             {
                 RemoveObject(obj);
@@ -598,22 +608,25 @@ public class GameBox : IDisposable
     void SpawnDrop(Vector2 position, Drop drop)
     {
         var rnd = new Random(CurrentTickWithOffset);
-        float angle = MathF.PI;
         for (int i = 0; i < drop.DropPower; i++)
-        {
-            var obj = RuntimeObject.LoadFromFile(RuntimeObject.CollectableFEIs[0], this);
-            obj.CollectableVelocity = Helper.GetDirection(angle+=MathF.PI / 6) * (rnd.NextSingle() + .5f);
-            obj.Position = position;
-            AddObject(obj);
-        }
+            AddObject(SpawnCollectableWithPop(RuntimeObject.CollectableFEIs[0], position, rnd));
         for (int i = 0; i < drop.DropLargePower; i++)
-        {
-            var obj = RuntimeObject.LoadFromFile(RuntimeObject.CollectableFEIs[1], this);
-            obj.CollectableVelocity = Helper.GetDirection(angle+=MathF.PI / 6) * (rnd.NextSingle() + .5f);
-            obj.Position = position;
-            AddObject(obj);
-        }
+            AddObject(SpawnCollectableWithPop(RuntimeObject.CollectableFEIs[1], position, rnd));
+    }
 
+    /// <summary>
+    /// Loads a collectable at <paramref name="position"/> and gives it a slight pop: a small upward launch with a
+    /// little horizontal jitter, so items burst out of the kill and arc up before the collectable gravity
+    /// (FloatingPoints[6]) pulls them back down, instead of appearing motionless. Velocity is intentionally
+    /// small ("slight") — a gentle scatter, not a fountain.
+    /// </summary>
+    RuntimeObject SpawnCollectableWithPop(FileEntityInfo preset, Vector2 position, Random rnd)
+    {
+        var obj = RuntimeObject.LoadFromFile(preset, this);
+        obj.Position = position;
+        // +Y is down, so a negative Y is upward. ~0.8..2.0 up, ±0.75 sideways.
+        obj.CollectableVelocity = new Vector2((rnd.NextSingle() - 0.5f) * 1.5f, -(rnd.NextSingle() * 1.2f + 0.8f));
+        return obj;
     }
     
     public void AddObject(RuntimeObject obj)
@@ -689,6 +702,24 @@ public class GameBox : IDisposable
         DrawRectanglePro(new Rect(obj.X, obj.Y, length, width), new Vector2(0, width / 2f), angleDeg, beam);
         float cw = width * 0.42f;
         DrawRectanglePro(new Rect(obj.X, obj.Y, length, cw), new Vector2(0, cw / 2f), angleDeg, core);
+
+        // Bloom dot at the emitter: a soft additive flare pinned at the laser's origin (obj.X, obj.Y), pulsing
+        // and rotating, tinted like the beam with a hot white centre. Its brightness rides the beam's alpha, so
+        // it is faint during the telegraph and blazes while the beam fires.
+        var flare = Runtime.CurrentRuntime.Textures["star.png"];
+        var flareSrc = new Rect(0, 0, flare.Width, flare.Height);
+        float pulse = 0.75f + 0.25f * MathF.Sin(age * 0.5f);
+        float outer = (width * 2.4f + 9f) * pulse;
+        float inner = outer * 0.55f;
+        float spin = age * 3.2f;
+        byte oa = (byte)Math.Clamp(beam.A * 0.75f, 0, 255);
+        byte ia = (byte)Math.Clamp(core.A * 0.9f, 0, 255);
+        BeginBlendMode(BlendMode.Additive);
+        DrawTexturePro(flare, flareSrc, new Rect(obj.X, obj.Y, outer, outer),
+            new Vector2(outer / 2f, outer / 2f), spin, beam with { A = oa });
+        DrawTexturePro(flare, flareSrc, new Rect(obj.X, obj.Y, inner, inner),
+            new Vector2(inner / 2f, inner / 2f), -spin * 0.6f, new Rgba(255, 255, 255, ia));
+        EndBlendMode();
     }
 
     public void AddScreenEffect(GameplayScreenEffect effect)
@@ -870,6 +901,38 @@ public class GameBox : IDisposable
         if (ChapterInfo is { Type: ChapterType.Spell })
             RecordSpellAttempt(ChapterInfo.SpellcardTitle, !IsFailed && !SpellTimedOut);
 
+        // Chapter-end reward for the spell/non-spell we are leaving (the initial null load and non-boss chapters
+        // are skipped). IsFailed is set by both a death and a bomb (PlayerWeapon.Bomb); SpellTimedOut by the clock
+        // running out on a spell. The three outcomes are:
+        //   fail    = died or used a bomb
+        //   timeout = the clock ran out on a NON-timeout card (didn't capture in time) — a survival/TimeoutCard
+        //             is "cleared" by surviving to the end, so timing it out is not a fail
+        //   clear   = neither of the above (captured, or survived a TimeoutCard / non-spell)
+        // Standard reward: clear -> heart piece, fail -> star piece, timeout -> nothing. A card whose create
+        // script set CustomChapterReward gets its own drops instead (e.g. the stage-3 pizza finale).
+        if (ChapterInfo is { Type: ChapterType.Spell or ChapterType.NonSpell })
+        {
+            bool fail = IsFailed;
+            bool timeout = !IsFailed && !ChapterInfo.TimeoutCard && SpellTimedOut;
+            bool clear = !fail && !timeout;
+
+            switch (CustomChapterReward)
+            {
+                case 1:   // stage-3 pizza finale: full heart on a clean clear, star on fail, full power on timeout
+                    if (fail) Player.Bombs++;                 // a star (full bomb)
+                    else if (timeout) Player.Power = 400;     // full power
+                    else Player.HeartPoints++;                // full heart
+                    break;
+                default:
+                    if (fail) Player.BombsSpices++;           // a star piece
+                    else if (clear) Player.HeartSpices++;     // a heart piece (auto-converts to a heart at 4)
+                    // timeout: nothing
+                    break;
+            }
+        }
+        // Consumed for the chapter we just left; the next chapter's create script re-sets it if needed.
+        CustomChapterReward = 0;
+
         // Spell practice plays exactly the one card the player picked. On the initial load ChapterInfo is still
         // null (nothing has played yet), so we fall through and load the chosen card; once that card is what we
         // are leaving, end straight into the game-over / retry menu instead of advancing into the rest of the
@@ -907,6 +970,14 @@ public class GameBox : IDisposable
         TimerAppear = GetTime();
         TimerDisappear = float.MaxValue;
         ChapterInfo = StageInfo.Chapters[ChapterIndex];
+        // Chapter-local timing (spawn scripts, spell timer, chapter-end) is all CurrentTick + TickOffset -
+        // TickStart, and TickStart is CUMULATIVE across the stage. In a normal run CurrentTick has already counted
+        // up to TickStart by the time a mid-stage chapter plays. Spell practice jumps straight to one chapter with
+        // CurrentTick at 0, so without this the local tick starts at -TickStart: the spawn scripts' conditions
+        // (e.g. localTick == 30) don't match for ~TickStart ticks and no bullets appear. Seed TickOffset with
+        // TickStart so the picked card starts at local tick 0 and its attack spawns immediately.
+        if (IsSpellPractice)
+            TickOffset = ChapterInfo.TickStart - CurrentTick;
         ChapterScoreShown = false;
         RenderChapterTitle = false;
         RenderBossTitle = false;
@@ -933,6 +1004,10 @@ public class GameBox : IDisposable
         else if (ChapterInfo.Type == ChapterType.NonSpell)
         {
             RenderBossTitle = true;
+            // Non-spells did not clear the per-chapter outcome (only the spell path did), which would leak a
+            // previous failure into this chapter's end-of-chapter reward. Start it clean.
+            IsFailed = false;
+            SpellTimedOut = false;
         }
         InChapterDelay = false;
         StartDialog();
@@ -1163,9 +1238,14 @@ public class GameBox : IDisposable
             // Fades/slides in about 0.6s after the name starts appearing, over ~0.5s, so it settles in a beat
             // behind the title rather than popping in with it.
             float subtitleAppear = (float)Helper.ComputeObjectTimeStart(time, ChapterTitleAppear + 0.6f, 0.5);
+            // ...and fades back OUT with the title once the card ends (ChapterTitleDisappear is stamped in
+            // ShowChapterScore). Without this the bonus/attempt/score info hung on screen through the whole
+            // between-chapters delay after the card was already over.
+            float subtitleVisible = subtitleAppear *
+                (1f - (float)Helper.ComputeObjectTimeStart(time, ChapterTitleDisappear, 0.5));
             // Hangs off the bottom-RIGHT of the name, following it as it slides and scales in.
             Helper.DrawSpellSubtitle(UIAboveGameplay, IsFailed ? -1 : ChapterScoreCurrent, total, success,
-                (int)titleRightEdge, (int)(titlePosition.Y + titleDrawnHeight), SpellFailedText, subtitleAppear);
+                (int)titleRightEdge, (int)(titlePosition.Y + titleDrawnHeight), SpellFailedText, subtitleVisible);
         }
         RbTrace("ui-above target done");
         if (IsUIUpdateRequired)

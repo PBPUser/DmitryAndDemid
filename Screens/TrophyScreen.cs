@@ -65,16 +65,17 @@ public class TrophyScreen : ScreenWithTitle
             Rect dest = rc with { X = baseX, Y = baseY };
             if (Index == i)
             {
-                // Selected trophy: a persistent slight enlarge plus a gentle shake, punchier right after a switch.
+                // Selected trophy: a persistent slight enlarge plus a shake burst right after a switch. The shake
+                // fades out with `pop` so a stationary cursor sits still — no idle jitter — matching the main menu.
                 float pop = (float)Math.Clamp(1 - (time - ItemSwitchTime) / 0.25f, 0, 1);
                 float scale = 1.16f;
                 float sf = Runtime.CurrentRuntime.ScaleF;
-                Vector2 shake = new Vector2(MathF.Sin(time * 90f), MathF.Cos(time * 78f)) * 2.5f * sf * (0.4f + pop);
+                Vector2 shake = new Vector2(MathF.Sin(time * 90f), MathF.Cos(time * 78f)) * 2.5f * sf * pop;
                 float dw = itemW * (scale - 1f), dh = itemH * (scale - 1f);
                 dest = new Rect(baseX - dw / 2f + shake.X, baseY - dh / 2f + shake.Y, itemW * scale, itemH * scale);
             }
-            // A bit less bright than pure white/yellow so the grid reads softer.
-            Rgba tint = Index == i ? new Rgba(210, 185, 70, 255) : new Rgba(185, 185, 185, 255);
+            // Selected trophy highlights white; the rest stay a softer grey so the grid reads calm.
+            Rgba tint = Index == i ? new Rgba(255, 255, 255, 255) : new Rgba(185, 185, 185, 255);
             DrawTexturePro(Menu[i].Texture, rc, dest, Vector2.Zero, 0, tint);
         }
         base.Render();

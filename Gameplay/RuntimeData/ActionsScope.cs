@@ -46,6 +46,21 @@ public static class ActionsScope
     /// (same tick -> same value), so the Nikitab pattern is identical every run and stays replay-safe — unlike
     /// System.Random, whose seed would have to be threaded through the sim. Returns a non-negative int.
     /// </summary>
+    /// <summary>
+    /// Adds the boss "takes a spell card" splash overlay. Uses Dmitry's two-part animation when
+    /// <paramref name="artKey"/> is "dmitry" and both halves exist; otherwise a single-art sweep of the given
+    /// art. Nothing shows if the texture is missing, so a boss without splash art is simply silent (never throws).
+    /// </summary>
+    private static void ShowBossSplash(GameBox box, string artKey = "nikitab_dialog_art.png")
+    {
+        var tex = Runtime.CurrentRuntime.Textures;
+        if (artKey == "dmitry" && tex.TryGetValue("dmitry_top.png", out var top)
+                               && tex.TryGetValue("dmitry_bottom.png", out var bottom))
+            box.AddOverlay(new GameplayOverlays.BossSplashOverlay(box, top, bottom, 2.2f));
+        else if (tex.TryGetValue(artKey, out var art))
+            box.AddOverlay(new GameplayOverlays.BossSplashOverlay(box, art, 2.0f));
+    }
+
     private static int TickHash(int x)
     {
         unchecked
@@ -330,12 +345,162 @@ public static class ActionsScope
             int rx = TickHash(t * 31 + 5) % 372 + 6;
             var g = c.Box.SpawnObject(NikitaGrayPentaIndex, 0x888888);
             g.X = rx; g.Y = 2;
-            g.FacingRotation = g.RenderRotation = MathF.PI / 2f;   // point the sprite down, the way it travels
+            g.FacingRotation = MathF.PI / 2f;                       // travels straight down
+            g.RenderRotation = MathF.PI / 2f + MathF.PI;            // but the sprite is flipped 180° (points up)
             g.Speed = 2.2f + diff * 0.2f;
             g.CreatedAt = c.Box.CurrentTick;
         }
         c.RenderRotation = MathF.Sin(tick * 0.08f) * 0.1f;
     };
+
+    /// <summary>
+    /// Nikita's FINAL card (last spell of stage 2). He lobs slow "huge" bullets at the player; each huge bullet
+    /// rotates 180° and sprays yellow microbullets facing its turning direction (see <see cref="NikitaFinalHuge"/>).
+    /// On Hard/Max he also sends a stream of bullets rising up from the bottom edge, so the player is pressured
+    /// from both sides.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction NikitaFinal = c =>
+    {
+        c.RenderAlpha = 1f;
+        int tick = c.Box.ChapterTick;
+        if (tick <= 20) { c.RenderRotation = MathF.Sin(tick * 0.1f) * 0.2f; return; }
+        int t = tick - 20;
+        int diff = Math.Clamp(c.Box.Difficulty, 0, 3);
+
+        // A "huge" bullet aimed at the player, which becomes a microbullet emitter (its UpdateAction is swapped).
+        if (t % 110 == 0)
+        {
+            var huge = c.Box.SpawnObject(NikitaLargeBulletIndex, 0xFFC400);
+            huge.X = c.X; huge.Y = c.Y;
+            float aim = Helper.FindAngle(c.Position, c.Box.Player.Position);
+            huge.FacingRotation = huge.RenderRotation = aim;
+            huge.Speed = 1.05f + diff * 0.05f;
+            huge.CreatedAt = c.Box.CurrentTick;
+            huge.UpdateAction = NikitaFinalHuge;
+        }
+
+        // Hard/Max only: bullets rising from the bottom edge (playfield is 384x448; +Y is down, so -PI/2 is up).
+        if (diff >= 2 && t % 16 == 0)
+        {
+            int rx = TickHash(t * 17 + 3) % 372 + 6;
+            var b = c.Box.SpawnObject(NikitaPlainCircleIndex, 0x66CCFF);
+            b.X = rx; b.Y = 446;
+            b.FacingRotation = b.RenderRotation = -MathF.PI / 2f;
+            b.Speed = 1.8f + diff * 0.2f;
+        }
+        c.RenderRotation = MathF.Sin(tick * 0.08f) * 0.1f;
+    };
+
+    /// <summary>
+    /// The "huge" bullet of the final card. It ROTATES 180° over its first N = 30 + 10*(4-difficulty) ticks while
+    /// travelling along its original heading, and each tick of that turn it sheds a yellow microbullet facing its
+    /// CURRENT rotation. The microbullets then fly straight (their template's MoveLinearByDirection), so the
+    /// spray fans out across the half-turn. Removes itself once well off the playfield.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction NikitaFinalHuge = obj =>
+    {
+        int diff = Math.Clamp(obj.Box.Difficulty, 0, 3);
+        float n = 30 + 10 * (4 - diff);                               // half-turn duration: easy 70 .. max 40 ticks
+        int age = obj.Box.CurrentTick - obj.CreatedAt;
+        float k = Math.Clamp(age / n, 0f, 1f);
+        float start = obj.FacingRotation;                            // fixed original heading (set at spawn)
+        float rot = start + MathF.PI * k;                            // the huge bullet's rotation sweeps 180°
+        obj.RenderRotation = rot;
+        obj.Position += Helper.GetDirection(start) * obj.Speed;      // travels along its original heading
+
+        // Shed a microbullet facing the huge bullet's CURRENT rotation; it flies straight from there.
+        if (age <= n && age % 3 == 0)
+        {
+            var m = obj.Box.SpawnObject(NikitabMicroBulletIndex, 0xFFE000);
+            m.X = obj.X; m.Y = obj.Y;
+            m.FacingRotation = m.RenderRotation = rot;
+            m.Speed = 1.6f;                                          // straight, via the micro template's mover
+        }
+
+        if (obj.X < -24 || obj.X > 408 || obj.Y < -24 || obj.Y > 472)
+            obj.Box.RemoveObject(obj);
+    };
+
+    /// <summary>Stage-3 pizza formation: centre it rotates about, the off-screen start radius and the small
+    /// on-screen ("orange") end radius, how long the inward contraction takes, and the spin rate.</summary>
+    private static readonly Vector2 PizzaCenter = new Vector2(192, 210);
+    private const float PizzaRStart = 360f;              // spawns off-screen (bigger than the playfield)
+    private const float PizzaREnd = 110f;                // settles to the small on-screen circle
+    private const int PizzaContractTicks = 300;          // ticks for the first inward move
+    private const float PizzaSpin = 0.012f;
+
+    /// <summary>
+    /// Stage 3, Nikita's "rotating pizza" spell. A whole circular FORMATION of bullets is spawned at once (in the
+    /// create script): a green ring drawn out of bullets plus red inner dots (micro / default / huge). It spawns
+    /// off-screen at a big radius and contracts inward to the small on-screen circle over the first
+    /// <see cref="PizzaContractTicks"/> ticks, then breathes back out and in on a loop — and the ENTIRE formation
+    /// (ring and inner dots) rotates about the centre the whole time. The boss just idles at the centre; the
+    /// bullets drive themselves (see <see cref="NikitaPizzaFormationBullet"/>). Nikitab is invincible; on
+    /// Hard/Max a laser sweeps from the centre (spawned in the create script).
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction NikitaStage3Pizza = c =>
+    {
+        c.RenderAlpha = 1f;
+        int tick = c.Box.ChapterTick;
+        c.RenderRotation = MathF.Sin(tick * 0.06f) * 0.15f;   // gentle idle wobble at the centre
+    };
+
+    /// <summary>The current formation radius at chapter tick <paramref name="t"/>: starts off-screen, eases to the
+    /// small circle over PizzaContractTicks, then breathes back out/in on a cosine loop.</summary>
+    private static float PizzaFormationRadius(int t)
+    {
+        float phase = MathF.Cos(MathF.PI * t / PizzaContractTicks);   // +1 at t=0 (off-screen) -> -1 at t=300 (small)
+        return PizzaREnd + (PizzaRStart - PizzaREnd) * (0.5f + 0.5f * phase);
+    }
+
+    /// <summary>
+    /// One bullet of the stage-3 pizza formation. Its slot on the circle (base angle + radius fraction) is fixed;
+    /// each tick it sits at centre + dir(baseAngle + spin) * (frac * R(t)), so the whole formation rotates and
+    /// contracts/expands together. Purely a function of the chapter tick and its stored slot — replay-safe, no
+    /// per-bullet state.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction NikitaPizzaFormationBullet = obj =>
+    {
+        int t = obj.Box.ChapterTick;
+        float ang = obj.FloatingPoints[0x30] + t * PizzaSpin;   // base angle + global spin
+        float frac = obj.FloatingPoints[0x31];                  // 1 = on the ring, <1 = an inner dot
+        obj.Position = PizzaCenter + Helper.GetDirection(ang) * (frac * PizzaFormationRadius(t));
+        obj.RenderRotation = ang;
+    };
+
+    /// <summary>
+    /// Spawns the whole stage-3 pizza formation once: a green ring of micro bullets (frac = 1) plus red inner
+    /// dots — a mix of micro/default/huge bullets at deterministic random angles and radii. Every bullet is given
+    /// the <see cref="NikitaPizzaFormationBullet"/> mover, so they rotate and contract as one.
+    /// </summary>
+    private static void SpawnPizzaFormation(GameBox box, int diff)
+    {
+        const int ring = 32;
+        for (int i = 0; i < ring; i++)
+        {
+            var b = box.SpawnObject(NikitabMicroBulletIndex, 0x55DD55);   // green ring (the pizza outline)
+            float a = i * (MathF.PI * 2f / ring);
+            b.FloatingPoints[0x30] = a;
+            b.FloatingPoints[0x31] = 1f;
+            b.UpdateAction = NikitaPizzaFormationBullet;
+            b.PersistOffscreen = true;                                   // spawns off-screen — must survive the cull
+            b.Position = PizzaCenter + Helper.GetDirection(a) * PizzaRStart;
+        }
+        int inner = 10 + diff * 2;
+        for (int i = 0; i < inner; i++)
+        {
+            int which = i % 3;   // 0 = huge, 1 = micro, 2 = default — "micro/default and huge bullets"
+            int index = which == 0 ? NikitaLargeBulletIndex : which == 1 ? NikitabMicroBulletIndex : NikitaPlainCircleIndex;
+            var b = box.SpawnObject(index, 0xFF3333);                    // red inner dots
+            float a = TickHash(i * 733 + 11) % 3600 / 3600f * (MathF.PI * 2f);
+            float frac = 0.2f + TickHash(i * 977 + 3) % 1000 / 1000f * 0.65f;
+            b.FloatingPoints[0x30] = a;
+            b.FloatingPoints[0x31] = frac;
+            b.UpdateAction = NikitaPizzaFormationBullet;
+            b.PersistOffscreen = true;                                   // also starts off-screen while contracting
+            b.Position = PizzaCenter + Helper.GetDirection(a) * (frac * PizzaRStart);
+        }
+    }
 
     /// <summary>Toilet behaviour for that spell: fires a slowly-rotating ring of bullets, cycling the palette.</summary>
     private static readonly RuntimeObjectReferenceAction ColorSpamToilet = obj =>
@@ -374,30 +539,35 @@ public static class ActionsScope
         }
         int diff = Math.Clamp(c.Box.Difficulty, 0, 3);
 
-        // Aimed pentabullets at the player, faster/wider with difficulty.
-        if (tick % Math.Max(8, 26 - diff * 5) == 0)
+        // Aimed pentabullets at the player, faster/wider with difficulty. (Tuned up: quicker cadence, a wider
+        // fan of more bullets and a touch more speed, so the non-spell actually pressures the player.)
+        if (tick % Math.Max(6, 22 - diff * 5) == 0)
         {
             float aim = Helper.FindAngle(c.Position, c.Box.Player.Position);
-            int count = 1 + diff;
+            int count = 2 + diff;
             for (int k = 0; k < count; k++)
             {
                 var b = c.Box.SpawnObject(NikitosNonspellPentaIndex);
                 b.X = c.X;
                 b.Y = c.Y;
-                b.FacingRotation = b.RenderRotation = aim + (k - (count - 1) / 2f) * 0.16f;
-                b.Speed = 3f + diff * 0.5f;
+                b.FacingRotation = b.RenderRotation = aim + (k - (count - 1) / 2f) * 0.19f;
+                b.Speed = 3.3f + diff * 0.5f;
             }
         }
 
-        // Random light circle bullets, direction and timing straight from the tick hash.
-        if ((TickHash(tick) & 15) == 0)
+        // Random light circle bullets, direction and timing straight from the tick hash — now twice as dense
+        // and spat out in opposing pairs so the whole field fills in faster.
+        if ((TickHash(tick) & 7) == 0)
         {
-            var b = c.Box.SpawnObject(NikitosNonspellLightIndex);
-            b.X = c.X;
-            b.Y = c.Y;
             float ang = TickHash(tick * 3) % 3600 / 3600f * (MathF.PI * 2f);
-            b.FacingRotation = b.RenderRotation = ang;
-            b.Speed = 1.4f + diff * 0.35f;
+            for (int s = 0; s < 2; s++)
+            {
+                var b = c.Box.SpawnObject(NikitosNonspellLightIndex);
+                b.X = c.X;
+                b.Y = c.Y;
+                b.FacingRotation = b.RenderRotation = ang + s * MathF.PI;   // opposite directions
+                b.Speed = 1.6f + diff * 0.4f;
+            }
         }
         c.RenderRotation = MathF.Sin(tick * 0.1f) * 0.3f;
     };
@@ -407,14 +577,18 @@ public static class ActionsScope
     {
         NikitosNonspell1(c);
         int tick = c.Box.ChapterTick;
-        if (tick > 0 && tick % 5 == 0)
+        // A heavier, faster rain: more frequent (every 3 ticks) and two columns per drop, dropping quicker.
+        if (tick > 0 && tick % 3 == 0)
         {
             int diff = Math.Clamp(c.Box.Difficulty, 0, 3);
-            var b = c.Box.SpawnObject(NikitosNonspellLightIndex);
-            b.X = TickHash(tick * 7) % 384;
-            b.Y = 0;
-            b.FacingRotation = b.RenderRotation = MathF.PI / 2f;   // straight down
-            b.Speed = 2f + diff * 0.4f;
+            for (int s = 0; s < 2; s++)
+            {
+                var b = c.Box.SpawnObject(NikitosNonspellLightIndex);
+                b.X = TickHash(tick * 7 + s * 131) % 384;
+                b.Y = 0;
+                b.FacingRotation = b.RenderRotation = MathF.PI / 2f;   // straight down
+                b.Speed = 2.6f + diff * 0.5f;
+            }
         }
     };
 
@@ -598,8 +772,51 @@ public static class ActionsScope
             var boss = c.GameBox.SpawnObject(NikitaBossIndex);
             boss.X = 192; boss.Y = 100;
             boss.RenderAlpha = 1f;
-            boss.Header[0] |= RuntimeObject.FlagIsFinalBossChapter;   // last card of the stage — dies for real at the end
             boss.UpdateAction = NikitaYellow;
+        };
+        dictionary["nikitab#stage2#final#create"] = c =>
+        {
+            var boss = c.GameBox.SpawnObject(NikitaBossIndex);
+            boss.X = 192; boss.Y = 100;
+            boss.RenderAlpha = 1f;
+            boss.Header[0] |= RuntimeObject.FlagIsFinalBossChapter;   // now the true last card — dies for real at the end
+            boss.UpdateAction = NikitaFinal;
+            ShowBossSplash(c.GameBox);
+        };
+        dictionary["nikitab#stage3#pizza#create"] = c =>
+        {
+            var box = c.GameBox;
+            int diff = Math.Clamp(box.Difficulty, 0, 3);
+            var boss = box.SpawnObject(NikitaBossIndex);
+            boss.X = PizzaCenter.X; boss.Y = PizzaCenter.Y;          // sits at the centre the formation rotates about
+            boss.RenderAlpha = 1f;
+            boss.Header[0] |= RuntimeObject.FlagInvincible;           // nikitab is invincible on this card (timeout/survival)
+            boss.Header[0] |= RuntimeObject.FlagIsFinalBossChapter;   // stage-3 finale
+            boss.UpdateAction = NikitaStage3Pizza;
+            box.CustomChapterReward = 1;                              // full heart / full bomb / full power on clear/fail/timeout
+
+            // The whole rotating circle of bullets (green ring + red inner dots), spawned off-screen; it contracts
+            // inward over the first 300 ticks and rotates as one (see NikitaPizzaFormationBullet).
+            SpawnPizzaFormation(box, diff);
+
+            // Tiled fork outlines in the bottom-right corner, for the whole card (1800 ticks / 60 = 30 s).
+            box.AddOverlay(new DmitryAndDemid.Gameplay.GameplayOverlays.ForkTilesOverlay(box, 1800f / 60f));
+
+            // A laser sweeping from the formation centre — Hard/Max only, kept as requested.
+            if (diff >= 2)
+            {
+                var center = PizzaCenter;
+                var laser = RuntimeObject.MakeLaser(box, center, 0f, 560f, 12f, 60, 1850, 20);
+                laser.UpdateAction = o =>
+                {
+                    o.Position = center;                             // keep emanating from the formation centre
+                    o.RenderRotation += 0.012f;                      // sweep
+                    if (o.Box.CurrentTick - o.CreatedAt >= o.LaserLifetime)
+                        o.Box.RemoveObject(o);
+                };
+                box.AddObject(laser);
+            }
+            ShowBossSplash(box);
         };
         // Stage 1 non-spells: spawn the nikitos boss and give it the non-spell attack (overriding its default
         // spell behaviour). Spawning the boss entity reuses the one already on screen, so it persists across the
@@ -838,7 +1055,8 @@ public static class ActionsScope
                     float aim = Helper.FindAngle(obj.Position, box.Player.Position);
                     var orange = box.SpawnObject(NikitaGrayPentaIndex, 0xFFA500);
                     orange.X = obj.X; orange.Y = obj.Y;
-                    orange.FacingRotation = orange.RenderRotation = aim;
+                    orange.FacingRotation = aim;                       // flies at the player
+                    orange.RenderRotation = aim + MathF.PI;            // sprite flipped 180° (matches the gray rain)
                     orange.Speed = MathF.Max(obj.Speed, 2.6f) + diff * 0.15f;
                     orange.CreatedAt = box.CurrentTick;
                     orange.Header[RoleHeaderIndex] = RoleReactedPenta;

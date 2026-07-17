@@ -69,6 +69,12 @@ public class Configuration
     [JsonInclude] public bool AutoSlowdownOnShoot = false;
 
     /// <summary>
+    /// Whether the point-of-collection hint — the item-get border line that flashes across the top of the
+    /// playfield at the start of a run — is shown. On by default; players who find it distracting can turn it off.
+    /// </summary>
+    [JsonInclude] public bool ShowItemLineHint = true;
+
+    /// <summary>
     /// On-screen control positions, in the game's 640x480 design units (top-left corner of each control).
     /// The in-game layout editor (Screens/TouchLayoutScreen) writes these; the sizes live in TouchControls.
     /// </summary>

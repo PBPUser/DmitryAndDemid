@@ -125,10 +125,6 @@ public class Runtime
         var sugarTexture = LoadTexture(Assets.Resolve("Assets/Textures/sugar_logo.png"));
         if (Engine.Backend.SupportsDebugUi)
             Engine.Backend.SetupDebugUi();
-        BeginDrawing();
-        ClearBackground(Rgba.Black);
-        BeginTextureMode(Backbuffer);
-        ClearBackground(Rgba.Black);
         bool showBuild = false;
         #if DEBUG
         showBuild = true;
@@ -136,6 +132,9 @@ public class Runtime
         #if SWITCH
         showBuild = true;
         #endif
+        // Compose the splash into the backbuffer once — the logo is centred in the backbuffer's own space.
+        BeginTextureMode(Backbuffer);
+        ClearBackground(Rgba.Black);
         if (showBuild)
         {
             DrawText($"Version: {VersionString}; Build: {BuildInfo.Number}; Renderer: {rendererName}", 0, 0, (int)(14 * ScaleF),Rgba.White);
@@ -145,8 +144,30 @@ public class Runtime
             new Rect((Width - size) / 2, (Height - size) / 2, size, size),
             Vector2.Zero, 0, Rgba.White);
         EndTextureMode();
-        Present();
-        EndDrawing();
+
+        // Borderless/exclusive fullscreen resizes the window asynchronously, so right after SetWindowMode the OS
+        // can still report the old (windowed) size. This splash frame stays frozen on screen for the whole of the
+        // synchronous Load() below — the per-frame Present() loop only starts afterwards — so a PresentRect built
+        // from the stale size leaves the letterboxed backbuffer (sugar logo and all) pinned in a corner instead of
+        // centred. Re-present for a brief real-time window: each BeginDrawing pumps window events and refreshes the
+        // reported size, so the final frozen frame lands with the settled fullscreen dimensions. Windowed mode is
+        // already correctly sized, so it presents just once.
+        void PresentSplash()
+        {
+            BeginDrawing();
+            ClearBackground(Rgba.Black);
+            Present();
+            EndDrawing();
+        }
+        if (WindowMode != FullScreenType.Window)
+        {
+            double settleStart = GetTime();
+            do { PresentSplash(); } while (GetTime() - settleStart < 0.25);
+        }
+        else
+        {
+            PresentSplash();
+        }
         UnloadTexture(sugarTexture);
         SetTargetFPS(Config.FrameCap);
         if (Config.UseVSYNC)

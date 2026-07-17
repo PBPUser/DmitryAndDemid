@@ -354,7 +354,10 @@ public class GameRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
             // Stamp the unpack with the installed APK's modification time so a reinstall re-extracts changed
             // assets (see AndroidAssetSource) instead of keeping the first install's copies forever.
             long assetStamp = 0;
-            try { assetStamp = System.IO.File.GetLastWriteTimeUtc(ApplicationInfo!.SourceDir!).Ticks; }
+            // GameRenderer is not a Context, so reach the installed APK's path through the app context
+            // (Application.Context.ApplicationInfo) rather than the bare ApplicationInfo type.
+            try { assetStamp = System.IO.File.GetLastWriteTimeUtc(
+                global::Android.App.Application.Context.ApplicationInfo!.SourceDir!).Ticks; }
             catch (System.Exception e) { global::Android.Util.Log.Warn("aag2", "asset stamp failed: " + e); }
             DmitryAndDemid.Utils.Assets.Source = new AndroidAssetSource(Assets, Storage, assetStamp);
             global::Android.Util.Log.Info("aag2", "assets unpacked; creating GL API…");

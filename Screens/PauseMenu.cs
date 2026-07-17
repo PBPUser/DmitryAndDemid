@@ -153,14 +153,19 @@ public class PauseMenu : MenuScreen
             pauseSizeTarget / 2, 0, Rgba.White);
         CurrentX = (int)((160f - 64f * z) * Runtime.CurrentRuntime.ScaleF);
 
-        // On a main-game game-over, show how many continues are still on the table above the menu.
+        // On a main-game game-over, show how many continues are still on the table. Translated (translation.json
+        // "ingame.credit") rather than a hardcoded English word, and pinned centre-bottom of the screen.
         GameBox box = GameplayScreen.GameBox!;
         if (box.IsGameOver && box.CanContinue)
         {
             var font = Runtime.CurrentRuntime.Fonts["newsreader"];
-            float fs = 18 * Runtime.CurrentRuntime.ScaleF;
-            string txt = $"CONTINUE  {box.ContinuesRemaining}/{GameBox.MaxContinues}";
-            DrawTextEx(font, txt, new Vector2(CurrentX, CurrentY - 44 * Runtime.CurrentRuntime.ScaleF), fs, 2,
+            float sf = Runtime.CurrentRuntime.ScaleF;
+            float fs = 18 * sf;
+            string txt = Helper.Translate("ingame.credit").Replace("%s", $"{box.ContinuesRemaining}/{GameBox.MaxContinues}");
+            Vector2 m = MeasureTextEx(font, txt, fs, 2);
+            var pos = new Vector2((Runtime.CurrentRuntime.Width - m.X) / 2f,
+                Runtime.CurrentRuntime.Height - m.Y - 48 * sf);
+            DrawTextEx(font, txt, pos, fs, 2,
                 Helper.Mix(Rgba.Yellow, Rgba.White, MathF.Abs(time % 1f - 0.5f) * 2f));
         }
 
