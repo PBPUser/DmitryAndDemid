@@ -31,8 +31,19 @@ public class TiledLoadingScreen : Screen
         ForkSize = new Vector2(ForkTexture.Width, ForkTexture.Height);
     }
     
+#if SWITCH
+    private static int _tlsTrace;
+    private static void T(string s) { if (_tlsTrace < 3) Runtime.SwTrace("[tls] " + s); }
+#elif ANDROID
+    private static int _tlsTrace;
+    private static void T(string s) { if (_tlsTrace < 3) Utils.Platform.Trace("[tls] " + s); }
+#else
+    private static void T(string s) { }
+#endif
+
     public TiledLoadingScreen(double loadingTime, double fade, Action @event, bool fadeOut, double fifoLoadingShowDelay)
     {
+        T("ctor start");
         LoadingShaderTiles = Runtime.CurrentRuntime.Shaders["loading"];
         LoadingShaderSwap = Runtime.CurrentRuntime.Shaders["loading_swap"];
         LoadingBuffer = LoadRenderTexture(Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height);
@@ -48,6 +59,7 @@ public class TiledLoadingScreen : Screen
         FifoSource = Helper.GetFullSource(FifoLoading);
         FifoTarget = Helper.Scale(new Rect(64, 414,52, 97), Runtime.CurrentRuntime.ScaleF);
         FifoOrigin = FifoTarget.Size / 2;
+        T("ctor done");
     }
 
     public override void TopUpdate()
@@ -69,23 +81,31 @@ public class TiledLoadingScreen : Screen
         // this transition is meant to hide. Hold covered, then only wipe OUT at the end to reveal the loaded
         // gameplay.
         float fade = (float)(time > TimeAppear + LoadingTime - Fade ? 1 - (TimeAppear + LoadingTime - Fade - time)/Fade : .99f);
+        T("render start");
         BeginTextureMode(LoadingBuffer);
         SetShaderValue(LoadingShaderTiles, GetShaderLocation(LoadingShaderTiles,"time"), time, UniformType.Float);
         SetShaderValue(LoadingShaderTiles, GetShaderLocation(LoadingShaderTiles,"outputRes"), LoadingTarget.Size, UniformType.Vec2);
         SetShaderValue(LoadingShaderTiles, GetShaderLocation(LoadingShaderTiles,"textureRes"), LoadingSource.Size * 4, UniformType.Vec2);
+        T("tiles uniforms set");
         BeginShaderMode(LoadingShaderTiles);
         DrawTexturePro(LoadingTexture, LoadingSource, LoadingTarget, Vector2.Zero, 0, Rgba.White);
         EndTextureMode();
         EndShaderMode();
+        T("tiles pass done");
         SetShaderValue(LoadingShaderSwap, GetShaderLocation(LoadingShaderSwap,"time"), fade, UniformType.Float);
         BeginShaderMode(LoadingShaderSwap);
         DrawTexturePro(LoadingBuffer.Texture, LoadingBufferSource, LoadingTarget, Vector2.Zero, 0, Rgba.White);
         EndShaderMode();
+        T("swap pass done");
         DrawTexturePro(FifoLoading, FifoSource, FifoTarget, FifoOrigin,
             time * 1000f,
-            Rgba.White 
+            Rgba.White
                 with { A = 255 });
         base.Render();
+        T("render done");
+#if SWITCH || ANDROID
+        _tlsTrace++;
+#endif
     }
 
     public override void Unload()

@@ -68,6 +68,9 @@ public class GameplayScreen : Screen
 
         if (Configuration.Config.Vertical)
             ApplyVerticalLayout();
+#if SWITCH
+        Runtime.SwTrace("[gp] GameplayScreen ctor done");
+#endif
     }
 
     /// <summary>
@@ -80,15 +83,27 @@ public class GameplayScreen : Screen
         float w = Runtime.CurrentRuntime.Width;
         float h = Runtime.CurrentRuntime.Height;
 
-        // Playfield: fill the width, top-aligned (the playfield is 384x448).
-        float playHeight = w * 448f / 384f;
-        Dest = new Rect(0, 0, w, playHeight);
+        // The HUD render target (Helper.GetFullSourceRenderTexture) reports a NEGATIVE height — that encodes
+        // the vertical flip — so layout maths must use the magnitudes. Reading the raw negative height was the
+        // bug: `UILeftSource.Height > 0` was always false, hudScale fell back to 1, and the dashboard was
+        // stretched into a sliver pinned to the bottom-left corner.
+        float hudSrcW = MathF.Abs(UILeftSource.Width);
+        float hudSrcH = MathF.Abs(UILeftSource.Height);
 
-        // HUD: the dashboard, kept at its own 224x480 aspect, dropped into the strip left over below the
-        // playfield and pinned to the bottom-left.
-        float stripHeight = MathF.Max(0, h - playHeight);
-        float hudScale = UILeftSource.Height > 0 ? stripHeight / UILeftSource.Height : 1f;
-        LeftDest = new Rect(0, h - stripHeight, UILeftSource.Width * hudScale, stripHeight);
+        // Playfield fills the width at the top, but is capped at 78% of the height so the strip below is always
+        // tall enough to hold the HUD at a usable size. Keep the 384x448 aspect and centre it horizontally in
+        // case the cap makes it narrower than the screen.
+        float playHeight = MathF.Min(w * 448f / 384f, h * 0.78f);
+        float playWidth = playHeight * 384f / 448f;
+        Dest = new Rect((w - playWidth) / 2f, 0, playWidth, playHeight);
+
+        // HUD dashboard: keep its own aspect, scale it to fill the leftover bottom strip's height, and CENTRE
+        // it there.
+        float stripTop = playHeight;
+        float stripHeight = MathF.Max(0, h - stripTop);
+        float hudScale = hudSrcH > 0 ? stripHeight / hudSrcH : 1f;
+        float hudWidth = hudSrcW * hudScale;
+        LeftDest = new Rect((w - hudWidth) / 2f, stripTop, hudWidth, stripHeight);
     }
 
     private ProtogonistData Data;
@@ -171,6 +186,8 @@ public class GameplayScreen : Screen
     
     public override void PreRender(double f)
     {
+        _gpFrame++;
+        GpTrace("PreRender enter");
         // Start rendering at this screen: the gameplay background is opaque and fully covers the menu beneath
         // it, so drawing the main menu every frame under it is wasted work — and its animated waves/character
         // would bleed through the semi-transparent pause overlay. The pause menu sits ABOVE this screen in the
@@ -180,19 +197,26 @@ public class GameplayScreen : Screen
         if (index > 0)
             Runtime.CurrentRuntime.SetScreenRenderingFrom(index);
 
+        GpTrace("PreRender before box.Update");
         GameBox.Update();
+        GpTrace("PreRender after box.Update");
     }
 
     public override void TopUpdate()
     {
+        GpTrace("TopUpdate enter");
         float time = GameBox.GetTime();
         if (time < 0)
+        {
+            GpTrace("TopUpdate early (intro)");
             return;
+        }
+        GpTrace("TopUpdate past intro");
         // Attract-mode demo: end (back to the title) on any input, on the player's death, or once a cleared
         // run has finished fading. No pause, no live input processing — the replay drives everything.
         if (IsDemo)
         {
-            if (AttractInput.AnyInput() || GameBox.IsGameOver || (GameBox.Cleared && GameBox.ClearFade >= 1f))
+            if (AttractInput.AnyInput() || GameBox.IsGameOver || GameBox.ClearSequenceDone)
             {
                 Runtime.CurrentRuntime.RemoveScreen(this);
                 // Cover the hand-off back to the title with a plain black fade + rotating fifo, matching the
@@ -205,7 +229,7 @@ public class GameplayScreen : Screen
         }
         // A cleared normal run fades out and then rolls into the character's ending, which in turn plays the
         // staff roll. If no ending is authored for this character we just fall back to the main menu.
-        if (GameBox.Cleared && GameBox.ClearFade >= 1f)
+        if (GameBox.ClearSequenceDone)
         {
             Runtime.CurrentRuntime.RemoveScreen(this);
             // Only a live run rolls into ending → staff roll → results → replay save. A replay that happens to
@@ -225,7 +249,9 @@ public class GameplayScreen : Screen
             MenuScreen.PreviousKeyTimestamp = GetTime();
             Paused = !Paused;
         }
+        GpTrace("TopUpdate after input/pause");
         base.TopUpdate();
+        GpTrace("TopUpdate done");
     }
 
     /// <summary>
@@ -251,14 +277,47 @@ public class GameplayScreen : Screen
 
     private ShaderHandle DieShader;
     private int LocationDiePosition, LocationDieTime;
-    
+
+    // Switch bring-up: brackets the first few gameplay frames (PreRender→TopUpdate→Render) to a crash-proof file
+    // so a hard native fault (which the managed handler can't catch) localises to a stage. No-op off-Switch and
+    // after the first frames. _gpFrame is bumped once per frame in PreRender.
+    private static int _gpFrame;
+    private static void GpTrace(string s)
+    {
+#if SWITCH
+        if (_gpFrame < 8) Runtime.SwTrace($"[gp f{_gpFrame}] " + s);
+#elif ANDROID
+        // Same bring-up bracketing on Android: a native GL fault in the first gameplay frames leaves no managed
+        // stack for OnDrawFrame's catch, so the last line logged here is where it died. Routed to logcat.
+        if (_gpFrame < 8) Utils.Platform.Trace($"[gp f{_gpFrame}] " + s);
+#endif
+    }
+
+    // The frame brackets above stop at frame 8, but the first REAL render (RenderBox + the effect-shader
+    // composite) only happens once the loading screen lets the box time cross -0.5, ~180 frames in. This
+    // counter tracks real renders instead, so the post-RenderBox effect passes — the other prime suspect for a
+    // native GL fault — are traced on the first few of them.
+    private static int _realRender;
+    private static void RTrace(string s)
+    {
+#if ANDROID || SWITCH
+        if (_realRender < 3) Utils.Platform.Trace($"[gpR {_realRender}] " + s);
+#endif
+    }
+
     public override void Render()
     {
         float time = GameBox.GetTime();
         if (time < -.5)
             return;
+        RTrace("render start");
         GameBox.RenderBox();
+        RTrace("after RenderBox");
         BeginTextureMode(GameEffectsTextures[0]);
+        // Clear before the background composite, like every other effects-target bind below. The background
+        // draw does not always cover every texel with full opacity, and on a tiled GPU (Adreno) the uncleared
+        // remainder is garbage rather than zero — the source of random flicker in the playfield.
+        ClearBackground(Rgba.Black with { A = 0 });
         DrawTexturePro(GameBox.Background.Texture,
             Source, DestEffect,
             Vector2.Zero, 0, Rgba.White);
@@ -275,16 +334,18 @@ public class GameplayScreen : Screen
             EndShaderMode();
             EndTextureMode();
         }
+        RTrace("after BackgroundOnly effects");
         BeginTextureMode(GameEffectsTextures[2]);
         ClearBackground(Rgba.Black with {A = 0});
         DrawTexturePro(GameEffectsTextures[GameEffectTextureIndex].Texture,
             Source, DestEffect, Vector2.Zero, 0, Rgba.White);
         EndTextureMode();
         GameEffectTextureIndex = 0;
-        // On a normal last-stage clear, fade ALL gameplay (playfield + HUD) toward black. A screen-effect shader
-        // only covers the playfield layers, so the fade is applied here, at the on-screen composite, by tinting
-        // every final blit from white down to black.
-        float fade = GameBox.ClearFade;
+        // Fade ALL gameplay (playfield + HUD) toward black. Two fades share this path: the last-stage clear
+        // (ClearFade, a one-way fade into the ending) and the between-levels transition (StageFade, which dips
+        // out then back in as one stage becomes the next). A screen-effect shader only covers the playfield
+        // layers, so the fade is applied here, at the on-screen composite, by tinting every final blit.
+        float fade = MathF.Max(GameBox.ClearFade, GameBox.StageFade);
         Rgba tint = fade <= 0f
             ? Rgba.White
             : new Rgba((byte)(255 * (1 - fade)), (byte)(255 * (1 - fade)), (byte)(255 * (1 - fade)), 255);
@@ -309,6 +370,7 @@ public class GameplayScreen : Screen
             EndShaderMode();
             EndTextureMode();
         }
+        RTrace("after BackgroundAndGameplay effects");
         DrawTexturePro(GameEffectsTextures[GameEffectTextureIndex].Texture,
             Source, Dest, Vector2.Zero, 0, tint);
         DrawTexturePro(Runtime.CurrentRuntime.Textures["difficulties_ingame.png"],
@@ -322,13 +384,17 @@ public class GameplayScreen : Screen
             UILeftSource,
             LeftDest,
             Vector2.Zero, 0, tint);
+        RTrace("after UI composite");
         // Live play gets the movement/action controls; replay and the attract demo do not — their input is on
         // rails, so the sticks and buttons would be dead. The pause button rides along in live play and replay
         // (so a viewer can pause/leave), but never in the demo, which exits on any touch.
         if (PlaybackController == null)
             TouchControls.Draw();
+        RTrace("after TouchControls.Draw");
         if (!IsDemo)
             TouchControls.DrawPause();
+        RTrace("render done");
+        _realRender++;
         // Attract-mode indicator: "DEMO PLAY" slowly fading in and out in the middle of the screen. Driven by
         // the wall clock (GetTime here is Gfx.GetTime) so it keeps pulsing even after game-over freezes the box.
         if (IsDemo)
@@ -340,6 +406,22 @@ public class GameplayScreen : Screen
                 (Runtime.CurrentRuntime.Height - demoTex.Height) / 2,
                 Rgba.White with { A = (byte)(255 * demoFade) });
         }
+        // Stage complete: the banner first appears OVER the live gameplay (while the run holds, then either rolls
+        // into the next stage or begins the fade to black on the last one), and stays up through that fade. Its
+        // own fade-in is driven by StageBannerAlpha, independent of the screen's fade-to-black.
+        if (GameBox.ShowStageBanner)
+        {
+            TextureHandle done = Runtime.CurrentRuntime.Textures["stage_complete.png"];
+            float a = GameBox.StageBannerAlpha;
+            // Centre the banner INSIDE the gamebox (the playfield Dest rect), not across the whole window, so it
+            // reads as part of the play area rather than a full-screen overlay.
+            float w = Dest.Width * 0.9f;
+            float h = done.Height * (w / done.Width);
+            DrawTexturePro(done, Helper.GetFullSource(done),
+                new Rect(Dest.X + (Dest.Width - w) / 2f, Dest.Y + (Dest.Height - h) / 2f, w, h),
+                Vector2.Zero, 0, Rgba.White with { A = (byte)(255 * a) });
+        }
+
         if (time - TimeAppear > 2f)
             return;
         DrawTexturePro(Runtime.CurrentRuntime.Textures["difficulties_ingame.png"],

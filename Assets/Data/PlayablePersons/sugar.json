@@ -4,7 +4,7 @@
   "FocusSpeed": 1,
   "WeaponClassName": "AkobPlayerWeapon",
   "ArtName": "sugar_art.png",
-  "Description": "akob_art.png",
+  "Description": "person.sugar.description",
   "DialogArtName": "sugar_dialog_arts.png",
   "Sprite": "akob_sprite.png"
 }

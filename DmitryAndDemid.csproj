@@ -15,8 +15,10 @@
     <AssemblyName>aag2</AssemblyName>
     <RootNamespace>DmitryAndDemid</RootNamespace>
 
-    <!-- Icon embedded into the Windows .exe (ignored on non-Windows builds). Generated from
-         Assets/Textures/game_logo.png; see also the Launcher, which points at the same file. -->
+    <!-- Icon embedded into the Windows .exe apphost, aag2.exe (ignored on non-Windows builds). Generated from
+         Assets/Textures/icon.png (Tools/magick auto-resize into a multi-size .ico); see also the Launcher, which
+         points at the same file. The running window/taskbar icon is set separately in code
+         (Runtime → SetWindowIcon("Assets/Textures/icon.png")), so both the file icon and the live icon match. -->
     <ApplicationIcon>icon.ico</ApplicationIcon>
 
     <!-- linux-x64 is the desktop build; linux-arm64 targets the Tegra X1 (Nintendo Switch under L4T/switchroot

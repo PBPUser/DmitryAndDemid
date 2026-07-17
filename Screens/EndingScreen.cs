@@ -60,8 +60,15 @@ public class EndingScreen : Screen
         DrawRectangle(0,0,Runtime.CurrentRuntime.Width,Runtime.CurrentRuntime.Height, Rgba.Black);
         DrawTextureEx(Runtime.CurrentRuntime.Textures["ending_background.png"], Vector2.Zero, 0,
             Runtime.CurrentRuntime.ScaleF / 4, Rgba.White);
-        DrawTextureEx(Backgrounds[0], Vector2.Zero, 0, Runtime.CurrentRuntime.ScaleF / 4f, Rgba.White with { A = 255 });
-        DrawTextureEx(Backgrounds[1], Vector2.Zero, 0, Runtime.CurrentRuntime.ScaleF / 4f, Rgba.White with { A = 255 });
+        // Crossfade between slides: the two Background slots alternate as pictures switch, so the one set more
+        // recently is the incoming image. Draw the settled (older) slot at full opacity, then fade the incoming
+        // (newer) slot in on top over BackgroundFadeDuration — a soft dissolve instead of a hard cut.
+        float bgScale = Runtime.CurrentRuntime.ScaleF / 4f;
+        int newer = PreviousSwitchBackground[1] >= PreviousSwitchBackground[0] ? 1 : 0;
+        int older = 1 - newer;
+        DrawTextureEx(Backgrounds[older], Vector2.Zero, 0, bgScale, Rgba.White);
+        float incomingA = (float)Math.Clamp((time - PreviousSwitchBackground[newer]) / BackgroundFadeDuration, 0, 1);
+        DrawTextureEx(Backgrounds[newer], Vector2.Zero, 0, bgScale, Rgba.White with { A = (byte)(incomingA * 255) });
         for (int i = 0; i < 4; i++)
         {
             if (RuntimeTexts[i] == null)
@@ -128,6 +135,7 @@ public class EndingScreen : Screen
 
     private const double AutoSwitchDelay = 5;
     private const double SwitchDelay = 0.25;
+    private const double BackgroundFadeDuration = 0.6;   // seconds to crossfade one ending slide into the next
     private int Y;
     private double PreviousSwitch;
     private double[] PreviousSwitchBackground = new double[2];
@@ -143,10 +151,18 @@ public class EndingScreen : Screen
         if (TimeDisappear < Gfx.GetTime())
         {
             Runtime.CurrentRuntime.RemoveScreen(this);
-            // The ending has played out; roll straight into the staff roll when this clear asked for it,
-            // carrying the run forward so the staff roll can hand off to the results / replay-save screens.
+            // The ending has played out; roll into the staff roll when this clear asked for it, carrying the run
+            // forward so the staff roll can hand off to the results / replay-save screens. Bridge the two with a
+            // black screen carrying the rotating fifo loader: the credits screen is placed underneath and the
+            // loader fades out to reveal it, so the ending doesn't cut abruptly into the staff roll.
             if (ShowStaffRoll)
+            {
                 Runtime.CurrentRuntime.AddScreen(new CreditsScreen(ClearedRun));
+                BlackLoadingScreen? loader = null;
+                loader = new BlackLoadingScreen(1.8, 0.5,
+                    () => Runtime.CurrentRuntime.RemoveScreen(loader!), true, 0.3);
+                Runtime.CurrentRuntime.AddScreen(loader);
+            }
         }
         if (time - PreviousSwitch > AutoSwitchDelay)
         {

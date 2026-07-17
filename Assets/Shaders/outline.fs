@@ -6,47 +6,28 @@ uniform sampler2D texture0;
 uniform vec4 colDiffuse;
 uniform float border_width;
 uniform vec2 res;
-const vec3 from_color = vec3(1.);
-const vec3 to_color = vec3(.6);
 const vec4 border_color = vec4(0.,0.,0.,1.);
 
-vec2 zoom(float factor, vec2 pos, vec2 center){
-	return (pos-center)/factor+center;
-}
+// Clean, even text outline. The glyph's coverage is dilated over a DISC of radius `border_width` (taking the max
+// neighbour alpha, weighted by a ~1px soft falloff at the rim), then the glyph is laid back on top. This replaces
+// the old nearest-opaque-texel + "zoom" heuristic, which sampled unevenly and left the border lumpy and thick —
+// especially on high-DPI screens where border_width is large. Empty texels are (0,0,0,0), so the dilated ring
+// keeps the glyph texture's black RGB — i.e. a black outline — exactly as before; only its SHAPE is improved.
+// This runs once when a line of text is baked to a texture, so the disc loop is affordable.
 void main(){
 	gl_FragColor = texture(texture0, fragTexCoord);
-	vec2 texel = vec2(1)/res;
-	vec2 p1 = fragTexCoord;
-	vec2 p2 = fragTexCoord;
-	vec2 p3 = fragTexCoord;
-	vec2 p4 = fragTexCoord;
-	for(float x = 0; x < border_width; x+=1)
-	for(float y = 0; y < border_width; y+=1){
-		if(texture(texture0, fragTexCoord+vec2(x,y)*texel)[3] > 0.)
-			if(distance(p1, fragTexCoord) < distance(vec2(x,y)*texel, vec2(0)))
-				p1 = fragTexCoord+vec2(x,y)*texel;
-		if(texture(texture0, fragTexCoord+vec2(x,-y)*texel)[3] > 0.)
-			if(distance(p2, fragTexCoord) < distance(vec2(x,-y)*texel, vec2(0)))
-				p2 = fragTexCoord+vec2(x,-y)*texel;
-		if(texture(texture0, fragTexCoord+vec2(-x,y)*texel)[3] > 0.)
-			if(distance(p3, fragTexCoord) < distance(vec2(-x,y)*texel, vec2(0)))
-				p3 = fragTexCoord+vec2(-x,y)*texel;
-		if(texture(texture0, fragTexCoord+vec2(-x,-y)*texel)[3] > 0.)
-			if(distance(p4, fragTexCoord) < distance(vec2(-x,-y)*texel, vec2(0)))
-				p4 = fragTexCoord+vec2(-x,-y)*texel;
+	vec2 texel = vec2(1.0) / res;
+	// Cap the radius so a very high-DPI bake can't blow the sample count up unboundedly.
+	float r = clamp(border_width, 1.0, 12.0);
+	float outline = 0.0;
+	for (float x = -r; x <= r; x += 1.0)
+	for (float y = -r; y <= r; y += 1.0) {
+		float d = length(vec2(x, y));
+		if (d <= r + 0.5) {
+			float a = texture(texture0, fragTexCoord + vec2(x, y) * texel).a;
+			// Soft 1px rim so the outer edge stays antialiased instead of a hard step.
+			outline = max(outline, a * clamp(r + 0.5 - d, 0.0, 1.0));
+		}
 	}
-	float s = .01;
-	s += texture(texture0, zoom(
-		border_width, fragTexCoord, p1
-	))[3];
-	s += texture(texture0, zoom(
-		border_width, fragTexCoord, p2
-	))[3];
-	s += texture(texture0, zoom(
-		border_width, fragTexCoord, p3
-	))[3];
-	s += texture(texture0, zoom(
-		border_width, fragTexCoord, p4
-	))[3];
-	gl_FragColor[3] = clamp(gl_FragColor[3], 0,1)+ (s/2.);
+	gl_FragColor.a = max(gl_FragColor.a, outline);
 }

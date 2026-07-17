@@ -8,99 +8,53 @@ using DmitryAndDemid.Utils;
 namespace DmitryAndDemid.Screens;
 
 /// <summary>
-/// Lists the spell cards in a stage, each with the player's record on it and the card's maximum bonus:
-///
-///     &lt;card name&gt;   12/34   150000
-///                    ^ good/total  ^ max score
-///
-/// Same formatting rules as the in-game score line: more than 99 successes prints spell.master instead of the
-/// pair, more than 99 attempts prints "99+".
-///
-/// Picking a card starts a practice run at THAT chapter — which is why GameBox.LoadStage had to be taught to
-/// honour its `chapter` argument; it accepted one and always started from chapter 0 regardless.
+/// Lists the spell cards in a stage by NUMBER only — "Spellcard N", where N is a 0-based number that runs
+/// continuously across the whole game (the base offset is the number of spell cards in the earlier stages).
+/// The real names, records and max score belong to the difficulty screen that opens after a card is picked.
 /// </summary>
 public class SpellPracticeCardSelect : MenuScreen
 {
     private readonly FileStageInfo Stage;
     private readonly ProtogonistData Protogonist;
-    private readonly int Difficulty;
+    private readonly int GlobalBase;
 
-    public SpellPracticeCardSelect(FileStageInfo stage, ProtogonistData protogonist, int difficulty)
+    public SpellPracticeCardSelect(FileStageInfo stage, ProtogonistData protogonist, int globalBase)
     {
         Stage = stage;
         Protogonist = protogonist;
-        Difficulty = difficulty;
+        GlobalBase = globalBase;
 
         SetTitle(Runtime.CurrentRuntime.Textures["spell_practice.png"]);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
-        SelectedIndex = 1;   // skip the first difficulty header so the cursor opens on a real card
     }
-
-    /// <summary>The four playable difficulties (Easy..Max) each card can be practised at; Extra is a separate
-    /// mode and never a main-game spell-practice tier.</summary>
-    private const int DifficultyCount = 4;
 
     public override void CreateMenu()
     {
-        // The list can run long once every card is repeated across four difficulties — window it.
         EnableScrolling = true;
         MaxVisibleItems = 12;
 
-        // Grouped by difficulty: a (dimmed, unselectable) header per tier, then every spell card in the stage
-        // listed beneath it. Picking a card starts practice at THAT tier, so the same card can be drilled on
-        // Easy or on Max — and difficulty-gated cards (e.g. the two-toilet colour spam, Hard+) behave exactly
-        // as they would in a real run at that difficulty.
-        for (int d = 0; d < DifficultyCount; d++)
+        // Every spell card in the stage, labelled "Spellcard N" (global number). Picking one opens its
+        // difficulty screen.
+        int local = 0;
+        for (int i = 0; i < Stage.Chapters.Length; i++)
         {
-            int difficulty = d;
-            MenuItems.Add(new MenuItem($"-- {DifficultyName(d)} --", "", null) { Enabled = false });
+            if ((ChapterType)Stage.Chapters[i].Header[0] != ChapterType.Spell)
+                continue;
 
-            for (int i = 0; i < Stage.Chapters.Length; i++)
-            {
-                FileChapterInfo chapter = Stage.Chapters[i];
-                if ((ChapterType)chapter.Header[0] != ChapterType.Spell)
-                    continue;
-
-                int index = i;   // captured per row, not the loop variable
-                MenuItems.Add(new MenuItem(BuildLabel(chapter), "", _ => Start(index, difficulty)));
-            }
+            int index = i;                       // chapter index in the stage
+            int number = GlobalBase + local;     // global spell-card number
+            MenuItems.Add(new MenuItem("spell.card", $"{number}", _ => OpenDifficulty(index, number)));
+            local++;
         }
 
         MenuItems.Add(new MenuItem("ingame.exit", "", _ => Exit()));
     }
 
-    private static string DifficultyName(int d) =>
-        d >= 0 && d < Helper.DifficultyIds.Length ? Helper.DifficultyIds[d] : d.ToString();
-
-    /// <summary>"name   good/total   maxscore", with the master / 99+ rules.</summary>
-    private string BuildLabel(FileChapterInfo chapter)
+    private void OpenDifficulty(int chapterIndex, int number)
     {
-        (int total, int success) = GetRecord(chapter.SpellcardTitle);
-
-        string record = success > 99
-            ? Helper.Translate("spell.master")
-            : $"{success:00}/{(total > 99 ? "99+" : $"{total:00}")}";
-
-        return $"{chapter.SpellcardTitle}   {record}   {chapter.Header[4]}";
-    }
-
-    /// <summary>
-    /// This character's record on a card in spell practice: (attempts, captures). Practice keeps its own
-    /// counters, so a card cleared in a real run does not show up as practised here.
-    /// </summary>
-    private (int Total, int Success) GetRecord(string spellName) =>
-        PlayerData.Instance.GetSpellcardRecord(Protogonist.ID, spellName, true);
-
-    private void Start(int chapterIndex, int difficulty)
-    {
-        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["swap"]);
-
-        Runtime.CurrentRuntime.AddScreen(new GameplayScreen(Protogonist, difficulty, [Stage], chapterIndex, true,
-            mode: GameType.SpellPractice));
-
-        TiledLoadingScreen? loading = null;
-        loading = new TiledLoadingScreen(3, 0.5, () => Runtime.CurrentRuntime.RemoveScreen(loading!), true, 0);
-        Runtime.CurrentRuntime.AddScreen(loading);
+        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["item-switch"]);
+        Runtime.CurrentRuntime.AddScreen(
+            new SpellPracticeDifficultyScreen(Stage, Protogonist, chapterIndex, number));
     }
 
     public override void Render()

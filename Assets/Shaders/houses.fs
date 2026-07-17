@@ -73,7 +73,9 @@ vec3 skyColor(vec3 rd) {
 
 void main() {
     // screen ray, portrait aspect. y flipped so top of screen looks toward the horizon.
-    vec2 p = fragTexCoord - 0.5;
+    // Negating the screen offset rotates the whole rendered scene 180 degrees about the centre
+    // (sky drops to the bottom, houses hang from the top).
+    vec2 p = 0.5 - fragTexCoord;
     p.x *= res.x / res.y;
 
     vec3 ro  = vec3(2.0, CAM_HEIGHT, time * SPEED);
@@ -127,5 +129,24 @@ void main() {
     }
 
     col = pow(clamp(col, 0.0, 1.0), vec3(0.9)); // mild lift
+
+    // --- rain: cheap screen-space streaks falling down the screen, three layers for depth ---
+    vec2 ruv = fragTexCoord;
+    ruv.x *= res.x / res.y;
+    float rain = 0.0;
+    for (int k = 0; k < 3; k++) {
+        float fk = float(k);
+        float cols = 34.0 + fk * 26.0;                       // more, thinner columns further back
+        float fall = 7.0 + fk * 5.0;                         // fall speed
+        float ci   = floor(ruv.x * cols);
+        float seed = hash21(vec2(ci, fk * 5.0 + 1.0));
+        float y    = ruv.y * (3.5 + fk) + time * fall * (0.7 + seed * 0.6) + seed * 17.0;
+        float cell = fract(y);
+        float streak = smoothstep(0.0, 0.03, cell) * (1.0 - smoothstep(0.03, 0.45, cell));
+        float on   = step(0.55, hash21(vec2(ci, floor(y))));  // sparse: only some cells carry a drop
+        rain += streak * on * (0.6 - fk * 0.15);
+    }
+    col += vec3(0.62, 0.68, 0.80) * rain * 0.5;              // cool, semi-transparent streaks
+
     gl_FragColor = vec4(col, 1.0);
 }

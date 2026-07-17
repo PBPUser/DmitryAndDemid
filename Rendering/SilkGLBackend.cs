@@ -385,10 +385,21 @@ public sealed unsafe class SilkGLBackend : IBackend
             PixelFormat.Rgba, PixelType.UnsignedByte, null);
         Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Nearest);
         Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Nearest);
-        Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.Repeat);
-        Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.Repeat);
+        // CLAMP_TO_EDGE, not REPEAT: a render target is only ever composited or presented (never tiled through
+        // a >1 source rect — DrawQuad folds the flip coords back into [0,1]), so clamping the edge is correct
+        // and, crucially, stops LINEAR filtering from wrapping the opposite edge into the seam. That wrap is
+        // what speckled the playfield/HUD edges with thin lines on the Adreno (tiled) GPU.
+        Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
+        Gl.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToEdge);
         Gl.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0,
             TextureTarget.Texture2D, color, 0);
+
+        // Clear the fresh attachment to transparent black. A newly allocated FBO texture has UNDEFINED
+        // contents; a desktop GPU happens to hand back zeros, but a tiled GPU (Adreno) leaves whatever was in
+        // that tile memory — which is exactly the "random garbage / flicker" seen on the phone whenever a
+        // target's first use does not fully overwrite it. One clear at creation makes the first frame defined.
+        Gl.ClearColor(0f, 0f, 0f, 0f);
+        Gl.Clear((uint)ClearBufferMask.ColorBufferBit);
 
         Gl.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
         Gl.BindTexture(TextureTarget.Texture2D, 0);
@@ -559,6 +570,7 @@ public sealed unsafe class SilkGLBackend : IBackend
         {
             string log = Gl.GetProgramInfoLog(program);
             Console.WriteLine($"SilkGL: shader link failed: {log}");
+            Utils.Platform.Trace($"SilkGL: shader link failed: {log}");
             ShaderDiagnostics.Report($"link failed: {log}");
         }
 
@@ -577,6 +589,7 @@ public sealed unsafe class SilkGLBackend : IBackend
             return shader;
         string infoLog = Gl.GetShaderInfoLog(shader);
         Console.WriteLine($"SilkGL: {type} compile failed: {infoLog}");
+        Utils.Platform.Trace($"SilkGL: {type} compile failed: {infoLog}");
         ShaderDiagnostics.Report($"{(type == ShaderType.VertexShader ? "vertex" : "fragment")} shader: {infoLog}");
         Gl.DeleteShader(shader);
         return 0;
@@ -802,23 +815,44 @@ public sealed unsafe class SilkGLBackend : IBackend
         if (dest.Height < 0)
             dest.Height = -dest.Height;
 
-        // Raylib's DrawTexturePro flip arithmetic, verbatim. Note it deliberately produces texture
-        // coordinates OUTSIDE [0,1] for the (0, H, W, -H) source form the game uses for render targets, and
-        // relies on GL_REPEAT wrapping to bring them back. Reproduce both or the frame smears: with
-        // CLAMP_TO_EDGE those out-of-range coords pin to a single texel row.
+        // Raylib's DrawTexturePro flip arithmetic. The (0, H, W, -H) source form the game uses for render
+        // targets (Helper.GetFullSourceRenderTexture) deliberately produces texture coordinates OUTSIDE [0,1]
+        // and desktop GL relied on GL_REPEAT to wrap them back. On a tiled mobile GPU (Adreno) that wrap seam,
+        // sampled under LINEAR filtering, shows up as thin bright/dark lines along the playfield and HUD edges.
+        // We keep the flip but fold the coordinates back into [0,1] below, so render targets can use
+        // CLAMP_TO_EDGE and the edge rows/columns stay clean.
         bool flipX = false;
         if (source.Width < 0)
         {
             flipX = true;
             source.Width *= -1;
         }
-        if (source.Height < 0)
+        bool flipY = source.Height < 0;
+        if (flipY)
             source.Y -= source.Height;
 
         float left = (flipX ? source.X + source.Width : source.X) / texture.Width;
         float right = (flipX ? source.X : source.X + source.Width) / texture.Width;
         float top = source.Y / texture.Height;
         float bottom = (source.Y + source.Height) / texture.Height;
+
+        // Fold a flipped axis whose coordinates overshoot [0,1] (the render-target flip convention lands at
+        // [1,2]) back down by whole texels. fract() is unchanged, so the sampled image is identical under
+        // GL_REPEAT — but the coordinates now sit inside the texture, which is what lets CLAMP_TO_EDGE hold the
+        // seam. Only a genuinely flipped axis is touched, and only when it actually overshoots: an in-range
+        // sub-rect flip (min already < 1) is left exactly as it was.
+        if (flipY)
+        {
+            float vBase = MathF.Floor(MathF.Min(top, bottom));
+            top -= vBase;
+            bottom -= vBase;
+        }
+        if (flipX)
+        {
+            float uBase = MathF.Floor(MathF.Min(left, right));
+            left -= uBase;
+            right -= uBase;
+        }
 
         float r = rotation * MathF.PI / 180f;
         float cos = MathF.Cos(r), sin = MathF.Sin(r);

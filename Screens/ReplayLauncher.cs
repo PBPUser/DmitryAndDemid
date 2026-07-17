@@ -40,7 +40,9 @@ public static class ReplayLauncher
         if (data == null)
             return null;
 
-        string[] spellCards = Assets.Files("Assets/Data/SpellCards");
+        // Filtered to .sid via the shared helper — the demo/replay used to enumerate "*" and take [0], loading a
+        // stray non-stage file and crashing exactly like the main story did (see CampaignStagePaths).
+        string[] spellCards = FileStageInfo.CampaignStagePaths();
         if (spellCards.Length == 0)
             return null;
 

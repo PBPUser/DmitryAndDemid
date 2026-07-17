@@ -1,0 +1,6 @@
+{
+  "Texture": "nikitab-sprite.png",
+  "RenderSize": { "X": 48, "Y": 64 },
+  "SourcePosition": { "X": 0, "Y": 0 },
+  "Collision": 32
+}

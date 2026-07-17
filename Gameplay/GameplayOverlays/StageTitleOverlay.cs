@@ -25,9 +25,10 @@ public class StageTitleOverlay(GameBox box, int index) : GameplayOverlay(box, 0.
     
     protected override void Draw()
     {
-        // The stage title splash is suppressed during the title-screen attract demo — the demo should read as
-        // background footage, not announce its stage.
-        if (Box.IsDemo)
+        // The stage title splash is suppressed during the title-screen attract demo (the demo should read as
+        // background footage, not announce its stage) and in spell practice — there is no stage to announce,
+        // just the single card the player picked.
+        if (Box.IsDemo || Box.IsSpellPractice)
         {
             base.Draw();
             return;

@@ -54,7 +54,7 @@ public static class Benchmark
             string charPath = Assets.Files("Assets/Data/PlayablePersons/", "*.json")[0];
             var data = JsonSerializer.Deserialize<ProtogonistData>(File.ReadAllText(charPath))
                        ?? throw new Exception("no playable character found");
-            string stagePath = Assets.Files("Assets/Data/SpellCards")[0];
+            string stagePath = FileStageInfo.CampaignStagePaths()[0];
             var pkg = BitPackage.OpenStreamReadPackage(stagePath);
             var stage = FileStageInfo.Load(ref pkg);
             pkg.Dispose();

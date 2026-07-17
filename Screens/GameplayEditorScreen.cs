@@ -52,6 +52,21 @@ public class GameplayEditorScreen : Screen
     private string[] Textures => Runtime.CurrentRuntime.Textures.Keys.ToArray();
     private int BackgroundTestIndex = -1;
 
+    // Animated stage-background tester: the StageBackground implementations (Houses, Drogichin, the flyover…),
+    // the same list Runtime's Ctrl+B tester uses, previewed live inside this editor.
+    private StageBackground? StageBgInstance;
+    private int StageBgIndex = -1;
+    private int StageBgBuiltIndex = -1;
+    private TargetHandle StageBgTarget = LoadRenderTexture(384, 448);
+    private double StageBgTimeFrom;
+
+    // Spellcard background tester: a spell's background texture drawn through its shader exactly as GameBox does
+    // in-game (pos = (192,96), an advancing time/8), so authored spell backgrounds can be previewed animated.
+    private int SpellBgTextureIndex = -1;
+    private int SpellBgShaderIndex = -1;
+    private TargetHandle SpellBgTarget = LoadRenderTexture(384, 448);
+    private double SpellBgTimeFrom;
+
     private int BGTesterX = 192;
     private int BGTesterY = 400;
     private int Page = 0;
@@ -531,6 +546,72 @@ public class GameplayEditorScreen : Screen
                     }
                 }
                 End();
+                Begin("Stage Background Tester");
+                {
+                    string[] bgNames = Runtime.BackgroundTesterNames;
+                    Combo("Stage BG", ref StageBgIndex, bgNames, bgNames.Length);
+                    if (StageBgIndex >= 0 && StageBgIndex < bgNames.Length)
+                    {
+                        // (Re)build only when the selection changes; reset the clock so the cinematic ones
+                        // (e.g. the Drogichin flyover) play from the start each time they are picked.
+                        if (StageBgInstance == null || StageBgBuiltIndex != StageBgIndex)
+                        {
+                            StageBgInstance?.Dispose();
+                            StageBgInstance = Runtime.CreateTesterBackground(StageBgIndex);
+                            StageBgBuiltIndex = StageBgIndex;
+                            StageBgTimeFrom = Gfx.GetTime();
+                        }
+                        if (Button("Restart"))
+                            StageBgTimeFrom = Gfx.GetTime();
+                        // Drive it exactly as GameBox does — a 60 TPS tick derived from wall time.
+                        double bt = Gfx.GetTime() - StageBgTimeFrom;
+                        int btick = (int)(bt * 60);
+                        float bdelta = (float)(bt * 60 - btick);
+                        StageBgInstance.Draw(StageBgTarget, btick, bdelta);
+                        Engine.Backend.DebugUiImage(StageBgTarget);
+                    }
+                    else
+                    {
+                        Text("Pick a stage background to preview it animated.");
+                    }
+                }
+                End();
+                Begin("Spellcard Background Tester");
+                {
+                    string[] texKeys = Textures;
+                    Combo("Spell BG texture", ref SpellBgTextureIndex, texKeys, texKeys.Length);
+                    Combo("Spell shader", ref SpellBgShaderIndex, Shaders, Shaders.Length);
+                    if (SpellBgTextureIndex >= 0 && SpellBgTextureIndex < texKeys.Length)
+                    {
+                        if (Button("Restart##spellbg"))
+                            SpellBgTimeFrom = Gfx.GetTime();
+                        // Draw the spell background the way GameBox.RenderBox does: the shader fed pos=(192,96)
+                        // and time/8, then the texture through it.
+                        TextureHandle tex = Runtime.CurrentRuntime.Textures[texKeys[SpellBgTextureIndex]];
+                        float bgTime = (float)(Gfx.GetTime() - SpellBgTimeFrom);
+                        bool useShader = SpellBgShaderIndex >= 0 && SpellBgShaderIndex < Shaders.Length;
+                        BeginTextureMode(SpellBgTarget);
+                        ClearBackground(Rgba.Black);
+                        if (useShader)
+                        {
+                            ShaderHandle sh = Runtime.CurrentRuntime.Shaders[Shaders[SpellBgShaderIndex]];
+                            SetShaderValue(sh, GetShaderLocation(sh, "pos"), new System.Numerics.Vector2(192, 96), UniformType.Vec2);
+                            SetShaderValue(sh, GetShaderLocation(sh, "time"), bgTime / 8f, UniformType.Float);
+                            BeginShaderMode(sh);
+                        }
+                        DrawTexturePro(tex, Helper.GetFullSource(tex), new Rect(0, 0, 384, 448),
+                            System.Numerics.Vector2.Zero, 0, Rgba.White);
+                        if (useShader)
+                            EndShaderMode();
+                        EndTextureMode();
+                        Engine.Backend.DebugUiImage(SpellBgTarget);
+                    }
+                    else
+                    {
+                        Text("Pick a spellcard background texture to preview it animated.");
+                    }
+                }
+                End();
                 Begin("Text ShaderHandle Editor");
                 if (SliderFloat("Spacing", ref Spacing, 0f, 32f)) 
                     RerenderPreviewText();
@@ -773,6 +854,10 @@ public class GameplayEditorScreen : Screen
     public override void Unload()
     {
         UnloadRenderTexture(TexturePreview);
+        StageBgInstance?.Dispose();
+        StageBgInstance = null;
+        UnloadRenderTexture(StageBgTarget);
+        UnloadRenderTexture(SpellBgTarget);
         base.Unload();
     }
 }

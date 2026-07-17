@@ -249,6 +249,10 @@ public class SettingsScreen : MenuScreen
     /// <summary>Drives the slider under the finger (only when touch is the input method).</summary>
     private void UpdateTouchSliders()
     {
+        // Stand down while a finger is drag-scrolling the list: a vertical scroll that passes over a slider row
+        // must not also drag its value.
+        if (IsManualScrolling)
+            return;
         if (!TouchActive || !TryGetTouchPoint(out System.Numerics.Vector2 p))
             return;
         float barW = SliderWidth * Runtime.CurrentRuntime.ScaleF;

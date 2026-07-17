@@ -17,7 +17,15 @@ AppContext.SetSwitch("System.Resources.UseSystemResourceKeys", true);
 // takes down the app). Declare dynamic code unsupported so STJ uses its reflection-only path — the same state
 // NativeAOT runs in, where reflection-JSON still works fine for these plain data types.
 AppContext.SetSwitch("System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported", false);
-AppDomain.CurrentDomain.UnhandledException += (_, e) => Console.WriteLine("FATAL: " + e.ExceptionObject);
+// Write the fatal trace to a FILE as well as stdout: on a hard fault the process dies before the stdout buffer
+// flushes over UDP, so the Console line is usually lost — but AppendAllText opens/writes/closes, surviving the
+// crash. Read it back over FTP at /mono/crashtrace.txt. (AppContext.BaseDirectory is /mono on the SD.)
+AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+{
+    string msg = "FATAL: " + e.ExceptionObject;
+    Console.WriteLine(msg);
+    try { System.IO.File.AppendAllText(System.IO.Path.Combine(AppContext.BaseDirectory, "crashtrace.txt"), msg + "\n"); } catch { }
+};
 
 // On mono-nx the process working directory is NOT the game folder, so any relative "config.json" / "Assets/..."
 // path resolves against the wrong place and the game can't find its files. Anchor both the writable data dir

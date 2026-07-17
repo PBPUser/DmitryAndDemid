@@ -1,0 +1,8 @@
+{
+  "Texture": "pizzaslice.png",
+  "RenderType": 1,
+  "RenderSize": { "X": 20, "Y": 20 },
+  "SpritePosition": { "X": 0, "Y": 0 },
+  "SourceSize": { "X": 48, "Y": 48 },
+  "Collision": 6
+}

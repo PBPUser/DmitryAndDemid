@@ -1,3 +1,4 @@
+using System.Linq;
 using DmitryAndDemid.Rendering;
 using static DmitryAndDemid.Rendering.Gfx;
 using DmitryAndDemid.Data.Archive;
@@ -7,6 +8,21 @@ namespace DmitryAndDemid.Data.Archive;
 
 public class FileStageInfo
 {
+    /// <summary>
+    /// The packed campaign stages under <c>Assets/Data/SpellCards</c>: filtered to <c>.sid</c> and ordinally
+    /// sorted. This is the ONE source of truth for "which files are playable stages", and every gameplay entry
+    /// point (main story, replay/demo, practice, the bench) must go through it.
+    ///
+    /// The <c>.sid</c> filter is not cosmetic. That folder can also hold non-stage files — editor scratch, an
+    /// OS artifact like <c>.DS_Store</c>, a stray unpacked asset — and feeding one of those to <see cref="Load"/>
+    /// throws deep inside <see cref="BitPackage"/>. Practice already filtered this way and never crashed; the
+    /// main game, demo and bench enumerated with pattern "*" and took [0], so a single non-<c>.sid</c> file that
+    /// sorted first was loaded as a "stage" and crashed the run — the "playing main story crashes" bug, which
+    /// only ever reproduced where such a file existed (hence not on a clean desktop checkout).
+    /// </summary>
+    public static string[] CampaignStagePaths() =>
+        Assets.Files("Assets/Data/SpellCards", "*.sid").OrderBy(x => x, StringComparer.Ordinal).ToArray();
+
     public FileStageInfo()
     {
         Scripts = new string[0];

@@ -57,6 +57,7 @@ public class RuntimeObject
             CollectableFEIs[i].Header[0] &= ~FlagUseUpdateScript;
         }
         CollectableFEIs[0].Visual = "power";
+        CollectableFEIs[7].Visual = "bomb_piece";   // Type 7 = bomb piece (dropped by the mystical toilet)
         MagicalToilet = new FileEntityInfo()
         {
             UpdateScript = "MysticalToilet",
@@ -69,6 +70,13 @@ public class RuntimeObject
     private Rect Source = new();
     private Rect Target = new();
     public Vector2 Origin = new();
+    /// <summary>Extra render-time scale about the object's centre, 1 = normal. Used for spawn/entrance
+    /// animations (e.g. the Nikitab boss budging in) without touching the collision/target size.</summary>
+    public float EntranceScale = 1f;
+    /// <summary>Render-time opacity multiplier, 1 = fully opaque. Used for fade-in/out of entities (e.g. the
+    /// Nikita Bukin boss and his pizza mount riding in semi-transparent) without affecting the sim. Applied as
+    /// the draw tint's alpha; bullets leave this at 1 and control opacity through their shader instead.</summary>
+    public float RenderAlpha = 1f;
     public int[] Header = new int[128];
     public float[] FloatingPoints = new float[128];
     public TextureHandle Texture;
@@ -453,7 +461,10 @@ public class RuntimeObject
         //Origin = new Vector2(RenderScaleX * Header[1] / 2,  RenderScaleY * Header[2] / 2);
     }
 
-    public void Update()
+    /// <param name="runAction">When false, the per-tick behaviour script (<see cref="UpdateAction"/>) is skipped
+    /// but movement still applies — used to hold a boss's attack during a dialog while it can still slide into
+    /// place.</param>
+    public void Update(bool runAction = true)
     {
         if ((Header[0] & FlagIsMovingToTarget) == FlagIsMovingToTarget)
         {
@@ -461,7 +472,8 @@ public class RuntimeObject
             if (MathUtil.Vector2Distance(Position, MoveTarget) < 1)
                 Header[0] &= ~FlagIsMovingToTarget;
         }
-        UpdateAction?.Invoke(this);
+        if (runAction)
+            UpdateAction?.Invoke(this);
     }
 
     public void SetMoveToTarget(float speed, Vector2 target)

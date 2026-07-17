@@ -25,6 +25,15 @@ public static class Platform
 
     public static void FatalError(string message) => FatalErrorHandler(message);
 
+    /// <summary>
+    /// Low-severity diagnostic trace. Desktop writes to the console; Android replaces this with a logcat write
+    /// (see MainActivity), because .NET's <see cref="Console"/> does not reach logcat and these marks would
+    /// otherwise be lost — which is exactly why a gameplay-entry crash showed up as a bare "signal 9".
+    /// </summary>
+    public static Action<string> TraceHandler { get; set; } = Console.WriteLine;
+
+    public static void Trace(string message) => TraceHandler(message);
+
     private static void DefaultFatalError(string message)
     {
 #if ANDROID

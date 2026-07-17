@@ -51,18 +51,27 @@ public class RuntimeChapter
         Type = (ChapterType)chapterInfo.Header[0];
         if ((int)Type > 1)
         {
-            var size = Helper.GetBossTextSize(chapterInfo.BossName);
+            // The shown boss title resolves through translation.json, exactly like the spell-card title below.
+            // TranslateRaw picks one of the key's ;-separated variants and returns the authored name unchanged
+            // when it has no entry (so untranslated bosses keep working); the renderer transliterates it. Resolve
+            // once so sizing and drawing use the same variant.
+            string bossDisplay = Helper.TranslateRaw(chapterInfo.BossName);
+            var size = Helper.GetBossTextSize(bossDisplay);
             BossTitleTexture = LoadRenderTexture((int)size.X, (int)size.Y);
-            Helper.DrawBossText(BossTitleTexture.Value, chapterInfo.BossName);
+            Helper.DrawBossText(BossTitleTexture.Value, bossDisplay);
         }
         if (Type == ChapterType.Spell)
         {
             SpellcardTexture = Runtime.CurrentRuntime.Textures[chapterInfo.SpellcardTexture];
             MaxScore = chapterInfo.Header[4];
+            // The record key stays the raw authored title (stable across difficulties); only the SHOWN name is
+            // resolved through translation.json and specialised per difficulty. Resolve once — Translate picks a
+            // random variant per call, so sizing and drawing must see the same string.
             SpellcardTitle = chapterInfo.SpellcardTitle;
-            var size = Helper.GetTitleTextSize(chapterInfo.SpellcardTitle);
+            string displayTitle = Helper.ResolveSpellcardName(chapterInfo.SpellcardTitle, box.Difficulty);
+            var size = Helper.GetTitleTextSize(displayTitle);
             ChapterTitleTexture = LoadRenderTexture((int)size.X, (int)size.Y);
-            Helper.DrawChapterTitleText(ChapterTitleTexture.Value, chapterInfo.SpellcardTitle);
+            Helper.DrawChapterTitleText(ChapterTitleTexture.Value, displayTitle);
         }
         if(UseCreateScript && ActionsScope.ChapterActions.ContainsKey(chapterInfo.CreateScript))
             CreateScript = ActionsScope.ChapterActions[chapterInfo.CreateScript];

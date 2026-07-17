@@ -430,6 +430,35 @@ public class Runtime
             OpenSettingsOnStart = false;
             AddScreen(new SettingsScreen());
         }
+
+        // TEMP (Mali crash bring-up): if a sentinel file exists in the writable data dir, jump straight into a
+        // Default game with the first character/stage — the same path PersonSelectScreen.OpenNext takes — so the
+        // gameplay-entry crash reproduces deterministically without fighting flaky injected menu input. Toggle
+        // with `adb shell run-as co.sugar.aag2 touch files/autostart.txt`. Remove once the crash is fixed.
+        try
+        {
+            if (System.IO.File.Exists(Utils.Platform.DataPath("autostart.txt")))
+            {
+                Utils.Platform.Trace("[autostart] launching Default game");
+                string personFile = Utils.Assets.Files("Assets/Data/PlayablePersons/", "*.json")[0];
+                var person = System.Text.Json.JsonSerializer.Deserialize<Data.ProtogonistData>(
+                    System.IO.File.ReadAllText(personFile));
+                string stagePath = Data.Archive.FileStageInfo.CampaignStagePaths()[0];
+                var pkg = Utils.BitPackage.OpenStreamReadPackage(stagePath);
+                var stage = Data.Archive.FileStageInfo.Load(ref pkg);
+                pkg.Dispose();
+                var gp = new Screens.GameplayScreen(person!, 0, [stage], 0, false);
+                AddScreen(gp);
+                Screens.TiledLoadingScreen? tls = null;
+                tls = new Screens.TiledLoadingScreen(3, 0.5, () => RemoveScreen(tls!), true, 0);
+                AddScreen(tls);
+                Utils.Platform.Trace("[autostart] screens queued");
+            }
+        }
+        catch (Exception e)
+        {
+            Utils.Platform.Trace("[autostart] failed: " + e);
+        }
     }
 
     void LoadAudio()
@@ -930,9 +959,18 @@ public class Runtime
     {
         ("HousesBackground", () => new HousesBackground()),
         ("DrogichinBackground", () => new DrogichinBackground()),
+        ("DrogichinFlyoverBackground (road -> clouds -> town)", () => new DrogichinFlyoverBackground()),
         ("SillyBackground (empty)", () => new SillyBackground()),
         ("Swap: Houses <-> Drogichin", () => new SwapStageBackground(new HousesBackground(), new DrogichinBackground())),
     };
+    /// <summary>Display names of every stage background the tester can build — shared with the gameplay
+    /// events editor, which offers the same list in an ImGui combo.</summary>
+    public static string[] BackgroundTesterNames => BackgroundTesterFactories.Select(f => f.Name).ToArray();
+
+    /// <summary>Builds a fresh instance of the tester background at <paramref name="index"/> (clamped).</summary>
+    public static StageBackground CreateTesterBackground(int index) =>
+        BackgroundTesterFactories[Math.Clamp(index, 0, BackgroundTesterFactories.Length - 1)].Make();
+
     private bool BackgroundTesterOpen = false;
     private int BackgroundTesterId = 0;
     private int BackgroundTesterBuiltId = -1;

@@ -54,7 +54,7 @@ public class GameBox : IDisposable
     float TickLength = 1f / TargetTPS;
     int StageIndex = 0;
     bool RequiresRefresh;
-    bool IsSpellPractice;
+    public bool IsSpellPractice;
     public bool IsPractice;
     bool IsReplay;   // playback (replay viewer / title demo): never mutates the player's progress
     /// <summary>True only for the title-screen attract demo (a subset of replays). Set on the owning screen via
@@ -136,15 +136,130 @@ public class GameBox : IDisposable
 
     public const int DelayBetweenChapters = 120;
 
+    /// <summary>How long (seconds) the "stage complete" banner is held over the LIVE gameplay after a stage's
+    /// last chapter, before the run either advances to the next stage or begins the final fade.</summary>
+    public const float StageCompleteHold = 3.2f;
+
     /// <summary>How long (seconds) a normal last-stage clear takes to fade all gameplay to black.</summary>
     public const float ClearFadeDuration = 4f;
 
-    /// <summary>Set when a normal (non-practice) run reaches the end of the last stage; starts the fade-out.</summary>
+    /// <summary>How long (seconds) the fully-black frame (banner still up) is held after the fade finishes and
+    /// before the run rolls into the ending.</summary>
+    public const float ClearHoldDuration = 1.2f;
+
+    /// <summary>Set when a stage's last chapter ends: the "stage complete" banner is up over the still-visible
+    /// gameplay while the run decides between the next stage and the ending. Distinct from <see cref="Cleared"/>,
+    /// the final fade-to-black that only happens on the very last stage.</summary>
+    public bool StageComplete { get; private set; }
+    private float StageCompleteAt;
+
+    /// <summary>When the "stage complete" banner first appeared. Drives its quick fade-in and stays valid through
+    /// the following fade-to-black, so the banner holds full opacity across the whole end sequence.</summary>
+    private float BannerAppearAt;
+
+    /// <summary>Set when a normal (non-practice) run reaches the end of the LAST stage; starts the fade-out.</summary>
     public bool Cleared { get; private set; }
     private float ClearedAt;
 
     /// <summary>0 before/at the clear, ramping to 1 (fully black) over <see cref="ClearFadeDuration"/>.</summary>
     public float ClearFade => Cleared ? Math.Clamp((GetTime() - ClearedAt) / ClearFadeDuration, 0f, 1f) : 0f;
+
+    /// <summary>Seconds to fade the old stage out to black, and to fade the new stage back in, when rolling from
+    /// one stage into the next. The stage is swapped at the fully-black midpoint so the cut is unseen.</summary>
+    public const float StageFadeOutDuration = 0.7f;
+    public const float StageFadeInDuration = 0.7f;
+
+    /// <summary>True once the between-levels transition has swapped in the next stage (we are now fading it IN).</summary>
+    private bool StageSwapped;
+
+    /// <summary>True during the between-levels fade transition (after the banner hold, before the new stage is
+    /// fully faded in). Once set, the hold is done and the fade state machine drives every frame.</summary>
+    private bool StageAdvancing;
+
+    /// <summary>Raw wall-clock (<see cref="Gfx.GetTime"/>) time the between-levels transition began. The
+    /// transition spans <see cref="SwapToNextStage"/>, which re-anchors <see cref="CountTimeFrom"/> and so resets
+    /// the box's own <c>GetTime()</c> — hence the transition is timed off the wall clock, which does not reset.</summary>
+    private double StageTransitionAt;
+
+    /// <summary>0 = clear, 1 = fully black: the between-levels fade (out then in). Applied by GameplayScreen the
+    /// same way <see cref="ClearFade"/> is, so the whole screen dips through black as one stage becomes the next.</summary>
+    public float StageFade { get; private set; }
+
+    /// <summary>True while the "stage complete" banner should be drawn — over live gameplay first, then held
+    /// through the fade to black (the banner is hidden behind full black once the next stage is swapped in).</summary>
+    public bool ShowStageBanner => (StageComplete && !StageSwapped) || Cleared;
+
+    /// <summary>The banner's opacity: a ~0.4s fade-in from when it appeared, then held at 1.</summary>
+    public float StageBannerAlpha => ShowStageBanner ? Math.Clamp((GetTime() - BannerAppearAt) / 0.4f, 0f, 1f) : 0f;
+
+    /// <summary>True once the whole clear sequence — fade to black THEN the held banner — is over, which is when
+    /// the screen may transition on to the ending.</summary>
+    public bool ClearSequenceDone => Cleared && GetTime() - ClearedAt >= ClearFadeDuration + ClearHoldDuration;
+
+    /// <summary>
+    /// Drives the end-of-stage sequence once the "stage complete" hold elapses. On the last stage it begins the
+    /// final fade to black (the ending). Otherwise it fades the screen out to black, swaps in the next stage at
+    /// the fully-black midpoint, then fades the new stage back in — a clean crossfade between levels.
+    /// </summary>
+    void AdvanceStageOrFinish()
+    {
+        // Decide last-stage-vs-next only BEFORE the swap. Once StageSwapped is set we are mid fade-IN of the new
+        // stage; SwapToNextStage has already incremented StageIndex, so re-testing it here would wrongly see the
+        // freshly-swapped-in stage as "the last one" and jump to the ending in the middle of the transition.
+        if (!StageSwapped && StageIndex + 1 >= Stages.Length)
+        {
+            // Last stage — begin the slow fade to black. The banner stays up via ShowStageBanner through it.
+            StageComplete = false;
+            StageAdvancing = false;
+            Cleared = true;
+            ClearedAt = GetTime();
+            return;
+        }
+
+        // Between levels: a fade-out / swap / fade-in transition, timed off the wall clock (see StageTransitionAt).
+        float t = (float)(Gfx.GetTime() - StageTransitionAt);
+        if (t < StageFadeOutDuration)
+        {
+            StageFade = t / StageFadeOutDuration;   // fading the finished stage to black
+        }
+        else if (!StageSwapped)
+        {
+            StageFade = 1f;                         // fully black — swap the stage here, unseen
+            SwapToNextStage();
+            StageSwapped = true;
+        }
+        else
+        {
+            float fadeIn = t - StageFadeOutDuration;
+            StageFade = Math.Clamp(1f - fadeIn / StageFadeInDuration, 0f, 1f);   // revealing the new stage
+            if (fadeIn >= StageFadeInDuration)
+            {
+                StageFade = 0f;
+                StageSwapped = false;
+                StageAdvancing = false;
+                StageComplete = false;              // transition done — hand control back to normal play
+            }
+        }
+    }
+
+    /// <summary>Re-anchors the clock and loads the next stage from its first chapter, as a fresh start.</summary>
+    void SwapToNextStage()
+    {
+        // The previous stage's last chapter was already unloaded when it ended; clear the reference so
+        // LoadStage's NextChapter doesn't re-record its spell attempt or unload it a second time.
+        ChapterInfo = null;
+        StageIndex++;
+        CurrentTick = 0;
+        TickOffset = 0;
+        // Clear any pending death-respawn: RestoreTick is an absolute tick from the PREVIOUS stage (set to
+        // deathTick+120 whenever the player last died). With CurrentTick now back at 0 it would read as "still
+        // respawning", so Player.Update would yank the player to the start column and slide it in from far
+        // off-screen over RestoreTick/60 seconds — the player losing its position and only drifting back after
+        // a while. Zeroing it lets the player carry its position straight into the next stage.
+        Player.RestoreTick = 0;
+        CountTimeFrom = Gfx.GetTime();
+        LoadStage(Stages[StageIndex], 0, Difficulty);
+    }
     public void Update()
     {
         BoxUpdate();
@@ -172,20 +287,44 @@ public class GameBox : IDisposable
         if (IsPaused)
             return;
 
-        // A dialog holds the whole simulation: no ticks, no spawns, no timer. GetTime() is frozen with it, so
-        // the chapter resumes exactly where it stopped instead of fast-forwarding through the ticks the
-        // conversation took.
+        // While the "stage complete" banner is up, the sim is frozen on its last frame (the banner sits over the
+        // still-visible gameplay). The banner holds for StageCompleteHold, then the fade-out/swap/fade-in
+        // transition (or, on the last stage, the final fade to black) takes over — driven every frame by
+        // AdvanceStageOrFinish. Once the transition begins we stop re-checking the hold: SwapToNextStage resets
+        // the box clock partway through, so the hold check (box GetTime) is only valid before it.
+        if (StageComplete)
+        {
+            if (!StageAdvancing && GetTime() - StageCompleteAt < StageCompleteHold)
+                return;
+            if (!StageAdvancing)
+            {
+                StageAdvancing = true;
+                StageTransitionAt = Gfx.GetTime();
+            }
+            AdvanceStageOrFinish();
+            return;
+        }
+
+        // A dialog now plays OVER the live simulation instead of freezing it: the player can move, shoot and
+        // graze, and the background keeps animating, while the characters talk. What it does NOT do is start the
+        // fight — see the chapter-clock hold below and the boss-action / damage guards further down.
         if (IsDialogActive)
         {
             Dialog!.Update();
             if (Dialog.Finished)
                 EndDialog();
-            return;
         }
         if (!BenchMode && CurrentTick >= ComputeCurrentTickFromStartingTime)
             return;
         Score = (int)MathUtil.MoveTowards(Score, ScoreTarget, MathF.Max((ScoreTarget - Score) / 30f, 10));
         CurrentTick++;
+        // Hold the chapter/spell clock for the length of the dialog: the non-spell/spell only STARTS once the
+        // player has read it. CurrentTick still advances (so the player's own shoot cadence and focus animation,
+        // which read raw CurrentTick, keep working), but TickOffset — the same lever the boss-death fast-forward
+        // uses — is walked back in lockstep so CurrentTickWithOffset (the chapter length countdown, the spell
+        // timer, the score ramp) stays frozen until the conversation ends.
+        if (IsDialogActive)
+            TickOffset--;
         if (CurrentTick + TickOffset >= ChapterInfo.TickStart + ChapterInfo.Length)
         {
             if (!ChapterScoreShown)
@@ -199,7 +338,8 @@ public class GameBox : IDisposable
                 NextChapter();
             }
         }
-        else
+        else if (!IsDialogActive)
+            // The chapter's per-tick spawn script is part of the attack, so it waits for the dialog too.
             ChapterInfo.UpdateScript?.Invoke(ChapterInfo);
         if (RequiresRefresh)
         {
@@ -309,7 +449,13 @@ public class GameBox : IDisposable
             }
             else
             {
-                obj.Update();
+                // During a dialog the boss/enemy attack scripts are held (the fight hasn't started), but bullets
+                // must keep moving — including the player's own shots. Every bullet (player or enemy) carries
+                // FlagIsBullet; entities do not, so gate the per-tick action on it. Entrance movement (move-to-
+                // target) inside Update still runs, so a boss can slide into place while talking.
+                bool runAction = !IsDialogActive ||
+                                 (obj.Header[0] & RuntimeObject.FlagIsBullet) == RuntimeObject.FlagIsBullet;
+                obj.Update(runAction);
             }
             obj.FloatingPoints[0x20] = obj.FloatingPoints[0x10] - x;
             obj.FloatingPoints[0x21] = obj.FloatingPoints[0x11] - y;
@@ -323,32 +469,47 @@ public class GameBox : IDisposable
                 RemoveObject(obj);
                 continue;
             }
-            if (InChapterDelay)
+            // Between chapters (InChapterDelay) AND while a dialog is on screen, no damage is dealt or taken:
+            // player shots and bombs pass straight through the boss, and nothing can die, until the fight starts.
+            if (InChapterDelay || IsDialogActive)
                 continue;
             if (obj.Health <= 0)
             { 
                 if ((obj.Header[0] & RuntimeObject.FlagIsBoss) == RuntimeObject.FlagIsBoss)
                 {
-                    TickOffset += ChapterInfo.TickStart+ChapterInfo.Length-CurrentTick;
-                    int ticks = CurrentTickWithOffset - ChapterInfo.TickStart;
-                    SpellcardStopwatch ??= new Stopwatch();
-                    if (!IsFailed)
-                    {
-                        AddOverlay(new ScoreGameplayOverlay(this, ChapterScoreCurrent * 10, ticks,
-                            SpellcardStopwatch!.Elapsed.TotalSeconds, .5f, 3));
-                        ScoreTarget += ChapterScoreCurrent;
-                    }
-                    else
-                        AddOverlay(new TimerGameplayOverlay(this, "bonus-failed.png", ticks,
-                            SpellcardStopwatch!.Elapsed.TotalSeconds, 0.5f, 3f));
+                        // Jump the chapter clock to this chapter's end so it wraps up (score, then NextChapter).
+                        // This SETS the offset — `CurrentTick + TickOffset` lands exactly on TickStart+Length —
+                        // rather than ADDING to it. Adding accumulated any prior offset: after a dialog (which now
+                        // holds the clock by driving TickOffset NEGATIVE) a boss kill landed SHORT of the end, so
+                        // the chapter never advanced; across several kills it overshot and stages blitzed through.
+                        TickOffset = ChapterInfo.TickStart + ChapterInfo.Length - CurrentTick;
+                        int ticks = CurrentTickWithOffset - ChapterInfo.TickStart;
+                        SpellcardStopwatch ??= new Stopwatch();
+                 
+                        if (ChapterInfo.Type == ChapterType.Spell)
+                        { 
+                            if (!IsFailed )
+                        {
+                            AddOverlay(new ScoreGameplayOverlay(this, ChapterScoreCurrent * 10, ticks,
+                                SpellcardStopwatch!.Elapsed.TotalSeconds, .5f, 3));
+                            ScoreTarget += ChapterScoreCurrent;
+                        }
+                        else
+                            AddOverlay(new TimerGameplayOverlay(this, "bonus-failed.png", ticks,
+                                SpellcardStopwatch!.Elapsed.TotalSeconds, 0.5f, 3f));
+                        }
                     
-                    SpellcardStopwatch = null;
-                    obj.UpdateAction = null;
+                        SpellcardStopwatch = null;
+                        obj.UpdateAction = null;
                 }
                 else
                 {
                     obj.Header[0] |= RuntimeObject.FlagIsUsed;
                     obj.Header[0xa] = CurrentTick;
+                    // The player killed this enemy (entities spawn with Health >= 1, so Health <= 0 here means it
+                    // was chipped to death by player fire). Award the authored per-enemy value — Header[0x6],
+                    // "Added score when killed" — or a base bounty when the enemy has none, so a kill always scores.
+                    ScoreTarget += obj.Header[0x6] > 0 ? obj.Header[0x6] : EnemyKillScore;
                     obj.DieAction?.Invoke(obj);
                     RemoveObject(obj);
                     ScreenEffects.Add(new EntityDeathScreenEffect(this, new Vector2(obj.X, obj.Y), 40, GetTime(), GetTime()+0.75f, obj.Header[0xC], obj.Header[0xB]));
@@ -361,6 +522,10 @@ public class GameBox : IDisposable
                 foreach (var obj2 in BoxObjects)
                 {
                     if ((obj2.Header[0] & RuntimeObject.FlagIsBullet) == RuntimeObject.FlagIsBullet)
+                        continue;
+                    // An invincible entity (e.g. a boss during its scripted entrance / dialog) absorbs no damage:
+                    // player shots pass through it so it cannot be chipped or killed before the fight begins.
+                    if ((obj2.Header[0] & RuntimeObject.FlagInvincible) == RuntimeObject.FlagInvincible)
                         continue;
                     if (MathUtil.Vector2Distance(obj.Position, obj2.Position) <
                         (obj.CollisionScale * obj.FloatingPoints[0x13] +
@@ -726,14 +891,14 @@ public class GameBox : IDisposable
             }
             else
             {
-                // Normal run reached the end of the last stage (Extra is unimplemented and IsSpellPractice is
-                // never set, so getting here already means a Default run). Begin the slow fade-out of all
-                // gameplay. Deliberately NOT setting IsPaused/IsGameOver: those freeze GetTime(), and the fade
-                // is driven off it.
+                // Normal run reached the end of a stage. Raise the "stage complete" banner over the live
+                // gameplay; BoxUpdate then either advances to the next stage or (on the last one) starts the fade
+                // to black. Deliberately NOT setting IsPaused/IsGameOver: those freeze GetTime(), which the banner
+                // hold and the fade are both driven off.
                 if (!IsSpellPractice)
                 {
-                    Cleared = true;
-                    ClearedAt = GetTime();
+                    StageComplete = true;
+                    StageCompleteAt = BannerAppearAt = GetTime();
                 }
             }
             return;
@@ -819,8 +984,20 @@ public class GameBox : IDisposable
     private static Rgba Transparent = Rgba.Black with { A = 0 };
     public List<GameplayScreenEffect> ScreenEffects = new();
     public TargetHandle Background, Box, UIAboveGameplay, UILeft;
+    // Android/Switch bring-up: bracket the first few real RenderBox passes (the heavy render-target + shader
+    // gameplay draw, which the loading screen delays past the frame-count brackets in GameplayScreen). A native
+    // GL fault here leaves no managed stack, so the last line logged is the offending section. No-op elsewhere.
+    private static int _rbTrace;
+    private static void RbTrace(string s)
+    {
+#if ANDROID || SWITCH
+        if (_rbTrace < 3) Utils.Platform.Trace("[rb] " + s);
+#endif
+    }
+
     public void RenderBox()
     {
+        RbTrace("enter");
         float time = GetTime();
         int typeI = ChapterInfo != null ? (int)ChapterInfo!.Type : 0;
         if(typeI > 1 && !InChapterDelay)
@@ -836,15 +1013,22 @@ public class GameBox : IDisposable
             {
                 SetShaderValue(ChapterInfo.SpellShader!.Value, ChapterInfo.LocPosition, [192f, 96f], UniformType.Vec2);
                 SetShaderValue(ChapterInfo.SpellShader!.Value, ChapterInfo.LocTime, GetTime() / 8, UniformType.Float);
+                // Bind the tiled pizza overlay for shaders that use it (spellcard_nikitab). Shaders without a
+                // "pizza" sampler get location -1 and this is a no-op, so it is safe to bind unconditionally.
+                SetShaderValueTexture(ChapterInfo.SpellShader!.Value,
+                    GetShaderLocation(ChapterInfo.SpellShader!.Value, "pizza"),
+                    Runtime.CurrentRuntime.Textures["pizza.png"]);
                 BeginShaderMode(ChapterInfo.SpellShader.Value);
             }
             DrawTexture(ChapterInfo!.SpellcardTexture!.Value, 0,0,Rgba.White);
             EndShaderMode();
         }
         EndTextureMode();
+        RbTrace("background target done");
         BeginTextureMode(Box);
         ClearBackground(Transparent);
         Player.Draw();
+        RbTrace("player drawn");
         foreach (var obj in BoxObjects)
         {
             if ((obj.Header[0] & RuntimeObject.FlagIsLaser) == RuntimeObject.FlagIsLaser)
@@ -870,17 +1054,35 @@ public class GameBox : IDisposable
 
             float bulletDV = (obj.Header[0] & RuntimeObject.FlagIsBullet) == RuntimeObject.FlagIsBullet ?
                 MathF.PI / 2 : 0;
+            // Render scale: any entrance scale (bosses) times a "bloom" for a freshly spawned bullet — it grows
+            // in from nothing over its first few ticks, overshooting slightly, so bullets bloom into view.
+            float renderScale = obj.EntranceScale;
+            if ((obj.Header[0] & RuntimeObject.FlagIsBullet) == RuntimeObject.FlagIsBullet)
+            {
+                int age = CurrentTick - obj.Header[0x17];
+                if (age >= 0 && age < BulletBloomTicks)
+                    renderScale *= EaseOutBack(age / (float)BulletBloomTicks);
+            }
+            Rect drawDest = obj.TargetRectangle with { X = obj.TargetRectangle.X + obj.FloatingPoints[0x20] * tickDelta, Y = obj.TargetRectangle.Y + obj.FloatingPoints[0x21] * tickDelta };
+            Vector2 drawOrigin = obj.Origin;
+            if (renderScale != 1f)   // scale about the centre for spawn / entrance / bloom animations
+            {
+                drawDest = drawDest with { Width = drawDest.Width * renderScale, Height = drawDest.Height * renderScale };
+                drawOrigin *= renderScale;
+            }
+            Rgba tint = obj.RenderAlpha >= 1f ? Rgba.White : Rgba.White with { A = (byte)Math.Clamp(obj.RenderAlpha * 255f, 0f, 255f) };
             DrawTexturePro(
                 obj.Texture,
                 obj.SourceRectangle,
-                obj.TargetRectangle with { X = obj.TargetRectangle.X + obj.FloatingPoints[0x20] * tickDelta, Y = obj.TargetRectangle.Y + obj.FloatingPoints[0x21] * tickDelta },
-                obj.Origin, (obj.RenderRotation + bulletDV) * 180 / MathF.PI + obj.FloatingPoints[0x23]*tickDelta   , Rgba.White
+                drawDest,
+                drawOrigin, (obj.RenderRotation + bulletDV) * 180 / MathF.PI + obj.FloatingPoints[0x23]*tickDelta   , tint
             );
             EndShaderMode();
         }
         float appear2 = MathF.Pow((float)Helper.ComputeObjectTimeStart(time,ChapterTitleAppear+1, 1),6);
         Player.Weapon.DrawTopLayer();
         EndTextureMode();
+        RbTrace("box target (objects) done");
         BeginTextureMode(UIAboveGameplay);
         float appearTimer = (float)Helper.ComputeObjectTime(time,TimerAppear, .5f, TimerDisappear, .5);
         ClearBackground(Transparent);
@@ -940,10 +1142,17 @@ public class GameBox : IDisposable
                 EndShaderMode();
             }
         }
+        // Ease the timer toward its target height: dropped by ~1.5 of its own height during a spell card,
+        // back at the top for a non-spell boss chapter. Eased per-second (frame-rate independent) so the move
+        // animates smoothly on a chapter change.
+        float timerDropTarget = (typeI == 3 && !InChapterDelay) ? Helper.TimerTextureSize.Y * 1.5f : 0f;
+        float timerDt = Math.Clamp(time - LastTimerDropTime, 0f, 0.1f);
+        LastTimerDropTime = time;
+        TimerDrop += (timerDropTarget - TimerDrop) * Math.Clamp(timerDt * 8f, 0f, 1f);
         if(typeI > 1 && !InChapterDelay)
             Helper.DrawTimer(
                 (int)((UIAboveGameplay.Texture.Width - Helper.TimerTextureSize.X) / 2f),   // horizontally centered
-                (int)(-(1 - appearTimer) * Helper.TimerTextureSize.Y),                       // slides down into place
+                (int)(-(1 - appearTimer) * Helper.TimerTextureSize.Y + TimerDrop),           // slides in, dropped during spells
                 (ChapterInfo.TickStart + ChapterInfo!.Length - CurrentTickWithOffset) < (ChapterInfo!.Length > 600 ? 300 : 600));
         if (IsDialogActive)
             Dialog!.Draw(UIAboveGameplay);
@@ -958,11 +1167,16 @@ public class GameBox : IDisposable
             Helper.DrawSpellSubtitle(UIAboveGameplay, IsFailed ? -1 : ChapterScoreCurrent, total, success,
                 (int)titleRightEdge, (int)(titlePosition.Y + titleDrawnHeight), SpellFailedText, subtitleAppear);
         }
+        RbTrace("ui-above target done");
         if (IsUIUpdateRequired)
         {
+            RbTrace("RedrawUI enter");
             RedrawUI();
+            RbTrace("RedrawUI done");
             IsUIUpdateRequired = false;
         }
+        RbTrace("exit");
+        _rbTrace++;
 #if DEBUG
         DebugStrings.Add($"PauseTimestamp: {PauseTimestamp}");
         DebugStrings.Add($"CountTimeFrom: {CountTimeFrom}");
@@ -978,6 +1192,22 @@ public class GameBox : IDisposable
     public float ChapterTitleDisappear = float.MaxValue;
     public float TimerAppear = 0;
     public float TimerDisappear = float.MaxValue;
+    // While a spell card is active the timer slides down (so it clears the spell name at the top); non-spell
+    // boss chapters keep it at its usual height. TimerDrop is the eased current offset; LastTimerDropTime is the
+    // game-time of the previous frame, for a frame-rate-independent ease.
+    private float TimerDrop = 0;
+    private float LastTimerDropTime = 0;
+    /// <summary>How many ticks a freshly spawned bullet takes to bloom up to its full size.</summary>
+    private const int BulletBloomTicks = 8;
+
+    /// <summary>Ease-out-back: 0 → overshoots past 1 → settles at 1. The little overshoot makes bullets pop as
+    /// they bloom in rather than just fading up.</summary>
+    private static float EaseOutBack(float x)
+    {
+        const float c1 = 1.70158f, c3 = c1 + 1f;
+        float t = x - 1f;
+        return 1f + c3 * t * t * t + c1 * t * t;
+    }
     public int MaxScoreContinue = 0;
     public int MaxScore = 100000;
     public bool IsUIUpdateRequired = false;
@@ -992,6 +1222,8 @@ public class GameBox : IDisposable
     int hiScore = 0;
     int score = 0;
     int scoreTarget;
+    /// <summary>Fallback score awarded for killing a non-boss enemy that has no authored "score when killed" value.</summary>
+    const int EnemyKillScore = 10000;
     byte Continue = 0;
     bool RenderChapterTitle = false;
     bool RenderBossTitle = false;
@@ -1031,23 +1263,13 @@ public class GameBox : IDisposable
     public RuntimeDialog? Dialog;
 
     private bool isDialogActive;
-    private float DialogTimestamp;
 
     public bool IsDialogActive
     {
         get => isDialogActive;
-        private set
-        {
-            if (value == isDialogActive)
-                return;
-            if (value)
-                // Read the clock before freezing it — GetTime() answers with DialogTimestamp from here on.
-                DialogTimestamp = GetTime();
-            else
-                // Put the clock back where the dialog froze it: GetTime() is Gfx.GetTime() - CountTimeFrom.
-                CountTimeFrom = Gfx.GetTime() - DialogTimestamp;
-            isDialogActive = value;
-        }
+        // The dialog no longer freezes the clock, so this is a plain flag now — the simulation keeps running
+        // while the conversation is on screen.
+        private set => isDialogActive = value;
     }
 
     /// <summary>Opens the chapter's conversation, if it has one. Called as the chapter starts.</summary>
@@ -1071,13 +1293,18 @@ public class GameBox : IDisposable
         IsDialogActive = false;
         Dialog?.Unload();
         Dialog = null;
+        // The spell's time bonus is measured from when the fight actually begins, not from when the boss walked
+        // on with the dialog still up. The chapter clock was held during the dialog, so restart the wall-clock
+        // stopwatch here to match — otherwise the conversation's length would silently eat into the bonus.
+        SpellcardStopwatch?.Restart();
     }
 
     #endregion
 
-    /// <summary>This player's record on a spell card: (attempts, successes). Zeroes if never tried.</summary>
+    /// <summary>This player's record on a spell card AT THE CURRENT DIFFICULTY: (attempts, successes). Each
+    /// tier keeps its own counters, so a card cleared on Easy does not read as cleared on Max.</summary>
     (int Total, int Success) GetSpellcardRecord(string spellName) =>
-        PlayerData.Instance.GetSpellcardRecord(ProtogonistId, spellName, IsPractice);
+        PlayerData.Instance.GetSpellcardRecord(ProtogonistId, Helper.SpellRecordKey(spellName, Difficulty), IsPractice);
 
     /// <summary>
     /// Bump the record for the spell card that just ended. Captured means the player neither died on it nor
@@ -1088,7 +1315,7 @@ public class GameBox : IDisposable
     {
         if (IsReplay)
             return;
-        PlayerData.Instance.AddSpellcardTry(ProtogonistId, spellName, captured, IsPractice);
+        PlayerData.Instance.AddSpellcardTry(ProtogonistId, Helper.SpellRecordKey(spellName, Difficulty), captured, IsPractice);
     }
 
     /// <summary>
@@ -1107,8 +1334,14 @@ public class GameBox : IDisposable
             RuntimeChapter chapter = StageInfo.Chapters[i];
             if (chapter.Type != ChapterType.Spell)
                 continue;
-            bool seen = PlayerData.Instance.GetSpellcardRecord(ProtogonistId, chapter.SpellcardTitle, false).Total > 0
-                        || PlayerData.Instance.GetSpellcardRecord(ProtogonistId, chapter.SpellcardTitle, true).Total > 0;
+            // Records are per difficulty now, so "seen" means tried at ANY tier, in either normal or practice.
+            bool seen = false;
+            for (int d = 0; d < 5 && !seen; d++)
+            {
+                string key = Helper.SpellRecordKey(chapter.SpellcardTitle, d);
+                seen = PlayerData.Instance.GetSpellcardRecord(ProtogonistId, key, false).Total > 0
+                       || PlayerData.Instance.GetSpellcardRecord(ProtogonistId, key, true).Total > 0;
+            }
             if (seen)
                 count++;
         }
@@ -1182,9 +1415,8 @@ public class GameBox : IDisposable
         if (IsGameOver)
             return GameoverTimestamp;
         if (IsPaused)
-            return (float)(PauseTimestamp - CountTimeFrom);
-        if (isDialogActive)
-            return DialogTimestamp;
+            return PauseTimestamp;   // the game time frozen at the moment of pause
+        // A dialog no longer freezes the clock — the simulation keeps ticking beneath it.
         return (float)(Gfx.GetTime() - CountTimeFrom);
     }
     
@@ -1195,12 +1427,18 @@ public class GameBox : IDisposable
         {
             if (value == isPaused)
                 return;
+            // Mirror the dialog-freeze pattern below (isDialogActive): read the clock BEFORE freezing it, then
+            // resume by shifting the origin. The old code flipped isPaused first and only then read GetTime(),
+            // which by then already took the paused branch and returned the not-yet-written PauseTimestamp — so
+            // it froze at a large negative value. GameplayScreen.Render's `GetTime() < -.5` intro guard then read
+            // the paused frame as "before the stage starts" and skipped drawing it, blanking the gameplay behind
+            // the pause menu.
+            if (value)
+                PauseTimestamp = GetTime();
+            else
+                CountTimeFrom = Gfx.GetTime() - PauseTimestamp;
             isPaused = value;
             GameplayScreen.Paused = value;
-            if(value)
-                PauseTimestamp = (float)GetTime();
-            else
-                CountTimeFrom += GetTime() - PauseTimestamp;
         }
     }
 

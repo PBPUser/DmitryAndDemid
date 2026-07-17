@@ -98,6 +98,13 @@ public class MainActivity : Activity
         string storage = FilesDir?.AbsolutePath ?? CacheDir!.AbsolutePath;
         AndroidPlatform.DataDirectory = storage;
         AndroidPlatform.FatalErrorHandler = message => global::Android.Util.Log.Error("aag2", message);
+        // .NET's Console does not reach logcat, so the game's diagnostic traces (shader compile logs, the
+        // gameplay-frame brackets) are invisible on Android unless routed here. Program.cs — which installs the
+        // desktop's AppDomain.UnhandledException handler — is excluded from this project, so install one too:
+        // without it a background-thread exception dies as a bare "signal 9" with no stack.
+        AndroidPlatform.TraceHandler = message => global::Android.Util.Log.Info("aag2", message);
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            global::Android.Util.Log.Error("aag2", $"UNHANDLED: {e.ExceptionObject}");
 
         // Orientation follows the config: portrait for vertical mode, landscape otherwise. Set at runtime
         // rather than baked into the [Activity] attribute so a config change takes effect on the next launch.
@@ -303,6 +310,7 @@ public class GameRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
     public Action? OnReady;
     private bool Ready;
     private int ReadyFrames;
+    private long FrameCount;
 
     /// <summary>Written from the UI thread, read from the GL thread; a torn read costs at most one frame.</summary>
     public volatile Vector2[] Touches = [];
@@ -343,7 +351,12 @@ public class GameRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
             // First thing on the GL thread: unpack the assets (slow, one-time) and point the game at them.
             // Doing it here rather than in OnCreate keeps the 100+ MB copy off the UI thread.
             global::Android.Util.Log.Info("aag2", $"surface {width}x{height}; unpacking assets…");
-            DmitryAndDemid.Utils.Assets.Source = new AndroidAssetSource(Assets, Storage);
+            // Stamp the unpack with the installed APK's modification time so a reinstall re-extracts changed
+            // assets (see AndroidAssetSource) instead of keeping the first install's copies forever.
+            long assetStamp = 0;
+            try { assetStamp = System.IO.File.GetLastWriteTimeUtc(ApplicationInfo!.SourceDir!).Ticks; }
+            catch (System.Exception e) { global::Android.Util.Log.Warn("aag2", "asset stamp failed: " + e); }
+            DmitryAndDemid.Utils.Assets.Source = new AndroidAssetSource(Assets, Storage, assetStamp);
             global::Android.Util.Log.Info("aag2", "assets unpacked; creating GL API…");
 
             GL api = GL.GetApi(new LamdaNativeContext(GetProcAddress));
@@ -385,7 +398,30 @@ public class GameRenderer : Java.Lang.Object, GLSurfaceView.IRenderer
         }
 
         Backend?.SetTouches(Touches);
-        Game.RunFrame();
+        // Heartbeat: a steady count means the GL thread is alive (so a freeze is a hang/black frame, not a
+        // crash); an abrupt stop with no "RunFrame threw" pins the death to a native GL fault mid-frame.
+        if (++FrameCount % 30 == 0)
+            global::Android.Util.Log.Info("aag2", $"heartbeat frame {FrameCount}");
+        try
+        {
+            Game.RunFrame();
+        }
+        catch (Exception exception)
+        {
+            // A managed exception on the GL thread otherwise unwinds out of onDrawFrame and takes the process
+            // down with no trace: .NET's Console does not reach logcat, and the desktop's AppDomain handler
+            // lives in Program.cs, which the Android project excludes. Log the full stack HERE (the one place
+            // every frame passes through) so a gameplay-entry crash is diagnosable in logcat instead of a bare
+            // "signal 9 (Killed)". Latch Failed so we stop hammering the dead runtime and drop the splash.
+            Failed = true;
+            global::Android.Util.Log.Error("aag2", $"RunFrame threw: {exception}");
+            if (!Ready)
+            {
+                Ready = true;
+                OnReady?.Invoke();
+            }
+            return;
+        }
 
         // Remove the splash only after the game has actually presented a couple of frames, so there is no blank
         // gap between the splash coming off and the first game frame appearing.

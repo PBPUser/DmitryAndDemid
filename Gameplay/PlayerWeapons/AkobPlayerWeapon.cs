@@ -83,11 +83,12 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
             {
                 if ((bObj.Header[0] & RuntimeObject.FlagIsBullet) == RuntimeObject.FlagIsBullet)
                     bObj.Header[0] |= RuntimeObject.FlagIsCollectableBullet;
-                // Between chapters (the DelayBetweenChapters transition) all gameplay damage is frozen: the box
-                // loop skips its damage/health pass on InChapterDelay. The bomb deals damage directly here, from
-                // the weapon's own update, so without this guard a bomb still burning through its 240-tick life
-                // would keep hurting — and could kill — the boss during that transition window.
-                else if (!Player.GameBox.InChapterDelay)
+                // Between chapters (the DelayBetweenChapters transition) AND while a dialog is on screen, all
+                // gameplay damage is frozen: the box loop skips its damage/health pass on InChapterDelay /
+                // IsDialogActive. The bomb deals damage directly here, from the weapon's own update, so without
+                // this guard a bomb still burning through its 240-tick life would keep hurting — and could kill —
+                // the boss during that transition window or before the fight has started.
+                else if (!Player.GameBox.InChapterDelay && !Player.GameBox.IsDialogActive)
                     bObj.Health -= 12f;
             }
         }

@@ -1,0 +1,9 @@
+{
+  "Texture": "emit_circle",
+  "RenderType": 0,
+  "RenderSize": { "X": 32, "Y": 32 },
+  "SpritePosition": { "X": 0, "Y": 0 },
+  "SourceSize": { "X": 32, "Y": 32 },
+  "Collision": 7,
+  "Effect": "watermelon_circle"
+}

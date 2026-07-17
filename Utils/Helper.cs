@@ -1125,7 +1125,82 @@ public static class Helper
         }
         return Transliterate(j57v);
     }
-    
+
+    /// <summary>True if translation.json carries an entry for this key.</summary>
+    public static bool HasTranslation(string key) => TranslationDictionary.ContainsKey(key);
+
+    /// <summary>
+    /// Resolves a key through translation.json (picking one of its <c>;</c>-separated variants) but does NOT
+    /// transliterate — for callers that transliterate the text themselves (the spell-card / chapter title
+    /// renderers do). Returns the key unchanged when it is not a translation entry.
+    /// </summary>
+    public static string TranslateRaw(string key)
+    {
+        if (TranslationDictionary.ContainsKey(key))
+        {
+            var variants = TranslationDictionary[key].Split(";");
+            return variants[GetRandomValue(0, variants.Length - 1)];
+        }
+        return key;
+    }
+
+    // Suffixes for per-difficulty spell-card names, index 0..4 = Easy, Normal, Hard, Max, Extra (the order the
+    // difficulty menu offers). See PersonPlayerData.DifficultyCount.
+    private static readonly string[] DifficultyKeys = { "easy", "normal", "hard", "max", "extra" };
+
+    /// <summary>
+    /// The spell-card name to DISPLAY, from translation.json and optionally specialised per difficulty. Tries
+    /// "&lt;title&gt;.&lt;difficulty&gt;" first (e.g. <c>spell.toilet.lunatic</c>), then the plain "&lt;title&gt;",
+    /// then falls back to the raw authored title so cards with a plain name keep working. The result is NOT
+    /// transliterated (the title renderer does that) and the underlying <see cref="Data.Archive.FileChapterInfo.SpellcardTitle"/>
+    /// is untouched — it stays the stable key PlayerData records tries/successes under, the same across every difficulty.
+    /// </summary>
+    public static string ResolveSpellcardName(string title, int difficulty)
+    {
+        if (string.IsNullOrEmpty(title))
+            return title ?? "";
+        if (difficulty >= 0 && difficulty < DifficultyKeys.Length)
+        {
+            string keyed = title + "." + DifficultyKeys[difficulty];
+            if (HasTranslation(keyed))
+                return TranslateRaw(keyed);
+        }
+        return HasTranslation(title) ? TranslateRaw(title) : title;
+    }
+
+    /// <summary>
+    /// The name a spell card shows at a given difficulty, keyed by its GLOBAL card number:
+    /// <c>spell.card.&lt;number&gt;.&lt;difficulty&gt;</c> (e.g. <c>spell.card.2.hard</c>). Returns null when no
+    /// such entry exists — the caller treats that as "this card does not offer that difficulty". The result is
+    /// raw (not transliterated); the caller transliterates when it draws.
+    /// </summary>
+    public static string? SpellcardDifficultyName(int number, int difficulty)
+    {
+        if (difficulty < 0 || difficulty >= DifficultyKeys.Length)
+            return null;
+        string diffId = DifficultyKeys[difficulty];
+        // Exact key wins; otherwise honour an underscore-combined suffix that lists this tier — e.g.
+        // "spell.card.1.hard_max" supplies one shared name for both Hard and Max.
+        string exact = $"spell.card.{number}.{diffId}";
+        if (HasTranslation(exact))
+            return TranslateRaw(exact);
+        string prefix = $"spell.card.{number}.";
+        foreach (var kv in TranslationDictionary)
+        {
+            if (!kv.Key.StartsWith(prefix))
+                continue;
+            if (Array.IndexOf(kv.Key.Substring(prefix.Length).Split('_'), diffId) >= 0)
+                return TranslateRaw(kv.Key);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// The PlayerData key a spell card's tries/successes are recorded under, now per difficulty so each tier
+    /// keeps its own attempts/captures. A plain title (no difficulty) stays the base key for older records.
+    /// </summary>
+    public static string SpellRecordKey(string title, int difficulty) => $"{title}#d{difficulty}";
+
     public static string Transliterate(string text)
     {
         string final = "";

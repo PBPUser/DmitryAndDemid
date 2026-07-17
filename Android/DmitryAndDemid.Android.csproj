@@ -77,6 +77,28 @@
     <PackageReference Include="System.CodeDom" Version="10.0.7" />
   </ItemGroup>
 
+  <!-- Generate DmitryAndDemid.BuildInfo.Number here too: Runtime.cs references it, but the auto-increment
+       target that produces BuildInfo.g.cs lives in the desktop csproj, which this project does not import. We
+       only READ the current build_number.txt (no increment) so building the APK does not race the desktop
+       build's counter. -->
+  <Target Name="GenerateBuildInfo" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <BuildNumberFile>$(MSBuildProjectDirectory)/../build_number.txt</BuildNumberFile>
+    </PropertyGroup>
+    <ReadLinesFromFile File="$(BuildNumberFile)" Condition="Exists('$(BuildNumberFile)')">
+      <Output TaskParameter="Lines" ItemName="_BuildNumberLines" />
+    </ReadLinesFromFile>
+    <PropertyGroup>
+      <CurrentBuildNumber>@(_BuildNumberLines)</CurrentBuildNumber>
+      <CurrentBuildNumber Condition="'$(CurrentBuildNumber)' == ''">0</CurrentBuildNumber>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(IntermediateOutputPath)BuildInfo.g.cs" Overwrite="true"
+      Lines="namespace DmitryAndDemid { public static class BuildInfo { public const int Number = $(CurrentBuildNumber)%3B } }" />
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)BuildInfo.g.cs" />
+    </ItemGroup>
+  </Target>
+
   <!-- The assets travel inside the APK and are unpacked on first run (AndroidAssetSource): an APK's assets
        are not files, and the game's loaders all want paths. -->
   <ItemGroup>

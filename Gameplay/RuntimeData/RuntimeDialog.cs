@@ -26,6 +26,14 @@ public class RuntimeDialog
     /// <summary>A press is ignored for this long after a line appears, so one press cannot skip two lines.</summary>
     private const double AdvanceCooldown = 0.15;
 
+    /// <summary>The dialog window bounces in over this long when the conversation opens...</summary>
+    private const double AppearDuration = 0.38;
+    /// <summary>...and bounces back out over this long when the last line is dismissed, before it truly ends.</summary>
+    private const double CloseDuration = 0.30;
+
+    /// <summary>&gt;= 0 once the last line has been dismissed: counts up the bounce-out before <see cref="Finished"/>.</summary>
+    private double CloseElapsed = -1;
+
     /// <summary>The dialog art sheets are a horizontal strip of 768x1024 reaction frames.</summary>
     private const int FrameWidth = 768;
     private const int FrameHeight = 1024;
@@ -66,6 +74,16 @@ public class RuntimeDialog
         double delta = Math.Clamp(now - LastUpdate, 0, 0.1);
         LastUpdate = now;
         Elapsed += delta;
+
+        // Bouncing out: no input, no advancing — just run the close animation, then finish for real.
+        if (CloseElapsed >= 0)
+        {
+            CloseElapsed += delta;
+            if (CloseElapsed >= CloseDuration)
+                Finished = true;
+            return;
+        }
+
         LineElapsed += delta;
 
         bool shootDown = IsKeyDown(KeyCode.Z) || Controller.IsButtonDown(Configuration.Config.ShootButton)
@@ -79,19 +97,47 @@ public class RuntimeDialog
 
     private void Next()
     {
+        // Past the last line: begin the bounce-out instead of ending instantly. Finished flips when it completes.
+        if (Index >= Lines.Length - 1)
+        {
+            CloseElapsed = 0;
+            return;
+        }
         Helper.PlaySound(Runtime.CurrentRuntime.Sounds["dialogue"]);
         Index++;
         LineElapsed = 0;
-        if (Index >= Lines.Length)
-        {
-            Index = Lines.Length - 1;
-            Finished = true;
-        }
     }
 
+    /// <summary>Overshooting ease (bounces slightly past 1) for the window opening.</summary>
+    private static float EaseOutBack(float x)
+    {
+        const float c1 = 1.70158f, c3 = c1 + 1f;
+        return 1f + c3 * MathF.Pow(x - 1f, 3) + c1 * MathF.Pow(x - 1f, 2);
+    }
+
+    /// <summary>Anticipating ease (dips slightly below 0 first) for the window closing.</summary>
+    private static float EaseInBack(float x)
+    {
+        const float c1 = 1.70158f, c3 = c1 + 1f;
+        return c3 * x * x * x - c1 * x * x;
+    }
+
+    /// <summary>0 → 1 (with a bounce) as the window opens, back → 0 as it closes. Drives the whole panel.</summary>
+    private float OpenAmount()
+    {
+        if (CloseElapsed >= 0)
+            return 1f - EaseInBack((float)Math.Clamp(CloseElapsed / CloseDuration, 0, 1));
+        return EaseOutBack((float)Math.Clamp(Elapsed / AppearDuration, 0, 1));
+    }
+
+    /// <summary>The dialog window's top edge, in the 384x448 gameplay space (scaled to the target below).</summary>
+    private const float WindowTop1x = 350f;
+
     /// <summary>
-    /// Draws the current line into the target the caller has already begun — the portraits at the bottom of
-    /// the playfield, speaker lit and the other one dimmed, with the speech cloud above them.
+    /// Draws the current line: the portraits stand at the bottom (speaker lit, the other dimmed), and the
+    /// conversation text sits in a dark window pinned near the bottom of the playfield (top edge at y=350 in the
+    /// 384x448 space). The window bounces in when the dialog opens and out when it ends, and its right side is
+    /// dressed with randomly-placed, randomly-coloured forks.
     /// </summary>
     public void Draw(TargetHandle target)
     {
@@ -112,18 +158,55 @@ public class RuntimeDialog
         DrawPortrait(Current.BossArt, Current.BossFrame,
             new Rect(width - artWidth * 0.88f, artY, artWidth, artHeight), !Current.IsPlayer, true);
 
-        // The cloud's tail already points at its speaker (Helper.DrawDialog picks the angle), so the bubble
-        // only has to sit on that speaker's side.
-        TextureHandle cloud = Current.Cloud.Texture;
-        float cloudWidth = Math.Min(cloud.Width, width * 0.8f);
-        float cloudHeight = cloudWidth * cloud.Height / cloud.Width;
-        float cloudX = Current.IsPlayer ? width * 0.06f : width - cloudWidth - width * 0.06f;
-        float cloudY = height * 0.5f - cloudHeight * 0.5f - 16 * scale;
+        // The window opens with a vertical bounce about its own centre; content (forks, text) fades in with it.
+        float open = OpenAmount();
+        if (open <= 0.001f)
+            return;
+        float contentA = Math.Clamp((open - 0.35f) / 0.5f, 0f, 1f);   // forks/text fade in once the panel is open
 
-        DrawTexturePro(cloud,
-            new Rect(0, 0, cloud.Width, -cloud.Height),
-            new Rect(cloudX, cloudY, cloudWidth, cloudHeight),
-            Vector2.Zero, 0, Rgba.White);
+        float margin = 8 * scale;
+        float fullX = margin;
+        float fullW = width - margin * 2;
+        float fullY = WindowTop1x * scale;
+        float fullH = (448f - WindowTop1x - 10f) * scale;             // fill from y=350 to near the bottom edge
+
+        float cy = fullY + fullH / 2f;
+        float drawH = fullH * open;                                   // vertical squeeze/bounce
+        Rect win = new Rect(fullX, cy - drawH / 2f, fullW, drawH);
+
+        // Dark panel with a thin accent border.
+        DrawRectangleRec(win, new Rgba(12, 12, 22, (byte)(225 * Math.Min(1f, open))));
+        Rgba accent = Current.IsPlayer ? new Rgba(90, 200, 120, 255) : new Rgba(230, 100, 120, 255);
+        DrawRectangleRec(new Rect(win.X, win.Y, win.Width, 2 * scale), accent with { A = (byte)(220 * Math.Min(1f, open)) });
+
+        // Randomly-placed, randomly-coloured forks dressing the right side of the window (generated once per line).
+        TextureHandle fork = Runtime.CurrentRuntime.Textures["vilkaCut.png"];
+        Vector2 fsz = Helper.GetSize(fork);
+        float aspect = fsz.X > 0 ? fsz.Y / fsz.X : 1f;
+        foreach (ForkDeco d in Current.Forks)
+        {
+            float fw = d.Scale * 26f * scale;
+            float fh = fw * aspect;
+            float fx = win.X + d.Rx * win.Width;
+            float fy = win.Y + d.Ry * win.Height;
+            DrawTexturePro(fork, new Rect(0, 0, fsz.X, fsz.Y),
+                new Rect(fx, fy, fw, fh), new Vector2(fw / 2f, fh / 2f), d.Rotation,
+                d.Color with { A = (byte)(contentA * 130) });
+        }
+
+        // The line's translated text, rendered once into a texture, blitted into the left portion of the window.
+        TextureHandle text = Current.TextTex.Texture;
+        if (text.Width > 0 && contentA > 0f)
+        {
+            float availW = win.Width * 0.66f - 12 * scale;
+            float availH = win.Height * 0.82f;
+            float ts = MathF.Min(availW / text.Width, availH / text.Height);
+            float tw = text.Width * ts, th = text.Height * ts;
+            DrawTexturePro(text,
+                new Rect(0, 0, text.Width, -text.Height),   // render-texture Y flip
+                new Rect(win.X + 12 * scale, win.Y + (win.Height - th) / 2f, tw, th),
+                Vector2.Zero, 0, Rgba.White with { A = (byte)(contentA * 255) });
+        }
     }
 
     private static void DrawPortrait(TextureHandle? art, int frame, Rect destination, bool speaking, bool flip)
@@ -146,11 +229,21 @@ public class RuntimeDialog
             line.Unload();
     }
 
-    /// <summary>One authored line, with its speech cloud rendered once up front.</summary>
+    /// <summary>One fork dressing the right side of the window: a fixed (per-line) random spot, spin and colour.</summary>
+    private struct ForkDeco
+    {
+        public float Rx, Ry;      // 0..1 position within the window
+        public float Rotation;    // degrees
+        public float Scale;
+        public Rgba Color;
+    }
+
+    /// <summary>One authored line, with its translated text rendered once up front and its fork dressing rolled.</summary>
     private class Line
     {
         public readonly bool IsPlayer;
-        public readonly TargetHandle Cloud;
+        public readonly TargetHandle TextTex;
+        public readonly ForkDeco[] Forks;
         public readonly TextureHandle? PlayerArt;
         public readonly TextureHandle? BossArt;
         public readonly int PlayerFrame;
@@ -160,9 +253,26 @@ public class RuntimeDialog
         {
             IsPlayer = info.IsPlayerDialog;
 
-            // Same tail angles the old RuntimeDialogElement used: down-right for the boss on the right,
-            // down-left for the player on the left.
-            Cloud = Helper.DrawDialog(info.Text, IsPlayer ? 2.34f : 0.79f);
+            // Route the line through the game's translator (Helper.Translate): a translation.json key resolves to
+            // one of its variants, anything else falls through transliterated — either way it comes back ready to
+            // draw. Rendered once into a texture (white with a shadow, to read on the dark window).
+            TextTex = Helper.DrawText(Helper.Translate(info.Text), 16, 6, 6, 2,
+                Runtime.CurrentRuntime.Fonts["newsreader"], Rgba.White, "shadow");
+
+            // Roll the right-side fork dressing once, so it stays put instead of flickering every frame. The
+            // forks live in the right ~40% of the window, at random heights, spins, sizes and bright colours.
+            int count = 5 + GetRandomValue(0, 4);
+            Forks = new ForkDeco[count];
+            for (int i = 0; i < count; i++)
+                Forks[i] = new ForkDeco
+                {
+                    Rx = 0.58f + GetRandomValue(0, 1000) / 1000f * 0.38f,
+                    Ry = 0.12f + GetRandomValue(0, 1000) / 1000f * 0.76f,
+                    Rotation = GetRandomValue(0, 359),
+                    Scale = 0.55f + GetRandomValue(0, 1000) / 1000f * 0.75f,
+                    Color = new Rgba((byte)GetRandomValue(70, 255), (byte)GetRandomValue(70, 255),
+                        (byte)GetRandomValue(70, 255), 255),
+                };
 
             PlayerArt = Lookup(protogonist.DialogArtName);
             BossArt = Lookup(info.CharacterTexture);
@@ -182,6 +292,6 @@ public class RuntimeDialog
                 ? t
                 : null;
 
-        public void Unload() => UnloadRenderTexture(Cloud);
+        public void Unload() => UnloadRenderTexture(TextTex);
     }
 }

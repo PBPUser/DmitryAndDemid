@@ -1,0 +1,6 @@
+{
+  "Texture": "nokia-8.png",
+  "RenderSize": { "X": 48, "Y": 96 },
+  "SourcePosition": { "X": 0, "Y": 0 },
+  "Collision": 18
+}

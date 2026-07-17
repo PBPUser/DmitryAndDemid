@@ -46,7 +46,17 @@ public class SpellPracticeScreen : MenuScreen
         FileStageInfo stage = FileStageInfo.Load(ref package);
         package.Dispose();
 
-        Runtime.CurrentRuntime.AddScreen(new SpellPracticeCardSelect(stage, ProtogonistData, Difficulty));
+        // Spell cards are numbered from zero across the WHOLE game, so pass the number of spell cards in the
+        // earlier stages as this stage's base offset.
+        int globalBase = 0;
+        for (int s = 0; s < index; s++)
+        {
+            var p = BitPackage.OpenStreamReadPackage(StageFiles[s]);
+            FileStageInfo st = FileStageInfo.Load(ref p);
+            p.Dispose();
+            globalBase += st.Chapters.Count(c => c.Header[0] == 3);   // Header[0] == 3 -> spell card
+        }
+        Runtime.CurrentRuntime.AddScreen(new SpellPracticeCardSelect(stage, ProtogonistData, globalBase));
     }
 
     public override void Render()

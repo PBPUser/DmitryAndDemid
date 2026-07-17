@@ -37,9 +37,28 @@ public abstract class MenuScreen : ScreenWithTitle
     /// <summary>Eased, fractional form of <see cref="ScrollFirstIndex"/> — the list slides toward the target
     /// each frame instead of jumping, giving smooth scrolling.</summary>
     private float ScrollFirstFloat = 0;
+
+    // --- Touch drag-to-scroll (windowed menus only) ---------------------------------------------------------
+    // A vertical finger drag scrolls the list directly, decoupled from the selection; a touch that never moves
+    // far enough to become a drag falls through to tap-to-select on release. These are fed from the last
+    // DrawMenu, which is the only place that knows the row height and window size.
+    private float LastItemHeight;   // row height (game px) recorded by the last DrawMenu
+    private int LastMaxVisible;     // visible-window row count recorded by the last DrawMenu
+    private bool LastWindowed;      // whether the last DrawMenu actually windowed (i.e. list overflows)
+    private Vector2 DragStartPoint; // finger position (game coords) when the gesture began
+    private Vector2 LastTouchPoint; // most recent finger position (game coords), for tap-on-release hit-testing
+    private float DragStartScroll;  // ScrollFirstFloat at the moment the finger went down
+    private bool DragActive;        // this gesture has crossed the threshold and is now a scroll drag
+    /// <summary>True while a finger is actively drag-scrolling a windowed list. Screens with their own touch
+    /// handling (e.g. the settings sliders) check this to stand down so a scroll does not also nudge a value.</summary>
+    protected bool IsManualScrolling { get; private set; }
     protected float SelectedItemScale = 1f;
     protected double AnimationStartedAt = 0;
     protected double AnimationStartedIndex = 0;
+    /// <summary>Max on-screen width (game px, 1x) a menu item may occupy before it is horizontally scrolled.
+    /// 0 = auto: everything from <see cref="CurrentX"/> to the right edge. Screens with content beside the list
+    /// (e.g. the music room's description panel) set this so long items scroll instead of running under it.</summary>
+    protected float MenuItemMaxWidth = 0;
     protected Vector2 SelectedItemOffset = Vector2.Zero;
     protected Vector2 SelectedNoise = new Vector2(8, 8) * CurrentRuntime.ScaleF;
     protected List<MenuItem> MenuItems = new();
@@ -265,9 +284,17 @@ public abstract class MenuScreen : ScreenWithTitle
             return false;
 #endif
         int count = Engine.Input.TouchCount;
-        bool tapped = count > 0 && PreviousTouchCount == 0;
+        bool down = count > 0 && PreviousTouchCount == 0;
+        bool up = count == 0 && PreviousTouchCount > 0;
         PreviousTouchCount = count;
-        if (!tapped)
+
+        // Windowed lists (Settings, Music Room, list-select) get drag-to-scroll: a vertical drag moves the list
+        // and a touch that never turns into a drag still selects on release. Everything else keeps the original
+        // tap-on-touch-down behaviour untouched.
+        if (EnableScrolling && LastWindowed)
+            return HandleScrollableTouch(count > 0, down, up);
+
+        if (!down)
             return false;
 
         Rect present = CurrentRuntime.PresentRect;
@@ -277,8 +304,16 @@ public abstract class MenuScreen : ScreenWithTitle
         Vector2 window = Engine.Input.GetTouchPosition(0);
         float bx = (window.X - present.X) / present.Width * CurrentRuntime.Width;
         float by = (window.Y - present.Y) / present.Height * CurrentRuntime.Height;
+        return TrySelectAt(bx, by);
+    }
 
-        // 1. A direct hit on a listed item — the vertical menus, which lay their items out through DrawMenu.
+    /// <summary>
+    /// Resolves a touch point (game coords) to an action: a direct hit on a listed item selects+activates it;
+    /// on a horizontal carousel the point is read as a left/right/confirm zone. Returns true if it consumed the
+    /// touch. Shared by tap-on-down (non-scrolling menus) and tap-on-release (windowed, drag-scrolling menus).
+    /// </summary>
+    private bool TrySelectAt(float bx, float by)
+    {
         foreach ((Rect bounds, int idx, bool enabled) in ItemHitboxes)
         {
             if (!enabled)
@@ -289,9 +324,6 @@ public abstract class MenuScreen : ScreenWithTitle
             return true;
         }
 
-        // 2. The horizontal carousels (difficulty, character select) draw their own layout with no per-item
-        //    box, so a tap is read as a zone: left third steps back, right third steps forward, the middle
-        //    confirms the current choice.
         if (HorizontalDirectionNavigation && MenuItems.Count > 0)
         {
             float third = CurrentRuntime.Width / 3f;
@@ -304,6 +336,110 @@ public abstract class MenuScreen : ScreenWithTitle
             return true;
         }
         return false;
+    }
+
+    /// <summary>Distance (in fractions of a row) the finger must travel before a touch is treated as a scroll
+    /// drag rather than a tap. Small enough to feel responsive, large enough that a tap's jitter is not a drag.</summary>
+    private const float DragThreshold = 0.35f;
+
+    /// <summary>
+    /// Drag-to-scroll for a windowed list. A vertical drag slides <see cref="ScrollFirstFloat"/> under the
+    /// finger (direct manipulation: dragging down reveals earlier rows), keeping the selection inside the
+    /// visible window so the selection-follow logic in <see cref="DrawMenu"/> does not snap the view back. A
+    /// touch that stays under the threshold is a tap and selects the row under the finger on release.
+    /// </summary>
+    private bool HandleScrollableTouch(bool held, bool down, bool up)
+    {
+        int count = MenuItems.Count;
+        int maxFirst = Math.Max(0, count - LastMaxVisible);
+
+        // No finger down and not the release frame: make sure a drag can never linger. Without this a manual
+        // scroll interrupted without a clean release (touch lost, screen change) could leave IsManualScrolling
+        // stuck true, which suppresses the easing in DrawMenu — the list then stops following keyboard/pad
+        // selection and the scroll animation appears frozen.
+        if (!held && !up)
+        {
+            DragActive = false;
+            IsManualScrolling = false;
+            return false;
+        }
+
+        if (down)
+        {
+            if (TryGetTouchPoint(out Vector2 p))
+            {
+                DragStartPoint = p;
+                LastTouchPoint = p;
+                DragStartScroll = ScrollFirstFloat;
+            }
+            DragActive = false;
+            IsManualScrolling = false;
+            return true;   // consume; wait to see whether this becomes a tap or a drag
+        }
+
+        if (held)
+        {
+            if (!TryGetTouchPoint(out Vector2 p) || LastItemHeight <= 0)
+                return true;
+            LastTouchPoint = p;
+            float dy = p.Y - DragStartPoint.Y;
+            if (!DragActive && MathF.Abs(dy) > LastItemHeight * DragThreshold)
+                DragActive = true;
+            if (DragActive)
+            {
+                float target = Math.Clamp(DragStartScroll - dy / LastItemHeight, 0, maxFirst);
+                ScrollFirstFloat = target;
+                ScrollFirstIndex = Math.Clamp((int)MathF.Round(target), 0, maxFirst);
+                KeepSelectionInWindow();
+                IsManualScrolling = true;
+            }
+            return true;
+        }
+
+        if (up)
+        {
+            bool wasDrag = DragActive;
+            DragActive = false;
+            IsManualScrolling = false;
+            if (wasDrag)
+            {
+                // Settle onto a whole row; the easing in DrawMenu slides ScrollFirstFloat onto it.
+                ScrollFirstIndex = Math.Clamp((int)MathF.Round(ScrollFirstFloat), 0, maxFirst);
+                return true;
+            }
+            // A tap: select the row under where the finger last was (the finger is already up, so TouchCount is 0).
+            return TrySelectAt(LastTouchPoint.X, LastTouchPoint.Y);
+        }
+
+        return false;
+    }
+
+    /// <summary>Clamps the selection into the currently visible window (landing on an enabled row), so a manual
+    /// scroll never leaves the selected item off-screen — which would make DrawMenu's follow logic snap back.</summary>
+    private void KeepSelectionInWindow()
+    {
+        if (LastMaxVisible <= 0 || MenuItems.Count == 0)
+            return;
+        int first = Math.Clamp(ScrollFirstIndex, 0, MenuItems.Count - 1);
+        int last = Math.Min(MenuItems.Count - 1, first + LastMaxVisible - 1);
+        int target = Math.Clamp(SelectedIndex, first, last);
+        if (!MenuItems[target].Enabled)
+        {
+            int found = -1;
+            for (int i = target; i <= last && found < 0; i++)
+                if (MenuItems[i].Enabled) found = i;
+            for (int i = target; i >= first && found < 0; i--)
+                if (MenuItems[i].Enabled) found = i;
+            if (found >= 0)
+                target = found;
+        }
+        if (target == SelectedIndex)
+            return;
+        PreviousSelectedIndex = SelectedIndex;
+        SelectedIndex = target;
+        // Snap the selection animation to the new row so the highlight does not slide across the list as it scrolls.
+        AnimationStartedIndex = target;
+        AnimationStartedAt = GetTime();
     }
 
     private void ActivateItem(int idx)
@@ -368,6 +504,12 @@ public abstract class MenuScreen : ScreenWithTitle
             windowed = count > maxVisible;
         }
 
+        // Hand the touch drag-scroll logic (which runs in TopUpdate, before this) the row height and window
+        // size it needs. One frame stale, exactly like the item hitboxes below.
+        LastItemHeight = itemHeight;
+        LastMaxVisible = maxVisible;
+        LastWindowed = windowed;
+
         if (!windowed)
         {
             // Original behaviour, unchanged: draw every item top-to-bottom, each advancing by its own height.
@@ -382,12 +524,12 @@ public abstract class MenuScreen : ScreenWithTitle
                 if (index == SelectedIndex)
                     offset += swapNoise*SelectedNoise*new Vector2(MathF.Sin(t*100+24), MathF.Cos(t*100));
                 float scale = SelectedItemScale * offsetState + 1f * (1 - offsetState);
-                ItemHitboxes.Add((new Rect(CurrentX, y0, x.Texture.Width * scale, x.Texture.Height * scale),
+                ItemHitboxes.Add((new Rect(CurrentX, y0, MathF.Min(x.Texture.Width * scale, ItemMaxWidth()), x.Texture.Height * scale),
                     index, x.Enabled));
-                DrawTextureEx(x.Texture, new Vector2(CurrentX + offset.X, y0 + offset.Y), 0, scale,
-                    (index == SelectedIndex ? Helper.Mix(Rgba.Yellow, Rgba.White, MathF.Abs((t *
-                            (ItemActivated ? 30 : 2)
-                            ) % 2 - 1)) : Rgba.White) with { A = (byte)(x.Enabled ? 255 : 128) });
+                Rgba col = (index == SelectedIndex ? Helper.Mix(Rgba.Yellow, Rgba.White, MathF.Abs((t *
+                        (ItemActivated ? 30 : 2)
+                        ) % 2 - 1)) : Rgba.White) with { A = (byte)(x.Enabled ? 255 : 128) };
+                DrawMenuItemTexture(x, index, CurrentX + offset.X, y0 + offset.Y, scale, col);
                 y0 += (int)(x.Texture.Height * scale);
             }
             return;
@@ -396,14 +538,22 @@ public abstract class MenuScreen : ScreenWithTitle
         // Windowed smooth scroll: keep the selected row inside the window, then ease a fractional scroll
         // position toward that integer target so the list slides rather than jumping. Rows fade out toward the
         // top and bottom of the window (a transparency gradient) so content dissolves in/out instead of clipping.
-        if (SelectedIndex < ScrollFirstIndex)
-            ScrollFirstIndex = SelectedIndex;
-        else if (SelectedIndex >= ScrollFirstIndex + maxVisible)
-            ScrollFirstIndex = SelectedIndex - maxVisible + 1;
+        // Keep a one-row lookahead: start scrolling the instant the cursor reaches the first/last VISIBLE row
+        // (not only once it leaves the window), so there's always an item shown above/below the selection —
+        // except at the true ends of the list, where the clamp lets the cursor sit on the real first/last row.
+        int edgeMargin = maxVisible >= 3 ? 1 : 0;
+        if (SelectedIndex - edgeMargin < ScrollFirstIndex)
+            ScrollFirstIndex = SelectedIndex - edgeMargin;
+        else if (SelectedIndex + edgeMargin >= ScrollFirstIndex + maxVisible)
+            ScrollFirstIndex = SelectedIndex + edgeMargin - maxVisible + 1;
         ScrollFirstIndex = Math.Clamp(ScrollFirstIndex, 0, count - maxVisible);
-        ScrollFirstFloat = MathF.Abs(ScrollFirstFloat - ScrollFirstIndex) < 0.003f
-            ? ScrollFirstIndex
-            : Helper.Mix(ScrollFirstFloat, ScrollFirstIndex, 0.2f);
+        // While a finger is dragging, ScrollFirstFloat tracks the finger exactly (set in HandleScrollableTouch);
+        // easing it toward the rounded ScrollFirstIndex here would drag it back off the finger. Ease only when
+        // the list is moving on its own (selection change or a settle after release).
+        if (!IsManualScrolling)
+            ScrollFirstFloat = MathF.Abs(ScrollFirstFloat - ScrollFirstIndex) < 0.003f
+                ? ScrollFirstIndex
+                : Helper.Mix(ScrollFirstFloat, ScrollFirstIndex, 0.2f);
 
         float viewTop = CurrentY;
         float viewBottom = CurrentY + maxVisible * itemHeight;
@@ -417,10 +567,17 @@ public abstract class MenuScreen : ScreenWithTitle
                 continue;   // fully outside the window (plus fade margin) — no draw, no hitbox
 
             // Transparency gradient: full opacity in the middle of the window, fading to 0 across the last
-            // fadeZone pixels at either edge.
+            // fadeZone pixels at either edge — but ONLY where there is more list beyond that edge. At the very
+            // top of the list the first item must stay crisp (nothing above it to dissolve into), and likewise
+            // the last item at the very bottom; fading them there reads as a broken scroll.
             float centerY = y + itemHeight / 2f;
-            float edgeFade = Math.Clamp((centerY - viewTop) / fadeZone, 0f, 1f)
-                           * Math.Clamp((viewBottom - centerY) / fadeZone, 0f, 1f);
+            float topFade = Math.Clamp((centerY - viewTop) / fadeZone, 0f, 1f);
+            float bottomFade = Math.Clamp((viewBottom - centerY) / fadeZone, 0f, 1f);
+            if (ScrollFirstFloat <= 0.01f)
+                topFade = 1f;                                   // pinned to the first item — no top fade
+            if (ScrollFirstFloat + maxVisible >= count - 0.01f)
+                bottomFade = 1f;                                // pinned to the last item — no bottom fade
+            float edgeFade = topFade * bottomFade;
             if (edgeFade <= 0.02f)
                 continue;
 
@@ -429,14 +586,56 @@ public abstract class MenuScreen : ScreenWithTitle
             if (index == SelectedIndex)
                 offset += swapNoise*SelectedNoise*new Vector2(MathF.Sin(t*100+24), MathF.Cos(t*100));
             float scale = SelectedItemScale * offsetState + 1f * (1 - offsetState);
-            ItemHitboxes.Add((new Rect(CurrentX, (int)y, x.Texture.Width * scale, x.Texture.Height * scale),
+            ItemHitboxes.Add((new Rect(CurrentX, (int)y, MathF.Min(x.Texture.Width * scale, ItemMaxWidth()), x.Texture.Height * scale),
                 index, x.Enabled));
             Rgba color = index == SelectedIndex
                 ? Helper.Mix(Rgba.Yellow, Rgba.White, MathF.Abs((t * (ItemActivated ? 30 : 2)) % 2 - 1))
                 : Rgba.White;
             byte alpha = (byte)((x.Enabled ? 255 : 128) * edgeFade);
-            DrawTextureEx(x.Texture, new Vector2(CurrentX + offset.X, y + offset.Y), 0, scale, color with { A = alpha });
+            DrawMenuItemTexture(x, index, CurrentX + offset.X, y + offset.Y, scale, color with { A = alpha });
         }
+    }
+
+    /// <summary>The widest a menu item may draw before it is horizontally scrolled, in screen px.</summary>
+    private float ItemMaxWidth() =>
+        MenuItemMaxWidth > 0
+            ? MenuItemMaxWidth * CurrentRuntime.ScaleF
+            : MathF.Max(1, CurrentRuntime.Width - CurrentX - 8 * CurrentRuntime.ScaleF);
+
+    /// <summary>
+    /// Draws one item's pre-rendered text texture, horizontally scrolling it when it is too wide to fit
+    /// <see cref="ItemMaxWidth"/>. The selected over-wide item marquees — hold, slide to reveal the end, hold,
+    /// slide back (restarting each time the selection changes); other over-wide items just show their start.
+    /// Items that fit are drawn as before.
+    /// </summary>
+    private void DrawMenuItemTexture(MenuItem item, int index, float drawX, float drawY, float scale, Rgba color)
+    {
+        var tex = item.Texture;
+        float maxW = ItemMaxWidth();
+        if (tex.Width * scale <= maxW)
+        {
+            DrawTextureEx(tex, new Vector2(drawX, drawY), 0, scale, color);
+            return;
+        }
+
+        float srcW = maxW / scale;                       // texels that fit in the allowed width at this scale
+        float overflow = tex.Width - srcW;               // > 0
+        float srcX = 0f;
+        if (index == SelectedIndex)
+        {
+            const float hold = 0.9f, speed = 55f;        // seconds paused at each end; texels/second while sliding
+            float slide = overflow / speed;
+            float total = 2f * (hold + slide);
+            float p = (float)((GetTime() - AnimationStartedAt) % total);   // restarts on each selection change
+            if (p < hold) srcX = 0f;
+            else if (p < hold + slide) srcX = (p - hold) / slide * overflow;
+            else if (p < 2f * hold + slide) srcX = overflow;
+            else srcX = overflow * (1f - (p - 2f * hold - slide) / slide);
+        }
+        DrawTexturePro(tex,
+            new Rect(srcX, 0, srcW, tex.Height),
+            new Rect(drawX, drawY, srcW * scale, tex.Height * scale),
+            Vector2.Zero, 0, color);
     }
 
 

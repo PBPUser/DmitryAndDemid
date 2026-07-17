@@ -44,9 +44,19 @@ public class BitPackage : IDisposable, IAsyncDisposable
         if (Stream != null)
         {
             byte[] b = new byte[count];
-            int c = Stream.Read(b, 0, count);
-            if(c != count)
-                throw new EndOfStreamException();
+            // Stream.Read may return FEWER than `count` bytes on a single call even when the stream is not at
+            // its end (it is only obliged to return at least one). A short read is NOT end-of-stream, so loop
+            // until we have all `count` bytes; only a return of 0 means true EOF. Reading the whole chunk in one
+            // call happened to work on desktop FileStreams but broke on Android's asset streams (partial reads),
+            // where every stage load then threw EndOfStreamException — worse the larger the file.
+            int total = 0;
+            while (total < count)
+            {
+                int c = Stream.Read(b, total, count - total);
+                if (c <= 0)
+                    throw new EndOfStreamException();
+                total += c;
+            }
             try
             {
                 return b;
