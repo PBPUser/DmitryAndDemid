@@ -46,8 +46,7 @@ public class SpellPracticeCardSelect : MenuScreen
             MenuItems.Add(new MenuItem("spell.card", $"{number}", _ => OpenDifficulty(index, number)));
             local++;
         }
-
-        MenuItems.Add(new MenuItem("ingame.exit", "", _ => Exit()));
+        // No explicit quit entry — Escape / X (or Back on Android) leaves the screen via the base handler.
     }
 
     private void OpenDifficulty(int chapterIndex, int number)

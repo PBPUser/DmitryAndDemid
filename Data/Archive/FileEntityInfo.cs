@@ -28,6 +28,9 @@ public class FileEntityInfo
     public bool UseRemoveScript = false;
     public bool ClearProtected = false;
     public bool DangerousForPlayer = false;
+    /// <summary>Exempts the object from the box's offscreen cull (RuntimeObject.FlagPersistOffscreen, 0x200000).
+    /// Applies to bullets and entities alike — e.g. a formation that spawns outside the box and travels in.</summary>
+    public bool PersistOffscreen = false;
     public bool IsBoss = false;
     public bool UseBadDropScenario = false;
     public bool DropWhenCleared = false;
@@ -56,6 +59,7 @@ public class FileEntityInfo
         f.UseRemoveScript = UseRemoveScript;
         f.ClearProtected = ClearProtected;
         f.DangerousForPlayer = DangerousForPlayer;
+        f.PersistOffscreen = PersistOffscreen;
         f.IsBoss = IsBoss;
         f.UseBadDropScenario =  UseBadDropScenario;
         f.DropWhenCleared = DropWhenCleared;
@@ -81,6 +85,8 @@ public class FileEntityInfo
         fileEntityInfo.UseRemoveScript = (fileEntityInfo.Header[0] & 0x010) == 0x010;
         fileEntityInfo.ClearProtected = (fileEntityInfo.Header[0] & 0x020) == 0x020;
         fileEntityInfo.DangerousForPlayer = (fileEntityInfo.Header[0] & 0x040) == 0x040;
+        // Offscreen-cull exemption — applies to both bullets and entities, so read it outside the !IsBullet gate.
+        fileEntityInfo.PersistOffscreen = (fileEntityInfo.Header[0] & 0x200000) == 0x200000;
         if (!fileEntityInfo.IsBullet)
         {
             fileEntityInfo.UseBadDropScenario = (fileEntityInfo.Header[0] & 0x080) == 0x080;
@@ -117,6 +123,7 @@ public class FileEntityInfo
         Header[0] |= UseRemoveScript ? 0x10 : 0;
         Header[0] |= ClearProtected ? 0x20 : 0;
         Header[0] |= DangerousForPlayer ? 0x40 : 0;
+        Header[0] |= PersistOffscreen ? 0x200000 : 0;   // offscreen-cull exemption (both bullets and entities)
         if (!IsBullet)
         {
             Header[0] |= UseBadDropScenario ? 0x80 : 0;

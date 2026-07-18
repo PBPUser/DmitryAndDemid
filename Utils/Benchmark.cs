@@ -22,6 +22,9 @@ public struct BenchmarkResult
     public long MemAvgBytes;
     public long MemMedianBytes;
     public string? Error;
+
+    /// <summary>Host machine snapshot (OS / CPU / RAM / GPU), gathered once at the start of the run.</summary>
+    public SystemInfo System;
 }
 
 /// <summary>
@@ -41,6 +44,11 @@ public static class Benchmark
         bool muteSfx = false)
     {
         var r = new BenchmarkResult { Backend = Engine.BackendName, TargetLoad = targetLoad };
+        // Host snapshot for the results panel. The renderer may not be up in every context (headless CLI), so
+        // fetch it defensively; SystemInfo.Collect handles a null renderer by omitting the GPU line.
+        IRenderer? renderer = null;
+        try { renderer = Engine.Renderer; } catch { /* no backend in this context */ }
+        r.System = SystemInfo.Collect(renderer);
         // Stage loading and object spawning write binary debug spam through Console.WriteLine; mute it for the
         // whole run (the result is RETURNED, not printed, so the caller / stats screen still reports it).
         TextWriter previousOut = Console.Out;
@@ -78,6 +86,10 @@ public static class Benchmark
             {
                 box.Update();
                 ticks++;
+                // Run from the settings menu (SFX not muted): give an audible heartbeat every 1000 ticks. The
+                // headless CLI bench passes muteSfx:true and stays silent.
+                if (!muteSfx && ticks % 1000 == 0)
+                    Helper.PlaySound(Runtime.CurrentRuntime.Sounds["boss-appear"]);
                 if (box.BoxObjects.Count > r.PeakObjects) r.PeakObjects = box.BoxObjects.Count;
                 if (ticks % 30 == 0)
                 {

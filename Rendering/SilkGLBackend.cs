@@ -760,6 +760,41 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     public void EndBlend() => Gl.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
+    /// <summary>
+    /// GPU description from the live GL context: the renderer/vendor strings, the GL version, and (on a
+    /// compatibility context) the extension string. VRAM is left at 0 — GL has no portable way to report it,
+    /// so the OS-level fallback in SystemInfo covers it. Wrapped whole so a driver quirk degrades to "unknown"
+    /// rather than taking down the benchmark.
+    /// </summary>
+    public GpuInfo? QueryGpuInfo()
+    {
+        try
+        {
+            string renderer = Gl.GetStringS(StringName.Renderer) ?? "";
+            string vendor = Gl.GetStringS(StringName.Vendor) ?? "";
+            string version = Gl.GetStringS(StringName.Version) ?? "";
+
+            // GL_EXTENSIONS as one space-separated string: valid on a compatibility profile, and returns null on
+            // a core profile (where per-index glGetStringi is required). Null → no extensions listed, which is
+            // fine for a diagnostics panel.
+            string exts = Gl.GetStringS(StringName.Extensions) ?? "";
+            string[] extensions = exts.Length == 0
+                ? Array.Empty<string>()
+                : exts.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            string name = string.IsNullOrWhiteSpace(renderer) ? vendor : renderer;
+            if (string.IsNullOrWhiteSpace(name))
+                return null;
+
+            string api = (IsGles ? "OpenGL ES " : "OpenGL ") + version;
+            return new GpuInfo(name, api, 0, extensions);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private void BuildQuad()
     {
         QuadVao = Gl.GenVertexArray();

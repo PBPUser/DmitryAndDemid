@@ -27,6 +27,12 @@ public class HousesBackground : StageBackground
 
     protected override void Render(TargetHandle texture, int tick, float delta)
     {
+        // Low graphics: the houses field is a heavy per-pixel shader, so skip it and draw a plain fill instead.
+        if (!Configuration.Config.HighGraphics)
+        {
+            DrawRectangle(0, 0, 384, 448, new Rgba(22, 24, 34, 255));
+            return;
+        }
         SetShaderValue(Shader, LocationTime, tick / 60f + delta, UniformType.Float);
         BeginShaderMode(Shader);
         DrawTexturePro(Temp.Texture, Helper.GetFullSourceRenderTexture(Temp),

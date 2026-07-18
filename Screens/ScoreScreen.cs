@@ -242,7 +242,7 @@ public class ScoreScreen : ScreenWithTitle
         Vector2 shake = new Vector2(MathF.Sin(t * 80f), MathF.Cos(t * 70f)) * S(2) * pop;
         float triW = S(22), triH = S(14);
         float centerX = S(578);
-        float midY = S(200);
+        float midY = S(130);   // moved up (was S(200)), so it sits near the top by the character selector
         float nameW = MeasureTextEx(NameFont, name, fontSize, 1).X;
 
         DrawTriangle(new Rect(centerX - triW / 2, midY - triH - S(20), triW, triH), DirUp);

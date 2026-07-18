@@ -26,9 +26,9 @@ public class PauseMenu : MenuScreen
 
     // The two replay-save entries, kept so they can be disabled once a continue has been spent (a continued run
     // is no longer a legitimate replay).
-    private MenuItem SaveItem = null!;
-    private MenuItem SaveExitItem = null!;
-    private MenuItem ContinueItem = null!;
+    private MenuItem? SaveItem = null!;
+    private MenuItem? SaveExitItem = null!;
+    private MenuItem? ContinueItem = null!;
 
     public override void CreateMenu()
     {
@@ -46,38 +46,76 @@ public class PauseMenu : MenuScreen
                     RestartRun();
                 return;
             }
-            GameplayScreen.Resume();
-            Runtime.CurrentRuntime.RemoveScreen(this);
+            BeginClose();
         }));
-        MenuItems.Add(SaveItem = new MenuItem("ingame.save", "", a =>
+        if (!GameplayScreen.GameBox.IsReplay)
         {
-            if (GameplayScreen.GameBox!.ContinuesUsed > 0)
-                return;   // disabled after a continue
-            IngameSaveReplayScreen replayScreen = new IngameSaveReplayScreen((GameplayScreen.GameBox!.Player.Controller as PlayerController)!, GameplayScreen);
-            Runtime.CurrentRuntime.AddScreen(replayScreen);
-        }));
-        MenuItems.Add(SaveExitItem = new MenuItem("ingame.save_and_exit", "", a =>
-        {
-            if (GameplayScreen.GameBox!.ContinuesUsed > 0)
-                return;   // disabled after a continue
-            IngameSaveReplayScreen replayScreen = new IngameSaveReplayScreen((GameplayScreen.GameBox!.Player.Controller as PlayerController)!, GameplayScreen);
-            Runtime.CurrentRuntime.AddScreen(replayScreen);
-            replayScreen.ExitAfterSave = true;
-        }));
+            MenuItems.Add(SaveItem = new MenuItem("ingame.save", "", a =>
+            {
+                if (GameplayScreen.GameBox!.ContinuesUsed > 0)
+                    return;   // disabled after a continue
+                IngameSaveReplayScreen replayScreen = new IngameSaveReplayScreen((GameplayScreen.GameBox!.Player.Controller as PlayerController)!, GameplayScreen);
+                ReturningFromSubscreen = true;
+                Runtime.CurrentRuntime.AddScreen(replayScreen);
+            }));
+            MenuItems.Add(SaveExitItem = new MenuItem("ingame.save_and_exit", "", a =>
+            {
+                if (GameplayScreen.GameBox!.ContinuesUsed > 0)
+                    return;   // disabled after a continue
+                IngameSaveReplayScreen replayScreen = new IngameSaveReplayScreen((GameplayScreen.GameBox!.Player.Controller as PlayerController)!, GameplayScreen);
+                ReturningFromSubscreen = true;
+                Runtime.CurrentRuntime.AddScreen(replayScreen);
+                replayScreen.ExitAfterSave = true;
+            }));
+        }
         // Restart replays the same run/card. In spell practice the "continue" entry already does this (a card
         // can't be resumed), so the practice exit menu drops the separate restart to match its intended options:
         // continue, save, save-and-exit, settings, manual, exit.
         if (!GameplayScreen.GameBox!.IsPractice)
             MenuItems.Add(new MenuItem("ingame.restart", "", a => RestartRun()));
         MenuItems.Add(new MenuItem("ingame.manual", "",
-            a => Runtime.CurrentRuntime.AddScreen(new ManualScreen())));
+            a => { ReturningFromSubscreen = true; Runtime.CurrentRuntime.AddScreen(new ManualScreen()); }));
         MenuItems.Add(new MenuItem("ingame.settings", "",
-            a => Runtime.CurrentRuntime.AddScreen(new SettingsScreen())));
+            a => { ReturningFromSubscreen = true; Runtime.CurrentRuntime.AddScreen(new SettingsScreen()); }));
         MenuItems.Add(new MenuItem("ingame.exit", "", a =>
         {
             Runtime.CurrentRuntime.RemoveScreen(this);
             Runtime.CurrentRuntime.RemoveScreen(GameplayScreen);
         }));
+    }
+
+    /// <summary>
+    /// Escape on a live pause closes this menu via the base Exit(); make sure the run actually un-pauses so the
+    /// green pause "blur" shader clears, instead of leaving the game frozen behind a removed menu. On game-over
+    /// Escape walks to the exit item (its own action) rather than here, so this only fires for a genuine resume.
+    /// </summary>
+    public override void Exiting()
+    {
+        if (!GameplayScreen.GameBox!.IsGameOver)
+            GameplayScreen.Resume();
+        base.Exiting();
+        // Play the close animation instead of vanishing instantly. The base Exit() defers the actual removal by
+        // MenuActivateCooldown (0.5s) via ItemActivated, but our own Closing branch in TopUpdate takes over and
+        // removes the screen once the ~0.28s slide-out has finished.
+        BeginClose();
+    }
+
+    /// <summary>Set once the menu has begun its slide-out (Escape / resume). While true no further input is taken
+    /// and the screen removes itself when the disappear animation has run its course.</summary>
+    private bool Closing;
+    private const float CloseDuration = 0.28f;
+
+    /// <summary>Start the close animation: resume the run (so the green pause blur clears and gameplay carries on
+    /// under the sliding menu) and drive <see cref="TimeDisappear"/> so the fork / pause board / menu slide out.
+    /// The screen is actually removed from TopUpdate once <see cref="CloseDuration"/> has elapsed.</summary>
+    private void BeginClose()
+    {
+        if (Closing)
+            return;
+        Closing = true;
+        TimeDisappear = (float)GetTime();
+        if (!GameplayScreen.GameBox!.IsGameOver)
+            GameplayScreen.Resume();
     }
 
     /// <summary>Replays the current run/card from its starting chapter, behind a black loading screen.</summary>
@@ -103,26 +141,60 @@ public class PauseMenu : MenuScreen
         });
     }
 
+    /// <summary>Set when this menu opens a sub-screen (save-replay / manual / settings), so its re-appearance
+    /// after that sub-screen closes doesn't replay the open animation and pause sting.</summary>
+    private bool ReturningFromSubscreen;
+
     public override void Activated()
     {
-        TimeAppear = (float)GetTime();
+        Closing = false;
         TimeDisappear = float.MaxValue;
-        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["pause"]);
+        // Play the appear animation + pause sting only on a genuine open (a fresh pause), not when the menu is
+        // merely revealed again after a sub-screen it opened has closed.
+        if (ReturningFromSubscreen)
+            ReturningFromSubscreen = false;
+        else
+        {
+            TimeAppear = (float)GetTime();
+            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["pause"]);
+        }
         base.Activated();
     }
 
     public override void TopUpdate()
     {
+        // Mid slide-out: take no more input, just wait for the animation to finish and then remove ourselves.
+        if (Closing)
+        {
+            if (GetTime() - TimeDisappear >= CloseDuration)
+                Runtime.CurrentRuntime.RemoveScreen(this);
+            return;
+        }
+
         GameBox box = GameplayScreen.GameBox!;
         // On game-over, Escape must walk to (and then commit on) the exit item rather than silently closing the
         // overlay: closing it would strand a frozen, un-resumable run behind no menu — the spell-card softlock.
         // During a live pause it keeps the old reflex of closing immediately.
         EscapeFocusesExitItem = box.IsGameOver;
         // A continue spends the run's replay legitimacy, so the two save entries switch off once one is used.
-        SaveItem.Enabled = SaveExitItem.Enabled = box.ContinuesUsed == 0;
+        if(!GameplayScreen.GameBox.IsReplay)
+            SaveItem.Enabled = SaveExitItem.Enabled = box.ContinuesUsed == 0;
         // "Continue" is dead on a main-game game-over with no continues left (and no card to retry); dim it there
         // so the cursor skips past it to the still-usable options.
         ContinueItem.Enabled = !box.IsGameOver || box.CanContinue || box.IsPractice;
+        // Quick keys, no confirmation: R restarts the run/card immediately, Q quits to the menu below. Each
+        // tears the pause menu down (directly or via RestartRun), so it can't re-fire on a held key.
+        if (IsKeyDown(KeyCode.R))
+        {
+            RestartRun();
+            return;
+        }
+        if (IsKeyDown(KeyCode.Q))
+        {
+            Runtime.CurrentRuntime.RemoveScreen(this);
+            Runtime.CurrentRuntime.RemoveScreen(GameplayScreen);
+            return;
+        }
         base.TopUpdate();
     }
 
@@ -168,7 +240,6 @@ public class PauseMenu : MenuScreen
             DrawTextEx(font, txt, pos, fs, 2,
                 Helper.Mix(Rgba.Yellow, Rgba.White, MathF.Abs(time % 1f - 0.5f) * 2f));
         }
-
         DrawMenu();
     }
     

@@ -45,7 +45,11 @@ public class RuntimeObject
         // Out-of-bounds "remove-proof": an object with this set is NOT culled when it leaves the playfield
         // (like lasers). For things that legitimately live off-screen — e.g. a bullet formation that spawns
         // outside the box and moves in. Bit 21, unused by any other flag / object kind.
-        FlagPersistOffscreen = 0x200000;
+        FlagPersistOffscreen = 0x200000,
+        // A ray: a laser-like beam that widens into a cone from a large emitting dot and fades out along its
+        // finite length. Shares the laser fields/phases but adds RaySpread, a cone-collision test, and a gradient
+        // render (see MakeRay / GameBox.DrawRay). Bit 22, unused by any other flag / object kind.
+        FlagIsRay = 0x400000;
 
     public static FileEntityInfo[] CollectableFEIs = new FileEntityInfo[8];
     public static FileEntityInfo MagicalToilet;
@@ -212,7 +216,11 @@ public class RuntimeObject
                 entity.BossCircleEffect = new BossCircleScreenEffect(box, Vector2.Zero, 0, box.GetTime(), float.MaxValue, entity);
                 box.AddScreenEffect(entity.BackgroundDistortionEffect);
                 box.AddScreenEffect(entity.BossCircleEffect);
-                box.AddOverlay(new BossHealthOverlay(box, entity));
+                // An invincible-boss chapter (e.g. a survival/pizza card) shows no health bar — there is nothing to
+                // whittle down. Keyed on the chapter flag, which is known before the create script sets the flag on
+                // the object itself.
+                if (!(box.ChapterInfo?.BossInvincible ?? false))
+                    box.AddOverlay(new BossHealthOverlay(box, entity));
                 entity.FloatingPoints[0xa] = entity.FloatingPoints[0];
             }
         }
@@ -428,6 +436,36 @@ public class RuntimeObject
     public int LaserFireTicks      { get => Header[0x51]; set => Header[0x51] = value; }
     public int LaserFadeTicks      { get => Header[0x52]; set => Header[0x52] = value; }
     public int LaserLifetime => LaserTelegraphTicks + LaserFireTicks + LaserFadeTicks;
+
+    /// <summary>Ray-only: extra half-width (px) added at the far tip per side, so the beam widens from LaserWidth
+    /// at the emitter to LaserWidth + 2*RaySpread at the end. 0 = a parallel beam like a laser.</summary>
+    public float RaySpread { get => FloatingPoints[0x52]; set => FloatingPoints[0x52] = value; }
+
+    /// <summary>Builds a ray: a laser-like beam that widens into a cone (controlled by <paramref name="spread"/>)
+    /// from a large emitting dot and fades along its finite length. Dangerous only during its fire phase, like a
+    /// laser. Add it to the box with <c>AddObject</c>.</summary>
+    public static RuntimeObject MakeRay(GameBox box, Vector2 origin, float angleRadians, float length,
+        float width, float spread, int telegraphTicks, int fireTicks, int fadeTicks)
+    {
+        var ray = new RuntimeObject { Box = box };
+        ray.Header[0] = FlagIsRay | FlagDangerousRelatedToPlayer;
+        ray.Health = 1;   // keep it out of the Health<=0 entity-death path
+        ray.Position = origin;
+        ray.RenderRotation = angleRadians;
+        ray.LaserLength = length;
+        ray.LaserWidth = width;
+        ray.RaySpread = spread;
+        ray.LaserTelegraphTicks = telegraphTicks;
+        ray.LaserFireTicks = fireTicks;
+        ray.LaserFadeTicks = fadeTicks;
+        ray.CreatedAt = box.CurrentTick;
+        ray.UpdateAction = o =>
+        {
+            if (o.Box.CurrentTick - o.CreatedAt >= o.LaserLifetime)
+                o.Box.RemoveObject(o);
+        };
+        return ray;
+    }
 
     /// <summary>Builds a straight-beam laser and wires its self-removal at end of life. The beam is dangerous
     /// only during its fire phase (handled by the collision code). Add it to the box with <c>AddObject</c>.</summary>

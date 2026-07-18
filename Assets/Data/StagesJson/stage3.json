@@ -2,7 +2,7 @@
   "Header": [
     0,
     2,
-    0,
+    5,
     0,
     0,
     0,
@@ -61,13 +61,13 @@
       "SpellcardTitle": "spell.card.6",
       "BossName": "Никита Букин",
       "CreateScript": "nikitab#stage3#pizza#create",
-      "UpdateScript": "",
+      "UpdateScript": "nikitab#spell5#update",
       "SpellcardTexture": "nikitab_spell_background-4.png",
       "SpellcardShader": "spellcard_nikitab",
       "TimeoutCard": true,
-      "BossInvincible": false,
+      "BossInvincible": true,
       "HasDialogs": false,
-      "UseUpdateScript": false,
+      "UseUpdateScript": true,
       "UseCreateScript": true,
       "ApplyShader": true
     }
@@ -1439,7 +1439,7 @@
       "UseDieScript": false,
       "OverrideDeathColor": false,
       "IsFinalChapterBoss": false,
-      "Visual": "largebullet"
+      "Visual": "bubble"
     },
     {
       "Header": [
@@ -1744,6 +1744,83 @@
       "OverrideDeathColor": false,
       "IsFinalChapterBoss": false,
       "Visual": "pentabullet"
+    },
+    {
+      "Header": [
+        2097217,
+        0,
+        255,
+        22,
+        16776960,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "FloatingPoints": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "BadDrop": {
+        "DropHeart": false,
+        "DropHeartPiece": false,
+        "DropStar": false,
+        "DropStarPiece": false,
+        "DropFullPower": false,
+        "DropLargePower": 0,
+        "DropPower": 0,
+        "DropScore": 0
+      },
+      "GoodDrop": {
+        "DropHeart": false,
+        "DropHeartPiece": false,
+        "DropStar": false,
+        "DropStarPiece": false,
+        "DropFullPower": false,
+        "DropLargePower": 0,
+        "DropPower": 0,
+        "DropScore": 0
+      },
+      "CreateScript": "",
+      "UpdateScript": "nikitab#pizza#outline",
+      "RemoveScript": "",
+      "DieScript": "",
+      "IsBullet": true,
+      "IsGroupChild": false,
+      "IsGroupParent": false,
+      "UseCreateScript": false,
+      "UseRemoveScript": false,
+      "ClearProtected": false,
+      "DangerousForPlayer": true,
+      "PersistOffscreen": true,
+      "IsBoss": false,
+      "UseBadDropScenario": false,
+      "DropWhenCleared": false,
+      "UseDieScript": false,
+      "OverrideDeathColor": false,
+      "IsFinalChapterBoss": false,
+      "Visual": "circle"
     }
   ],
   "Backgrounds": []

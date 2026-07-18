@@ -34,7 +34,7 @@ public class Runtime
 
     public static Rgba TransparentWhite = Rgba.White with { A = 0 };
     public static Rgba TransparentBlack = Rgba.Black with { A = 0 };
-    public string VersionString = "0.02a";
+    public string VersionString = "0.03a";
     public double Time;
     public int Width;
     public int Height;
@@ -510,6 +510,20 @@ public class Runtime
         M("scoreTex");  PrepareScoreTexture();
         M("tex done");
         Textures = Textures.OrderBy(x => x.Key).ToDictionary();
+
+#if DEBUG
+        // Keep TextureManifest (the GPU-free accounting the texture-count unit test runs against) honest: the
+        // live registry must match it exactly, or the test would be verifying a stale list. A mismatch here
+        // means a procedural texture was added/removed on one side only, or a filename collided with a
+        // procedural key (which silently drops an entry) — fail loudly on boot rather than ship the drift.
+        var expectedKeys = TextureManifest.RegisteredKeys().OrderBy(k => k, StringComparer.Ordinal).ToArray();
+        var actualKeys = Textures.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray();
+        if (!expectedKeys.SequenceEqual(actualKeys))
+            throw new InvalidOperationException(
+                "TextureManifest is out of sync with LoadTextures.\n" +
+                $"  manifest ({expectedKeys.Length}): {string.Join(", ", expectedKeys.Except(actualKeys))} only\n" +
+                $"  loaded   ({actualKeys.Length}): {string.Join(", ", actualKeys.Except(expectedKeys))} only");
+#endif
     }
 
     public float ScoreSpacing = 0;
@@ -723,6 +737,16 @@ public class Runtime
         else
             DrawFPS((int)PresentRect.X + 4, (int)PresentRect.Y + 4);
 #if DEBUG
+        {
+            // Debug builds show renderer / version / build at the top-right of the game area.
+            var vf = Fonts["kodemono"];
+            float vfs = 14 * ScaleF;
+            string dbg = $"{Config.Renderer}  v{VersionString}  b{BuildInfo.Number}";
+            Vector2 dm = MeasureTextEx(vf, dbg, vfs, 1);
+            float rightX = WindowMode == FullScreenType.Window ? Width : PresentRect.X + PresentRect.Width;
+            float topY = WindowMode == FullScreenType.Window ? 0 : PresentRect.Y;
+            DrawTextEx(vf, dbg, new Vector2(rightX - dm.X - 6 * ScaleF, topY + 4 * ScaleF), vfs, 1, Rgba.White);
+        }
         if (BackgroundTesterOpen)
             DrawBackgroundTester();
         else if (TextureViewerOpen)

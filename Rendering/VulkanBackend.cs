@@ -1588,6 +1588,30 @@ public sealed unsafe class VulkanBackend : IBackend
 
     public void EndBlend() => CurrentBlend = BlendMode.Alpha;
 
+    /// <summary>
+    /// GPU description from the picked physical device: the adapter name and the supported Vulkan API version.
+    /// VRAM is left to the OS-level fallback in SystemInfo (reading the memory heaps means indexing a Silk.NET
+    /// inline-array whose shape varies by version — not worth a compile risk here). Wrapped whole so any driver
+    /// or binding quirk degrades to "unknown" instead of failing the benchmark.
+    /// </summary>
+    public GpuInfo? QueryGpuInfo()
+    {
+        try
+        {
+            Vk.GetPhysicalDeviceProperties(PhysicalDevice, out PhysicalDeviceProperties props);
+            string name = SilkMarshal.PtrToString((nint)props.DeviceName) ?? "";
+            if (string.IsNullOrWhiteSpace(name))
+                return null;
+            uint ver = (uint)props.ApiVersion;
+            string api = $"Vulkan {ver >> 22}.{(ver >> 12) & 0x3FF}.{ver & 0xFFF}";
+            return new GpuInfo(name, api, 0, Array.Empty<string>());
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public void Clear(Rgba color)
     {
         if (!Ready || !InPass)

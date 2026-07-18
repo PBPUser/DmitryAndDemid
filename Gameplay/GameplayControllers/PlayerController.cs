@@ -2,6 +2,7 @@ using DmitryAndDemid.Rendering;
 using static DmitryAndDemid.Rendering.Gfx;
 using System.Numerics;
 using DmitryAndDemid.Common;
+using DmitryAndDemid.Data;
 using DmitryAndDemid.Utils;
 
 namespace DmitryAndDemid.Gameplay;
@@ -10,10 +11,34 @@ public class PlayerController : PlayerControllerBase
 {
     public PlayerController()
     {
-        
+
     }
 
     public byte[] Movements = new byte[262144];
+
+    /// <summary>
+    /// One entry per stage this run entered, in order. Each records the byte offset where the stage's inputs
+    /// begin in <see cref="Movements"/> plus the player's resources at stage entry. Saved into the replay header
+    /// so the viewer knows which levels the replay covers and can start playback from any of them.
+    /// </summary>
+    public readonly List<ReplayStageInfo> RecordedStages = new();
+
+    /// <summary>Byte offset in <see cref="Movements"/> where the current stage's inputs start.</summary>
+    private int StageBase = 0;
+    /// <summary>Highest written index + 1 — where the next stage will be laid down, and the used length to save.</summary>
+    public int WrittenLength = 0;
+
+    /// <summary>
+    /// Called by <see cref="GameBox"/> as each stage begins. Lays the new stage's inputs down after the previous
+    /// stage's (the per-stage tick resets to 0, so stages would otherwise overwrite each other from index 0) and
+    /// records the offset together with the supplied resource snapshot.
+    /// </summary>
+    public void BeginRecordingStage(ReplayStageInfo snapshot)
+    {
+        StageBase = WrittenLength;
+        snapshot.Tick = StageBase;
+        RecordedStages.Add(snapshot);
+    }
 
     public override void Update(Player player, int tick)
     {
@@ -96,7 +121,15 @@ public class PlayerController : PlayerControllerBase
         // movement is a continuous delta and has no representation in those four direction bits, so it is NOT
         // captured here: replays recorded while using touch will play back wrong. Fixing that means widening
         // the replay format to store the position delta, which changes the .rpy layout.
-        Movements[tick] = movement;
+        // The per-stage tick resets to 0 each stage, so offset by the current stage's base (see BeginRecordingStage)
+        // to keep every stage's inputs in its own segment of the shared buffer.
+        int index = StageBase + tick;
+        if (index >= 0 && index < Movements.Length)
+        {
+            Movements[index] = movement;
+            if (index + 1 > WrittenLength)
+                WrittenLength = index + 1;
+        }
         base.Update(player, tick);
     }
 }

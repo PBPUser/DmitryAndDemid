@@ -187,9 +187,19 @@ public class RuntimeDialog
             float fh = fw * aspect;
             float fx = win.X + d.Rx * win.Width;
             float fy = win.Y + d.Ry * win.Height;
+            // Cut: keep the fork inside the panel. Rotated quads have a diagonal reach, so clamp the centre by
+            // the half-diagonal — a fork that would overhang the window edge is pulled in and "cut" to fit,
+            // instead of spilling past the dark panel onto the playfield. (No cross-backend scissor is available.)
+            float half = 0.5f * MathF.Sqrt(fw * fw + fh * fh);
+            float minX = win.X + half, maxX = win.X + win.Width - half;
+            float minY = win.Y + half, maxY = win.Y + win.Height - half;
+            fx = maxX > minX ? Math.Clamp(fx, minX, maxX) : win.X + win.Width / 2f;
+            fy = maxY > minY ? Math.Clamp(fy, minY, maxY) : win.Y + win.Height / 2f;
+            // Dim: mix the bright random colour toward the panel dark and drop the alpha, so the forks recede
+            // into the background behind the text rather than competing with it.
+            Rgba dim = Helper.Mix(d.Color, new Rgba(12, 12, 22), 0.5f) with { A = (byte)(contentA * 70) };
             DrawTexturePro(fork, new Rect(0, 0, fsz.X, fsz.Y),
-                new Rect(fx, fy, fw, fh), new Vector2(fw / 2f, fh / 2f), d.Rotation,
-                d.Color with { A = (byte)(contentA * 130) });
+                new Rect(fx, fy, fw, fh), new Vector2(fw / 2f, fh / 2f), d.Rotation, dim);
         }
 
         // The line's translated text, rendered once into a texture, blitted into the left portion of the window.

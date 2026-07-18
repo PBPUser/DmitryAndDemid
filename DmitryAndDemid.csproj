@@ -66,6 +66,9 @@
     <!-- Both of these are their own projects: the configurator (Launcher/) and the Android host (Android/). -->
     <Compile Remove="Launcher\**" />
     <Compile Remove="Android\**" />
+    <!-- The unit-test project (Tests/) is also its own project; it references this one, so this one must not
+         also compile the test sources (which pull in xUnit that the game doesn't reference). -->
+    <Compile Remove="Tests\**" />
   </ItemGroup>
 
   <ItemGroup>

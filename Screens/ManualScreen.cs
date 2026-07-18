@@ -19,15 +19,20 @@ public class ManualScreen : MenuScreen
     private const int PageCount = 9;
     private const float TransitionDuration = 0.45f;
     private const float PagePopDuration = 0.25f;
+    private const float AppearDuration = 0.5f;
 
     private bool InView;
     private double TransitionTime = double.MinValue;   // when the menu<->view transition last started
     private double PagePopTime = double.MinValue;      // when the current page was last (re)shown, for its pop
+    private double AppearTime = double.MinValue;       // when the manual opened, for its one-time entrance
+    private bool Closing;                              // leaving: play the entrance in reverse, then remove
+    private double ClosingTime;
     private int CurrentPage;
     private int BaseX;
 
     public override void CreateMenu()
     {
+        SetTitle(Runtime.CurrentRuntime.Textures["manual-title.png"]);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
         for (int i = 0; i < PageCount; i++)
             MenuItems.Add(new MenuItem($"manual.page{i + 1}", "", a => { }));
@@ -37,10 +42,21 @@ public class ManualScreen : MenuScreen
         BaseX = (int)(Runtime.CurrentRuntime.Scale * 32);
         CurrentX = BaseX;
         CurrentY = (int)(Runtime.CurrentRuntime.Scale * 96);
+        AppearTime = GetTime();   // one-time entrance: the list slides in and the screen fades up from black
     }
+
+    /// <summary>0 the instant the manual opens, 1 once its entrance animation has finished.</summary>
+    private float AppearRaw() => (float)Math.Clamp((GetTime() - AppearTime) / AppearDuration, 0, 1);
 
     public override void TopUpdate()
     {
+        // Leaving: let the reverse entrance play out, then actually remove the screen. Ignore input meanwhile.
+        if (Closing)
+        {
+            if (GetTime() - ClosingTime >= AppearDuration)
+                Runtime.CurrentRuntime.RemoveScreen(this);
+            return;
+        }
         if (GetTime() - PreviousKeyTimestamp < MenuSwitchCooldown)
             return;
 
@@ -115,9 +131,13 @@ public class ManualScreen : MenuScreen
     /// </summary>
     private void ExitManual()
     {
+        if (Closing)
+            return;
         PreviousKeyTimestamp = GetTime();
         Exiting();
-        Runtime.CurrentRuntime.RemoveScreen(this);
+        Closing = true;                 // play the entrance in reverse; TopUpdate removes the screen once it ends
+        ClosingTime = GetTime();
+        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["esc"]);
     }
 
     private void StepPage(int direction)
@@ -191,10 +211,25 @@ public class ManualScreen : MenuScreen
     {
         DrawBackground();
 
-        // The menu slides fully off to the LEFT as the view opens, so the page has the screen to itself.
+        // Visibility of the whole manual: 0 fully gone (black), 1 fully open. Rises on the entrance and, when
+        // leaving, falls back to 0 — so open and close share one slide-and-fade animation, just reversed.
+        float shown = Closing
+            ? 1f - (float)Math.Clamp((GetTime() - ClosingTime) / AppearDuration, 0, 1)
+            : AppearRaw();
+
+        // The menu slides fully off to the LEFT as the view opens, so the page has the screen to itself. On the
+        // manual's appearance/close the list also slides in/out from the left with an ease-out-back bounce.
         float progress = ViewProgress();
-        CurrentX = BaseX - (int)(progress * Runtime.CurrentRuntime.Width);
+        float appearSlide = (1f - EaseOutBack(shown)) * Runtime.CurrentRuntime.Width * 0.55f;
+        CurrentX = BaseX - (int)appearSlide - (int)(progress * Runtime.CurrentRuntime.Width);
         DrawMenu();
+        DrawTitle();
+
+        // Fade the whole manual up from black on open and down to black on close. Drawn over everything (title
+        // included) so the fade reads as one piece.
+        byte veil = (byte)((1f - shown) * 255);
+        if (veil > 0)
+            DrawRectangle(0, 0, Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height, new Rgba(0, 0, 0, veil));
 
         if (progress <= 0.001f)
             return;

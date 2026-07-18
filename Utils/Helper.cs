@@ -427,8 +427,8 @@ public static class Helper
         // shader that used to play across the score during a spell card is intentionally removed.
         DrawTextFramedInto(ref SubtitleMasks[1], ref SubtitleMaskSizes[1], ref SubtitleParts[1], ref SubtitlePartSizes[1],
             TimerFont, fontSize, bonusValue,
-            failed ? new Rgba(255, 150, 150) : new Rgba(255, 240, 170),
-            failed ? new Rgba(200, 30, 30) : new Rgba(255, 150, 20),
+            failed ? new Rgba(255, 150, 150) : new Rgba(255, 255, 255),   // value is white, red on a failed clean clear
+            failed ? new Rgba(200, 30, 30) : new Rgba(215, 215, 215),
             Rgba.Black, border, 0f);
         DrawTextFramedInto(ref SubtitleMasks[2], ref SubtitleMaskSizes[2], ref SubtitleParts[2], ref SubtitlePartSizes[2],
             TimerFont, fontSize, attemptLabel,

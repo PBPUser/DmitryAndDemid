@@ -102,6 +102,16 @@ public interface IRenderer : IDisposable
     void BeginBlend(BlendMode mode);
     void EndBlend();
 
+    // ---- diagnostics ----------------------------------------------------------------------
+
+    /// <summary>
+    /// Best-effort GPU description for the benchmark / system-info panel: adapter name, graphics API + version,
+    /// dedicated VRAM if the backend can tell, and any notable extensions. Returns null when the backend cannot
+    /// answer — the system-info collector then falls back to OS-level probing. A default implementation so a
+    /// backend that does not implement it still satisfies the interface.
+    /// </summary>
+    GpuInfo? QueryGpuInfo() => null;
+
     // ---- frame ----------------------------------------------------------------------------
 
     void BeginFrame();

@@ -109,6 +109,31 @@ public class PlayerData
         return tries.TryGetValue(spellName, out (int, int) record) ? record : (0, 0);
     }
 
+    /// <summary>The player's best recorded score on a spell card (keyed by <see cref="Helper.SpellRecordKey"/>),
+    /// or 0 if never scored.</summary>
+    public int GetSpellcardBestScore(string personId, string spellName)
+    {
+        if (string.IsNullOrEmpty(spellName) || personId == null)
+            return 0;
+        if (!Persons.TryGetValue(personId, out PersonPlayerData? person))
+            return 0;
+        return person.SpellcardBestScores.TryGetValue(spellName, out int score) ? score : 0;
+    }
+
+    /// <summary>Records a spell-card score, keeping only the best. No-op for non-positive scores.</summary>
+    public void RecordSpellcardScore(string personId, string spellName, int score)
+    {
+        if (string.IsNullOrEmpty(spellName) || string.IsNullOrEmpty(personId) || score <= 0)
+            return;
+        if (!Persons.TryGetValue(personId, out PersonPlayerData? person))
+            Persons[personId] = person = new PersonPlayerData();
+        if (!person.SpellcardBestScores.TryGetValue(spellName, out int existing) || score > existing)
+        {
+            person.SpellcardBestScores[spellName] = score;
+            Save();
+        }
+    }
+
     /// <summary>Counts one finished attempt on a card, and a capture with it if the player pulled it off.</summary>
     public void AddSpellcardTry(string personId, string spellName, bool captured, bool practice)
     {
@@ -196,6 +221,23 @@ public class PlayerData
         var length = package.ReadVarLong();
         for (int i = 0; i < length; i++)
             data.Persons[package.ReadString()] = PersonPlayerData.ReadFromPackage(ref package);
+        // Optional trailing block: per-card best scores (see Save). Older saves end above, so stop cleanly at EOF
+        // and just leave the best-score maps empty rather than discarding the whole (otherwise valid) save.
+        try
+        {
+            long bn = package.ReadVarLong();
+            for (int i = 0; i < bn; i++)
+            {
+                string id = package.ReadString();
+                int count = (int)package.ReadVarLong();
+                var scores = new Dictionary<string, int>();
+                for (int j = 0; j < count; j++)
+                    scores[package.ReadString()] = (int)package.ReadVarLong();
+                if (data.Persons.TryGetValue(id, out PersonPlayerData? p))
+                    p.SpellcardBestScores = scores;
+            }
+        }
+        catch (EndOfStreamException) { /* pre-best-score save: nothing more to read */ }
         package.Dispose();
         return data;
     }
@@ -221,6 +263,19 @@ public class PlayerData
             for (int d = 0; d < PersonPlayerData.DifficultyCount; d++)
                 for (int j = 0; j < PersonPlayerData.ScoresPerDifficulty; j++)
                     arr[i].Value.ScoreRecords[d][j].WriteToPackage(ref package);
+        }
+        // Trailing block: per-card best scores, keyed by person id. Appended after everything else so a reader
+        // built before this feature simply stops at EOF (see Load) and keeps the rest of the save intact.
+        package.WriteVarLong(Persons.Count);
+        for (int i = 0; i < Persons.Count; i++)
+        {
+            package.WriteString(arr[i].Key);
+            package.WriteVarLong(arr[i].Value.SpellcardBestScores.Count);
+            foreach (var kv in arr[i].Value.SpellcardBestScores)
+            {
+                package.WriteString(kv.Key);
+                package.WriteVarLong(kv.Value);
+            }
         }
         package.Dispose();
     }
@@ -275,6 +330,10 @@ public class PlayerData
         public long TimeSpentSeconds = 0;
         public Dictionary<string, (int, int)> SpellcardTries = new();
         public Dictionary<string, (int, int)> SpellcardPracticesTries = new();
+        /// <summary>Best score achieved on each spell card, keyed by <see cref="Helper.SpellRecordKey"/> (which
+        /// encodes the difficulty). Written from spell practice; shown as the card's hi-score on its difficulty
+        /// screen. Persisted as an optional trailing block so older saves (without it) still load.</summary>
+        public Dictionary<string, int> SpellcardBestScores = new();
 
         public static PersonPlayerData ReadFromPackage(ref BitPackage package)
         {

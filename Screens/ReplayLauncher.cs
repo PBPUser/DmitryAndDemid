@@ -29,8 +29,11 @@ public static class ReplayLauncher
         }
     }
 
-    /// <summary>Builds a GameplayScreen that plays back the replay, or null if it can't be loaded.</summary>
-    public static GameplayScreen? Build(string path, bool demo)
+    /// <summary>
+    /// Builds a GameplayScreen that plays back the replay, or null if it can't be loaded. <paramref name="startStage"/>
+    /// is the campaign stage index to begin playback from (chosen in the replay viewer's level list).
+    /// </summary>
+    public static GameplayScreen? Build(string path, bool demo, int startStage = 0)
     {
         Replay replay;
         try { replay = Replay.Load(path); }
@@ -46,13 +49,20 @@ public static class ReplayLauncher
         if (spellCards.Length == 0)
             return null;
 
-        var bitPackage = BitPackage.OpenStreamReadPackage(spellCards[0]);
+        // A new-format replay records which stages it covers, so load the whole campaign and let playback start
+        // at the picked stage and advance normally. Old replays have no per-stage index — their buffer is a
+        // single stage's inputs from offset 0 — so fall back to loading just the first stage, as before.
+        bool hasStageInfo = replay.Information.ReplayStageInfo is { Length: > 0 };
+        FileStageInfo[] stages = hasStageInfo
+            ? spellCards.Select(FileStageInfo.LoadFromFile).ToArray()
+            : [FileStageInfo.LoadFromFile(spellCards[0])];
+        int start = hasStageInfo ? Math.Clamp(startStage, 0, stages.Length - 1) : 0;
+
         GameplayScreen screen = new(data, replay.Information.Difficulty,
-            [FileStageInfo.Load(ref bitPackage)], 0, false, new ReplayController(replay, 0))
+            stages, 0, false, new ReplayController(replay, start), GameType.Default, start)
         {
             IsDemo = demo,
         };
-        bitPackage.Dispose();
         return screen;
     }
 

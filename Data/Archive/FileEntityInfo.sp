@@ -7,6 +7,7 @@
     [0x10] Use Remove Script
     [0x20] Clear Protected
     [0x40] Dangerous for player
+    [0x200000] Persist Offscreen (exempt from offscreen cull)
 }
 [0x1] Group Id
 [0x2] Transparency

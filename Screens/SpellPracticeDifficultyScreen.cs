@@ -25,6 +25,13 @@ public class SpellPracticeDifficultyScreen : MenuScreen
     /// <summary>The four playable tiers, in order (Easy, Normal, Hard, Max). Extra is a separate mode.</summary>
     private const int TierCount = 4;
     private readonly bool[] Available = new bool[TierCount];
+    /// <summary>Baked one-line record texture (number + hi-score + attempts) per available tier, light-blue with a
+    /// subtle vertical gradient. Baked once in <see cref="CreateMenu"/> since records don't change while viewing.</summary>
+    private readonly TargetHandle[] InfoText = new TargetHandle[TierCount];
+
+    /// <summary>How many numbers each spell card reserves in the global per-tier numbering (see CreateMenu).</summary>
+    private const int NumbersPerCard = 6;
+    private static readonly Rgba LightBlue = new(150, 205, 255);
 
     public SpellPracticeDifficultyScreen(FileStageInfo stage, ProtogonistData protogonist,
         int chapterIndex, int number)
@@ -64,7 +71,40 @@ public class SpellPracticeDifficultyScreen : MenuScreen
                 MenuItems.Add(new MenuItem("nothing", "", null) { Enabled = false, FontSize = 11f, Padding = 20f });
             }
         }
-        MenuItems.Add(new MenuItem("ingame.exit", "", _ => Exit()) { FontSize = 12f });
+        // No explicit quit entry — Escape / X (or Back on Android) leaves the screen via the base handler.
+        BakeInfoLines();
+    }
+
+    /// <summary>
+    /// Bakes each available tier's single record line: its GLOBAL number, hi-score and attempts. The number
+    /// counts continuously from the first tier of the first spell card, <see cref="NumbersPerCard"/> per card —
+    /// so card 0 is 1..4 (Easy..Max) and card 1's Hard is 1*6 + 2 + 1 = 9. Light-blue with a subtle top-to-bottom
+    /// gradient (via the text-gradient shader).
+    /// </summary>
+    private void BakeInfoLines()
+    {
+        var font = Runtime.CurrentRuntime.Fonts["newsreader"];
+        float sf = Runtime.CurrentRuntime.ScaleF;
+        float size = 9 * sf;
+        for (int d = 0; d < TierCount; d++)
+        {
+            if (!Available[d])
+                continue;
+            string key = Helper.SpellRecordKey(Chapter.SpellcardTitle, d);
+            (int total, int success) = PlayerData.Instance.GetSpellcardRecord(Protogonist.ID, key, true);
+            int best = PlayerData.Instance.GetSpellcardBestScore(Protogonist.ID, key);
+            int num = Number * NumbersPerCard + d + 1;
+            Helper.DrawTextGradient(out InfoText[d], font, size,
+                $"{num}     hi {best}     {Rec(total, success)}", LightBlue, 2 * sf);
+        }
+    }
+
+    public override void Unload()
+    {
+        for (int d = 0; d < TierCount; d++)
+            if (Available[d])
+                UnloadRenderTexture(InfoText[d]);
+        base.Unload();
     }
 
     private void Start(int difficulty)
@@ -90,10 +130,9 @@ public class SpellPracticeDifficultyScreen : MenuScreen
         DrawMenu();
         DrawTitle();
 
-        // Under each tier's name: spell-practice tries, then practice+main-game/extra tries and the max score.
-        var font = Runtime.CurrentRuntime.Fonts["newsreader"];
+        // One record line per tier, sitting just under its name inside the item's own bounds (so it never
+        // collides with the neighbouring tiers the way the old two-line block did).
         float sf = Runtime.CurrentRuntime.ScaleF;
-        float small = 8 * sf;
         for (int d = 0; d < TierCount; d++)
         {
             if (!Available[d])
@@ -101,14 +140,8 @@ public class SpellPracticeDifficultyScreen : MenuScreen
             Rect b = ItemBounds(d);   // menu item d maps 1:1 to tier d
             if (b.Width <= 0)
                 continue;
-            (int tp, int sp) = PlayerData.Instance.GetSpellcardRecord(
-                Protogonist.ID, Helper.SpellRecordKey(Chapter.SpellcardTitle, d), true);
-            (int tg, int sg) = PlayerData.Instance.GetSpellcardRecord(
-                Protogonist.ID, Helper.SpellRecordKey(Chapter.SpellcardTitle, d), false);
-            float ty = b.Y + b.Height * 0.5f;
-            DrawTextEx(font, $"practice  {Rec(tp, sp)}", new Vector2(b.X, ty), small, 1, Rgba.White with { A = 200 });
-            DrawTextEx(font, $"game  {Rec(tg, sg)}    max {Chapter.Header[4]}",
-                new Vector2(b.X, ty + small + 2 * sf), small, 1, Rgba.White with { A = 200 });
+            TextureHandle t = InfoText[d].Texture;
+            DrawTexture(t, (int)(b.X), (int)(b.Y + b.Height - t.Height - 2 * sf), Rgba.White);
         }
 
         base.Render();

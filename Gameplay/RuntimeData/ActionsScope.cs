@@ -4,6 +4,7 @@ using System.Collections.Frozen;
 using System.Numerics;
 using DmitryAndDemid.Gameplay.Effects;
 using DmitryAndDemid.Utils;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DmitryAndDemid.Gameplay.RuntimeData;
 
@@ -445,6 +446,26 @@ public static class ActionsScope
         c.RenderRotation = MathF.Sin(tick * 0.06f) * 0.15f;   // gentle idle wobble at the centre
     };
 
+    /// <summary>Boss behaviour for the stage-3 first spellcard: idles in place, and drops its invincibility the
+    /// instant the player dies or bombs (IsFailed covers both and is reset at chapter start).</summary>
+    private static readonly RuntimeObjectReferenceAction NikitaStage3LaserBoss = c =>
+    {
+        c.RenderAlpha = 1f;
+        c.RenderRotation = MathF.Sin(c.Box.ChapterTick * 0.06f) * 0.12f;   // gentle idle wobble
+        if (c.Box.IsFailed)
+            c.Header[0] &= ~RuntimeObject.FlagInvincible;
+    };
+
+    /// <summary>Nikitab's stage-3 sweep laser: rotates its beam clockwise every tick (increasing angle = clockwise
+    /// in the y-down playfield) so it sweeps around the boss, and removes itself at the end of its life.</summary>
+    private const float NikitaStage3SweepSpeed = 0.013f;
+    private static readonly RuntimeObjectReferenceAction NikitaStage3SweepLaser = laser =>
+    {
+        laser.RenderRotation += NikitaStage3SweepSpeed;   // clockwise
+        if (laser.Box.CurrentTick - laser.CreatedAt >= laser.LaserLifetime)
+            laser.Box.RemoveObject(laser);
+    };
+
     /// <summary>The current formation radius at chapter tick <paramref name="t"/>: starts off-screen, eases to the
     /// small circle over PizzaContractTicks, then breathes back out/in on a cosine loop.</summary>
     private static float PizzaFormationRadius(int t)
@@ -723,6 +744,22 @@ public static class ActionsScope
             boss.Y = 120;
             boss.UpdateAction = NikitabNonspell2;
         };
+        // Stage 3's first spellcard: an INVINCIBLE Nikitab that fires a single laser sweeping clockwise around
+        // itself. A survival card — the boss can't be shot down and shows no health bar (the chapter's
+        // BossInvincible flag drives the suppression and grants full score on survival). Dying or bombing drops
+        // the invincibility and forfeits the bonus.
+        dictionary["nikitab#stage3#pizza#create"] = c =>
+        {
+            var boss = c.GameBox.SpawnObject(NikitabEntityIndex);
+            boss.X = 192;
+            boss.Y = 224;
+            boss.Header[0] |= RuntimeObject.FlagInvincible;
+            boss.UpdateAction = NikitaStage3LaserBoss;
+            PlaySound(Runtime.CurrentRuntime.Sounds["boss-appear"]);
+            // One laser fired from Nikitab that sweeps clockwise for the whole card (its own update rotates it).
+            var laser = c.GameBox.SpawnLaser(boss.Position, 0f, 520f, 16f, 45, 1800, 20);
+            laser.UpdateAction = NikitaStage3SweepLaser;
+        };
         // ---- Nikita Bukin's act (after the toilet spell): a brand-new boss (BossId 2) arrives on a pizza, drops
         // it, talks, then runs a non-spell (spiral) and two spells (watermelon, then the yellow/penta reaction).
         dictionary["nikitab#stage2#appear#create"] = c =>
@@ -783,41 +820,6 @@ public static class ActionsScope
             boss.UpdateAction = NikitaFinal;
             ShowBossSplash(c.GameBox);
         };
-        dictionary["nikitab#stage3#pizza#create"] = c =>
-        {
-            var box = c.GameBox;
-            int diff = Math.Clamp(box.Difficulty, 0, 3);
-            var boss = box.SpawnObject(NikitaBossIndex);
-            boss.X = PizzaCenter.X; boss.Y = PizzaCenter.Y;          // sits at the centre the formation rotates about
-            boss.RenderAlpha = 1f;
-            boss.Header[0] |= RuntimeObject.FlagInvincible;           // nikitab is invincible on this card (timeout/survival)
-            boss.Header[0] |= RuntimeObject.FlagIsFinalBossChapter;   // stage-3 finale
-            boss.UpdateAction = NikitaStage3Pizza;
-            box.CustomChapterReward = 1;                              // full heart / full bomb / full power on clear/fail/timeout
-
-            // The whole rotating circle of bullets (green ring + red inner dots), spawned off-screen; it contracts
-            // inward over the first 300 ticks and rotates as one (see NikitaPizzaFormationBullet).
-            SpawnPizzaFormation(box, diff);
-
-            // Tiled fork outlines in the bottom-right corner, for the whole card (1800 ticks / 60 = 30 s).
-            box.AddOverlay(new DmitryAndDemid.Gameplay.GameplayOverlays.ForkTilesOverlay(box, 1800f / 60f));
-
-            // A laser sweeping from the formation centre — Hard/Max only, kept as requested.
-            if (diff >= 2)
-            {
-                var center = PizzaCenter;
-                var laser = RuntimeObject.MakeLaser(box, center, 0f, 560f, 12f, 60, 1850, 20);
-                laser.UpdateAction = o =>
-                {
-                    o.Position = center;                             // keep emanating from the formation centre
-                    o.RenderRotation += 0.012f;                      // sweep
-                    if (o.Box.CurrentTick - o.CreatedAt >= o.LaserLifetime)
-                        o.Box.RemoveObject(o);
-                };
-                box.AddObject(laser);
-            }
-            ShowBossSplash(box);
-        };
         // Stage 1 non-spells: spawn the nikitos boss and give it the non-spell attack (overriding its default
         // spell behaviour). Spawning the boss entity reuses the one already on screen, so it persists across the
         // boss's attacks.
@@ -837,6 +839,32 @@ public static class ActionsScope
             boss.X = 192;
             boss.Y = 88;
             boss.UpdateAction = NikitosNonspell2;
+        };
+        dictionary["nikitab#spell5#create"] = c =>
+        {
+            var box = c.GameBox;
+            int diff = Math.Clamp(box.Difficulty, 0, 3);
+            long seed = new Random((int)(box.Player.Position.X + box.Player.Position.Y)).NextInt64();
+            box.SpawnObject(0);
+            ShowBossSplash(box);
+        };
+        dictionary["nikitab#spell5#update"] = c =>
+        {
+            var box = c.GameBox;
+            int t = box.ChapterTick;
+            if (t % NikitabLastSpellCircleSpawnRate == 0)
+            {
+                float angle = t;
+                angle = angle / NikitabLastSpellFullCircleTime * MathF.PI * 2;
+                double r = (t + 2);
+                double v = r < 3 ? 2 : 1;
+                double b1 = r > 4 ? 1 : 3.5;
+                double g = r > 3 ? r + 1 : r + 2;
+                double z = Math.Abs(v - g % (v * 2));
+                float s = (float)(Math.Pow(z, .5) * b1);
+                var obj = box.SpawnObject(22);
+                obj.Position = new Vector2(192, 224) + Helper.GetDirection2(angle) * (s * .4f + .6f) * 200;
+            }
         };
         ChapterActions = dictionary.ToFrozenDictionary();
     }
@@ -895,7 +923,7 @@ public static class ActionsScope
         // elastic budge, recoil backward for a moment ("bounce back"), then launch along FacingRotation.
         dictionary["nikitab#pizza#move"] = obj =>
         {
-            int age = obj.Box.CurrentTick - obj.CreatedAt;
+            int age = Math.Clamp(obj.Box.CurrentTick - obj.CreatedAt, 0, 5);
             obj.EntranceScale = age >= 26 ? 1f : EaseOutElastic(age / 26f);
             obj.RenderRotation += 0.09f;   // the slice tumbles as it flies
             var d = Helper.GetDirection(obj.FacingRotation);
@@ -965,11 +993,29 @@ public static class ActionsScope
                 
             }
 
+            // Smooth (eased) repositioning. SetMoveToTarget glides at a constant speed and then snaps to a stop,
+            // which read as a jerky "transition"; instead ease the boss from where it is to the new spot over
+            // ~60 ticks with a smoothstep, so it accelerates and decelerates. Scratch: 0x62/0x63 = start pos,
+            // Header[0x5E] = transition start tick, Header[0x5F] = transition active.
+            const int transitionTicks = 60;
             if (time % 300 == 250)
             {
                 var rnd = new Random((int)(c.Box.Player.X + c.Box.Player.Y + c.Box.CurrentTick));
                 var pos = new Vector2(rnd.Next(32, 352), rnd.Next(48, 96));
-                c.SetMoveToTarget(3, pos);
+                c.FloatingPoints[0x62] = c.X;
+                c.FloatingPoints[0x63] = c.Y;
+                c.MoveTarget = pos;
+                c.Header[0x5E] = c.Box.CurrentTick;
+                c.Header[0x5F] = 1;
+            }
+            if (c.Header[0x5F] == 1)
+            {
+                int elapsed = c.Box.CurrentTick - c.Header[0x5E];
+                float k = Math.Clamp(elapsed / (float)transitionTicks, 0f, 1f);
+                float sk = k * k * (3f - 2f * k);   // smoothstep ease-in-out
+                c.Position = Vector2.Lerp(new Vector2(c.FloatingPoints[0x62], c.FloatingPoints[0x63]), c.MoveTarget, sk);
+                if (k >= 1f)
+                    c.Header[0x5F] = 0;
             }
             if (time % 300 == 0)
             {
@@ -985,6 +1031,35 @@ public static class ActionsScope
         {
 
         };
+        dictionary["nikitab#pizza#outline"] = c =>
+        {
+            var box = c.Box;
+            int t = box.CurrentTick - c.CreatedAt;
+            float angle = t;
+            angle = angle / NikitabLastSpellFullCircleTime * MathF.PI * 2;
+            double t2 = box.ChapterTick;
+            t2 /= NikitabLastSpellFullCircleTime;
+            if (t == NikitabLastSpellFullCircleTime)
+            {
+                c.Velocity = Helper.GetDirection(c.Position, box.Player.Position);
+                c.Speed = 1 + MathF.Pow(box.Difficulty, 2.3f);
+            }
+            else if (t < NikitabLastSpellFullCircleTime)
+            {
+                double r = (t2 + 2);
+                double v = r < 3 ? 2 : 1;
+                double b1 = r > 4 ? 1 : 3.5;
+                double g = r > 3 ? r + 1 : r + 2;
+                double z = Math.Abs(v - g % (v * 2));
+                float s = (float)(Math.Pow(z, .5) * b1);
+                c.Position = new Vector2(192, 224) + Helper.GetDirection2(angle) * (s * .4f + .6f) * 200;
+            }
+            else
+            {
+                c.PersistOffscreen = false;
+                c.Position += c.Velocity * (1 + MathF.Pow(box.Difficulty, 1.8f)) / 60 * 5;
+            }
+        };
         dictionary["nikitab#microspam"] = NikitabMicroSpam;
         // ---- Nikita Bukin's act ----
         dictionary["nikitab2#appear"] = NikitaAppear;
@@ -992,7 +1067,7 @@ public static class ActionsScope
         // when he settles (move-to-target done) it detaches, falls away and fades out. Non-lethal, invincible.
         dictionary["nikitab#pizzamount#move"] = obj =>
         {
-            RuntimeObject boss = null;
+            RuntimeObject? boss = null;
             foreach (var o in obj.Box.BoxObjects)
                 if ((o.Header[0] & RuntimeObject.FlagIsBoss) == RuntimeObject.FlagIsBoss && o.BossId == NikitaBossId)
                 { boss = o; break; }
@@ -1081,8 +1156,25 @@ public static class ActionsScope
                 obj.Box.AddObject(laser);
             }
         };
+        // Ray turret: like nokia8#laser but fires a "ray" — a widening cone that fades along a finite length —
+        // aimed at the player. Fires every 4 s; the ~1 s telegraph (60 ticks) is the tell before it bites.
+        dictionary["ray"] = obj =>
+        {
+            int tick = obj.Box.ChapterTick;
+            if (tick < 0)
+                return;
+            if (tick % 240 == 0)
+            {
+                float ang = Helper.FindAngle(obj.Position, obj.Box.Player.Position);
+                var ray = RuntimeObject.MakeRay(obj.Box, obj.Position, ang, 300f, 14f, 36f, 60, 90, 20);
+                obj.Box.AddObject(ray);
+            }
+        };
         ObjectActions = dictionary.ToFrozenDictionary();
     }
+
+    private const int NikitabLastSpellFullCircleTime = 180;
+    private const int NikitabLastSpellCircleSpawnRate = 4;
 }
 
 public delegate void RuntimeChapterReferenceAction(RuntimeChapter chapter);

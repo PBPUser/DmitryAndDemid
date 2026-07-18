@@ -10,6 +10,7 @@ namespace DmitryAndDemid.Screens;
 
 public class MusicRoomScreen : MenuScreen
 {
+    private string[] SpoilerWarning = Helper.Translate("musicroom.warning").Split("\n");
     private MusicInfo[] Infos;
     private int CurrentDescriptionIndex = 0;
     private string[][] DescriptionLines = [];
@@ -21,12 +22,7 @@ public class MusicRoomScreen : MenuScreen
     // is the track currently warned about; Revealed are tracks the player accepted the spoiler for this session.
     private int SpoilerPendingIndex = -1;
     private readonly HashSet<int> Revealed = new();
-    private static readonly string[] SpoilerWarning =
-    {
-        "! ВНИМАНИЕ: СПОЙЛЕР !",
-        "Эта композиция ещё не открыта.",
-        "Нажмите ещё раз, чтобы всё равно послушать.",
-    };
+    
     
     public MusicRoomScreen()
     {

@@ -102,26 +102,18 @@ public class SettingsScreen : MenuScreen
 
         // Items are matched by REFERENCE below, not by index — the rows present differ per platform (Android
         // has no window mode and no renderer switch), and hard indices silently broke when a row was dropped.
+        // The list is grouped into four categories with non-selectable header rows (see AddHeader): Sound,
+        // Controls, Graphics, Other. Navigation skips the disabled headers.
+
+        // ---- SOUND ----
+        AddHeader("settings.cat.sound");
         SfxItem = new MenuItem("settings.sfx", Bar(Configuration.Config.SFXVolume), a => {});
         MenuItems.Add(SfxItem);
         MusicItem = new MenuItem("settings.music", Bar(Configuration.Config.MusicVolume), a => {});
         MenuItems.Add(MusicItem);
-#if !ANDROID
-        // The window mode is meaningless on Android — the game always owns the full surface — so this row and
-        // the renderer switch (which relaunches the process) are desktop-only.
-        WindowItem = new MenuItem("settings.fullscreen", $"{Configuration.Config.FullScreenType}",
-            a => CycleWindowMode(1));
-        MenuItems.Add(WindowItem);
-#endif
-        MenuItem vsyncItem = new("settings.vsync", $"{Configuration.Config.UseVSYNC}", null);
-        vsyncItem.Action = a =>
-        {
-            Configuration.Config.UseVSYNC = !Configuration.Config.UseVSYNC;
-            Configuration.Config.Save();
-            Engine.Platform.SetVSync(Configuration.Config.UseVSYNC);
-            vsyncItem.Replace = $"{Configuration.Config.UseVSYNC}";
-        };
-        MenuItems.Add(vsyncItem);
+
+        // ---- CONTROLS ----
+        AddHeader("settings.cat.controls");
         // On-screen touch controls (playfield drag + BOMB/FOCUS). Live — no restart.
         MenuItem touchItem = new("settings.touch", $"{Configuration.Config.TouchControls}", null);
         touchItem.Action = a =>
@@ -140,18 +132,38 @@ public class SettingsScreen : MenuScreen
             autoSlowItem.Replace = $"{Configuration.Config.AutoSlowdownOnShoot}";
         };
         MenuItems.Add(autoSlowItem);
-        // Point-of-collection hint line at the start of a run. Live — no restart; applies to the next run.
-        MenuItem itemLineItem = new("settings.itemline", $"{Configuration.Config.ShowItemLineHint}", null);
-        itemLineItem.Action = a =>
-        {
-            Configuration.Config.ShowItemLineHint = !Configuration.Config.ShowItemLineHint;
-            Configuration.Config.Save();
-            itemLineItem.Replace = $"{Configuration.Config.ShowItemLineHint}";
-        };
-        MenuItems.Add(itemLineItem);
         // Reposition the on-screen controls and toggle the stick / shoot button. Opens a drag editor.
         MenuItems.Add(new MenuItem("settings.touch_layout", "",
             a => Runtime.CurrentRuntime.AddScreen(new TouchLayoutScreen())));
+        MenuItems.Add(new MenuItem("settings.controller", "", a => Runtime.CurrentRuntime.AddScreen(new GamepadSettingsScreen())));
+
+        // ---- GRAPHICS ----
+        AddHeader("settings.cat.graphics");
+#if !ANDROID
+        // The window mode is meaningless on Android — the game always owns the full surface — so this row and
+        // the renderer switch (which relaunches the process) are desktop-only.
+        WindowItem = new MenuItem("settings.fullscreen", $"{Configuration.Config.FullScreenType}",
+            a => CycleWindowMode(1));
+        MenuItems.Add(WindowItem);
+#endif
+        MenuItem vsyncItem = new("settings.vsync", $"{Configuration.Config.UseVSYNC}", null);
+        vsyncItem.Action = a =>
+        {
+            Configuration.Config.UseVSYNC = !Configuration.Config.UseVSYNC;
+            Configuration.Config.Save();
+            Engine.Platform.SetVSync(Configuration.Config.UseVSYNC);
+            vsyncItem.Replace = $"{Configuration.Config.UseVSYNC}";
+        };
+        MenuItems.Add(vsyncItem);
+        // Graphics quality: High draws every shader, Low turns off the spell-card + background shaders. Live.
+        MenuItem graphicsItem = new("settings.graphics_quality", GraphicsQualityLabel(), null);
+        graphicsItem.Action = a =>
+        {
+            Configuration.Config.HighGraphics = !Configuration.Config.HighGraphics;
+            Configuration.Config.Save();
+            graphicsItem.Replace = GraphicsQualityLabel();
+        };
+        MenuItems.Add(graphicsItem);
         // Portrait/vertical presentation. Changing it re-sizes the backbuffer and re-lays every screen, so it
         // applies on restart.
         MenuItem verticalItem = new("settings.vertical", $"{Configuration.Config.Vertical}", null);
@@ -173,13 +185,34 @@ public class SettingsScreen : MenuScreen
         RendererItem = new MenuItem("settings.renderer", RendererLabel(), a => OpenRendererList());
         MenuItems.Add(RendererItem);
 #endif
-        MenuItems.Add(new MenuItem("settings.controller", "", a => Runtime.CurrentRuntime.AddScreen(new GamepadSettingsScreen())));
+
+        // ---- OTHER ----
+        AddHeader("settings.cat.other");
+        // Point-of-collection hint line at the start of a run. Live — no restart; applies to the next run.
+        MenuItem itemLineItem = new("settings.itemline", $"{Configuration.Config.ShowItemLineHint}", null);
+        itemLineItem.Action = a =>
+        {
+            Configuration.Config.ShowItemLineHint = !Configuration.Config.ShowItemLineHint;
+            Configuration.Config.Save();
+            itemLineItem.Replace = $"{Configuration.Config.ShowItemLineHint}";
+        };
+        MenuItems.Add(itemLineItem);
         MenuItems.Add(new MenuItem("settings.benchmark", "", a => Runtime.CurrentRuntime.AddScreen(new BenchmarkScreen())));
         MenuItems.Add(new MenuItem("settings.default", "", a => {}));
         MenuItems.Add(new MenuItem("ingame.exit", "", a => Exit()));
+
+        // Start the cursor on the first real (enabled) row, not the Sound header.
+        SelectedIndex = MenuItems.FindIndex(i => i.Enabled);
         CurrentX = (int)(Runtime.CurrentRuntime.Scale * 32);
         CurrentY = (int)(Runtime.CurrentRuntime.Scale * 192);
     }
+
+    /// <summary>Adds a non-selectable category header row (disabled, so navigation skips it).</summary>
+    private void AddHeader(string key) => MenuItems.Add(new MenuItem(key, "", null) { Enabled = false });
+
+    /// <summary>The graphics-quality row's value: the translated HIGH / LOW label.</summary>
+    private static string GraphicsQualityLabel() =>
+        Helper.Translate(Configuration.Config.HighGraphics ? "graphics.high" : "graphics.low");
 
     private TargetHandle RestartNoticeTexture;
 

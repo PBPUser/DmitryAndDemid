@@ -36,7 +36,7 @@ public class SpellPracticeScreen : MenuScreen
             MenuItems.Add(new MenuItem("practice.stage", $"{i + 1}", _ => OpenStage(index)));
         }
 
-        MenuItems.Add(new MenuItem("ingame.exit", "", _ => Exit()));
+        // No explicit quit entry — Escape / X (or Back on Android) leaves the screen via the base handler.
         base.CreateMenu();
     }
 

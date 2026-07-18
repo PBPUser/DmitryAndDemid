@@ -1,6 +1,8 @@
 using DmitryAndDemid.Rendering;
 using System.Numerics;
+using System.Text.Json;
 using DmitryAndDemid.Common;
+using DmitryAndDemid.Data;
 using DmitryAndDemid.Utils;
 using static DmitryAndDemid.Rendering.Gfx;
 
@@ -26,15 +28,24 @@ public class TrophyScreen : ScreenWithTitle
     private int Columns = 0;
     private int YFrom = 0;
 
+    private TrophyInfo[] Infos = [];
+
     void Load()
     {
         string[] files = Assets.Files("Assets/Data/Trophy", "*.json");
         Menu = new TargetHandle[files.Length];
         Description = new TargetHandle[files.Length];
+        Infos = new TrophyInfo[files.Length];
         for (int i = 0; i < files.Length; i++)
         {
+            // Each trophy JSON carries its own Index (and its unlock/action metadata); key everything on that,
+            // not on file order, so the earned-check and the Enter action line up with how trophies are unlocked.
+            TrophyInfo info;
+            try { info = JsonSerializer.Deserialize<TrophyInfo>(System.IO.File.ReadAllText(files[i])) ?? new TrophyInfo(); }
+            catch { info = new TrophyInfo { Index = i }; }
+            Infos[i] = info;
             // Earned trophies show their number; still-locked ones are masked as **.
-            string label = PlayerData.Instance.IsTrophyUnlocked(i) ? $"{i:00}" : "**";
+            string label = PlayerData.Instance.IsTrophyUnlocked(info.Index) ? $"{info.Index:00}" : "**";
             Menu[i] = Helper.DrawTextScaled(label,
                 32, 8, 4, 2,
                 Runtime.CurrentRuntime.Fonts["newsreader"],
@@ -42,6 +53,35 @@ public class TrophyScreen : ScreenWithTitle
         }
         Columns = (int)Math.Sqrt(Menu.Length)+1;
         DisappearingTime = 1f;
+    }
+
+    /// <summary>
+    /// Opens the ending / staff roll a trophy is tied to (only when it's earned). Ending trophies open their
+    /// ending art; everything else (difficulty trophies, staff) opens a standalone credits roll. The trophy grid
+    /// stays underneath, so closing the ending returns straight here.
+    /// </summary>
+    private void OpenTrophyAction(TrophyInfo info)
+    {
+        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["button"]);
+        if (info.ActionType == "ending")
+        {
+            string path = $"Assets/Data/Endings/{info.ActionInfo}.json";
+            if (Assets.Exists(path))
+            {
+                try
+                {
+                    EndingInfo? ending = JsonSerializer.Deserialize<EndingInfo>(Assets.ReadAllText(path));
+                    if (ending != null)
+                    {
+                        Runtime.CurrentRuntime.AddScreen(new EndingScreen(0, ending, showStaffRoll: false));
+                        return;
+                    }
+                }
+                catch { /* fall through to the staff roll */ }
+            }
+        }
+        // "staff" trophies (and any ending that failed to load) show a standalone credits roll.
+        Runtime.CurrentRuntime.AddScreen(new CreditsScreen());
     }
     
     public override void Render()
@@ -112,13 +152,24 @@ public class TrophyScreen : ScreenWithTitle
             return;
         if (IsKeyDown(KeyCode.Enter) || IsKeyDown(KeyCode.Z))
         {
-            IsItemTriggered = true;
-            Exiting();
-            ItemSwitchTime = time;
-            TimeDisappear = (float)GetTime() + DisappearingTime;
-            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["button"]);
-            ItemTriggerTime = time;
-            Action = () => Runtime.CurrentRuntime.RemoveScreen(this);
+            // An earned trophy with an action opens its ending / staff roll (grid stays underneath); otherwise
+            // Enter just leaves the screen, as before.
+            TrophyInfo info = Index >= 0 && Index < Infos.Length ? Infos[Index] : new TrophyInfo();
+            if (info.HasAction && PlayerData.Instance.IsTrophyUnlocked(info.Index))
+            {
+                ItemSwitchTime = time;
+                OpenTrophyAction(info);
+            }
+            else
+            {
+                IsItemTriggered = true;
+                Exiting();
+                ItemSwitchTime = time;
+                TimeDisappear = (float)GetTime() + DisappearingTime;
+                Helper.PlaySound(Runtime.CurrentRuntime.Sounds["button"]);
+                ItemTriggerTime = time;
+                Action = () => Runtime.CurrentRuntime.RemoveScreen(this);
+            }
         }
         if (IsKeyDown(KeyCode.Escape) || IsKeyDown(KeyCode.X))
         {

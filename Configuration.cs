@@ -75,6 +75,12 @@ public class Configuration
     [JsonInclude] public bool ShowItemLineHint = true;
 
     /// <summary>
+    /// Graphics quality. High (default) draws every shader; Low turns off the spell-card and background shaders
+    /// (the heaviest per-pixel passes) for weaker hardware, keeping the gameplay itself intact.
+    /// </summary>
+    [JsonInclude] public bool HighGraphics = true;
+
+    /// <summary>
     /// On-screen control positions, in the game's 640x480 design units (top-left corner of each control).
     /// The in-game layout editor (Screens/TouchLayoutScreen) writes these; the sizes live in TouchControls.
     /// </summary>

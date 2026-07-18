@@ -88,7 +88,9 @@ public class Player
                 return;
             if (value > heartPoints)
             {
-                //TODO: Play extend sound
+                // A full heart (an extend) was gained — not just a piece. Pieces bump heartSpices and only reach
+                // here once four of them convert into a whole heart, so this fires exactly on a FULL heart.
+                Helper.PlaySound(Runtime.CurrentRuntime.Sounds["extend"]);
                 GameBox.AddOverlay(new BasicGameplayOverlay(GameBox, "extend.png", .5f, 3));
             }
 
@@ -302,6 +304,34 @@ public class Player
     }
 
     /// <summary>
+    /// Restores the resource stock captured in a replay's per-stage snapshot, so launching playback partway
+    /// through a run reproduces the state it had entering that stage. Writes the backing fields directly to
+    /// bypass the property setters' side effects (extend/full-power overlays, the &lt;0 game-over, toilet spawn).
+    /// </summary>
+    public void RestoreState(int lives, int bombCount, int heartSpiceCount, int bombSpiceCount, int powerValue,
+        int grazeValue, int signalValue)
+    {
+        heartPoints = lives;
+        bombs = bombCount;
+        heartSpices = heartSpiceCount;
+        bombsSpices = bombSpiceCount;
+        power = Math.Clamp(powerValue, 100, 400);
+        graze = grazeValue;
+        signal = signalValue;
+        Weapon.UpdatePower();
+        GameBox.UpdateUI();
+    }
+
+    /// <summary>Read-only views of the resource stock, for the replay recorder's per-stage snapshot.</summary>
+    public int LivesValue => heartPoints;
+    public int BombsValue => bombs;
+    public int HeartSpicesValue => heartSpices;
+    public int BombsSpicesValue => bombsSpices;
+    public int PowerValue => power;
+    public int GrazeValue => graze;
+    public int SignalValue => signal;
+
+    /// <summary>
     /// Brings the player back after a continue: a fresh default life / bomb stock, re-centred, and eased back in
     /// through the usual death-cooldown entrance. Writes the backing fields directly so reviving from a negative
     /// life count doesn't re-trigger game-over through the HeartPoints setter.
@@ -324,6 +354,7 @@ public class Player
 
     public void Die()
     {
+        GameBox.DeathsThisRun++;
         float angle = -MathF.PI / 7;
         for (int i = 0; i < 7; i++)
         {

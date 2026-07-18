@@ -80,6 +80,20 @@ public class MainScreen : MenuScreen
         // drops in from fully above the top edge, growing slightly into place.
         LogoTargetCenter1 = new Rect(logoCenterX, -bboxHalf, logoCenterWidth * 0.85f, logoCenterHeight * 0.85f);
         LogoTargetCenter2 = new Rect(logoCenterX, logoCenterY, logoCenterWidth, logoCenterHeight);
+
+        // Pre-render the logo centred in a padded transparent target, so the neon halo bleeds into the margin
+        // instead of being cropped at the art's edge. Margin ~12% of the art on each side (well over the halo's
+        // ~12-texel reach).
+        int padX = Math.Max(24, logoTex.Width / 8);
+        int padY = Math.Max(24, logoTex.Height / 8);
+        LogoPadded = LoadRenderTexture(logoTex.Width + padX * 2, logoTex.Height + padY * 2);
+        BeginTextureMode(LogoPadded);
+        ClearBackground(new Rgba(0, 0, 0, 0));
+        DrawTexture(logoTex, padX, padY, Rgba.White);
+        EndTextureMode();
+        LogoPadScaleX = (float)LogoPadded.Texture.Width / logoTex.Width;
+        LogoPadScaleY = (float)LogoPadded.Texture.Height / logoTex.Height;
+
         CurrentY = (int)(160 * Runtime.CurrentRuntime.Scale);
 #if SWITCH
         Runtime.SwTrace("[ms] before new MusicRoomScreen()");
@@ -110,6 +124,11 @@ public class MainScreen : MenuScreen
     Rect LogoTargetRight;
     Rect LogoTargetCenter1;
     Rect LogoTargetCenter2;
+
+    // The title logo pre-rendered into a transparent, PADDED target so the neon_sign halo has room to bleed
+    // instead of clipping at the sprite's rectangular edge. LogoPadScale is the padded size / art size.
+    TargetHandle LogoPadded;
+    float LogoPadScaleX = 1f, LogoPadScaleY = 1f;
 
     int Size;
     double AppearTime;
@@ -222,18 +241,20 @@ public class MainScreen : MenuScreen
         var bg = Helper.Mix(Rgba.Black, Rgba.White, (float)appear2);
 #endif
         DrawRectangle(0, 0, Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height, bg);
-        DrawFloatingPizzas(time, (float)appear2);
         var color1 = Helper.Mix(Rgba.Black, Rgba.Red, (float)appear2);
         var color2 = Helper.Mix(Rgba.Black, DarkRed, (float)appear2);
         CurrentX = (int)((16 - (Helper.Pow2F(1 - appear5) * 384)) * Runtime.CurrentRuntime.Scale);
 #if DEBUG
         CurrentX = IsOnTop ? 0 : -10000;
 #endif
-        DrawMenu();
         Helper.DrawWave(color1, MathF.Sin(time) + 1.5f, -0.7f - Helper.EaseInOutElasticF(appear1) * 1.5f, 1.5f, 1.5f, Runtime.CurrentRuntime.FullScreenRect);
         Helper.DrawWave(color2, MathF.Sin(time + 0.1f) + 1.5f, -0.7f - Helper.EaseInOutElasticF(appear3) * 1.5f, 1.5f, 1.5f, Runtime.CurrentRuntime.FullScreenRect);
         DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceLeft, LogoTargetLeft, Vector2.Zero, 0f, Rgba.White with { A = Helper.TimeToTransparency(appear25) });
         DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceRight, LogoTargetRight, Vector2.Zero, 0f, Rgba.White with { A = Helper.TimeToTransparency(appear25) });
+        // Floating pizzas drawn AFTER the top telecom logos so they pass in front of them (requested).
+        DrawFloatingPizzas(time, (float)appear2);
+        // The menu list is drawn AFTER the pizzas so its entries stay readable ABOVE them (requested).
+        DrawMenu();
         DrawTexturePro(SelectedPerson, RCPersonSource, Helper.Mix(RCPersonTarget1, RCPersonTarget2, appear4), Vector2.Zero, 0f, Rgba.White);
         // The title logo, drawn AFTER the person so it sits ABOVE (in front of) them. Centred, rotated 45°, and
         // lit through the neon_sign shader so it glows and flickers like an old sign; origin at its own centre so
@@ -242,12 +263,16 @@ public class MainScreen : MenuScreen
         // Once it has dropped in, the title floats gently up and down — the same bob the manual page uses in
         // its view mode.
         logoDest.Y += MathF.Sin(time * 1.6f) * 9f * Runtime.CurrentRuntime.ScaleF * appear3;
-        var logoOrigin = new Vector2(logoDest.Width / 2, logoDest.Height / 2);
+        // Draw the PADDED logo, enlarging the destination by the pad ratio so the art itself stays the same
+        // on-screen size while the transparent margin (holding the halo) extends beyond it.
+        var paddedDest = new Rect(logoDest.X, logoDest.Y, logoDest.Width * LogoPadScaleX, logoDest.Height * LogoPadScaleY);
+        var logoOrigin = new Vector2(paddedDest.Width / 2, paddedDest.Height / 2);
         var neon = Runtime.CurrentRuntime.Shaders["neon_sign"];
         SetShaderValue(neon, GetShaderLocation(neon, "time"), time, UniformType.Float);
-        SetShaderValue(neon, GetShaderLocation(neon, "resolution"), LogoSourceCenter.Size, UniformType.Vec2);
+        SetShaderValue(neon, GetShaderLocation(neon, "resolution"),
+            new Vector2(LogoPadded.Texture.Width, LogoPadded.Texture.Height), UniformType.Vec2);
         BeginShaderMode(neon);
-        DrawTexturePro(Runtime.CurrentRuntime.Textures["game_logo.png"], LogoSourceCenter, logoDest, logoOrigin, 45f, Rgba.White);
+        DrawTexturePro(LogoPadded.Texture, Helper.GetFullSourceRenderTexture(LogoPadded), paddedDest, logoOrigin, 45f, Rgba.White);
         EndShaderMode();
         var source = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["Version"]);
         DrawTexturePro(

@@ -16,7 +16,7 @@ namespace DmitryAndDemid.Screens;
 public class GameplayScreen : Screen
 {
     public GameplayScreen(ProtogonistData data, int difficulty, FileStageInfo[] stages, int chapter, bool practice,
-        PlayerControllerBase? controller = null, GameType mode = GameType.Default)
+        PlayerControllerBase? controller = null, GameType mode = GameType.Default, int startStage = 0)
     {
         Mode = mode;
         PlaybackController = controller;
@@ -53,7 +53,7 @@ public class GameplayScreen : Screen
         GameEffectsTextures[1] = LoadRenderTexture(384, 448);
         GameEffectsTextures[2] = LoadRenderTexture(384, 448);
         GameEffectsTextures[3] = LoadRenderTexture(384, 448);
-        GameBox = new GameBox(this, data, stages, chapter, difficulty, practice, PlaybackController, mode);
+        GameBox = new GameBox(this, data, stages, chapter, difficulty, practice, PlaybackController, mode, startStage);
         PauseEffect = new GameplayScreenEffect(GameBox, new Vector2(), int.MaxValue, "pause", float.MaxValue, float.MaxValue)
         {
             UseSteps = true,
@@ -260,7 +260,15 @@ public class GameplayScreen : Screen
     /// </summary>
     private void ShowEnding()
     {
-        string path = $"Assets/Data/Endings/{Data.ID}_good.json";
+        // Good vs bad ending: a "good" clear is a one-credit clear (no continues) on Normal or harder. Easy —
+        // even a 1cc — and any run that spent a continue get the BAD ending and do NOT unlock Extra.
+        bool goodEnding = GameBox.Difficulty >= 1 && GameBox.ContinuesUsed == 0;
+        UnlockClearTrophies(goodEnding);
+
+        string suffix = goodEnding ? "good" : "bad";
+        string path = $"Assets/Data/Endings/{Data.ID}_{suffix}.json";
+        if (!Assets.Exists(path))
+            path = $"Assets/Data/Endings/{Data.ID}_good.json";   // fall back if the bad-ending file is absent
         if (!Assets.Exists(path))
             return;
         try
@@ -273,6 +281,32 @@ public class GameplayScreen : Screen
         {
             // A malformed ending file should not strand the player — fall through to the menu.
         }
+    }
+
+    /// <summary>
+    /// Unlocks the clear trophies for a finished main-game run and, on a good clear, unlocks Extra. Uses the real
+    /// trophy set in Assets/Data/Trophy (indices: 0-3 clear_easy/normal/hard/max, 4 clear_extra, 5-7
+    /// clearas_&lt;akob/sugar/qaw&gt;_good, 8-10 clearas_&lt;…&gt;_bad, 11 clear_good, 12 clear_bad).
+    /// </summary>
+    private void UnlockClearTrophies(bool goodEnding)
+    {
+        var pd = PlayerData.Instance;
+        int diff = GameBox.Difficulty;
+        bool extra = GameBox.Mode == GameType.Extra;
+
+        if (extra)
+            pd.SetTrophyUnlocked(4, true);                       // clear_extra
+        else if (diff >= 0 && diff <= 3)
+            pd.SetTrophyUnlocked(diff, true);                    // clear_easy/normal/hard/max
+
+        int charBase = Data.ID switch { "akob" => 0, "sugar" => 1, "qaw" => 2, _ => -1 };
+        if (charBase >= 0)
+            pd.SetTrophyUnlocked((goodEnding ? 5 : 8) + charBase, true);   // clearas_<char>_good / _bad
+        pd.SetTrophyUnlocked(goodEnding ? 11 : 12, true);        // clear_good / clear_bad
+
+        // A good (Normal+ 1cc) main-game clear unlocks Extra; a bad or Easy clear does not.
+        if (goodEnding && !extra)
+            pd.IsExtraUnlocked = true;
     }
 
     private ShaderHandle DieShader;

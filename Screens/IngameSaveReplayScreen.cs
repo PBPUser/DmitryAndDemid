@@ -106,6 +106,9 @@ public class IngameSaveReplayScreen : Screen
     public override void Activated()
     {
         KeyboardModeSwitchInTime = float.MaxValue;
+        // Debounce the Enter/Z that opened this screen from the pause menu: without arming the input cooldown
+        // here, that same press is seen on the first frame and immediately re-triggers (re-opening the save flow).
+        LastInputTime = GetTime();
     }
 
     public override void Unload()
@@ -166,8 +169,16 @@ public class IngameSaveReplayScreen : Screen
                         Runtime.CurrentRuntime.RemoveScreen(this); 
                     }
                     rJson.Nickname = Current;
-                    var r = new Replay(Controller.Movements, rJson);
+                    // Record which stages this run covers (and each stage's inputs offset + resource snapshot) so
+                    // the viewer can list the levels and start playback from any of them.
+                    rJson.ReplayStageInfo = Controller.RecordedStages.ToArray();
+                    // Only the used portion of the buffer is meaningful; the rest is trailing zeros.
+                    byte[] moves = Controller.WrittenLength < Controller.Movements.Length
+                        ? Controller.Movements[..Controller.WrittenLength]
+                        : Controller.Movements;
+                    var r = new Replay(moves, rJson);
                     r.Save(SlotPath(Index));
+                    Helper.PlaySound(Runtime.CurrentRuntime.Sounds["extend"]);   // a "saved!" cue instead of a click
                     return;
                 }
                 if (a == null)

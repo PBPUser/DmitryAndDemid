@@ -56,6 +56,7 @@ public abstract class PlayerWeapon(Player player)
         StartBombing();
         Player.Bombs--;
         Player.GameBox.IsFailed = true;
+        Player.GameBox.BombsUsedThisRun++;
     }
 
     protected virtual void StartBombing()

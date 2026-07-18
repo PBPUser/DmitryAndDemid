@@ -41,31 +41,35 @@ public class StatisticsScreen : Screen
         float y = 32 * scale - jump;
         float titleSize = 30 * scale, body = 20 * scale, line = 28 * scale;
 
-        DrawTextEx(font, "BENCHMARK RESULTS", new Vector2(x, y), titleSize, 1, Rgba.Yellow);
+        DrawTextEx(font, Helper.Translate("benchmark.results"), new Vector2(x, y), titleSize, 1, Rgba.Yellow);
         y += line * 2;
+
+        // Host machine info sits in its own right-hand column, so it shows whether or not the run itself failed.
+        DrawSystemColumn(scale);
 
         if (result.Error != null)
         {
-            Row("FAILED", result.Error, Rgba.Red, x, ref y, body, line);
+            Row(Helper.Translate("benchmark.failed"), result.Error, Rgba.Red, x, ref y, body, line);
             Hint(scale);
             return;
         }
 
-        Row("Backend", result.Backend, Rgba.White, x, ref y, body, line);
-        Row("Target load", $"{result.TargetLoad} bullets", Rgba.White, x, ref y, body, line);
-        Row("Peak objects", $"{result.PeakObjects}", Rgba.White, x, ref y, body, line);
+        Row(Helper.Translate("benchmark.backend"), result.Backend, Rgba.White, x, ref y, body, line);
+        Row(Helper.Translate("benchmark.load"), $"{result.TargetLoad} bullets", Rgba.White, x, ref y, body, line);
+        Row(Helper.Translate("benchmark.peak"), $"{result.PeakObjects}", Rgba.White, x, ref y, body, line);
         y += line * 0.5f;
 
         Rgba perf = result.RealtimeMultiple >= 1 ? Rgba.Green : Rgba.Red;
-        Row("Sim throughput", $"{result.TicksPerSec:F0} ticks/s", perf, x, ref y, body, line);
-        Row("vs 60 TPS budget", $"{result.RealtimeMultiple:F2}x  ({(result.RealtimeMultiple >= 1 ? "PASS" : "TOO SLOW")})",
+        Row(Helper.Translate("benchmark.throughput"), $"{result.TicksPerSec:F0} ticks/s", perf, x, ref y, body, line);
+        Row(Helper.Translate("benchmark.budget"),
+            $"{result.RealtimeMultiple:F2}x  ({Helper.Translate(result.RealtimeMultiple >= 1 ? "benchmark.pass" : "benchmark.slow")})",
             perf, x, ref y, body, line);
-        Row("Ticks / time", $"{result.Ticks} in {result.Seconds:F2}s", Rgba.Gray, x, ref y, body, line);
+        Row(Helper.Translate("benchmark.ticks"), $"{result.Ticks} in {result.Seconds:F2}s", Rgba.Gray, x, ref y, body, line);
         y += line * 0.5f;
 
-        Row("GC heap  max", Benchmark.FormatBytes(result.MemMaxBytes), Rgba.White, x, ref y, body, line);
-        Row("GC heap  avg", Benchmark.FormatBytes(result.MemAvgBytes), Rgba.White, x, ref y, body, line);
-        Row("GC heap  median", Benchmark.FormatBytes(result.MemMedianBytes), Rgba.White, x, ref y, body, line);
+        Row(Helper.Translate("benchmark.mem_max"), Benchmark.FormatBytes(result.MemMaxBytes), Rgba.White, x, ref y, body, line);
+        Row(Helper.Translate("benchmark.mem_avg"), Benchmark.FormatBytes(result.MemAvgBytes), Rgba.White, x, ref y, body, line);
+        Row(Helper.Translate("benchmark.mem_median"), Benchmark.FormatBytes(result.MemMedianBytes), Rgba.White, x, ref y, body, line);
 
         Hint(scale);
     }
@@ -77,7 +81,72 @@ public class StatisticsScreen : Screen
         y += line;
     }
 
+    /// <summary>
+    /// The platform snapshot (OS / CPU / RAM / GPU) collected by <see cref="SystemInfo"/>, in a compact column
+    /// on the right. Labels are universal abbreviations (kept out of translation.json on purpose). Unknown
+    /// fields read "—" in grey; optional ones (clock, topology, API, VRAM, extensions, NPU) are simply omitted
+    /// when the platform can't supply them.
+    /// </summary>
+    void DrawSystemColumn(float scale)
+    {
+        SystemInfo s = result.System;
+        float x = GetScreenWidth() * 0.5f;
+        float y = 32 * scale + 28 * scale * 2;   // line up under the title, same as the left column's first row
+        float title = 20 * scale, body = 14 * scale, line = 20 * scale;
+
+        DrawTextEx(font, "SYSTEM", new Vector2(x, y), title, 1, Rgba.Yellow);
+        y += line * 1.5f;
+
+        SysRow("OS", s.Os, x, ref y, body, line);
+        string arch = s.ProcessArchitecture == s.OsArchitecture ? s.OsArchitecture
+            : $"{s.ProcessArchitecture} / {s.OsArchitecture}";
+        SysRow("ARCH", arch, x, ref y, body, line);
+
+        SysRow("CPU", string.IsNullOrEmpty(s.CpuName) ? "—" : s.CpuName, x, ref y, body, line);
+        string cores = s.PhysicalCores > 0 ? $"{s.PhysicalCores}C / {s.LogicalCores}T" : $"{s.LogicalCores}T";
+        if (s.CoreTopology != null) cores += $"  ({s.CoreTopology})";
+        SysRow("CORES", cores, x, ref y, body, line);
+        if (s.MaxClockMHz > 0)
+            SysRow("CLOCK", $"{s.MaxClockMHz / 1000.0:F2} GHz", x, ref y, body, line);
+
+        string ram = s.TotalRamBytes > 0 ? Benchmark.FormatBytes(s.TotalRamBytes) : "—";
+        if (s.RamClock != null) ram += $"  @ {s.RamClock}";
+        SysRow("RAM", ram, x, ref y, body, line);
+
+        SysRow("GPU", string.IsNullOrEmpty(s.Gpu) ? "—" : s.Gpu!, x, ref y, body, line);
+        if (!string.IsNullOrEmpty(s.GpuApi))
+            SysRow("API", s.GpuApi!, x, ref y, body, line);
+        string vram = s.VramBytes > 0 ? Benchmark.FormatBytes(s.VramBytes) : "—";
+        if (s.VramClock != null) vram += $"  @ {s.VramClock}";
+        SysRow("VRAM", vram, x, ref y, body, line);
+        if (s.GpuExtensions.Count > 0)
+            SysRow("EXT", $"{s.GpuExtensions.Count} supported", x, ref y, body, line);
+        if (!string.IsNullOrEmpty(s.Npu))
+            SysRow("NPU", s.Npu!, x, ref y, body, line);
+    }
+
+    void SysRow(string label, string value, float x, ref float y, float size, float line)
+    {
+        float scale = Runtime.CurrentRuntime.ScaleF;
+        DrawTextEx(font, label, new Vector2(x, y), size, 1, Rgba.Gray);
+        float valX = x + 90 * scale;
+        float avail = GetScreenWidth() - valX - 12 * scale;
+        Rgba color = value == "—" ? Rgba.Gray : Rgba.White;
+        DrawTextEx(font, Fit(value, size, avail), new Vector2(valX, y), size, 1, color);
+        y += line;
+    }
+
+    /// <summary>Trims a value with an ellipsis so a long GPU/OS string can't run off the right edge.</summary>
+    string Fit(string text, float size, float maxWidth)
+    {
+        if (maxWidth <= 0 || MeasureTextEx(font, text, size, 1).X <= maxWidth)
+            return text;
+        while (text.Length > 1 && MeasureTextEx(font, text + "…", size, 1).X > maxWidth)
+            text = text[..^1];
+        return text + "…";
+    }
+
     void Hint(float scale) =>
-        DrawTextEx(font, "Esc / X — back", new Vector2(40 * scale, GetScreenHeight() - 40 * scale),
+        DrawTextEx(font, Helper.Translate("benchmark.back"), new Vector2(40 * scale, GetScreenHeight() - 40 * scale),
             16 * scale, 1, Rgba.Gray);
 }

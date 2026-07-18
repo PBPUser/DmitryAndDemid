@@ -89,6 +89,16 @@ public abstract class MenuScreen : ScreenWithTitle
     Action<int>? Event;
     bool ItemActivated = false;
 
+    public override void Activated()
+    {
+        base.Activated();
+        // Whenever this menu (re)appears — including when a screen above it (benchmark, statistics, a save
+        // dialog, a sub-settings list) closes on Escape/X — arm the shared input cooldown so the very key that
+        // dismissed the screen above isn't seen again here on the same press (which would walk the cursor onto
+        // "exit"). PreviousKeyTimestamp is static and gates navigation in TopUpdate below.
+        PreviousKeyTimestamp = GetTime();
+    }
+
     public override void TopUpdate()
     {
         if (ItemActivated)
@@ -180,7 +190,7 @@ public abstract class MenuScreen : ScreenWithTitle
                 return;
             }
 
-            Helper.PlaySound(CurrentRuntime.Sounds["item-switch"]);
+            Helper.PlaySound(CurrentRuntime.Sounds["esc"]);
             PreviousSelectedIndex = SelectedIndex;
             AnimationStartedIndex = ComputeAnimationIndex();
             AnimationStartedAt = GetTime();

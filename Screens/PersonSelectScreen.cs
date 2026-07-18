@@ -262,6 +262,7 @@ public class PersonSelectScreen : MenuScreen
             {
                 Runtime.CurrentRuntime.RemoveScreen(tls);
             }, true, 0);
+            tls.CaptureFrom(this);   // wipe in over the character-select screen instead of hard-cutting to it
             Runtime.CurrentRuntime.AddScreen(tls);
         }
     }

@@ -222,6 +222,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                     Checkbox("Is Bullet", ref Info.Entities[SelectedObjectIndex].IsBullet);
                     Checkbox("Clear protected", ref Info.Entities[SelectedObjectIndex].ClearProtected);
                     Checkbox("Dangerous for player when collided", ref Info.Entities[SelectedObjectIndex].DangerousForPlayer);
+                    Checkbox("Don't despawn off-screen", ref Info.Entities[SelectedObjectIndex].PersistOffscreen);
                     InputInt("Spawn Id", ref Info.Entities[SelectedObjectIndex].Header[3]);
                     SliderInt("Transparency", ref Info.Entities[SelectedObjectIndex].Header[2], 0, 255);
                     if (!Info.Entities[SelectedObjectIndex].IsGroupChild &&

@@ -43,6 +43,12 @@ public class GameBox : IDisposable
     /// (full heart / full bomb / full power).</summary>
     public int CustomChapterReward = 0;
 
+    // Per-RUN tallies (GameBox lives for the whole run, so these accumulate across every stage — unlike the
+    // per-chapter IsFailed). Used for clear conditions like "no bombs", "no deaths", "N toilets spawned".
+    public int BombsUsedThisRun = 0;
+    public int DeathsThisRun = 0;
+    public int ToiletsSpawnedThisRun = 0;
+
     /// <summary>The spell.failed wording chosen when the current card was failed. Picked once — the key has
     /// several variants and Translate() randomises, so resolving it per frame would make the word flicker.</summary>
     string SpellFailedText = "";
@@ -61,7 +67,7 @@ public class GameBox : IDisposable
     bool RequiresRefresh;
     public bool IsSpellPractice;
     public bool IsPractice;
-    bool IsReplay;   // playback (replay viewer / title demo): never mutates the player's progress
+    public bool IsReplay;   // playback (replay viewer / title demo): never mutates the player's progress
     /// <summary>True only for the title-screen attract demo (a subset of replays). Set on the owning screen via
     /// an object-initializer after construction, so read it lazily through here rather than caching it.</summary>
     public bool IsDemo => GameplayScreen.IsDemo;
@@ -69,7 +75,7 @@ public class GameBox : IDisposable
     int ComputeCurrentTickFromStartingTime => (int)(GetTime() * TargetTPS);
     
     public GameBox(GameplayScreen screen, ProtogonistData data, FileStageInfo[] stages, int chapter, int difficulty, bool isPractice,
-        PlayerControllerBase? controller = null, GameType mode = GameType.Default)
+        PlayerControllerBase? controller = null, GameType mode = GameType.Default, int startStage = 0)
     {
         GameplayScreen = screen;
         Mode = mode;
@@ -94,7 +100,11 @@ public class GameBox : IDisposable
         );
         UILeft = LoadRenderTexture((int)(Runtime.CurrentRuntime.ScaleF * 224),
             (int)(Runtime.CurrentRuntime.ScaleF * 480));
-        LoadStage(stages[0], chapter, difficulty);
+        EnsureLaserGlow();   // bake the emitter glow here — outside any render target (can't nest in the box pass)
+        // startStage lets a replay begin partway through the campaign (the level the viewer picked). Live play
+        // always passes 0. The full stages array is kept either way, so play advances normally from here on.
+        StageIndex = Math.Clamp(startStage, 0, stages.Length - 1);
+        LoadStage(stages[StageIndex], chapter, difficulty);
         SignalGameplayOverlay = new SignalGameplayOverlay(this);
         AddOverlay(SignalGameplayOverlay);
         // The point-of-collection hint line is opt-out (Settings → item line hint).
@@ -372,8 +382,20 @@ public class GameBox : IDisposable
                 Helper.PlaySound(Runtime.CurrentRuntime.Sounds["pre-timeout"]);
             if (CurrentTickWithOffset - ChapterInfo.TickStart == ChapterInfo.Length)
             {
-                AddOverlay(new TimerGameplayOverlay(this, "bonus-failed.png", ChapterInfo.Length, SpellcardStopwatch!.Elapsed.TotalSeconds, 0.5f, 3f));
-                Helper.PlaySound(Runtime.CurrentRuntime.Sounds["fault"]);
+                // An invincible-boss card can only be outlasted, not captured. Surviving it to the clock WITHOUT
+                // dying or bombing (IsFailed covers both) is a success and pays the full card score, rather than
+                // the time-decayed amount a normal card's late capture would give.
+                if (!IsFailed && ChapterInfo.BossInvincible)
+                {
+                    AddOverlay(new ScoreGameplayOverlay(this, ScoreChapterMax * 10, ChapterInfo.Length,
+                        SpellcardStopwatch!.Elapsed.TotalSeconds, 0.5f, 3f));
+                    ScoreTarget += ScoreChapterMax;
+                }
+                else
+                {
+                    AddOverlay(new TimerGameplayOverlay(this, "bonus-failed.png", ChapterInfo.Length, SpellcardStopwatch!.Elapsed.TotalSeconds, 0.5f, 3f));
+                    Helper.PlaySound(Runtime.CurrentRuntime.Sounds["fault"]);
+                }
                 SpellcardStopwatch!.Stop();
                 SpellcardStopwatch = null;
                 SpellTimedOut = true;   // ran the clock out: an attempt, but not a capture
@@ -408,6 +430,9 @@ public class GameBox : IDisposable
             if (IsKeyDown(KeyCode.R))
                 // test laser: fires straight down the player's column from the top edge (telegraph .75s, fire 2s)
                 SpawnLaser(new Vector2(Player.X, 0), MathF.PI / 2f, 480, 24, 45, 120, 30);
+            if (IsKeyDown(KeyCode.T))
+                // test ray: a widening cone fired down the player's column from the top edge (spread 40px/side)
+                SpawnRay(new Vector2(Player.X, 0), MathF.PI / 2f, 300, 16, 40, 45, 120, 30);
             if(IsKeyDown(KeyCode.L))
                 UpdateUI();
             if (IsKeyDown(KeyCode.Z))
@@ -468,11 +493,12 @@ public class GameBox : IDisposable
             obj.FloatingPoints[0x21] = obj.FloatingPoints[0x11] - y;
             obj.FloatingPoints[0x22] = obj.FloatingPoints[0x12] - z;
             obj.FloatingPoints[0x23] = obj.FloatingPoints[0x5] - r;
-            // Lasers are exempt from the offscreen cull: a beam is commonly anchored at a screen edge (or fired
-            // from just outside), and it removes itself when its life ends rather than by leaving the box. Objects
-            // explicitly flagged FlagPersistOffscreen (remove-proof) are likewise exempt — e.g. a bullet formation
-            // that spawns outside the box and travels in.
+            // Lasers and rays are exempt from the offscreen cull: a beam is commonly anchored at a screen edge (or
+            // fired from just outside), and it removes itself when its life ends rather than by leaving the box.
+            // Objects explicitly flagged FlagPersistOffscreen (remove-proof) are likewise exempt — e.g. a bullet
+            // formation that spawns outside the box and travels in.
             if ((obj.Header[0] & RuntimeObject.FlagIsLaser) != RuntimeObject.FlagIsLaser &&
+                (obj.Header[0] & RuntimeObject.FlagIsRay) != RuntimeObject.FlagIsRay &&
                 (obj.Header[0] & RuntimeObject.FlagPersistOffscreen) != RuntimeObject.FlagPersistOffscreen &&
                 (obj.X < -32 || obj.Y < -32 || obj.X > 416 || obj.Y > 480))
             {
@@ -580,6 +606,34 @@ public class GameBox : IDisposable
                     }
                     continue;
                 }
+                if ((bitMask & RuntimeObject.FlagIsRay) == RuntimeObject.FlagIsRay)
+                {
+                    // A ray kills only during its fire phase, like a laser, but its lethal area is a widening cone:
+                    // project the player onto the beam axis (clamped to [0, length]) and compare the perpendicular
+                    // distance against the half-width interpolated from LaserWidth/2 at the emitter to
+                    // LaserWidth/2 + RaySpread at the tip.
+                    int rage = CurrentTick - obj.CreatedAt;
+                    if (rage >= obj.LaserTelegraphTicks && rage < obj.LaserTelegraphTicks + obj.LaserFireTicks)
+                    {
+                        Vector2 dir = Helper.GetDirection(obj.RenderRotation);
+                        Vector2 rel = new Vector2(Player.X, Player.Y) - obj.Position;
+                        float along = Vector2.Dot(rel, dir);
+                        if (along >= 0 && along <= obj.LaserLength)
+                        {
+                            float perp = (rel - dir * along).Length();
+                            float t = obj.LaserLength > 0 ? along / obj.LaserLength : 0f;
+                            float halfW = obj.LaserWidth / 2f + obj.RaySpread * t;
+                            if (perp < halfW + Player.CollisionRadius / 2f)
+                            {
+                                Player.Die();
+                                if (!IsFailed)
+                                    SpellFailedText = Helper.Translate("spell.failed");
+                                IsFailed = true;
+                            }
+                        }
+                    }
+                    continue;
+                }
                 var distance = MathUtil.Vector2Distance(new(Player.X, Player.Y), obj.Position);
                 var collision = Player.CollisionRadius + obj.CollisionScale * obj.FloatingPoints[0x13];
                 if (distance < collision / 2)
@@ -661,6 +715,45 @@ public class GameBox : IDisposable
         return laser;
     }
 
+    /// <summary>Spawns a ray: a laser-like beam that widens into a cone (by <paramref name="spread"/> px per side at
+    /// the tip) from a large emitting dot and fades along its finite <paramref name="length"/>. Angle in radians
+    /// (+Y down); width/spread in playfield pixels; phase lengths in ticks. Lethal only during the fire phase.</summary>
+    public RuntimeObject SpawnRay(Vector2 origin, float angleRadians, float length, float width, float spread,
+        int telegraphTicks, int fireTicks, int fadeTicks)
+    {
+        var ray = RuntimeObject.MakeRay(this, origin, angleRadians, length, width, spread, telegraphTicks, fireTicks, fadeTicks);
+        AddObject(ray);
+        return ray;
+    }
+
+    // A soft radial glow — bright white centre fading to transparent at the edge — baked once from the
+    // emit_circle shader. Drawn (tinted) at a laser/ray emitter so its start point reads as a bright gradient
+    // (white -> beam colour -> transparent) instead of the old star sprite. Baked outside any render target
+    // (from the constructor), since BeginTextureMode can't nest inside the box's own render pass.
+    private static TargetHandle LaserGlowTarget;
+    private static bool LaserGlowBaked;
+    private static TextureHandle LaserGlow => LaserGlowTarget.Texture;
+
+    static void EnsureLaserGlow()
+    {
+        if (LaserGlowBaked)
+            return;
+        const int size = 64;
+        LaserGlowTarget = LoadRenderTexture(size, size);
+        ShaderHandle shader = Runtime.CurrentRuntime.Shaders["emit_circle"];
+        TextureHandle any = Runtime.CurrentRuntime.Textures["star.png"];   // content ignored; emit_circle uses only UVs
+        BeginTextureMode(LaserGlowTarget);
+        ClearBackground(new Rgba(0, 0, 0, 0));
+        SetShaderValue(shader, GetShaderLocation(shader, "color"), new Vector3(1f, 1f, 1f), UniformType.Vec3);
+        SetShaderValue(shader, GetShaderLocation(shader, "resolution"), new Vector2(size, size), UniformType.Vec2);
+        BeginShaderMode(shader);
+        DrawTexturePro(any, new Rect(0, 0, any.Width, any.Height), new Rect(0, 0, size, size), Vector2.Zero, 0, Rgba.White);
+        EndShaderMode();
+        EndTextureMode();
+        SetTextureFilter(LaserGlowTarget.Texture, FilterMode.Bilinear);
+        LaserGlowBaked = true;
+    }
+
     void DrawLaser(RuntimeObject obj)
     {
         int age = CurrentTick - obj.CreatedAt;
@@ -706,15 +799,107 @@ public class GameBox : IDisposable
         // Bloom dot at the emitter: a soft additive flare pinned at the laser's origin (obj.X, obj.Y), pulsing
         // and rotating, tinted like the beam with a hot white centre. Its brightness rides the beam's alpha, so
         // it is faint during the telegraph and blazes while the beam fires.
+        // Emitter start point: a bright radial gradient — a beam-coloured halo with a hot white core, fading to
+        // transparent — instead of the old spinning star. Two additive passes of the baked glow (white centre,
+        // transparent edge): the larger tinted the beam colour, the smaller white.
+        TextureHandle glow = LaserGlow;
+        var glowSrc = new Rect(0, 0, glow.Width, glow.Height);
+        float pulse = 0.85f + 0.15f * MathF.Sin(age * 0.5f);
+        float outer = (width * 3.0f + 12f) * pulse;
+        float inner = outer * 0.5f;
+        byte oa = beam.A;
+        byte ia = core.A;
+        BeginBlendMode(BlendMode.Additive);
+        DrawTexturePro(glow, glowSrc, new Rect(obj.X, obj.Y, outer, outer),
+            new Vector2(outer / 2f, outer / 2f), 0, beam with { A = oa });
+        DrawTexturePro(glow, glowSrc, new Rect(obj.X, obj.Y, inner, inner),
+            new Vector2(inner / 2f, inner / 2f), 0, new Rgba(255, 255, 255, ia));
+        EndBlendMode();
+    }
+
+    void DrawRay(RuntimeObject obj)
+    {
+        int age = CurrentTick - obj.CreatedAt;
+        int tele = obj.LaserTelegraphTicks, fire = obj.LaserFireTicks, fade = obj.LaserFadeTicks;
+        float length = obj.LaserLength;
+        float baseHalf = obj.LaserWidth / 2f;
+        float tipHalf = baseHalf + obj.RaySpread;
+        if (length < 1f)
+            return;
+        float angleDeg = obj.RenderRotation * 180f / MathF.PI;
+
+        // Phase → overall opacity + colour. The ray previews faintly during telegraph (so the cone can be read
+        // and dodged), blazes during fire, then fades. It is only lethal during fire (see collision).
+        float opacity;
+        Rgba beam, core;
+        if (age < tele)
+        {
+            opacity = 0.20f + 0.16f * MathF.Abs(MathF.Sin(age * 0.5f));   // faint pulsing preview
+            beam = new Rgba(255, 100, 130, 255);
+            core = new Rgba(255, 220, 230, 255);
+        }
+        else if (age < tele + fire)
+        {
+            float ignite = Math.Clamp((age - tele) / 3f, 0f, 1f);        // snap in over the first few ticks
+            opacity = 0.55f + 0.45f * ignite;
+            beam = new Rgba(255, 45, 75, 255);
+            core = new Rgba(255, 255, 255, 255);
+        }
+        else
+        {
+            float p = fade > 0 ? Math.Clamp((age - tele - fire) / (float)fade, 0f, 1f) : 1f;
+            opacity = 1f - p;
+            beam = new Rgba(255, 45, 75, 255);
+            core = new Rgba(255, 255, 255, 255);
+        }
+        if (opacity < 0.02f)
+            return;
+
+        Vector2 dir = Helper.GetDirection(obj.RenderRotation);
+        const int slices = 26;
+
+        // The cone body is a stack of trapezoid slices along the beam. Each slice's half-width is interpolated
+        // from baseHalf (at the emitter) to tipHalf (at the end), and its alpha fades from the origin to nothing
+        // at the tip — the "gradient spreading from the emitting dot" that also softens the finite length. Drawn
+        // with normal alpha so overlapping slices don't blow out.
+        for (int i = 0; i < slices; i++)
+        {
+            float t0 = i / (float)slices, t1 = (i + 1) / (float)slices;
+            float mid = (t0 + t1) * 0.5f;
+            float halfW = baseHalf + (tipHalf - baseHalf) * mid;
+            float lengthFade = 1f - mid;
+            Vector2 sp = obj.Position + dir * (t0 * length);
+            float w = (t1 - t0) * length + 0.75f;     // tiny overlap so slices don't seam
+            float h = 2f * halfW;
+            byte a = (byte)Math.Clamp(200f * opacity * lengthFade, 0, 255);
+            DrawRectanglePro(new Rect(sp.X, sp.Y, w, h), new Vector2(0, h / 2f), angleDeg, beam with { A = a });
+        }
+
+        // A narrower, hotter core cone drawn additively over the body, plus the large emitting dot: a soft
+        // additive flare pinned at the origin, sized off the base width + spread so a wider cone gets a bigger
+        // mouth. Both pulse/spin like the laser's flare.
+        BeginBlendMode(BlendMode.Additive);
+        for (int i = 0; i < slices; i++)
+        {
+            float t0 = i / (float)slices, t1 = (i + 1) / (float)slices;
+            float mid = (t0 + t1) * 0.5f;
+            float halfW = (baseHalf + (tipHalf - baseHalf) * mid) * 0.4f;
+            float lengthFade = 1f - mid;
+            Vector2 sp = obj.Position + dir * (t0 * length);
+            float w = (t1 - t0) * length + 0.75f;
+            float h = 2f * MathF.Max(0.5f, halfW);
+            byte a = (byte)Math.Clamp(200f * opacity * lengthFade, 0, 255);
+            DrawRectanglePro(new Rect(sp.X, sp.Y, w, h), new Vector2(0, h / 2f), angleDeg, core with { A = a });
+        }
+
         var flare = Runtime.CurrentRuntime.Textures["star.png"];
         var flareSrc = new Rect(0, 0, flare.Width, flare.Height);
         float pulse = 0.75f + 0.25f * MathF.Sin(age * 0.5f);
-        float outer = (width * 2.4f + 9f) * pulse;
-        float inner = outer * 0.55f;
-        float spin = age * 3.2f;
-        byte oa = (byte)Math.Clamp(beam.A * 0.75f, 0, 255);
-        byte ia = (byte)Math.Clamp(core.A * 0.9f, 0, 255);
-        BeginBlendMode(BlendMode.Additive);
+        float outer = (obj.LaserWidth * 1.6f + obj.RaySpread * 0.6f + 14f) * pulse;
+        float inner = outer * 0.5f;
+        float spin = age * 2.6f;
+        byte oa = (byte)Math.Clamp(210f * opacity, 0, 255);
+        byte ia = (byte)Math.Clamp(255f * opacity, 0, 255);
         DrawTexturePro(flare, flareSrc, new Rect(obj.X, obj.Y, outer, outer),
             new Vector2(outer / 2f, outer / 2f), spin, beam with { A = oa });
         DrawTexturePro(flare, flareSrc, new Rect(obj.X, obj.Y, inner, inner),
@@ -797,6 +982,7 @@ public class GameBox : IDisposable
         var toilet = RuntimeObject.LoadFromFile(RuntimeObject.MagicalToilet, this);
         toilet.MaxHealth = toilet.Health = MathF.Pow(2, Difficulty) * 10 * Player.Signal + 150;
         MysticalToilet = toilet;
+        ToiletsSpawnedThisRun++;
         AddObject(MysticalToilet);
         toilet.Header[0x55] = 120 / (Difficulty + 1);
         toilet.X = 192;
@@ -877,7 +1063,54 @@ public class GameBox : IDisposable
         // `chapter` used to be accepted and then ignored: NextChapter() always advanced from -1 to 0, so a
         // spell-practice run could only ever start on the stage's first chapter. Start where we were asked to.
         ChapterIndex = chapter - 1;
+        OnStageEntered();
         NextChapter();
+    }
+
+    /// <summary>True once a launched-from-mid-campaign replay has restored its resource snapshot (once per run).</summary>
+    private bool ReplayStateRestored = false;
+
+    /// <summary>
+    /// Runs as each stage begins (initial load and every stage swap). While recording it snapshots the player's
+    /// resources and marks where this stage's inputs start in the buffer; during playback it points the replay
+    /// controller at this stage's segment and, on the launched-from stage, restores the recorded resources so a
+    /// mid-campaign replay reproduces the run's state instead of a fresh default stock.
+    /// </summary>
+    void OnStageEntered()
+    {
+        if (Player.Controller is ReplayController rc)
+        {
+            rc.SetReadBase(StageIndex);
+            if (StageIndex == rc.StageFrom && !ReplayStateRestored)
+            {
+                ReplayStateRestored = true;
+                ReplayStageInfo? info = rc.InfoFor(StageIndex);
+                if (info != null)
+                {
+                    score = scoreTarget = info.Score;
+                    Player.X = info.PosX;
+                    Player.Y = info.PosY;
+                    Player.RestoreState(info.Lives, info.Bombs, info.HeartSpices, info.BombsSpices,
+                        info.Power, info.Graze, info.Signal);
+                }
+            }
+        }
+        else if (Player.Controller is PlayerController pc)
+        {
+            pc.BeginRecordingStage(new ReplayStageInfo(0, StageIndex)
+            {
+                Score = score,
+                Lives = Player.LivesValue,
+                Bombs = Player.BombsValue,
+                HeartSpices = Player.HeartSpicesValue,
+                BombsSpices = Player.BombsSpicesValue,
+                Power = Player.PowerValue,
+                Graze = Player.GrazeValue,
+                Signal = Player.SignalValue,
+                PosX = Player.X,
+                PosY = Player.Y,
+            });
+        }
     }
 
     /// <summary>Unlocks the music-room entry at the given music-list index (by its Number), if any.</summary>
@@ -1084,7 +1317,10 @@ public class GameBox : IDisposable
         BeginTextureMode(Background);
         if (typeI == 3 && !InChapterDelay)
         {
-            if (ChapterInfo!.ApplyShader)
+            // Low graphics turns off the spell-card shader (the heaviest per-pixel pass): the card background
+            // still draws, just without the animated shader on top.
+            bool useSpellShader = ChapterInfo!.ApplyShader && Configuration.Config.HighGraphics;
+            if (useSpellShader)
             {
                 SetShaderValue(ChapterInfo.SpellShader!.Value, ChapterInfo.LocPosition, [192f, 96f], UniformType.Vec2);
                 SetShaderValue(ChapterInfo.SpellShader!.Value, ChapterInfo.LocTime, GetTime() / 8, UniformType.Float);
@@ -1096,7 +1332,8 @@ public class GameBox : IDisposable
                 BeginShaderMode(ChapterInfo.SpellShader.Value);
             }
             DrawTexture(ChapterInfo!.SpellcardTexture!.Value, 0,0,Rgba.White);
-            EndShaderMode();
+            if (useSpellShader)
+                EndShaderMode();
         }
         EndTextureMode();
         RbTrace("background target done");
@@ -1109,6 +1346,11 @@ public class GameBox : IDisposable
             if ((obj.Header[0] & RuntimeObject.FlagIsLaser) == RuntimeObject.FlagIsLaser)
             {
                 DrawLaser(obj);
+                continue;
+            }
+            if ((obj.Header[0] & RuntimeObject.FlagIsRay) == RuntimeObject.FlagIsRay)
+            {
+                DrawRay(obj);
                 continue;
             }
             #if DEBUG
@@ -1395,7 +1637,12 @@ public class GameBox : IDisposable
     {
         if (IsReplay)
             return;
-        PlayerData.Instance.AddSpellcardTry(ProtogonistId, Helper.SpellRecordKey(spellName, Difficulty), captured, IsPractice);
+        string key = Helper.SpellRecordKey(spellName, Difficulty);
+        PlayerData.Instance.AddSpellcardTry(ProtogonistId, key, captured, IsPractice);
+        // Spell practice plays exactly one card, so the run's score is that card's score — record it as the card's
+        // hi-score. (A full run's per-card score isn't isolated, so only practice contributes.)
+        if (IsSpellPractice)
+            PlayerData.Instance.RecordSpellcardScore(ProtogonistId, key, ScoreTarget);
     }
 
     /// <summary>

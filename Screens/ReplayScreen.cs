@@ -131,8 +131,26 @@ public class ReplayScreen : MenuScreen
 
     private void Launch(string path)
     {
+        Replay.ReplayJson? header;
+        try { header = Replay.ReadHeader(path); }
+        catch { header = null; }
+
+        // New-format replays carry a per-stage index — let the player pick which level to watch. Old replays
+        // have none, so launch them straight into playback from the start as before.
+        if (header is { ReplayStageInfo.Length: > 0 })
+        {
+            Runtime.CurrentRuntime.AddScreen(new ReplayStageSelectScreen(path, header));
+            return;
+        }
+
         GameplayScreen? screen = ReplayLauncher.Build(path, demo: false);
-        if (screen != null)
-            Runtime.CurrentRuntime.AddScreen(screen);
+        if (screen == null)
+            return;
+        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["swap"]);
+        Runtime.CurrentRuntime.AddScreen(screen);
+        // Same opening animation as entering a stage, so the replay doesn't pop into not-yet-ready gameplay.
+        TiledLoadingScreen? loading = null;
+        loading = new TiledLoadingScreen(3, 0.5, () => Runtime.CurrentRuntime.RemoveScreen(loading!), true, 0);
+        Runtime.CurrentRuntime.AddScreen(loading);
     }
 }

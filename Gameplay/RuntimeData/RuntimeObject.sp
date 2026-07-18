@@ -83,10 +83,12 @@ Floating Points:
 [0x21] GameBox Position Y Delta
 [0x22] GameBox Position Z Delta
 [0x23] GameBox Rotation Delta
-[0x50] Laser Length (Is Laser only; emitter = Position 0x10/0x11, angle = Rendering Rotation 0x5)
-[0x51] Laser Width
+[0x50] Laser Length (Is Laser / Is Ray; emitter = Position 0x10/0x11, angle = Rendering Rotation 0x5)
+[0x51] Laser Width (base width at the emitter)
+[0x52] Ray Spread (Is Ray only) — extra half-width px added per side at the tip; cone widens base -> base+2*spread
 
-# HEADER (Is Laser only) — beam life in ticks, phases run telegraph -> fire -> fade from Created At
+# HEADER (Is Laser / Is Ray) — beam life in ticks, phases run telegraph -> fire -> fade from Created At
 [0x50] Laser Telegraph Ticks
 [0x51] Laser Fire Ticks
 [0x52] Laser Fade Ticks
+# Flag mask (Header[0]): 0x80000 Is Laser (parallel beam), 0x400000 Is Ray (widening gradient cone)
