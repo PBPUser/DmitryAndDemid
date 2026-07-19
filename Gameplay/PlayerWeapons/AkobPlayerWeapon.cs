@@ -64,7 +64,7 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
             Player.GameBox.AddScreenEffect(new AkobSpellScreenEffect(Player.GameBox, Player.Position, 101, time, time + .6f));
             Player.GameBox.AddScreenEffect(new ShakeScreenEffect(Player.GameBox, 0.1f,  20, 100, 
                 time, time+0.3f));
-            // TODO: Play akob fork beat sound
+            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["akob-bomb"]);
         }
         else if (t == 0)
         {
@@ -97,8 +97,8 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
     static bool IsColliding(Rect rect, Vector2 origin, float angle, Vector2 position, float radius)
     {
         Vector2 diff = position - rect.Position;
-        float cos = MathF.Cos(-angle);
         float sin = MathF.Sin(-angle);
+        float cos = MathF.Cos(-angle);
         float lX = diff.X * cos - diff.Y * sin;
         float lY = diff.Y * sin - diff.Y * cos;
         Vector2 lCirclePos = new Vector2(lX, lY) + origin;
