@@ -75,9 +75,14 @@ public class Runtime
     {
         // Pick the renderer: --renderer=<name> on the command line wins, else config.json, else Raylib.
         string rendererName = Config.Renderer;
+        var hasNvidiaDriverFile = Helper.HasNvidiaDriverFile();
         foreach (string arg in Environment.GetCommandLineArgs())
             if (arg.StartsWith("--renderer=", StringComparison.OrdinalIgnoreCase))
                 rendererName = arg["--renderer=".Length..];
+        if (rendererName == "vulkan" && hasNvidiaDriverFile)
+        {
+            rendererName = "silk";
+        }
         Engine.Use(Engine.Create(rendererName));
         Console.WriteLine($"Renderer: {Engine.BackendName}");
         var strs = Config.Resolution.Split("x");
@@ -99,16 +104,7 @@ public class Runtime
             isErrored = true;
             error = "Invalid Resolution Configuration";
         }
-
-        if (Config.FullScreenType == FullScreenType.Exclusive && rendererName == "vulkan" && Environment.OSVersion.Platform == PlatformID.Unix)
-        {
-            if (Helper.HasNvidiaDriverFile())
-            {
-                
-                isErrored = true;
-                error = "Invalid Resolution Configuration";
-            }
-        }
+        
         if (isErrored)
         {
             Platform.FatalError(error);
