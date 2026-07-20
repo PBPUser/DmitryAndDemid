@@ -29,7 +29,12 @@ public static class Engine
     /// <summary>Adding a renderer means implementing IBackend, adding a line here, and one to Available.</summary>
     public static IBackend Create(string name) => name.Trim().ToLowerInvariant() switch
     {
-#if SWITCH
+#if METAL
+        // Apple (macOS / iOS): one native backend, Metal. Host-constructed and host-driven — the view
+        // controller calls MetalBackend.StartMetal(layer, w, h, audio) and pumps frames from a CADisplayLink,
+        // exactly as the Android host drives SilkGLBackend. See docs/metal-backend.md.
+        _ => new Metal.MetalBackend(),
+#elif SWITCH
         // Nintendo Switch homebrew (mono-nx runtime). SDL2 is what mono-nx actually exports, so it is the
         // working-video default; deko3d stays selectable for a future native fork (it draws nothing on stock
         // mono-nx, whose dl_shim has no deko3d symbols). The desktop backends rely on dynamic native loading,

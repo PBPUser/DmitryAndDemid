@@ -16,6 +16,7 @@ add subtitles for pause menu items
 # COMPLETED
 
 * add completed task there and mark it with star
+* iOS port roadmap written (docs/ios-port.md, MoltenVK path) + native Metal backend SCAFFOLD (docs/metal-backend.md, Rendering/Metal/MetalBackend.cs behind #if METAL, Tools/compile_metal_shaders.py reusing committed Vulkan SPIR-V→MSL via spirv-cross with the same reflection sidecar). Wired into Engine.Create + RendererRegistry under #if METAL. UNBUILT (Metal bindings need a net10.0-ios/-macos TFM, not this Linux box); desktop build verified unaffected. Draw/font path is incremental-bring-up TODO like the Switch Deko3d scaffold.
 * manual should use manual title and have open/close animations
 * and use `manual-title.png` as a title in manual menu
 * change sound that plays when player moves cursor via escape to `esc.mp3`

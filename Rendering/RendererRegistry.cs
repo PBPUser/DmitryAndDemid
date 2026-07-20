@@ -24,6 +24,10 @@ public static class RendererRegistry
           RuntimeInformation.ProcessArchitecture == Architecture.Arm64);
 
     /// <summary>Key is what goes into config.json / --renderer=; Name matches IBackend.Name.</summary>
+#if METAL
+    // Apple builds ship exactly one backend (Metal); no picker choice to offer. See docs/metal-backend.md.
+    public static (string Key, string Name)[] Available => [("metal", "Metal")];
+#else
     public static (string Key, string Name)[] Available => RaylibSupported
         ?
         [
@@ -36,6 +40,7 @@ public static class RendererRegistry
             ("silk", "Silk.NET/OpenGL"),
             ("vulkan", "Vulkan"),
         ];
+#endif
 
     public static string NameOf(string key) =>
         Available.FirstOrDefault(r => r.Key == key).Name ?? key;

@@ -65,6 +65,8 @@
  "settings.cat.controls": "~ УПРАВЛЕНИЕ ~;~ КНОПКИ ~",
  "settings.cat.graphics": "~ ГРАФИКА ~;~ РИСОВАСИЗМ ~",
  "settings.cat.other": "~ ПРОЧЕЕ ~;~ ОСТАЛЬНОЕ ~",
+ "settings.resolution.title": "~ ЧЁТКОСТЬ ~;~ РАЗРЕШЕНИЕ ~",
+ "settings.renderer.title": "~ ЗАДКОНЕЦ ~;~ РИСОВАСИЗМ ~",
  "settings.graphics_quality": "Качество графики: %s;Уровень рисовасизма: %s",
  "graphics.low": "НИЗКОЕ;ЛОУ-ФАЙ",
  "graphics.high": "ВЫСОКОЕ;ПОЛНОЕ",

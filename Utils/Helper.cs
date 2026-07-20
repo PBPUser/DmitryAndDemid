@@ -1037,6 +1037,42 @@ public static class Helper
         return texture.Texture;
     }
 
+    private static int LocationLiquidGlassTime = -1;
+    private static int LocationLiquidGlassRes = -1;
+    private static int LocationLiquidGlassPosition = -1;
+    private static int LocationLiquidGlassSize = -1;
+    private static int LocationLiquidGlassRadius = -1;
+    private static int LocationLiquidGlassTint = -1;
+
+    /// <summary>Draws a translucent, animated "liquid glass" rounded panel at <paramref name="rect"/>, refracting
+    /// <paramref name="capturedBackground"/> — a full-screen capture of whatever is drawn behind the panel this
+    /// frame (see <see cref="Screens.ListSelectScreen"/> for how that capture is produced) — through a
+    /// drifting-noise warp + frosted blur, with liquid caustic bands, a specular sweep and a brightened rim on
+    /// top. Draws a full-screen quad; the shader itself masks to the rounded rect and discards elsewhere, so it
+    /// is safe to call with the real backbuffer still bound.</summary>
+    public static void DrawLiquidGlassPanel(TargetHandle capturedBackground, Rect rect, float cornerRadius, Rgba tint)
+    {
+        var shader = Runtime.CurrentRuntime.Shaders["liquid_glass"];
+        if (LocationLiquidGlassTime < 0)
+        {
+            LocationLiquidGlassTime = GetShaderLocation(shader, "time");
+            LocationLiquidGlassRes = GetShaderLocation(shader, "res");
+            LocationLiquidGlassPosition = GetShaderLocation(shader, "position");
+            LocationLiquidGlassSize = GetShaderLocation(shader, "size");
+            LocationLiquidGlassRadius = GetShaderLocation(shader, "radius");
+            LocationLiquidGlassTint = GetShaderLocation(shader, "tint");
+        }
+        SetShaderValue(shader, LocationLiquidGlassTime, (float)GetTime(), UniformType.Float);
+        SetShaderValue(shader, LocationLiquidGlassRes, new[] { (float)Runtime.CurrentRuntime.Width, (float)Runtime.CurrentRuntime.Height }, UniformType.Vec2);
+        SetShaderValue(shader, LocationLiquidGlassPosition, new[] { rect.X, rect.Y }, UniformType.Vec2);
+        SetShaderValue(shader, LocationLiquidGlassSize, new[] { rect.Width, rect.Height }, UniformType.Vec2);
+        SetShaderValue(shader, LocationLiquidGlassRadius, cornerRadius, UniformType.Float);
+        SetShaderValue(shader, LocationLiquidGlassTint, new[] { tint.R / 255f, tint.G / 255f, tint.B / 255f, tint.A / 255f }, UniformType.Vec4);
+        BeginShaderMode(shader);
+        DrawTexturePro(capturedBackground.Texture, GetFullSourceRenderTexture(capturedBackground), GetFullscreenSource(), Vector2.Zero, 0, Rgba.White);
+        EndShaderMode();
+    }
+
     public static TargetHandle FillTextureWithColor(Rgba color, int w, int h)
     {
         var texture = LoadRenderTexture(w, h);

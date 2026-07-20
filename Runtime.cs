@@ -643,8 +643,17 @@ public class Runtime
         UpdateRenderFrom = Math.Clamp(index, 0, Screens.Count - 1);
     }
     
-    public int GetScreenIndex(Screen screen) => Screens.IndexOf(screen); 
-    
+    public int GetScreenIndex(Screen screen) => Screens.IndexOf(screen);
+
+    /// <summary>The screen immediately below <paramref name="screen"/> in the stack, or null if it's the
+    /// bottom (or not present). Used by screens that render a real-time capture of what's behind them, e.g. the
+    /// windowed <see cref="Screens.ListSelectScreen"/> refracting Settings through its glass panel.</summary>
+    public Screen? GetScreenBelow(Screen screen)
+    {
+        int index = Screens.IndexOf(screen);
+        return index > 0 ? Screens[index - 1] : null;
+    }
+
     void PreRender(double delta)
     {
         if (ScreenRefreshRequired)

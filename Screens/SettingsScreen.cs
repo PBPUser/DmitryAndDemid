@@ -55,7 +55,7 @@ public class SettingsScreen : MenuScreen
                 if (ResolutionItem != null)
                     ResolutionItem.Replace = r;
                 RestartNotice = (float)GetTime();
-            })))));
+            }))), windowed: true, headerKey: "settings.resolution.title"));
     }
 
     /// <summary>Opens a list to pick a renderer; applies on the next launch (the backend owns the window).</summary>
@@ -72,7 +72,7 @@ public class SettingsScreen : MenuScreen
                 if (RendererItem != null)
                     RendererItem.Replace = RendererLabel();
                 RestartNotice = (float)GetTime();
-            })))));
+            }))), windowed: true, headerKey: "settings.renderer.title"));
     }
 
     public SettingsScreen()

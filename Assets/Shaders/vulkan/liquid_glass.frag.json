@@ -1,0 +1,42 @@
+{
+ "blockSize": 48,
+ "blockBinding": 1,
+ "uniforms": [
+  {
+   "name": "res",
+   "offset": 0,
+   "type": "vec2"
+  },
+  {
+   "name": "position",
+   "offset": 8,
+   "type": "vec2"
+  },
+  {
+   "name": "size",
+   "offset": 16,
+   "type": "vec2"
+  },
+  {
+   "name": "radius",
+   "offset": 24,
+   "type": "float"
+  },
+  {
+   "name": "time",
+   "offset": 28,
+   "type": "float"
+  },
+  {
+   "name": "tint",
+   "offset": 32,
+   "type": "vec4"
+  }
+ ],
+ "samplers": [
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
+}
