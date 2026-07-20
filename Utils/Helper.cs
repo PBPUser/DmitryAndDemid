@@ -1036,6 +1036,13 @@ public static class Helper
         EndTextureMode();
         return texture.Texture;
     }
+    
+    public static bool HasNvidiaDriverFile()
+    {
+        if (Environment.OSVersion.Platform == PlatformID.Unix)
+            return File.Exists("/proc/driver/nvidia/version");
+        else return false;
+    }
 
     private static int LocationLiquidGlassTime = -1;
     private static int LocationLiquidGlassRes = -1;

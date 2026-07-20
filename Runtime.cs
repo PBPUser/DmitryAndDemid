@@ -80,7 +80,6 @@ public class Runtime
                 rendererName = arg["--renderer=".Length..];
         Engine.Use(Engine.Create(rendererName));
         Console.WriteLine($"Renderer: {Engine.BackendName}");
-
         var strs = Config.Resolution.Split("x");
         bool isErrored = false;
         string error = "";
@@ -99,6 +98,16 @@ public class Runtime
         {
             isErrored = true;
             error = "Invalid Resolution Configuration";
+        }
+
+        if (Config.FullScreenType == FullScreenType.Exclusive && rendererName == "vulkan" && Environment.OSVersion.Platform == PlatformID.Unix)
+        {
+            if (Helper.HasNvidiaDriverFile())
+            {
+                
+                isErrored = true;
+                error = "Invalid Resolution Configuration";
+            }
         }
         if (isErrored)
         {

@@ -82,8 +82,9 @@ static class SelfTest
     {
         Console.WriteLine("=== AAG2 self-test ===");
         Console.WriteLine($"OS:   {RuntimeInformation.OSDescription}");
-        Console.WriteLine($"Arch: {RuntimeInformation.ProcessArchitecture}");
-        Console.WriteLine($"CLR:  {RuntimeInformation.FrameworkDescription}");
+        Console.WriteLine($"Architecture: {RuntimeInformation.ProcessArchitecture}");
+        Console.WriteLine($"JVM:  {RuntimeInformation.FrameworkDescription}");
+        Console.WriteLine($"Identifier:  {RuntimeInformation.RuntimeIdentifier}");
 
         bool ok = true;
 
