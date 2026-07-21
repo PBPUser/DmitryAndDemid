@@ -37,8 +37,8 @@ public class BulletRenderingInfo
         LocFXTime = GetShaderLocation(Runtime.CurrentRuntime.Shaders[effect], "time");
         LocFXResolution = GetShaderLocation(EffectShader, "resolution");
         LocFXOutputResolution = GetShaderLocation(EffectShader, "output_resolution");
-        LocFXPosition = GetShaderLocation(EffectShader, "position");
         LocFXOpacity = GetShaderLocation(EffectShader, "opacity");
+        LocFXPosition = GetShaderLocation(EffectShader, "position");
     }
     
     private string effect = "";

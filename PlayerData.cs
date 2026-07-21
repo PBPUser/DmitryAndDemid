@@ -237,7 +237,7 @@ public class PlayerData
                     p.SpellcardBestScores = scores;
             }
         }
-        catch (EndOfStreamException) { /* pre-best-score save: nothing more to read */ }
+        catch (EndOfStreamException ) { /* pre-best-score save: nothing more to read */ }
         package.Dispose();
         return data;
     }
