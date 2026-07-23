@@ -141,9 +141,7 @@ public class Runtime
         BeginTextureMode(Backbuffer);
         ClearBackground(Rgba.Black);
         if (showBuild)
-        {
             DrawText($"Version: {VersionString}; Build: {BuildInfo.Number}; Renderer: {rendererName}", 0, 0, (int)(14 * ScaleF),Rgba.White);
-        }
         DrawTexturePro(sugarTexture,
             new Rect(Vector2.Zero, 400, 400),
             new Rect((Width - size) / 2, (Height - size) / 2, size, size),
