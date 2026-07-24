@@ -145,7 +145,7 @@ public class Runtime
         DrawTexturePro(sugarTexture,
             new Rect(Vector2.Zero, 400, 400),
             new Rect((Width - size) / 2, (Height - size) / 2, size, size),
-            Vector2.Zero, 0, Rgba.White);
+            Vector2.Zero, 0, Rgba.DarkGray);
         EndTextureMode();
 
         // Borderless/exclusive fullscreen resizes the window asynchronously, so right after SetWindowMode the OS
