@@ -2010,10 +2010,10 @@ public sealed unsafe class VulkanBackend : IBackend
 
             if (g.Width > 0 && g.Height > 0)
             {
-                Rect source = new(g.U0 * atlas.Width, g.V0 * atlas.Height,
-                    (g.U1 - g.U0) * atlas.Width, (g.V1 - g.V0) * atlas.Height);
                 Rect dest = new(x + g.OffsetX * scale, position.Y + g.OffsetY * scale,
                     g.Width * scale, g.Height * scale);
+                Rect source = new(g.U0 * atlas.Width, g.V0 * atlas.Height,
+                    (g.U1 - g.U0) * atlas.Width, (g.V1 - g.V0) * atlas.Height);
                 DrawQuad(f.Atlas, atlas, source, dest, Vector2.Zero, 0, tint);
             }
 
