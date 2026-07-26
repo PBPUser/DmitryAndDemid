@@ -663,6 +663,7 @@ public abstract class MenuScreen : ScreenWithTitle
         
         private string text = "";
         private string replace = "";
+        private string hint = "";
         public Action<int>? Action;
         public TextureHandle Texture =>  texture.Texture;
         private TargetHandle texture = new TargetHandle();
@@ -676,6 +677,12 @@ public abstract class MenuScreen : ScreenWithTitle
         public string FontKey { get => fontKey; set { if (fontKey == value) return; fontKey = value; AddToRender(this); } }
         public float FontSize { get => fontSize; set { if (fontSize == value) return; fontSize = value; AddToRender(this); } }
         public float Padding { get => padding; set { if (padding == value) return; padding = value; AddToRender(this); } }
+
+        /// <summary>Optional translation key for a short explanatory line baked into the item's texture, below
+        /// the main label, at <see cref="HintFontScale"/> of the main font size and dimmed. Empty (default)
+        /// means no hint row at all, so items that don't opt in keep their old single-line texture/height.</summary>
+        public string Hint { get => hint; set { if (hint == value) return; hint = value; AddToRender(this); } }
+        private const float HintFontScale = 0.55f;
         
         public static void AddToRender(MenuItem item)
         {
@@ -697,15 +704,46 @@ public abstract class MenuScreen : ScreenWithTitle
         {
             if(texture.Id != 0)
                 UnloadRenderTexture(texture);
-            Helper.DrawTextGradient(
-                out texture,
-                CurrentRuntime.Fonts[fontKey],
-                fontSize * CurrentRuntime.ScaleF,
-                Helper.Translate(text).Replace("%s", Helper.Translate(replace)),
-                Rgba.White,
-                padding * CurrentRuntime.ScaleF
-                );
-            //texture=Helper.DrawTextScaled(, 16, 8, 4, 2, Runtime.CurrentRuntime.Fonts["newsreader"], "gradient");
+            string label = Helper.Translate(text).Replace("%s", Helper.Translate(replace));
+            if (string.IsNullOrEmpty(hint))
+            {
+                Helper.DrawTextGradient(
+                    out texture,
+                    CurrentRuntime.Fonts[fontKey],
+                    fontSize * CurrentRuntime.ScaleF,
+                    label,
+                    Rgba.White,
+                    padding * CurrentRuntime.ScaleF
+                    );
+                //texture=Helper.DrawTextScaled(, 16, 8, 4, 2, Runtime.CurrentRuntime.Fonts["newsreader"], "gradient");
+                return;
+            }
+
+            // With a hint set, bake a second, smaller, dimmer line below the label into the same texture — so
+            // DrawMenu's row-height math (which reads Texture.Height per item) sees the hint as part of the row
+            // with no changes needed there.
+            Helper.DrawTextGradient(out TargetHandle labelTexture, CurrentRuntime.Fonts[fontKey],
+                fontSize * CurrentRuntime.ScaleF, label, Rgba.White, padding * CurrentRuntime.ScaleF);
+            Helper.DrawTextGradient(out TargetHandle hintTexture, CurrentRuntime.Fonts[fontKey],
+                fontSize * HintFontScale * CurrentRuntime.ScaleF, Helper.Translate(hint), Rgba.White,
+                padding * CurrentRuntime.ScaleF * 0.5f);
+
+            int width = Math.Max(labelTexture.Texture.Width, hintTexture.Texture.Width);
+            int height = labelTexture.Texture.Height + hintTexture.Texture.Height;
+            var tmpTexture = LoadRenderTexture(width, height);
+            EndShaderMode();
+            BeginTextureMode(tmpTexture);
+            DrawTexture(labelTexture.Texture, 0, 0, Rgba.White);
+            DrawTexture(hintTexture.Texture, 0, labelTexture.Texture.Height, Rgba.White with { A = 160 });
+            EndTextureMode();
+            texture = LoadRenderTexture(width, height);
+            BeginTextureMode(texture);
+            DrawTexture(tmpTexture.Texture, 0, 0, Rgba.White);
+            EndTextureMode();
+            UnloadRenderTexture(tmpTexture);
+            SetTextureFilter(texture.Texture, FilterMode.Bilinear);
+            UnloadRenderTexture(labelTexture);
+            UnloadRenderTexture(hintTexture);
         }
         
         public string Text

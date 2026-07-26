@@ -12,12 +12,13 @@ namespace DmitryAndDemid.Screens;
 
 public class PauseMenu : MenuScreen
 {
+    private string ContinueString = Helper.Translate("ingame.credit");
     private GameplayScreen GameplayScreen;
     
     public PauseMenu(GameplayScreen screen)
     {
         GameplayScreen = screen;
-        CurrentY = (int)(256 * Runtime.CurrentRuntime.ScaleF);
+        CurrentY = (int)(192 * Runtime.CurrentRuntime.ScaleF);
 
         // In-game pause keeps the old reflex: Escape closes it outright instead of walking the cursor down to
         // "exit", which here means abandoning the run.
@@ -47,7 +48,7 @@ public class PauseMenu : MenuScreen
                 return;
             }
             BeginClose();
-        }));
+        }) { Hint = "ingame.continue.hint" });
         if (!GameplayScreen.GameBox.IsReplay)
         {
             MenuItems.Add(SaveItem = new MenuItem("ingame.save", "", a =>
@@ -57,7 +58,7 @@ public class PauseMenu : MenuScreen
                 IngameSaveReplayScreen replayScreen = new IngameSaveReplayScreen((GameplayScreen.GameBox!.Player.Controller as PlayerController)!, GameplayScreen);
                 ReturningFromSubscreen = true;
                 Runtime.CurrentRuntime.AddScreen(replayScreen);
-            }));
+            }) { Hint = "ingame.save.hint" });
             MenuItems.Add(SaveExitItem = new MenuItem("ingame.save_and_exit", "", a =>
             {
                 if (GameplayScreen.GameBox!.ContinuesUsed > 0)
@@ -66,22 +67,22 @@ public class PauseMenu : MenuScreen
                 ReturningFromSubscreen = true;
                 Runtime.CurrentRuntime.AddScreen(replayScreen);
                 replayScreen.ExitAfterSave = true;
-            }));
+            }) { Hint = "ingame.save_and_exit.hint" });
         }
         // Restart replays the same run/card. In spell practice the "continue" entry already does this (a card
         // can't be resumed), so the practice exit menu drops the separate restart to match its intended options:
         // continue, save, save-and-exit, settings, manual, exit.
         if (!GameplayScreen.GameBox!.IsPractice)
-            MenuItems.Add(new MenuItem("ingame.restart", "", a => RestartRun()));
+            MenuItems.Add(new MenuItem("ingame.restart", "", a => RestartRun()) { Hint = "ingame.restart.hint" });
         MenuItems.Add(new MenuItem("ingame.manual", "",
-            a => { ReturningFromSubscreen = true; Runtime.CurrentRuntime.AddScreen(new ManualScreen()); }));
+            a => { ReturningFromSubscreen = true; Runtime.CurrentRuntime.AddScreen(new ManualScreen()); }) { Hint = "ingame.manual.hint" });
         MenuItems.Add(new MenuItem("ingame.settings", "",
-            a => { ReturningFromSubscreen = true; Runtime.CurrentRuntime.AddScreen(new SettingsScreen()); }));
+            a => { ReturningFromSubscreen = true; Runtime.CurrentRuntime.AddScreen(new SettingsScreen()); }) { Hint = "ingame.settings.hint" });
         MenuItems.Add(new MenuItem("ingame.exit", "", a =>
         {
             Runtime.CurrentRuntime.RemoveScreen(this);
             Runtime.CurrentRuntime.RemoveScreen(GameplayScreen);
-        }));
+        }) { Hint = "ingame.exit.hint" });
     }
 
     /// <summary>
@@ -182,6 +183,9 @@ public class PauseMenu : MenuScreen
         // "Continue" is dead on a main-game game-over with no continues left (and no card to retry); dim it there
         // so the cursor skips past it to the still-usable options.
         ContinueItem.Enabled = !box.IsGameOver || box.CanContinue || box.IsPractice;
+        // Its hint follows suit: only the game-over/CanContinue branch actually spends a rassrochka (UseContinue);
+        // a live pause just resumes and a practice retry restarts the card for free, so both read as the free variant.
+        ContinueItem.Hint = box.IsGameOver && box.CanContinue ? "ingame.continue.hint" : "ingame.continue.hint_free";
         // Quick keys, no confirmation: R restarts the run/card immediately, Q quits to the menu below. Each
         // tears the pause menu down (directly or via RestartRun), so it can't re-fire on a held key.
         if (IsKeyDown(KeyCode.R))
@@ -205,9 +209,9 @@ public class PauseMenu : MenuScreen
         var textureFork = Runtime.CurrentRuntime.Textures["vilkaCut.png"];
         var texturePause = Runtime.CurrentRuntime.Textures["pause.png"];
         var forkPosition = new Vector2(100, 320) * Runtime.CurrentRuntime.ScaleF;
-        var pausePosition = new Vector2(130, 220) * Runtime.CurrentRuntime.ScaleF;
+        var pausePosition = new Vector2(130, 160) * Runtime.CurrentRuntime.ScaleF;
         var forkPositionHidden = new Vector2(-100, 320) * Runtime.CurrentRuntime.ScaleF;
-        var pausePositionHidden = new Vector2(-100, 160) * Runtime.CurrentRuntime.ScaleF;
+        var pausePositionHidden = new Vector2(-100, 100) * Runtime.CurrentRuntime.ScaleF;
         var forkSize = Helper.GetSize(textureFork);
         var pauseSize = Helper.GetSize(texturePause);
         var forkSizeTarget = forkSize / 4 * Runtime.CurrentRuntime.ScaleF;
@@ -228,17 +232,17 @@ public class PauseMenu : MenuScreen
         // On a main-game game-over, show how many continues are still on the table. Translated (translation.json
         // "ingame.credit") rather than a hardcoded English word, and pinned centre-bottom of the screen.
         GameBox box = GameplayScreen.GameBox!;
-        if (box.IsGameOver && box.CanContinue)
+        if (box.IsGameOver)
         {
             var font = Runtime.CurrentRuntime.Fonts["newsreader"];
             float sf = Runtime.CurrentRuntime.ScaleF;
             float fs = 18 * sf;
-            string txt = Helper.Translate("ingame.credit").Replace("%s", $"{box.ContinuesRemaining}/{GameBox.MaxContinues}");
+            string txt = ContinueString.Replace("%s", $"{box.ContinuesRemaining}");
             Vector2 m = MeasureTextEx(font, txt, fs, 2);
-            var pos = new Vector2((Runtime.CurrentRuntime.Width - m.X) / 2f,
-                Runtime.CurrentRuntime.Height - m.Y - 48 * sf);
+            var pos = new Vector2(((224 * sf) - m.X / 2),
+                Runtime.CurrentRuntime.Height - m.Y - 16 * sf);
             DrawTextEx(font, txt, pos, fs, 2,
-                Helper.Mix(Rgba.Yellow, Rgba.White, MathF.Abs(time % 1f - 0.5f) * 2f));
+                Rgba.White);
         }
         DrawMenu();
     }

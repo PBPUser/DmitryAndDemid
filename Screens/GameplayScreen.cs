@@ -6,10 +6,12 @@ using DmitryAndDemid.Data;
 using System.Numerics;
 using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Utils;
+using Gdk;
 #if DEBUG
 using ImGuiNET;
 #endif
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Screen = DmitryAndDemid.Common.Screen;
 
 namespace DmitryAndDemid.Screens;
 
@@ -18,6 +20,9 @@ public class GameplayScreen : Screen
     public GameplayScreen(ProtogonistData data, int difficulty, FileStageInfo[] stages, int chapter, bool practice,
         PlayerControllerBase? controller = null, GameType mode = GameType.Default, int startStage = 0)
     {
+        UIPracticeOverplaySource = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["spell_practice_overlay.png"]);
+        UIPracticeOverplayDestination = new Rect(432, 96, 192,64) * Runtime.CurrentRuntime.ScaleF;
+        
         Mode = mode;
         PlaybackController = controller;
         SetBackground(Runtime.CurrentRuntime.Textures["gameplay_background.png"]);
@@ -133,6 +138,8 @@ public class GameplayScreen : Screen
     private Rect LeftDest;
     private Rect UILeftSource;
     private Rect UIAboveSource;
+    private Rect UIPracticeOverplaySource;
+    private Rect UIPracticeOverplayDestination;
 
     private static Rect Fullscreen = Helper.GetFullscreenSource();
     private static Rect BGSource = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["gameplay_background.png"]);
@@ -293,17 +300,14 @@ public class GameplayScreen : Screen
         var pd = PlayerData.Instance;
         int diff = GameBox.Difficulty;
         bool extra = GameBox.Mode == GameType.Extra;
-
         if (extra)
             pd.SetTrophyUnlocked(4, true);                       // clear_extra
         else if (diff >= 0 && diff <= 3)
             pd.SetTrophyUnlocked(diff, true);                    // clear_easy/normal/hard/max
-
         int charBase = Data.ID switch { "akob" => 0, "sugar" => 1, "qaw" => 2, _ => -1 };
         if (charBase >= 0)
             pd.SetTrophyUnlocked((goodEnding ? 5 : 8) + charBase, true);   // clearas_<char>_good / _bad
         pd.SetTrophyUnlocked(goodEnding ? 11 : 12, true);        // clear_good / clear_bad
-
         // A good (Normal+ 1cc) main-game clear unlocks Extra; a bad or Easy clear does not.
         if (goodEnding && !extra)
             pd.IsExtraUnlocked = true;
@@ -418,6 +422,9 @@ public class GameplayScreen : Screen
             UILeftSource,
             LeftDest,
             Vector2.Zero, 0, tint);
+        if(GameBox.IsSpellPractice)
+            DrawTexturePro(Runtime.CurrentRuntime.Textures["spell_practice_overlay.png"], UIPracticeOverplaySource, 
+                UIPracticeOverplayDestination, Vector2.Zero, 0, Rgba.White);
         RTrace("after UI composite");
         // Live play gets the movement/action controls; replay and the attract demo do not — their input is on
         // rails, so the sticks and buttons would be dead. The pause button rides along in live play and replay

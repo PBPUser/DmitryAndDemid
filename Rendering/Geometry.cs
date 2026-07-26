@@ -45,6 +45,26 @@ public struct Rect(float x, float y, float width, float height)
     /// <summary>Source rect for sampling a render target, which is stored bottom-up (negative height).</summary>
     public static Rect Flipped(Vector2 size) => new(0, size.Y, size.X, -size.Y);
 
+    public static Rect operator *(Rect rc, float f)
+    {
+        return new Rect(rc.X * f, rc.Y * f, rc.Width * f, rc.Height * f);
+    }
+
+    public static Rect operator *(float f, Rect rc)
+    {
+        return new Rect(rc.X * f, rc.Y * f, rc.Width * f, rc.Height * f);
+    }
+
+    public static Rect operator -(Rect rc, Rect rc2)
+    {
+        return new Rect(rc.X - rc2.X, rc.Y - rc2.Y, rc.Width - rc2.X, rc.Height - rc2.Y);
+    }
+
+    public static Rect operator +(Rect rc, Rect rc2)
+    {
+        return new Rect(rc.X + rc2.X, rc.Y + rc2.Y, rc.Width, rc.Height);
+    }
+
     public override string ToString() => $"({X}, {Y}, {Width}, {Height})";
 }
 
