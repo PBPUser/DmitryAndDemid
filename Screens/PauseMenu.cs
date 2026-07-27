@@ -135,8 +135,8 @@ public class PauseMenu : MenuScreen
         // is both correct and simpler; the black fade covers the swap.
         Runtime.CurrentRuntime.AddAction(() =>
         {
-            Runtime.CurrentRuntime.RemoveScreen(this);
             Runtime.CurrentRuntime.RemoveScreen(GameplayScreen);
+            Runtime.CurrentRuntime.RemoveScreen(this);
             GameplayScreen.Unload();
             Unload();
         });
