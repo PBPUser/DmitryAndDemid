@@ -34,8 +34,8 @@ public class GameplayScreen : Screen
         Source = new Rect(0, 0, 384, -448);
         UIAboveSource = new Rect(0, 0, 384 * Runtime.CurrentRuntime.ScaleF, -448 * Runtime.CurrentRuntime.ScaleF);
         Dest = new Rect(32 * Runtime.CurrentRuntime.ScaleF, 16 * Runtime.CurrentRuntime.ScaleF, 384 * Runtime.CurrentRuntime.ScaleF, 448 * Runtime.CurrentRuntime.ScaleF);
-        DialogDest = Helper.GetFullscreenSource();
         DialogSource = Helper.GetFullscreenSource();
+        DialogDest = Helper.GetFullscreenSource();
         DialogSource.Height *= -1;
         DieShader = Runtime.CurrentRuntime.Shaders["die"];
         PauseMenu = new PauseMenu(this);
