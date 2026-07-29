@@ -39,10 +39,21 @@ public abstract class ScreenWithTitle : Screen
         base.Deactivated();
     }
 
+    /// <summary>Progress of the title banner's slide-in / slide-out, 0 → 1.</summary>
+    protected float TitleAppearProgress =>
+        (float)ComputeObjectTime(GetTime(), TimeAppearTitle, AppearingTime, TimeDisappearTitle, DisappearingTime);
+
+    /// <summary>Vertical offset the banner is currently drawn at (negative while it is still sliding in).
+    /// Screens that decorate the banner — the music room's notes — add it so the decoration travels with it
+    /// instead of hanging in place while the banner slides.</summary>
+    protected float TitleOffsetY => (1 - Pow2F(TitleAppearProgress)) * MenuTextureTarget.Height * -1;
+
+    /// <summary>The banner's on-screen rectangle, for positioning decorations against it.</summary>
+    protected static Rect TitleArea => MenuTextureTarget;
+
     protected void DrawTitle()
     {
-        float appear = (float)ComputeObjectTime(GetTime(), TimeAppearTitle, AppearingTime, TimeDisappearTitle, DisappearingTime);
-        DrawTexturePro(MenuTitleTexture, MenuTextureSource, MenuTextureTarget with { Y = (1-Pow2F(appear)) * MenuTextureTarget.Height * -1 }, Vector2.Zero, 0, Rgba.White);
+        DrawTexturePro(MenuTitleTexture, MenuTextureSource, MenuTextureTarget with { Y = TitleOffsetY }, Vector2.Zero, 0, Rgba.White);
     }
     
     public virtual void Exiting()

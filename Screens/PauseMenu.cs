@@ -124,19 +124,13 @@ public class PauseMenu : MenuScreen
     {
         var screen = GameplayScreen.CreateCopy();
         Runtime.CurrentRuntime.AddScreen(screen);
-        // The loader MUST remove itself once done: with an empty callback it stayed on the stack as the
-        // (now-transparent) topmost screen forever, and since only Screens.Last() receives TopUpdate, the
-        // restarted run never saw Escape again — pause was dead after the first restart from this menu.
         BlackLoadingScreen? loader = null;
         loader = new BlackLoadingScreen(3, 0.2, () => Runtime.CurrentRuntime.RemoveScreen(loader!), true, 1);
         Runtime.CurrentRuntime.AddScreen(loader);
-        // Tear down the old run on the next safe point. RefreshScreens applies the removals at the top of the
-        // frame, so doing it inline (rather than the old un-awaited Task.Delay, which fired immediately anyway)
-        // is both correct and simpler; the black fade covers the swap.
         Runtime.CurrentRuntime.AddAction(() =>
         {
-            Runtime.CurrentRuntime.RemoveScreen(GameplayScreen);
             Runtime.CurrentRuntime.RemoveScreen(this);
+            Runtime.CurrentRuntime.RemoveScreen(GameplayScreen);
             GameplayScreen.Unload();
             Unload();
         });
@@ -241,8 +235,9 @@ public class PauseMenu : MenuScreen
             Vector2 m = MeasureTextEx(font, txt, fs, 2);
             var pos = new Vector2(((224 * sf) - m.X / 2),
                 Runtime.CurrentRuntime.Height - m.Y - 16 * sf);
-            DrawTextEx(font, txt, pos, fs, 2,
-                Rgba.White);
+            // Outlined: it sits over the paused gameplay rather than over the menu board, so plain white left
+            // it fighting whatever the stage happened to be showing behind it.
+            Helper.DrawTextOutlined(font, txt, pos, fs, 2, Rgba.White, Rgba.Black, MathF.Max(1f, 2f * sf));
         }
         DrawMenu();
     }

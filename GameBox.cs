@@ -1059,6 +1059,10 @@ public class GameBox : IDisposable
         }
         StageInfo = RuntimeStageInfo.LoadFromFile(stage, difficulty, this);
         AddOverlay(new StageTitleOverlay(this, stage.Header[1]) { TimeAppear = GetTime() + 5f });
+        // ...and name the BGM along the bottom of the playfield while the title is up. Header[2] is the stage's
+        // music-list index, the same one unlocked above. Header[8] (boss music) gets no card: nothing in the
+        // game switches to it yet, so there is no moment to announce.
+        AddOverlay(new MusicTitleOverlay(this, stage.Header[2]) { TimeAppear = GetTime() + 5f });
 
         // `chapter` used to be accepted and then ignored: NextChapter() always advanced from -1 to 0, so a
         // spell-practice run could only ever start on the stage's first chapter. Start where we were asked to.

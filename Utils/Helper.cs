@@ -513,7 +513,29 @@ public static class Helper
         EndTextureMode();
     }
 
-    public static void DrawTextOutline(out TargetHandle texture, FontHandle font, float fontSize, string text, Rgba color, float padding)
+    /// <summary>
+    /// Draws immediate-mode text with a solid outline, by stamping the string eight ways around the fill
+    /// position before drawing the fill on top. <see cref="DrawTextOutline"/> is the equivalent for text baked
+    /// into a render texture, where the outline shader can run over the result; this one is for text drawn
+    /// straight to the screen every frame, which has no target for a shader pass.
+    /// </summary>
+    public static void DrawTextOutlined(FontHandle font, string text, Vector2 position, float fontSize,
+        float spacing, Rgba fill, Rgba outline, float thickness)
+    {
+        if (thickness > 0.05f && outline.A > 0)
+            for (int i = 0; i < 8; i++)
+            {
+                float a = i * MathF.PI / 4f;
+                DrawTextEx(font, text, position + new Vector2(MathF.Cos(a), MathF.Sin(a)) * thickness,
+                    fontSize, spacing, outline);
+            }
+        DrawTextEx(font, text, position, fontSize, spacing, fill);
+    }
+
+    /// <param name="borderWidth">Outline thickness in screen px; negative (the default) keeps the historic
+    /// fixed 4 * ScaleF. That width is absolute, not relative to <paramref name="fontSize"/>, so small text
+    /// baked through here drowns in its own outline unless the caller scales it down to match.</param>
+    public static void DrawTextOutline(out TargetHandle texture, FontHandle font, float fontSize, string text, Rgba color, float padding, float borderWidth = -1)
     {
         DrawTextAliasedA(out var temp, font, fontSize, 0, text, color);
         texture = LoadRenderTexture((int)(temp.Texture.Width + padding * 2),
@@ -523,9 +545,10 @@ public static class Helper
         SetShaderValue(OutlineShader, LocationOutlinePosition, [0f, 0f], UniformType.Vec2);
         SetShaderValue(OutlineShader, LocationOutlineFullResolution, s.Size, UniformType.Vec2);
         SetShaderValue(OutlineShader, LocationOutlineResolution, s.Size, UniformType.Vec2);
-        SetShaderValue(OutlineShader, LocationOutlineBorderwidth, 4 * Runtime.CurrentRuntime.ScaleF, UniformType.Float);
+        SetShaderValue(OutlineShader, LocationOutlineBorderwidth,
+            borderWidth < 0 ? 4 * Runtime.CurrentRuntime.ScaleF : borderWidth, UniformType.Float);
         BeginTextureMode(temp2);
-        DrawTexturePro(temp.Texture, 
+        DrawTexturePro(temp.Texture,
             new Rect(0, 0, temp.Texture.Width, temp.Texture.Height),
             new Rect(padding, padding, temp.Texture.Width, temp.Texture.Height),
             Vector2.Zero, 0, Rgba.White);
@@ -570,9 +593,9 @@ public static class Helper
     }
 
     public static void DrawTextGradient(out TargetHandle texture, FontHandle font, float fontSize, string text,
-        Rgba color, float padding)
+        Rgba color, float padding, float borderWidth = -1)
     {
-        DrawTextOutline(out var temp, font, fontSize, text, color, padding);
+        DrawTextOutline(out var temp, font, fontSize, text, color, padding, borderWidth);
         texture = LoadRenderTexture(temp.Texture.Width, temp.Texture.Height);
         BeginTextureMode(texture);
         BeginShaderMode(TextGradientShader);

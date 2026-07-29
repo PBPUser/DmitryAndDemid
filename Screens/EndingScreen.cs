@@ -61,13 +61,16 @@ public class EndingScreen : Screen
         DrawTextureEx(Runtime.CurrentRuntime.Textures["ending_background.png"], Vector2.Zero, 0,
             Runtime.CurrentRuntime.ScaleF / 4, Rgba.White);
         // Crossfade between slides: the two Background slots alternate as pictures switch, so the one set more
-        // recently is the incoming image. Draw the settled (older) slot at full opacity, then fade the incoming
-        // (newer) slot in on top over BackgroundFadeDuration — a soft dissolve instead of a hard cut.
+        // recently is the incoming image. The slides are illustrations with large transparent areas, so the
+        // outgoing one has to fade *out* over the same window the incoming one fades in — leaving it at full
+        // opacity would let every picture shown so far keep showing through the current one.
         float bgScale = Runtime.CurrentRuntime.ScaleF / 4f;
         int newer = PreviousSwitchBackground[1] >= PreviousSwitchBackground[0] ? 1 : 0;
         int older = 1 - newer;
-        DrawTextureEx(Backgrounds[older], Vector2.Zero, 0, bgScale, Rgba.White);
         float incomingA = (float)Math.Clamp((time - PreviousSwitchBackground[newer]) / BackgroundFadeDuration, 0, 1);
+        if (incomingA < 1f)
+            DrawTextureEx(Backgrounds[older], Vector2.Zero, 0, bgScale,
+                Rgba.White with { A = (byte)(OutgoingAlpha * (1f - incomingA) * 255) });
         DrawTextureEx(Backgrounds[newer], Vector2.Zero, 0, bgScale, Rgba.White with { A = (byte)(incomingA * 255) });
         for (int i = 0; i < 4; i++)
         {
@@ -86,6 +89,13 @@ public class EndingScreen : Screen
 
     public void SwitchPicture(TextureHandle image)
     {
+        // The slot we are about to overwrite is the one that has already settled; the *other* slot holds the
+        // picture currently on screen and becomes the outgoing one. Snapshot how far its own fade-in got, so a
+        // switch during a dissolve (mashing Enter through two picture elements) fades it out from where it is
+        // instead of popping it back to full opacity.
+        int onScreen = 1 - BackgroundIndex;
+        OutgoingAlpha = (float)Math.Clamp(
+            (Gfx.GetTime() - PreviousSwitchBackground[onScreen]) / BackgroundFadeDuration, 0, 1);
         Backgrounds[BackgroundIndex] = image;
         PreviousSwitchBackground[BackgroundIndex] = Gfx.GetTime();
         BackgroundIndex = (BackgroundIndex + 1) % 2;
@@ -140,6 +150,7 @@ public class EndingScreen : Screen
     private double PreviousSwitch;
     private double[] PreviousSwitchBackground = new double[2];
     private int BackgroundIndex = 0;
+    private float OutgoingAlpha = 1;     // opacity the outgoing slide had when it started fading out
     private TextureHandle[] Backgrounds = new TextureHandle[2];
     RuntimeEndingText?[] RuntimeTexts = new RuntimeEndingText[4];
     private int LastTextIndex = 0;

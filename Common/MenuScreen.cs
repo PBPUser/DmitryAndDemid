@@ -539,7 +539,7 @@ public abstract class MenuScreen : ScreenWithTitle
                 Rgba col = (index == SelectedIndex ? Helper.Mix(Rgba.Yellow, Rgba.White, MathF.Abs((t *
                         (ItemActivated ? 30 : 2)
                         ) % 2 - 1)) : Rgba.White) with { A = (byte)(x.Enabled ? 255 : 128) };
-                DrawMenuItemTexture(x, index, CurrentX + offset.X, y0 + offset.Y, scale, col);
+                DrawMenuItemTexture(x, index, CurrentX + offset.X, y0 + offset.Y, scale, Modulate(col, x.Tint));
                 y0 += (int)(x.Texture.Height * scale);
             }
             return;
@@ -602,9 +602,15 @@ public abstract class MenuScreen : ScreenWithTitle
                 ? Helper.Mix(Rgba.Yellow, Rgba.White, MathF.Abs((t * (ItemActivated ? 30 : 2)) % 2 - 1))
                 : Rgba.White;
             byte alpha = (byte)((x.Enabled ? 255 : 128) * edgeFade);
-            DrawMenuItemTexture(x, index, CurrentX + offset.X, y + offset.Y, scale, color with { A = alpha });
+            DrawMenuItemTexture(x, index, CurrentX + offset.X, y + offset.Y, scale,
+                Modulate(color with { A = alpha }, x.Tint));
         }
     }
+
+    /// <summary>Channel-wise colour multiply, for folding a <see cref="MenuItem.Tint"/> into the colour
+    /// DrawMenu already computed for that row.</summary>
+    static Rgba Modulate(Rgba a, Rgba b) => new Rgba(
+        (byte)(a.R * b.R / 255), (byte)(a.G * b.G / 255), (byte)(a.B * b.B / 255), (byte)(a.A * b.A / 255));
 
     /// <summary>The widest a menu item may draw before it is horizontally scrolled, in screen px.</summary>
     private float ItemMaxWidth() =>
@@ -669,6 +675,13 @@ public abstract class MenuScreen : ScreenWithTitle
         private TargetHandle texture = new TargetHandle();
         public bool Enabled = true;
 
+        /// <summary>Per-item colour modulation, multiplied into whatever DrawMenu would otherwise draw the row
+        /// with — so it survives the selection pulse and the scroll edge-fade instead of overriding them. White
+        /// (default) leaves the row alone. The music room greys its still-locked tracks with it. Purely a draw
+        /// tint: it does not re-render the item's texture and is not <see cref="Enabled"/>, which also blocks
+        /// the cursor.</summary>
+        public Rgba Tint = Rgba.White;
+
         // Rendering style, overridable per item (the replay list uses a compact monospace font). Changing any of
         // these re-renders the item's texture, so object-initializer overrides take effect on the first draw.
         private string fontKey = "newsreader";
@@ -683,6 +696,12 @@ public abstract class MenuScreen : ScreenWithTitle
         /// means no hint row at all, so items that don't opt in keep their old single-line texture/height.</summary>
         public string Hint { get => hint; set { if (hint == value) return; hint = value; AddToRender(this); } }
         private const float HintFontScale = 0.55f;
+        /// <summary>The hint is set in the light serif and tinted green, rather than being a smaller, dimmer
+        /// copy of the label: at 62% alpha in the same ExtraBold face it washed out against the gameplay still
+        /// behind the pause menu. The gradient shader forces the baked text to a grey ramp, so the colour has
+        /// to be applied as a tint when the hint is composited onto the item, not passed into the bake.</summary>
+        private const string HintFontKey = "notoseriflight";
+        private static readonly Rgba HintColor = new Rgba(150, 255, 160, 255);
         
         public static void AddToRender(MenuItem item)
         {
@@ -724,17 +743,31 @@ public abstract class MenuScreen : ScreenWithTitle
             // with no changes needed there.
             Helper.DrawTextGradient(out TargetHandle labelTexture, CurrentRuntime.Fonts[fontKey],
                 fontSize * CurrentRuntime.ScaleF, label, Rgba.White, padding * CurrentRuntime.ScaleF);
-            Helper.DrawTextGradient(out TargetHandle hintTexture, CurrentRuntime.Fonts[fontKey],
+            // The outline width is absolute, so it has to be scaled down with the font: at the label's default
+            // 4 * ScaleF the hint's thin light glyphs were swallowed by their own border, which is most of why
+            // the line read as a grey smudge rather than as text.
+            Helper.DrawTextGradient(out TargetHandle hintTexture, CurrentRuntime.Fonts[HintFontKey],
                 fontSize * HintFontScale * CurrentRuntime.ScaleF, Helper.Translate(hint), Rgba.White,
-                padding * CurrentRuntime.ScaleF * 0.5f);
+                padding * CurrentRuntime.ScaleF * 0.25f, 4 * HintFontScale * CurrentRuntime.ScaleF);
 
-            int width = Math.Max(labelTexture.Texture.Width, hintTexture.Texture.Width);
-            int height = labelTexture.Texture.Height + hintTexture.Texture.Height;
+            // The hint is centred on where the label's text ENDS rather than sharing its left edge, so each
+            // description hangs off the tail of its own title. A hint wider than twice that offset would start
+            // left of the item's origin, which the row can't draw — those fall back to flush left, since the
+            // whole list is drawn from CurrentX and shifting one item's label would break the column.
+            float labelEnd = labelTexture.Texture.Width - padding * CurrentRuntime.ScaleF;
+            int hintX = (int)MathF.Max(0, labelEnd - hintTexture.Texture.Width / 2f);
+            // Stacking the two textures flush would leave the label's bottom padding AND the hint's top padding
+            // between them, which reads as far too much air between a title and its own description. Pull the
+            // hint up into the label's padding — that band holds only the label's outline, nothing to collide
+            // with — and let the row end where the hint does, so the gap to the next row shrinks with it.
+            int hintY = (int)(labelTexture.Texture.Height - padding * CurrentRuntime.ScaleF * 0.5f);
+            int width = Math.Max(labelTexture.Texture.Width, hintX + hintTexture.Texture.Width);
+            int height = hintY + hintTexture.Texture.Height;
             var tmpTexture = LoadRenderTexture(width, height);
             EndShaderMode();
             BeginTextureMode(tmpTexture);
             DrawTexture(labelTexture.Texture, 0, 0, Rgba.White);
-            DrawTexture(hintTexture.Texture, 0, labelTexture.Texture.Height, Rgba.White with { A = 160 });
+            DrawTexture(hintTexture.Texture, hintX, hintY, HintColor);
             EndTextureMode();
             texture = LoadRenderTexture(width, height);
             BeginTextureMode(texture);
