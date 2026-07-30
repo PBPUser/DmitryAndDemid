@@ -1,0 +1,36 @@
+{
+ "blockSize": 48,
+ "blockBinding": 2,
+ "uniforms": [
+  {
+   "name": "ambient",
+   "offset": 16,
+   "type": "vec4"
+  },
+  {
+   "name": "resolution",
+   "offset": 32,
+   "type": "vec2"
+  },
+  {
+   "name": "bloom",
+   "offset": 40,
+   "type": "float"
+  },
+  {
+   "name": "threshold",
+   "offset": 44,
+   "type": "float"
+  }
+ ],
+ "samplers": [
+  {
+   "name": "lightMap",
+   "binding": 1
+  },
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
+}

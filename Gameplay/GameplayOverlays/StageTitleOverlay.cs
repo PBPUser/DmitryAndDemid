@@ -16,8 +16,13 @@ public class StageTitleOverlay(GameBox box, int index) : GameplayOverlay(box, 0.
     private Rect Destination1 = new Rect(0, 112 * Runtime.CurrentRuntime.ScaleF, new Vector2(384, 24)*Runtime.CurrentRuntime.ScaleF);
     private Rect Destination2 = new Rect(0, 136 * Runtime.CurrentRuntime.ScaleF, new Vector2(384, 80)*Runtime.CurrentRuntime.ScaleF);
     private Rect Destination3 = new Rect(0, 216 * Runtime.CurrentRuntime.ScaleF, new Vector2(384, 24)*Runtime.CurrentRuntime.ScaleF);
-    private Rect Destination4 = new Rect(288* Runtime.CurrentRuntime.ScaleF, 192 * Runtime.CurrentRuntime.ScaleF, new Vector2(40)*Runtime.CurrentRuntime.ScaleF);
-    private Vector2 Origin = new Vector2(40) * Runtime.CurrentRuntime.ScaleF;
+    // The stage emblem. Destination4's position is where its CENTRE goes, because Origin is half its size —
+    // that way the sine wobble below rotates it in place instead of swinging it around a corner. It sits above
+    // and right of the title block (which runs y 112..240 across the full width), clear of the words: drawn
+    // first, it would otherwise only show as fragments poking out between the letters of the title.
+    private const float EmblemSize = 96f;
+    private Rect Destination4 = new Rect(312 * Runtime.CurrentRuntime.ScaleF, 76 * Runtime.CurrentRuntime.ScaleF, new Vector2(EmblemSize)*Runtime.CurrentRuntime.ScaleF);
+    private Vector2 Origin = new Vector2(EmblemSize / 2) * Runtime.CurrentRuntime.ScaleF;
     
     protected float StateX(float offset) => 
         MathUtil.Clamp((Box.GetTime() - TimeAppear + offset) / AnimationLength, 0, 1) * MathUtil.Clamp((TimeAppear + Length - Box.GetTime()) / AnimationLength, 0, 1);

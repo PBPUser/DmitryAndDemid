@@ -1,0 +1,17 @@
+{
+ "blockSize": 36,
+ "blockBinding": 0,
+ "uniforms": [
+  {
+   "name": "light_color",
+   "offset": 16,
+   "type": "vec4"
+  },
+  {
+   "name": "falloff",
+   "offset": 32,
+   "type": "float"
+  }
+ ],
+ "samplers": []
+}

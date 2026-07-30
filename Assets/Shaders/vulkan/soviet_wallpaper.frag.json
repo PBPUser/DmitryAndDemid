@@ -1,0 +1,51 @@
+{
+ "blockSize": 80,
+ "blockBinding": 2,
+ "uniforms": [
+  {
+   "name": "resolution",
+   "offset": 16,
+   "type": "vec2"
+  },
+  {
+   "name": "tiling",
+   "offset": 24,
+   "type": "vec2"
+  },
+  {
+   "name": "time",
+   "offset": 32,
+   "type": "float"
+  },
+  {
+   "name": "scroll",
+   "offset": 36,
+   "type": "float"
+  },
+  {
+   "name": "strength",
+   "offset": 40,
+   "type": "float"
+  },
+  {
+   "name": "color_a",
+   "offset": 48,
+   "type": "vec4"
+  },
+  {
+   "name": "color_b",
+   "offset": 64,
+   "type": "vec4"
+  }
+ ],
+ "samplers": [
+  {
+   "name": "texture0",
+   "binding": 0
+  },
+  {
+   "name": "backdropTexture",
+   "binding": 1
+  }
+ ]
+}

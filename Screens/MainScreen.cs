@@ -3,6 +3,7 @@ using System.Numerics;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Utils;
+using Gdk;
 #if DEBUG
 using ImGuiNET;
 #endif
@@ -94,6 +95,14 @@ public class MainScreen : MenuScreen
         LogoPadScaleX = (float)LogoPadded.Texture.Width / logoTex.Width;
         LogoPadScaleY = (float)LogoPadded.Texture.Height / logoTex.Height;
 
+        // The two corner station logos are lit through the same neon_sign shader as the title, so they get the
+        // same treatment: each is lifted out of the telecom sheet into its own padded transparent target. That
+        // is doubly necessary here — besides giving the halo room, it stops the halo taps from reaching past
+        // the crop and dragging in the rest of the sheet (the big red waves further down it).
+        var telecomTex = Runtime.CurrentRuntime.Textures["telecom.png"];
+        (SideLogoLeft, SideLogoLeftTarget) = PadForGlow(telecomTex, LogoSourceLeft, LogoTargetLeft);
+        (SideLogoRight, SideLogoRightTarget) = PadForGlow(telecomTex, LogoSourceRight, LogoTargetRight);
+
         CurrentY = (int)(160 * Runtime.CurrentRuntime.Scale);
 #if SWITCH
         Runtime.SwTrace("[ms] before new MusicRoomScreen()");
@@ -129,6 +138,10 @@ public class MainScreen : MenuScreen
     // instead of clipping at the sprite's rectangular edge. LogoPadScale is the padded size / art size.
     TargetHandle LogoPadded;
     float LogoPadScaleX = 1f, LogoPadScaleY = 1f;
+
+    // The corner station logos, likewise padded (see PadForGlow), with the destination rects grown to match.
+    TargetHandle SideLogoLeft, SideLogoRight;
+    Rect SideLogoLeftTarget, SideLogoRightTarget;
 
     int Size;
     double AppearTime;
@@ -188,6 +201,100 @@ public class MainScreen : MenuScreen
     private const int PizzaCount = 10;
     private static float Frac(float v) => v - MathF.Floor(v);
 
+    // Glow tuning for the backdrop (see Assets/Shaders/ink_glow.fs): rgb is the colour the light glows in, w is
+    // overall strength. The radius is in TEXELS OF THE SAMPLED TEXTURE — the backdrop is a 1280x960 image
+    // stretched over the whole window, so it takes a wide reach to read as a soft wash of light on screen.
+    static readonly Vector4 BackdropGlow = new(0.34f, 0.64f, 1.00f, 2.2f);   // electric blue, matching the paint
+    const float BackdropGlowRadius = 64f;
+
+    // The glowing wallpaper that creeps up over the backdrop's dark shapes (Assets/Shaders/soviet_wallpaper.fs).
+    // Deep in the red channel on purpose: the shader overdrives these, and a tint whose channels are already
+    // near 1 would just bloom to white instead of staying blue and purple.
+    static readonly Vector4 WallpaperColorA = new(0.28f, 0.62f, 1.00f, 1f);   // light blue
+    static readonly Vector4 WallpaperColorB = new(0.55f, 0.22f, 1.00f, 1f);   // purple
+    const float WallpaperScroll = 0.05f;    // tiles per second, upward
+    const float WallpaperStrength = 0.85f;
+    const float WallpaperScale = 0.65f;     // tiles across the screen width; below 1 enlarges the flowers
+
+    /// <summary>
+    /// Lifts an atlas crop into its own transparent, PADDED render target so a glow shader's halo has room to
+    /// bleed instead of clipping at the crop's edge (and so its taps cannot stray into neighbouring art on the
+    /// sheet). Returns the target plus <paramref name="dest"/> grown by the same margin, which keeps the art
+    /// itself at exactly the on-screen size and position it had before padding.
+    /// </summary>
+    private static (TargetHandle Target, Rect Dest) PadForGlow(TextureHandle atlas, Rect source, Rect dest)
+    {
+        const int pad = 20;   // comfortably over neon_sign's ~12-texel halo reach
+        TargetHandle target = LoadRenderTexture((int)source.Width + pad * 2, (int)source.Height + pad * 2);
+        BeginTextureMode(target);
+        ClearBackground(new Rgba(0, 0, 0, 0));
+        DrawTexturePro(atlas, source, new Rect(pad, pad, source.Width, source.Height), Vector2.Zero, 0f, Rgba.White);
+        EndTextureMode();
+        float scaleX = dest.Width / source.Width, scaleY = dest.Height / source.Height;
+        return (target, new Rect(dest.X - pad * scaleX, dest.Y - pad * scaleY,
+                                 dest.Width + 2 * pad * scaleX, dest.Height + 2 * pad * scaleY));
+    }
+
+    /// <summary>
+    /// Draws a padded sprite target lit through the neon_sign shader — the glowing, flickering old-sign look the
+    /// title logo wears, shared by the corner station logos.
+    /// </summary>
+    private static void DrawNeonSign(TargetHandle target, Rect dest, Vector2 origin, float rotation, Rgba tint)
+    {
+        var neon = Runtime.CurrentRuntime.Shaders["neon_sign"];
+        SetShaderValue(neon, GetShaderLocation(neon, "time"), (float)GetTime(), UniformType.Float);
+        SetShaderValue(neon, GetShaderLocation(neon, "resolution"),
+            new Vector2(target.Texture.Width, target.Texture.Height), UniformType.Vec2);
+        BeginShaderMode(neon);
+        DrawTexturePro(target.Texture, Helper.GetFullSourceRenderTexture(target), dest, origin, rotation, tint);
+        EndShaderMode();
+    }
+
+    /// <summary>
+    /// Draws the backdrop lit through the ink_glow shader: its paint spills coloured light onto the paper around
+    /// it and the vivid blues bloom. It is an opaque image, so it cannot use the alpha-keyed neon_sign.
+    /// </summary>
+    private static void DrawGlowingBackdrop(TextureHandle texture, Rect dest, Rgba tint)
+    {
+        var shader = Runtime.CurrentRuntime.Shaders["ink_glow"];
+        SetShaderValue(shader, GetShaderLocation(shader, "time"), (float)GetTime(), UniformType.Float);
+        SetShaderValue(shader, GetShaderLocation(shader, "resolution"),
+            new Vector2(texture.Width, texture.Height), UniformType.Vec2);
+        SetShaderValue(shader, GetShaderLocation(shader, "glow_color"), BackdropGlow, UniformType.Vec4);
+        SetShaderValue(shader, GetShaderLocation(shader, "radius"), BackdropGlowRadius, UniformType.Float);
+        BeginShaderMode(shader);
+        DrawTexturePro(texture, Helper.GetFullSource(texture), dest, Vector2.Zero, 0f, tint);
+        EndShaderMode();
+    }
+
+    /// <summary>
+    /// Draws the floral wallpaper crawling up the screen, glowing blue-to-purple and blooming, showing only
+    /// where the backdrop behind it is dark. The backdrop is handed in as the shader's mask, so this has to be
+    /// drawn over the same rect the backdrop occupies for the two to line up.
+    /// </summary>
+    private static void DrawGlowingWallpaper(TextureHandle backdrop, Rect dest, Rgba tint)
+    {
+        var wallpaper = Runtime.CurrentRuntime.Textures["soviet-wallpaper.png"];
+        var shader = Runtime.CurrentRuntime.Shaders["soviet_wallpaper"];
+        // At most one tile spans the screen width, so the pattern never crosses a horizontal seam (only the
+        // vertical wrap, which the shader cross-fades). The vertical tiling follows from the wallpaper's own
+        // aspect, which keeps the flowers round rather than stretched.
+        float tileY = WallpaperScale * dest.Height / dest.Width * wallpaper.Width / wallpaper.Height;
+        SetShaderValue(shader, GetShaderLocation(shader, "time"), (float)GetTime(), UniformType.Float);
+        SetShaderValue(shader, GetShaderLocation(shader, "resolution"),
+            new Vector2(wallpaper.Width, wallpaper.Height), UniformType.Vec2);
+        SetShaderValue(shader, GetShaderLocation(shader, "tiling"),
+            new Vector2(WallpaperScale, tileY), UniformType.Vec2);
+        SetShaderValue(shader, GetShaderLocation(shader, "scroll"), WallpaperScroll, UniformType.Float);
+        SetShaderValue(shader, GetShaderLocation(shader, "strength"), WallpaperStrength, UniformType.Float);
+        SetShaderValue(shader, GetShaderLocation(shader, "color_a"), WallpaperColorA, UniformType.Vec4);
+        SetShaderValue(shader, GetShaderLocation(shader, "color_b"), WallpaperColorB, UniformType.Vec4);
+        SetShaderValueTexture(shader, GetShaderLocation(shader, "backdropTexture"), backdrop);
+        BeginShaderMode(shader);
+        DrawTexturePro(wallpaper, Helper.GetFullSource(wallpaper), dest, Vector2.Zero, 0f, tint);
+        EndShaderMode();
+    }
+
     /// <summary>
     /// Decorative pizzas drifting slowly up the title screen and lazily spinning, each bobbing side to side.
     /// Purely a function of time and index (a stable per-pizza pseudo-random spread), so there is no state to
@@ -241,6 +348,11 @@ public class MainScreen : MenuScreen
         var bg = Helper.Mix(Rgba.Black, Rgba.White, (float)appear2);
 #endif
         DrawRectangle(0, 0, Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height, bg);
+        var backdropTex = Runtime.CurrentRuntime.Textures["rediska-na-fon.png"];
+        var backdropRect = new Rect(0, 0, Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height);
+        var backdropTint = Rgba.White with { A = Helper.TimeToTransparency(appear5) };
+        DrawGlowingBackdrop(backdropTex, backdropRect, backdropTint);
+        DrawGlowingWallpaper(backdropTex, backdropRect, backdropTint);
         var color1 = Helper.Mix(Rgba.Black, Rgba.Red, (float)appear2);
         var color2 = Helper.Mix(Rgba.Black, DarkRed, (float)appear2);
         CurrentX = (int)((16 - (Helper.Pow2F(1 - appear5) * 384)) * Runtime.CurrentRuntime.Scale);
@@ -249,8 +361,11 @@ public class MainScreen : MenuScreen
 #endif
         Helper.DrawWave(color1, MathF.Sin(time) + 1.5f, -0.7f - Helper.EaseInOutElasticF(appear1) * 1.5f, 1.5f, 1.5f, Runtime.CurrentRuntime.FullScreenRect);
         Helper.DrawWave(color2, MathF.Sin(time + 0.1f) + 1.5f, -0.7f - Helper.EaseInOutElasticF(appear3) * 1.5f, 1.5f, 1.5f, Runtime.CurrentRuntime.FullScreenRect);
-        DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceLeft, LogoTargetLeft, Vector2.Zero, 0f, Rgba.White with { A = Helper.TimeToTransparency(appear25) });
-        DrawTexturePro(Runtime.CurrentRuntime.Textures["telecom.png"], LogoSourceRight, LogoTargetRight, Vector2.Zero, 0f, Rgba.White with { A = Helper.TimeToTransparency(appear25) });
+        // The corner station logos glow and flicker through neon_sign, the same shader the title wears (they are
+        // transparent sprites too, so the same alpha-keyed halo works on them unchanged).
+        var logoTint = Rgba.White with { A = Helper.TimeToTransparency(appear25) };
+        DrawNeonSign(SideLogoLeft, SideLogoLeftTarget, Vector2.Zero, 0f, logoTint);
+        DrawNeonSign(SideLogoRight, SideLogoRightTarget, Vector2.Zero, 0f, logoTint);
         // Floating pizzas drawn AFTER the top telecom logos so they pass in front of them (requested).
         DrawFloatingPizzas(time, (float)appear2);
         // The menu list is drawn AFTER the pizzas so its entries stay readable ABOVE them (requested).
@@ -267,13 +382,7 @@ public class MainScreen : MenuScreen
         // on-screen size while the transparent margin (holding the halo) extends beyond it.
         var paddedDest = new Rect(logoDest.X, logoDest.Y, logoDest.Width * LogoPadScaleX, logoDest.Height * LogoPadScaleY);
         var logoOrigin = new Vector2(paddedDest.Width / 2, paddedDest.Height / 2);
-        var neon = Runtime.CurrentRuntime.Shaders["neon_sign"];
-        SetShaderValue(neon, GetShaderLocation(neon, "time"), time, UniformType.Float);
-        SetShaderValue(neon, GetShaderLocation(neon, "resolution"),
-            new Vector2(LogoPadded.Texture.Width, LogoPadded.Texture.Height), UniformType.Vec2);
-        BeginShaderMode(neon);
-        DrawTexturePro(LogoPadded.Texture, Helper.GetFullSourceRenderTexture(LogoPadded), paddedDest, logoOrigin, 45f, Rgba.White);
-        EndShaderMode();
+        DrawNeonSign(LogoPadded, paddedDest, logoOrigin, 45f, Rgba.White);
         var source = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["Version"]);
         DrawTexturePro(
             Runtime.CurrentRuntime.Textures["Copyright"],
