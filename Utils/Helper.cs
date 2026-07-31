@@ -141,9 +141,13 @@ public static class Helper
             Runtime.CurrentRuntime.ScaleF, BossTextColor);
         EndTextureMode();
         BeginTextureMode(texture);
-        Rect rc = new(0, 0, temp.Texture.Width, temp.Texture.Height);
-        Rect rc2 = new(0, temp.Texture.Height, temp.Texture.Width, temp.Texture.Height);
-        DrawTexturePro(temp.Texture, rc2,   rc, Vector2.Zero, 0, Rgba.White);
+        // In-range source rect, for the same reason as in DrawChapterTitleText below: the (0, H, W, +H) form
+        // this used to carry asks for v in [1,2], which only lands on the right texels because most backends
+        // sample render targets with Repeat. On the Silk backend's CLAMP_TO_EDGE targets it smeared the
+        // scratch's empty bottom row instead, losing the boss's name.
+        Rect source = new(0, 0, temp.Texture.Width, temp.Texture.Height);
+        Rect destination = new(0, 0, temp.Texture.Width, temp.Texture.Height);
+        DrawTexturePro(temp.Texture, source, destination, Vector2.Zero, 0, Rgba.White);
         EndTextureMode();
         SetTextureFilter(texture.Texture, FilterMode.Bilinear);   // anti-alias the boss title when it's scaled
         UnloadRenderTexture(temp);
@@ -172,9 +176,16 @@ public static class Helper
         SetShaderValue(Runtime.CurrentRuntime.Shaders["outline"], LocationOutlineResolution,
             [b.X / 1.5f, b.Y / 1.5f], UniformType.Vec2);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders["outline"]);
-        Rect rc = new(0, 0, temp.Texture.Width, temp.Texture.Height);
-        Rect rc2 = new(0, temp.Texture.Height, temp.Texture.Width, temp.Texture.Height);
-        DrawTexturePro(temp.Texture, rc2,   rc, Vector2.Zero, 0, Rgba.White);
+        // Read the scratch back through an IN-RANGE source rect, like DrawTextOutline does for the same
+        // text-scratch-into-target step. This used to be spelled (0, H, W, +H) — a positive height starting at
+        // the bottom edge, which asks for v in [1,2]. That only ever worked by accident of the wrap mode: on
+        // Repeat (Raylib/Vulkan/desktop GL) it wraps to exactly these texels, but render targets on the Silk
+        // backend are CLAMP_TO_EDGE, where it instead smears the scratch's empty bottom row over the whole
+        // quad and the spell card's name never reaches the title texture at all. Same texels as before on the
+        // wrapping backends; correct rather than lucky on the clamping one.
+        Rect source = new(0, 0, temp.Texture.Width, temp.Texture.Height);
+        Rect destination = new(0, 0, temp.Texture.Width, temp.Texture.Height);
+        DrawTexturePro(temp.Texture, source, destination, Vector2.Zero, 0, Rgba.White);
         EndShaderMode();
         EndTextureMode();
         SetTextureFilter(texture.Texture, FilterMode.Bilinear);   // anti-alias the chapter/spell title when scaled

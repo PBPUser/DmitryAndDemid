@@ -807,7 +807,10 @@ public class GameplayEditorScreen : Screen
             BorderWidth, UniformType.Float);
         BeginShaderMode(Runtime.CurrentRuntime.Shaders[Shaders[SelectedShaderIndex]]);
         DrawTexturePro(temp.Texture,
-            new Rect(0, TextTestTexture.Value.Texture.Height, 
+            // In-range source rect (see Helper.DrawChapterTitleText): starting at the bottom edge with a
+            // POSITIVE height asks for v in [1,2], which reads the wrong thing entirely on a backend whose
+            // render targets clamp rather than wrap.
+            new Rect(0, 0,
                 TextTestTexture.Value.Texture.Width, TextTestTexture.Value.Texture.Height),
             new Rect(0,0,TextTestTexture.Value.Texture.Width,TextTestTexture.Value.Texture.Height),
             Vector2.Zero, 0, Rgba.White);

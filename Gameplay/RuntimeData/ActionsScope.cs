@@ -18,6 +18,16 @@ public static class ActionsScope
 
     // The Nikitab boss and its bullets live in stage 2's entity table at these indices (added to
     // Assets/Data/StagesJson/stage2.json). Kept as named constants so the boss action reads clearly.
+    /// <summary>Radius (playfield px) of the ring the mystical toilet lays its swallowed hoard out on when it dies.</summary>
+    private const float ToiletHoardRingRadius = 28f;
+
+    // The toilet's visit is on a clock: it wanders for ToiletEscapeTick, then spends the last ~1.5s climbing off
+    // the top of the screen, and is gone for good by ToiletLifetimeTick (12s at 60 TPS). The speed is sized to
+    // clear the top edge inside that window from anywhere in its wander band (y 64..128).
+    private const int ToiletLifetimeTick = 720;
+    private const int ToiletEscapeTick = 630;
+    private const float ToiletEscapeSpeed = 4.5f, ToiletEscapeAcceleration = 0.06f;
+
     private const int NikitabEntityIndex = 10;
     private const int NikitabMicroBulletIndex = 11;
     private const int NikitabPizzaIndex = 12;       // triangular pizza-slice sprite (visual only, not lethal)
@@ -878,6 +888,23 @@ public static class ActionsScope
         };
         dictionary["MysticalToilet"] = obj =>
         {
+            int age = obj.Box.CurrentTick - obj.CreatedAt;
+            if (age >= ToiletEscapeTick)
+            {
+                // Out of time: it stops wandering and climbs off the top of the screen with whatever it has
+                // swallowed. Header[0x56] marks the escape so the die script knows not to hand the hoard back —
+                // it is running off with it. No explicit removal is needed: rising past the top edge puts it
+                // through GameBox's normal out-of-bounds cull, which runs the die script like any other removal.
+                obj.Header[0x56] = 1;
+                obj.Header[0] &= ~RuntimeObject.FlagIsMovingToTarget;   // drop any wander target still in flight
+                obj.FloatingPoints[0x18] = MathUtil.MoveTowards(obj.FloatingPoints[0x18], -ToiletEscapeSpeed,
+                    ToiletEscapeAcceleration);                    // 0x18 = Velocity Y; -Y is up
+                obj.Y += obj.FloatingPoints[0x18];
+                obj.RenderRotation = MathF.Sin(obj.Box.CurrentTick * .35f) * 1.1f;   // wobbles harder as it bolts
+                if (age >= ToiletLifetimeTick)
+                    obj.Box.RemoveObject(obj);   // backstop, in case something kept it inside the box
+                return;
+            }
             if (obj.Box.ChapterTick % obj.Header[0x55] == 0)
             {
                 var rnd = new Random(obj.Box.CurrentTick);
@@ -893,11 +920,42 @@ public static class ActionsScope
             if (box.MysticalToilet != obj)
                 return;
             box.MysticalToilet = null;
+            // Retires the health bar: BossHealthOverlay drops itself once its target is flagged dead, and the
+            // enemy death path never sets that (only the boss one does), so it would otherwise hang around
+            // after the toilet is gone — including when it leaves by climbing off the top of the screen.
+            obj.Header[0] |= RuntimeObject.FlagIsDied;
+            List<RuntimeObject>? hoard = obj.SwallowedItems;
+            obj.SwallowedItems = null;
+            if (obj.Header[0x56] != 0)
+            {
+                // It ran out its clock and escaped over the top edge. It keeps what it swallowed and there is no
+                // kill to reward — beating the timer is the whole point of shooting it.
+                box.UpdateUI();
+                return;
+            }
             // Reward killing the network-spawned toilet with a bomb piece (collectable Type 7 -> BombsSpices).
             var piece = RuntimeObject.LoadFromFile(RuntimeObject.CollectableFEIs[7], box);
             piece.Position = obj.Position;
             piece.CollectableVelocity = new Vector2(0f, -2.5f);   // pops up, then gravity lets it fall to be caught
             box.AddObject(piece);
+            // Everything it swallowed comes back: laid out evenly around a ring centred on the toilet, thrown
+            // outward, and flagged to home in on the player from wherever they are — so the hoard is returned in
+            // full without the player having to go and catch it. The list was taken and cleared above, so a
+            // second call (DieAction fires twice per kill) cannot spit the same items out again.
+            if (hoard != null)
+            {
+                for (int i = 0; i < hoard.Count; i++)
+                {
+                    float angle = MathF.Tau * i / hoard.Count;
+                    var outward = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
+                    RuntimeObject item = hoard[i];
+                    item.Position = obj.Position + outward * ToiletHoardRingRadius;
+                    item.CollectableVelocity = outward * 1.5f;
+                    item.Header[0] |= RuntimeObject.FlagHomingCollectable;
+                    box.AddObject(item);
+                }
+            }
+            box.UpdateUI();   // the hoard row in the UI strip goes away with the toilet
             // TODO: Play toilet die sound
         };
         dictionary["AkobShoot"] = (obj) =>

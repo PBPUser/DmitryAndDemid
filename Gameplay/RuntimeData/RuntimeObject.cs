@@ -49,7 +49,11 @@ public class RuntimeObject
         // A ray: a laser-like beam that widens into a cone from a large emitting dot and fades out along its
         // finite length. Shares the laser fields/phases but adds RaySpread, a cone-collision test, and a gradient
         // render (see MakeRay / GameBox.DrawRay). Bit 22, unused by any other flag / object kind.
-        FlagIsRay = 0x400000;
+        FlagIsRay = 0x400000,
+        // A collectable the mystical toilet has spat back out: instead of drifting down it homes in on the
+        // player from ANY distance (see UpdateCollectable), so the returned hoard always finds its way back
+        // wherever the player happens to be standing. Bit 23, unused by any other flag / object kind.
+        FlagHomingCollectable = 0x800000;
 
     public static FileEntityInfo[] CollectableFEIs = new FileEntityInfo[8];
     public static FileEntityInfo MagicalToilet;
@@ -106,6 +110,15 @@ public class RuntimeObject
     public Vector2 TexturePosition, TextureSize, TotalTextureSize;
     public GameplayScreenEffect? BackgroundDistortionEffect;
     public BossCircleScreenEffect? BossCircleEffect;
+
+    /// <summary>
+    /// Collectables the mystical toilet has swallowed (see <see cref="GameBox.SwallowIntoToilet"/>), held until
+    /// it dies and its die script spits them back out in a ring. The item INSTANCES are kept rather than their
+    /// types, so each comes back as exactly the item it was — only collectable types 0 and 7 have a visual
+    /// preset wired up, so respawning them from <see cref="CollectableFEIs"/> would not survive the round trip.
+    /// Null on every object but the toilet.
+    /// </summary>
+    public List<RuntimeObject>? SwallowedItems;
 
     RuntimeObject()
     {
@@ -549,13 +562,67 @@ public class RuntimeObject
         }
     }
 
-    public void UpdateCollectable()
+    /// <summary>
+    /// Accelerates this collectable toward <paramref name="target"/>. Unlike a collectable bullet — which aims at
+    /// a target 100000 units away and so just keeps gaining speed — this converges on a bounded cruising speed.
+    /// That matters both ways round: an item cannot build up enough speed per tick to jump straight over the
+    /// player (or the toilet's mouth) between two frames and sail off to be culled at the box edge.
+    /// </summary>
+    private void Steer(Vector2 target, float acceleration, float maxSpeed)
     {
-        FloatingPoints[0x5] = MathF.Abs(FloatingPoints[2]) > 0 ? Box.CurrentTick : 0;
-        FloatingPoints[2] = MathUtil.MoveTowards(FloatingPoints[2], 0, 0.1f);
-        FloatingPoints[6] = MathUtil.MoveTowards(FloatingPoints[6], float.MaxValue, 0.1f);
+        Vector2 direction = Helper.GetDirection(Position, target);
+        FloatingPoints[2] = MathUtil.MoveTowards(FloatingPoints[2], direction.X * maxSpeed, acceleration);
+        FloatingPoints[6] = MathUtil.MoveTowards(FloatingPoints[6], direction.Y * maxSpeed, acceleration);
+        FloatingPoints[0x5] = Box.CurrentTick;   // spins while it flies, as a falling item does when it drifts
         X += FloatingPoints[2];
         Y += FloatingPoints[6];
+    }
+
+    /// <summary>
+    /// How far (playfield px) the mystical toilet reaches for an item the player is not pulling in. Wide enough
+    /// to cover most of the box from its perch near the top, so it visibly competes for what drops — but short
+    /// of the 448px it would take to reach everything, so items falling down near the player still get away.
+    /// </summary>
+    private const float ToiletMagnetRadius = 176f;
+
+    /// <summary>How close (playfield px) an item has to get to the toilet before it is swallowed.</summary>
+    private const float ToiletSwallowDistance = 14f;
+
+    /// <summary>Per-tick acceleration of a magneted item, and the speed it settles at (px/tick). Both are kept
+    /// well under the collision radii either end so a fast item cannot skip past its destination in one tick.</summary>
+    private const float ToiletPullAcceleration = 0.12f, ToiletPullSpeed = 5f;
+    private const float HomingAcceleration = 0.18f, HomingSpeed = 6f;
+
+    public void UpdateCollectable()
+    {
+        if ((Header[0] & FlagHomingCollectable) == FlagHomingCollectable)
+        {
+            // Loot the toilet spat back out. It homes in on the player from anywhere on the playfield — the
+            // whole point of the reward is that you get the hoard back without having to chase it down.
+            Steer(new Vector2(Box.Player.X, Box.Player.Y), HomingAcceleration, HomingSpeed);
+        }
+        else if (Box.MysticalToilet is { } toilet && !Box.Player.IsMagneting(Position) &&
+                 MathUtil.Vector2Distance(Position, toilet.Position) < ToiletMagnetRadius)
+        {
+            // The toilet takes what the player does not: anything inside its reach but outside the player's own
+            // magnet gets dragged in. While the player sits above the item line their magnet covers the whole
+            // box (Player.PointMagnetRadius), so the toilet can never steal from under them there.
+            if (MathUtil.Vector2Distance(Position, toilet.Position) < ToiletSwallowDistance)
+            {
+                Box.SwallowIntoToilet(this);
+                return;
+            }
+            Steer(toilet.Position, ToiletPullAcceleration, ToiletPullSpeed);
+        }
+        else
+        {
+            // Untouched: what sideways travel it has bleeds off, and it falls.
+            FloatingPoints[0x5] = MathF.Abs(FloatingPoints[2]) > 0 ? Box.CurrentTick : 0;
+            FloatingPoints[2] = MathUtil.MoveTowards(FloatingPoints[2], 0, 0.1f);
+            FloatingPoints[6] = MathUtil.MoveTowards(FloatingPoints[6], float.MaxValue, 0.1f);
+            X += FloatingPoints[2];
+            Y += FloatingPoints[6];
+        }
         if (Helper.IsCollied(TargetRectangle, Box.Player.Collision))
         {
             switch (Header[4])

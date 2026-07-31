@@ -19,6 +19,11 @@
 [0x16] Source Height
 [0x17] Appear Timestamp
 # if collectable
+[0x0] Bit mask: {
+    [0x800000] Homing — spat back out by the mystical toilet: chases the player from any distance instead of
+               falling (see RuntimeObject.UpdateCollectable). An item WITHOUT this is fair game for the toilet,
+               which magnets and swallows whatever the player is not already claiming.
+}
 [0x4] Type {
     0 - Power
     1 - Large Power
@@ -86,6 +91,13 @@ Floating Points:
 [0x50] Laser Length (Is Laser / Is Ray; emitter = Position 0x10/0x11, angle = Rendering Rotation 0x5)
 [0x51] Laser Width (base width at the emitter)
 [0x52] Ray Spread (Is Ray only) — extra half-width px added per side at the tip; cone widens base -> base+2*spread
+
+# if the mystical toilet (Visual "toilet", scripts MysticalToilet / MysticalToiletDie)
+[0x55] Wander interval in ticks — it picks a new spot to drift to every this many chapter ticks
+[0x56] Escaping — set once its 12s clock (from Created At [0x17]) runs out and it starts climbing off the top
+       of the screen. The die script reads it to tell an escape from a kill: an escaping toilet keeps the
+       collectables it swallowed and pays no reward, a killed one hands the whole hoard back.
+       Rises on Velocity Y [0x18]; the swallowed items themselves live in the managed SwallowedItems list.
 
 # HEADER (Is Laser / Is Ray) — beam life in ticks, phases run telegraph -> fire -> fade from Created At
 [0x50] Laser Telegraph Ticks

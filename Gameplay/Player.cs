@@ -30,8 +30,16 @@ public class Player
     public Rect SourceRect;
     public GameBox GameBox;
     
-    public float PointMagnetRadius => 
+    public float PointMagnetRadius =>
         Y < 100 || !CollisionEnabled ? 6000f : 24f;
+
+    /// <summary>
+    /// True when <paramref name="point"/> is inside the player's own item reach — above the item line (or while
+    /// uncollidable) that is the whole playfield, otherwise just the area around them. Used to decide what the
+    /// mystical toilet is allowed to steal: it only ever takes items the player is not already claiming.
+    /// </summary>
+    public bool IsMagneting(Vector2 point) =>
+        MathUtil.Vector2Distance(point, new Vector2(X, Y)) <= PointMagnetRadius;
 
     public Player(GameBox game, ProtogonistData data, PlayerControllerBase controller) 
     {

@@ -695,6 +695,23 @@ public class GameBox : IDisposable
         RequiresRefresh = true;
         obj.DieAction?.Invoke(obj);
         obj.RemoveAction?.Invoke(obj);
+        // A boss owns two screen effects — the cursor ring under it and the background distortion — and both are
+        // created to last forever (timeDisappear = float.MaxValue), so nothing ever retires them by itself. They
+        // also hold a reference to this object and keep reading its position every frame, so when the object goes
+        // they have to go with it; otherwise the ring stays on screen after the boss is killed, tracking a corpse.
+        // Done here rather than in the death branch so every path is covered (kill, ClearAll, a scripted swap),
+        // and nulled so a second RemoveObject on the same object is a no-op — DieAction is already known to fire
+        // twice per kill.
+        if (obj.BossCircleEffect != null)
+        {
+            RemoveScreenEffect(obj.BossCircleEffect);
+            obj.BossCircleEffect = null;
+        }
+        if (obj.BackgroundDistortionEffect != null)
+        {
+            RemoveScreenEffect(obj.BackgroundDistortionEffect);
+            obj.BackgroundDistortionEffect = null;
+        }
         if ((obj.Header[0] & RuntimeObject.FlagIsBullet) != RuntimeObject.FlagIsBullet)
             if ((obj.Header[0] & RuntimeObject.FlagIsBullet) != RuntimeObject.FlagIsBullet)
             {
@@ -974,7 +991,24 @@ public class GameBox : IDisposable
     }
 
     public RuntimeObject? MysticalToilet = null;
-    
+
+    /// <summary>How many collectables the toilet is currently holding — 0 when there is no toilet on screen.</summary>
+    public int ToiletHoardCount => MysticalToilet?.SwallowedItems?.Count ?? 0;
+
+    /// <summary>
+    /// The mystical toilet eats a collectable the player was not claiming (see RuntimeObject.UpdateCollectable).
+    /// The item leaves the box but its INSTANCE is kept, so when the toilet dies its die script can put the same
+    /// items back exactly as they were. The count is shown in the UI strip while the toilet is alive.
+    /// </summary>
+    public void SwallowIntoToilet(RuntimeObject collectable)
+    {
+        if (MysticalToilet == null)
+            return;
+        (MysticalToilet.SwallowedItems ??= new List<RuntimeObject>()).Add(collectable);
+        RemoveObject(collectable);
+        UpdateUI();
+    }
+
     public void SpawnMysticalToilet()
     {
         if (MysticalToilet != null)
@@ -985,9 +1019,21 @@ public class GameBox : IDisposable
         ToiletsSpawnedThisRun++;
         AddObject(MysticalToilet);
         toilet.Header[0x55] = 120 / (Difficulty + 1);
+        toilet.CreatedAt = CurrentTick;   // its 12-second life is measured from here (see the MysticalToilet action)
         toilet.X = 192;
         toilet.Y = 64;
         AddOverlay(new MysticalToiletOverlay(this, 0.25f, 3));
+        // The same health bar a boss gets — it has real health (set above) and the player is meant to shoot it
+        // down before it leaves, so it needs the same read on how close that is.
+        AddOverlay(new BossHealthOverlay(this, toilet));
+        UpdateUI();   // brings up the hoard row in the stats strip (DrawToiletHoard)
+        // Arrival flourish: a brown circle collapsing onto the toilet with lightning striking into it, plus a
+        // brief nudge of the screen. Shake strength is in texture-coordinate units, so 0.008 is ~3px of the
+        // 384-wide playfield — about a twelfth of what the boss death throws, and over in a quarter second.
+        // This announces a nuisance, not a death.
+        float appearTime = GetTime();
+        AddScreenEffect(new ToiletAppearScreenEffect(this, toilet, 4, appearTime, appearTime + 1.1f));
+        AddScreenEffect(new ShakeScreenEffect(this, 0.008f, 26, 100, appearTime, appearTime + 0.25f));
         // TODO: Play toilet spawn sound
     }
 
@@ -1684,6 +1730,31 @@ public class GameBox : IDisposable
         IsUIUpdateRequired = true;
     }
     
+    /// <summary>
+    /// The bottom line of the stats strip: what the mystical toilet is currently holding — its own sprite, then
+    /// the number of collectables it has swallowed, right-aligned like every other figure above it. Only drawn
+    /// while a toilet is actually on screen, since killing it hands the whole hoard straight back; the row
+    /// disappearing IS the message that the items are on their way.
+    /// </summary>
+    void DrawToiletHoard(float fontSize)
+    {
+        if (MysticalToilet == null)
+            return;
+        float sf = Runtime.CurrentRuntime.ScaleF;
+        string held = ToiletHoardCount.ToString();
+        var size = Helper.GetScoreTextureSize(held, fontSize);
+        // Sits a row below the graze figure (y 236), in the strip's empty lower half.
+        var position = new Vector2(206, 258) * sf - size;
+        Helper.DrawScoreText(held, fontSize, position, Rgba.Violet);
+        // The toilet's own sprite as the row's label — the art has no printed caption down here, and its
+        // silhouette says what the number counts more directly than a word would.
+        var icon = Runtime.CurrentRuntime.Textures["toilet-sprite.png"];
+        float iconSize = 16 * sf;
+        DrawTexturePro(icon, new Rect(0, 0, 96, 96),
+            new Rect(position.X - iconSize - 4 * sf, position.Y + (size.Y - iconSize) / 2, iconSize, iconSize),
+            Vector2.Zero, 0, Rgba.White);
+    }
+
     void RedrawUI()
     {
         BeginTextureMode(UILeft);
@@ -1729,8 +1800,9 @@ public class GameBox : IDisposable
         Helper.DrawScoreText($"00", fontSizeSmall, posPower1 + new Vector2(sizeH.X+sizeH2.X+sizeL.X, (sizeH.Y-sizeL.Y) * 0.8f), Rgba.Orange);
         Helper.DrawScoreText($"10000", fontSizeBig, new Vector2(206, 218) * Runtime.CurrentRuntime.ScaleF - 
                                                     Helper.GetScoreTextureSize("10000", fontSizeBig), Rgba.SkyBlue);
-        Helper.DrawScoreText(Player.Graze.ToString(), fontSizeBig, new Vector2(206, 236) * Runtime.CurrentRuntime.ScaleF - 
+        Helper.DrawScoreText(Player.Graze.ToString(), fontSizeBig, new Vector2(206, 236) * Runtime.CurrentRuntime.ScaleF -
                                                                    Helper.GetScoreTextureSize(Player.Graze.ToString(), fontSizeBig), Rgba.White);
+        DrawToiletHoard(fontSizeBig);
         EndTextureMode();
     }
     #endregion
