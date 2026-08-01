@@ -364,8 +364,8 @@ public class MainScreen : MenuScreen
         // The corner station logos glow and flicker through neon_sign, the same shader the title wears (they are
         // transparent sprites too, so the same alpha-keyed halo works on them unchanged).
         var logoTint = Rgba.White with { A = Helper.TimeToTransparency(appear25) };
-        DrawNeonSign(SideLogoLeft, SideLogoLeftTarget, Vector2.Zero, 0f, logoTint);
         DrawNeonSign(SideLogoRight, SideLogoRightTarget, Vector2.Zero, 0f, logoTint);
+        DrawNeonSign(SideLogoLeft, SideLogoLeftTarget, Vector2.Zero, 0f, logoTint);
         // Floating pizzas drawn AFTER the top telecom logos so they pass in front of them (requested).
         DrawFloatingPizzas(time, (float)appear2);
         // The menu list is drawn AFTER the pizzas so its entries stay readable ABOVE them (requested).
