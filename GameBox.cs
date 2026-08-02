@@ -1026,6 +1026,10 @@ public class GameBox : IDisposable
         // The same health bar a boss gets — it has real health (set above) and the player is meant to shoot it
         // down before it leaves, so it needs the same read on how close that is.
         AddOverlay(new BossHealthOverlay(this, toilet));
+        // Countdown to the toilet's escape, hovering under it — the chapter timer up top doesn't track this
+        // (the toilet spawns off Player.Signal, not off the chapter clock, and isn't shown outside Spell/NonSpell
+        // chapters at all).
+        AddOverlay(new ToiletTimerOverlay(this, toilet));
         UpdateUI();   // brings up the hoard row in the stats strip (DrawToiletHoard)
         // Arrival flourish: a brown circle collapsing onto the toilet with lightning striking into it, plus a
         // brief nudge of the screen. Shake strength is in texture-coordinate units, so 0.008 is ~3px of the
@@ -1358,8 +1362,6 @@ public class GameBox : IDisposable
         RbTrace("enter");
         float time = GetTime();
         int typeI = ChapterInfo != null ? (int)ChapterInfo!.Type : 0;
-        if(typeI > 1 && !InChapterDelay)
-            Helper.PrepareTimer(ChapterInfo!.TickStart + ChapterInfo!.Length - CurrentTick - TickOffset);
         float tickDelta = GetTime() - (CurrentTick / TargetTPS);
         foreach (var overlay in GameplayOverlays)
             overlay.Update();
@@ -1517,10 +1519,16 @@ public class GameBox : IDisposable
         LastTimerDropTime = time;
         TimerDrop += (timerDropTarget - TimerDrop) * Math.Clamp(timerDt * 8f, 0f, 1f);
         if(typeI > 1 && !InChapterDelay)
+        {
+            // Re-prepared here rather than up in the RenderBox prologue: the overlay loop above (including
+            // ToiletTimerOverlay) may have redrawn the shared timer texture with its own countdown text since
+            // then, so this has to be the last write before the blit below.
+            Helper.PrepareTimer(ChapterInfo!.TickStart + ChapterInfo!.Length - CurrentTick - TickOffset);
             Helper.DrawTimer(
                 (int)((UIAboveGameplay.Texture.Width - Helper.TimerTextureSize.X) / 2f),   // horizontally centered
                 (int)(-(1 - appearTimer) * Helper.TimerTextureSize.Y + TimerDrop),           // slides in, dropped during spells
                 (ChapterInfo.TickStart + ChapterInfo!.Length - CurrentTickWithOffset) < (ChapterInfo!.Length > 600 ? 300 : 600));
+        }
         if (IsDialogActive)
             Dialog!.Draw(UIAboveGameplay);
         EndTextureMode();

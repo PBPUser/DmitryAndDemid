@@ -24,8 +24,8 @@ public static class ActionsScope
     // The toilet's visit is on a clock: it wanders for ToiletEscapeTick, then spends the last ~1.5s climbing off
     // the top of the screen, and is gone for good by ToiletLifetimeTick (12s at 60 TPS). The speed is sized to
     // clear the top edge inside that window from anywhere in its wander band (y 64..128).
-    private const int ToiletLifetimeTick = 720;
-    private const int ToiletEscapeTick = 630;
+    public const int ToiletLifetimeTick = 720;
+    public const int ToiletEscapeTick = 630;
     private const float ToiletEscapeSpeed = 4.5f, ToiletEscapeAcceleration = 0.06f;
 
     private const int NikitabEntityIndex = 10;

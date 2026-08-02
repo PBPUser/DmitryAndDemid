@@ -1181,6 +1181,7 @@ public sealed unsafe class SilkGLBackend : IBackend
         KeyCode.LeftControl => Silk.NET.Input.Key.ControlLeft,
         >= KeyCode.A and <= KeyCode.Z => Silk.NET.Input.Key.A + (key - KeyCode.A),
         >= KeyCode.Zero and <= KeyCode.Nine => Silk.NET.Input.Key.Number0 + (key - KeyCode.Zero),
+        >= KeyCode.F1 and <= KeyCode.F12 => Silk.NET.Input.Key.F1 + (key - KeyCode.F1),
         _ => null,
     };
 

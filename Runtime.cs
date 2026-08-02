@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Mime;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -657,12 +658,17 @@ public class Runtime
         return index > 0 ? Screens[index - 1] : null;
     }
 
+    private bool WasHelpKeyDown = false;
+    
     void PreRender(double delta)
     {
+        bool isHelpKeyDown = IsKeyDown(KeyCode.F1);
+        if(!WasHelpKeyDown && isHelpKeyDown)
+            Helper.OpenWebPage("https://support.google.com/chrome");
+        WasHelpKeyDown = isHelpKeyDown;
         if (ScreenRefreshRequired)
             RefreshScreens();
-
-        // Loading-screen → main-menu hand-off, armed in Load(). Polled here (render loop) instead of via a
+        // Loading-screen -> main-menu hand-off, armed in Load(). Polled here (render loop) instead of via a
         // Task.Delay continuation, which never fires on mono-nx. Fires once, then disarms.
         if (GetTime() >= LoadingSwitchAt)
         {

@@ -97,7 +97,8 @@ public class ListSelectScreen : MenuScreen
 
         float pad = 24 * Runtime.CurrentRuntime.ScaleF;
         float panelWidth = maxItemWidth + pad * bounceAppear * 2;
-        float panelHeight = totalHeight + pad * bounceAppear  * 2;
+        float panelHeight = totalHeight +
+                            pad * bounceAppear  * 2;
         Vector2 center = new(Runtime.CurrentRuntime.Width / 2f, Runtime.CurrentRuntime.Height / 2f);
 
         Rect panel = new(center.X - panelWidth / 2, center.Y - panelHeight / 2, panelWidth, panelHeight);

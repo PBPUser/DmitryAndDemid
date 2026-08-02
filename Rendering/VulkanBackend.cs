@@ -2116,6 +2116,7 @@ public sealed unsafe class VulkanBackend : IBackend
         KeyCode.LeftControl => Key.ControlLeft,
         >= KeyCode.A and <= KeyCode.Z => Key.A + (key - KeyCode.A),
         >= KeyCode.Zero and <= KeyCode.Nine => Key.Number0 + (key - KeyCode.Zero),
+        >= KeyCode.F1 and <= KeyCode.F12 => Key.F1 + (key - KeyCode.F1),
         _ => null,
     };
 

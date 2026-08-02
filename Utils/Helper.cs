@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using DmitryAndDemid.Rendering;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -7,7 +8,13 @@ using DmitryAndDemid.Data;
 using DmitryAndDemid.Gameplay;
 using Microsoft.CSharp.RuntimeBinder;
 using static DmitryAndDemid.Rendering.Gfx;
-
+using Process = GLib.Process;
+using SDProcess = System.Diagnostics.Process;
+#if ANDROID
+using Android.Content;
+using Android.Net;
+using Android.App;
+#endif
 namespace DmitryAndDemid.Utils;
 
 public static class Helper
@@ -1069,6 +1076,30 @@ public static class Helper
         EndShaderMode();
         EndTextureMode();
         return texture.Texture;
+    }
+
+    public static void OpenWebPage(string url)
+    {
+#if ANDROID
+        var ctx = Application.Context;
+        var intent = new Intent(Intent.ActionView, Uri.Parse(url));
+        intent.AddFlags(ActivityFlags.NewTask);
+        ctx.StartActivity(intent);
+#else
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            SDProcess.Start(new ProcessStartInfo("cmd", $"/c start {url}" ) { CreateNoWindow = true });
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            SDProcess.Start(new ProcessStartInfo("xdg-open", url));
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            throw new Exception("kupi komp normalniy");
+        else if(RuntimeInformation.IsOSPlatform(OSPlatform.FreeBSD))
+            try { SDProcess.Start("xdg-open", url); }
+            catch {SDProcess.Start("open", url); }
+        else
+            throw new Exception("nJlaTqpopMa He noDDep)!(uBaeTc9I");
+#endif
+        
+        
     }
     
     public static bool HasNvidiaDriverFile()

@@ -209,6 +209,10 @@ public class GameplayScreen : Screen
         GpTrace("PreRender after box.Update");
     }
 
+    /// <summary>Edge state for F1 (see below) — there's no IsKeyPressed wrapper, only IsKeyDown, so a held key
+    /// has to be debounced by hand against the previous frame's state instead of a wall-time cooldown.</summary>
+    private bool WasHelpKeyDown = false;
+
     public override void TopUpdate()
     {
         GpTrace("TopUpdate enter");
