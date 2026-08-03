@@ -213,6 +213,20 @@ public class RuntimeObject
             entity.Target.Size = entity.Source.Size;
             entity.Origin = entity.Source.Size / 2;
             entity.FloatingPoints[0x13] = visual.Collision;
+            // Frame strip is laid out left-to-right from SourcePosition, each RenderSize wide (see
+            // SourceRectangle). 0x46/0x47 are untouched by every other object kind (the bullet/collectable
+            // FlagApplyShader branches above claim 0x40-0x45 for shader uniform locations).
+            entity.Header[0x46] = Math.Max(1, visual.FrameCount);
+            entity.Header[0x47] = Math.Max(1, visual.FrameTicks);
+            entity.Header[0x48] = visual.LeanLeftFrame;
+            entity.Header[0x49] = visual.LeanRightFrame;
+            // Dance step list (idle-only, see SourceRectangle) — up to 4 steps, 0x4A-0x4D, count in 0x4E,
+            // per-step hold in 0x4F. An empty DanceFrames leaves 0x4E at 0, falling back to the plain loop.
+            int danceStepCount = Math.Min(4, visual.DanceFrames.Length);
+            for (int i = 0; i < 4; i++)
+                entity.Header[0x4A + i] = i < danceStepCount ? visual.DanceFrames[i] : -1;
+            entity.Header[0x4E] = danceStepCount;
+            entity.Header[0x4F] = Math.Max(1, visual.DanceTicks);
             if (info.IsBoss)
             {
                 entity.BackgroundDistortionEffect = new GameplayScreenEffect(box, 
@@ -303,7 +317,47 @@ public class RuntimeObject
         set => FloatingPoints[5] = value;
     }
 
-    public Rect SourceRectangle => Source;
+    /// <summary>Per-tick translation below this (px/tick) counts as stationary for lean purposes — small enough
+    /// to catch real movement, large enough to ignore drift from an idle sway/orbit script.</summary>
+    private const float LeanVelocityThreshold = 0.2f;
+
+    /// <summary>
+    /// The current animation frame's slice of <see cref="Source"/>'s texture — see Header[0x46]-[0x4F] set in
+    /// <see cref="LoadFromFile"/>. Frame count 0 or 1 (every object that isn't a multi-frame entity) returns
+    /// <see cref="Source"/> unchanged. While actually translating left/right (FloatingPoints[0x20], the per-tick
+    /// X delta GameBox already computes for every object's render interpolation — see GameBox.BoxUpdate) and a
+    /// lean frame is configured, that frame wins outright. Otherwise, while stationary, a configured dance step
+    /// list (Header[0x4A]-[0x4D], count in 0x4E) takes over as a livelier idle than the plain breathing loop;
+    /// with no dance configured it falls back to that plain loop. Both idle paths are derived from age rather
+    /// than stored per-tick state.
+    /// </summary>
+    public Rect SourceRectangle
+    {
+        get
+        {
+            int frameCount = Header[0x46];
+            if (frameCount <= 1)
+                return Source;
+            float velocityX = FloatingPoints[0x20];
+            int frame;
+            if (velocityX > LeanVelocityThreshold && Header[0x49] >= 0)
+                frame = Header[0x49];
+            else if (velocityX < -LeanVelocityThreshold && Header[0x48] >= 0)
+                frame = Header[0x48];
+            else
+            {
+                int danceStepCount = Header[0x4E];
+                if (danceStepCount > 0)
+                {
+                    int step = (Box.CurrentTick - CreatedAt) / Header[0x4F] % danceStepCount;
+                    frame = Header[0x4A + step];
+                }
+                else
+                    frame = (Box.CurrentTick - CreatedAt) / Header[0x47] % frameCount;
+            }
+            return Source with { X = Source.X + frame * Source.Width };
+        }
+    }
     public Rect TargetRectangle => Target with { X = FloatingPoints[0x10], Y = FloatingPoints[0x11] };
     
     public float FacingRotation

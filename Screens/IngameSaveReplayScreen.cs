@@ -11,8 +11,15 @@ public class IngameSaveReplayScreen : Screen
 {
     private PlayerController Controller;
     GameplayScreen GameplayScreen;
-    
-    public IngameSaveReplayScreen(PlayerController playerController, GameplayScreen screen)
+    private readonly Action? OnFinished;
+
+    /// <summary>
+    /// <paramref name="onFinished"/>, if given, fires once this screen closes — whether the player actually
+    /// saved or cancelled out — and replaces the plain self-removal (used by Extra mode's results cascade to
+    /// land directly back on the main menu). Existing callers (the pause menu) leave it null and keep the
+    /// original ExitAfterSave/self-removal behavior.
+    /// </summary>
+    public IngameSaveReplayScreen(PlayerController playerController, GameplayScreen screen, Action? onFinished = null)
     {
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
         MenuItems = new TargetHandle[20];
@@ -24,6 +31,7 @@ public class IngameSaveReplayScreen : Screen
         LineHeight = (int)(Spacing + MeasureTextEx(font, "a", FontSize, Spacing).Y);
         Controller = playerController;
         GameplayScreen = screen;
+        OnFinished = onFinished;
     }
 
     private int FontSize;
@@ -158,15 +166,20 @@ public class IngameSaveReplayScreen : Screen
                     InKeyboardMode = false;
                     LastInputTime = GetTime();
                     KeyboardModeSwitchOutTime = (float)GetTime()+0.5f;
-                    if (ExitAfterSave)
+                    if (OnFinished != null)
                     {
-                        Runtime.CurrentRuntime.RemoveScreen(this); 
+                        Runtime.CurrentRuntime.RemoveScreen(this);
+                        OnFinished();
+                    }
+                    else if (ExitAfterSave)
+                    {
+                        Runtime.CurrentRuntime.RemoveScreen(this);
                         Runtime.CurrentRuntime.RemoveScreen(GameplayScreen);
                         Runtime.CurrentRuntime.RemoveScreen(GameplayScreen.PauseMenu);
                     }
                     else
                     {
-                        Runtime.CurrentRuntime.RemoveScreen(this); 
+                        Runtime.CurrentRuntime.RemoveScreen(this);
                     }
                     rJson.Nickname = Current;
                     // Record which stages this run covers (and each stage's inputs offset + resource snapshot) so
@@ -220,6 +233,7 @@ public class IngameSaveReplayScreen : Screen
         {
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["esc"]);
             Runtime.CurrentRuntime.RemoveScreen(this);
+            OnFinished?.Invoke();
         }
         base.TopUpdate();
     }

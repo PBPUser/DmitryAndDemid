@@ -16,7 +16,8 @@ namespace DmitryAndDemid.Gameplay.RuntimeData;
 ///
 /// A line stays up for <see cref="LineDuration"/> seconds on its own; pressing shoot moves to the next one
 /// early. Shoot is taken on the press, not while it is held, so keeping the button down through a fight's
-/// opening does not blow through the whole conversation.
+/// opening does not blow through the whole conversation. Holding shoot (or Control, its keyboard-only stand-in)
+/// for longer than <see cref="SkipHoldThreshold"/> instead skips the whole conversation at once.
 /// </summary>
 public class RuntimeDialog
 {
@@ -25,6 +26,9 @@ public class RuntimeDialog
 
     /// <summary>A press is ignored for this long after a line appears, so one press cannot skip two lines.</summary>
     private const double AdvanceCooldown = 0.15;
+
+    /// <summary>Holding the skip input longer than this closes the whole dialog instead of advancing one line.</summary>
+    private const double SkipHoldThreshold = 0.75;
 
     /// <summary>The dialog window bounces in over this long when the conversation opens...</summary>
     private const double AppearDuration = 0.38;
@@ -46,6 +50,7 @@ public class RuntimeDialog
     private double LineElapsed;
     private double LastUpdate;
     private bool ShootWasDown;
+    private double SkipHeldElapsed;
 
     public bool Finished { get; private set; }
 
@@ -88,6 +93,14 @@ public class RuntimeDialog
 
         bool shootDown = IsKeyDown(KeyCode.Z) || Controller.IsButtonDown(Configuration.Config.ShootButton)
                                               || TouchControls.IsDragging;
+        bool skipHeld = shootDown || IsKeyDown(KeyCode.LeftControl);
+        SkipHeldElapsed = skipHeld ? SkipHeldElapsed + delta : 0;
+        if (SkipHeldElapsed > SkipHoldThreshold)
+        {
+            CloseElapsed = 0;   // holding through: bounce the whole dialog out at once, like reaching the last line
+            return;
+        }
+
         bool pressed = shootDown && !ShootWasDown && LineElapsed > AdvanceCooldown;
         ShootWasDown = shootDown;
 

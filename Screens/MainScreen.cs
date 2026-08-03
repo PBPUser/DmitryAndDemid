@@ -103,6 +103,13 @@ public class MainScreen : MenuScreen
         (SideLogoLeft, SideLogoLeftTarget) = PadForGlow(telecomTex, LogoSourceLeft, LogoTargetLeft);
         (SideLogoRight, SideLogoRightTarget) = PadForGlow(telecomTex, LogoSourceRight, LogoTargetRight);
 
+        LogoGlowBuffer = LoadRenderTexture(LogoPadded.Texture.Width, LogoPadded.Texture.Height);
+        SideLogoLeftGlowBuffer = LoadRenderTexture(SideLogoLeft.Texture.Width, SideLogoLeft.Texture.Height);
+        SideLogoRightGlowBuffer = LoadRenderTexture(SideLogoRight.Texture.Width, SideLogoRight.Texture.Height);
+
+        BackdropTexture = Runtime.CurrentRuntime.Textures["rediska-na-fon.png"];
+        BackdropComposite = LoadRenderTexture(BackdropTexture.Width, BackdropTexture.Height);
+
         CurrentY = (int)(160 * Runtime.CurrentRuntime.Scale);
 #if SWITCH
         Runtime.SwTrace("[ms] before new MusicRoomScreen()");
@@ -142,6 +149,18 @@ public class MainScreen : MenuScreen
     // The corner station logos, likewise padded (see PadForGlow), with the destination rects grown to match.
     TargetHandle SideLogoLeft, SideLogoRight;
     Rect SideLogoLeftTarget, SideLogoRightTarget;
+
+    // neon_sign scratch buffers, one per lit sprite, sized to that sprite's own (small, fixed) padded resolution
+    // rather than its on-screen destination. DrawNeonSign shades into these instead of straight onto the window,
+    // so its ~80-tap kernel runs once per SOURCE pixel and never scales with the player's chosen resolution —
+    // the same "render small, upscale for free" trick GameBox already uses for the playfield.
+    TargetHandle LogoGlowBuffer, SideLogoLeftGlowBuffer, SideLogoRightGlowBuffer;
+
+    // The backdrop + wallpaper glow shaders likewise render into this fixed, native-resolution composite (sized
+    // to rediska-na-fon.png itself) instead of directly at window size, then get upscaled with one cheap,
+    // shader-free blit.
+    TextureHandle BackdropTexture;
+    TargetHandle BackdropComposite;
 
     int Size;
     double AppearTime;
@@ -238,16 +257,29 @@ public class MainScreen : MenuScreen
     /// <summary>
     /// Draws a padded sprite target lit through the neon_sign shader — the glowing, flickering old-sign look the
     /// title logo wears, shared by the corner station logos.
+    ///
+    /// The shader pass itself renders into <paramref name="glowBuffer"/> — a scratch target the same (small,
+    /// fixed) size as <paramref name="target"/> — with <paramref name="tint"/> applied there exactly as before
+    /// (the shader reads it as fragColor and folds it into the glow math, so it has to stay on that pass, not
+    /// move to the final blit). The lit result is then upscaled to <paramref name="dest"/> with one plain,
+    /// shader-free blit, so the ~80-tap kernel runs at the sprite's own pixel count instead of scaling with
+    /// however large <paramref name="dest"/> is on screen (up to most of the window, for the title logo).
     /// </summary>
-    private static void DrawNeonSign(TargetHandle target, Rect dest, Vector2 origin, float rotation, Rgba tint)
+    private static void DrawNeonSign(TargetHandle target, TargetHandle glowBuffer, Rect dest, Vector2 origin, float rotation, Rgba tint)
     {
         var neon = Runtime.CurrentRuntime.Shaders["neon_sign"];
         SetShaderValue(neon, GetShaderLocation(neon, "time"), (float)GetTime(), UniformType.Float);
         SetShaderValue(neon, GetShaderLocation(neon, "resolution"),
             new Vector2(target.Texture.Width, target.Texture.Height), UniformType.Vec2);
+
+        BeginTextureMode(glowBuffer);
         BeginShaderMode(neon);
-        DrawTexturePro(target.Texture, Helper.GetFullSourceRenderTexture(target), dest, origin, rotation, tint);
+        DrawTexturePro(target.Texture, Helper.GetFullSourceRenderTexture(target),
+            new Rect(0, 0, target.Texture.Width, target.Texture.Height), Vector2.Zero, 0f, tint);
         EndShaderMode();
+        EndTextureMode();
+
+        DrawTexturePro(glowBuffer.Texture, Helper.GetFullSourceRenderTexture(glowBuffer), dest, origin, rotation, Rgba.White);
     }
 
     /// <summary>
@@ -348,11 +380,19 @@ public class MainScreen : MenuScreen
         var bg = Helper.Mix(Rgba.Black, Rgba.White, (float)appear2);
 #endif
         DrawRectangle(0, 0, Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height, bg);
-        var backdropTex = Runtime.CurrentRuntime.Textures["rediska-na-fon.png"];
         var backdropRect = new Rect(0, 0, Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height);
         var backdropTint = Rgba.White with { A = Helper.TimeToTransparency(appear5) };
-        DrawGlowingBackdrop(backdropTex, backdropRect, backdropTint);
-        DrawGlowingWallpaper(backdropTex, backdropRect, backdropTint);
+        // Both glow passes render into BackdropComposite at the backdrop art's own native size (1280x960),
+        // exactly as they used to render straight onto the window — same tint, same math, same blending order —
+        // just at a fixed pixel count instead of one that grows with the player's chosen resolution (up to
+        // 1920x1440). The composite is then upscaled with a single plain, shader-free blit.
+        var backdropNativeRect = new Rect(0, 0, BackdropTexture.Width, BackdropTexture.Height);
+        BeginTextureMode(BackdropComposite);
+        DrawGlowingBackdrop(BackdropTexture, backdropNativeRect, backdropTint);
+        DrawGlowingWallpaper(BackdropTexture, backdropNativeRect, backdropTint);
+        EndTextureMode();
+        DrawTexturePro(BackdropComposite.Texture, Helper.GetFullSourceRenderTexture(BackdropComposite),
+            backdropRect, Vector2.Zero, 0f, Rgba.White);
         var color1 = Helper.Mix(Rgba.Black, Rgba.Red, (float)appear2);
         var color2 = Helper.Mix(Rgba.Black, DarkRed, (float)appear2);
         CurrentX = (int)((16 - (Helper.Pow2F(1 - appear5) * 384)) * Runtime.CurrentRuntime.Scale);
@@ -364,8 +404,8 @@ public class MainScreen : MenuScreen
         // The corner station logos glow and flicker through neon_sign, the same shader the title wears (they are
         // transparent sprites too, so the same alpha-keyed halo works on them unchanged).
         var logoTint = Rgba.White with { A = Helper.TimeToTransparency(appear25) };
-        DrawNeonSign(SideLogoRight, SideLogoRightTarget, Vector2.Zero, 0f, logoTint);
-        DrawNeonSign(SideLogoLeft, SideLogoLeftTarget, Vector2.Zero, 0f, logoTint);
+        DrawNeonSign(SideLogoRight, SideLogoRightGlowBuffer, SideLogoRightTarget, Vector2.Zero, 0f, logoTint);
+        DrawNeonSign(SideLogoLeft, SideLogoLeftGlowBuffer, SideLogoLeftTarget, Vector2.Zero, 0f, logoTint);
         // Floating pizzas drawn AFTER the top telecom logos so they pass in front of them (requested).
         DrawFloatingPizzas(time, (float)appear2);
         // The menu list is drawn AFTER the pizzas so its entries stay readable ABOVE them (requested).
@@ -382,7 +422,7 @@ public class MainScreen : MenuScreen
         // on-screen size while the transparent margin (holding the halo) extends beyond it.
         var paddedDest = new Rect(logoDest.X, logoDest.Y, logoDest.Width * LogoPadScaleX, logoDest.Height * LogoPadScaleY);
         var logoOrigin = new Vector2(paddedDest.Width / 2, paddedDest.Height / 2);
-        DrawNeonSign(LogoPadded, paddedDest, logoOrigin, 45f, Rgba.White);
+        DrawNeonSign(LogoPadded, LogoGlowBuffer, paddedDest, logoOrigin, 45f, Rgba.White);
         var source = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["Version"]);
         DrawTexturePro(
             Runtime.CurrentRuntime.Textures["Copyright"],

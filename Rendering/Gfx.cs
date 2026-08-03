@@ -87,13 +87,53 @@ public static class Gfx
     public static Vector2 MeasureTextEx(FontHandle font, string text, float fontSize, float spacing) =>
         R.MeasureText(font, text, fontSize, spacing);
 
+    public static Vector2 MeasureMultilineText(FontHandle font, string text, float fontSize, float spacing)
+    {
+        Vector2 tmp;
+        Vector2 measure = Vector2.Zero;
+        string[] strs = text.Split("\n");
+        foreach (var str in strs)
+        {
+            tmp = MeasureTextEx(font, str, fontSize, spacing);
+            measure.X = MathF.Max(tmp.X, measure.X);
+            measure.Y += measure.Y;
+        }
+        return measure;
+    }
+    
     /// <summary>Raylib's simple DrawText — default font, integer position.</summary>
     public static void DrawText(string text, int x, int y, int fontSize, Rgba color) =>
         R.DrawText(R.GetDefaultFont(), text, new Vector2(x, y), fontSize, fontSize / 10f, color);
 
+    public static void DrawMultilineText(FontHandle font, string text, Vector2 position, float fontSize, float spacing,
+        Rgba tint, TextAlign textAlign = TextAlign.Start, Rgba background = default)
+    {
+        var strings = text.Split("\n");
+        float yOffset = 0;
+        Vector2 measure, offset;
+        foreach (var str in strings)
+        {
+            measure = MeasureTextEx(font, str, fontSize, spacing);
+            offset = new Vector2(textAlign switch
+            {
+                TextAlign.Start => 0,
+                TextAlign.Center => -measure.X / 2,
+                _ => -measure.X
+            }, yOffset);
+            DrawRectanglePro(new Rect(position, measure), -offset, 0, background);
+            DrawTextEx(font, str, position + offset, fontSize, spacing, tint);
+            yOffset += measure.Y;
+        }
+    }
+    
+    public enum TextAlign
+    {
+        Start, Center, Stop
+    }
+    
     public static void DrawTextEx(FontHandle font, string text, Vector2 position, float fontSize, float spacing, Rgba tint) =>
         R.DrawText(font, text, position, fontSize, spacing, tint);
-
+    
     public static void DrawTextPro(FontHandle font, string text, Vector2 position, Vector2 origin, float rotation,
         float fontSize, float spacing, Rgba tint) =>
         R.DrawTextPro(font, text, position, origin, rotation, fontSize, spacing, tint);

@@ -106,6 +106,9 @@ public struct Rgba(byte r, byte g, byte b, byte a = 255)
     public static readonly Rgba DarkPurple = new(112, 31, 126);
     public static readonly Rgba DarkBrown = new(76, 63, 47);
     public static readonly Rgba RayWhite = new(245, 245, 245);
+    public static readonly Rgba TransparentBlack = new(0, 0, 0, 0);
+    public static readonly Rgba TransparentWhite = new(255, 255, 255, 0);
+    public static readonly Rgba DebugSemiTransparentGray = new(64, 64, 64, 128);
 
     /// <summary>0xRRGGBB — matches the ints the screen effects pass around.</summary>
     public static Rgba FromHex(int rgb, byte alpha = 255) =>

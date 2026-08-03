@@ -1,0 +1,51 @@
+{
+  "Header": [
+    0,
+    3,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+  ],
+  "Scripts": [],
+  "Chapters": [
+    {
+      "Header": [
+        0,
+        8,
+        300,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Dialogs": [],
+      "Id": "extra1#chapter1#placeholder",
+      "SpellcardTitle": "",
+      "BossName": "",
+      "CreateScript": "",
+      "UpdateScript": "",
+      "SpellcardTexture": "",
+      "SpellcardShader": "",
+      "TimeoutCard": false,
+      "BossInvincible": false,
+      "HasDialogs": false,
+      "UseUpdateScript": true,
+      "UseCreateScript": false,
+      "ApplyShader": false
+    }
+  ],
+  "Entities": [],
+  "Backgrounds": []
+}

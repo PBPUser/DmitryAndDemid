@@ -175,6 +175,17 @@ public class GameplayScreen : Screen
             // the same clean teardown as a replay that finished by clearing.
             if (IsDemo)
                 return;
+            // Extra has no continues at all (GameBox.CanContinue is always false in this mode), so a death here
+            // is unrecoverable — skip the pause-menu-as-game-over entirely (its only live options would be
+            // Restart/Save/Exit) and go straight into the same score-save -> replay-save -> main-menu cascade a
+            // clear uses. Guarded on PlaybackController == null: watching a replay end in death should never
+            // re-record a score or offer to save a replay of a replay.
+            if (value && PlaybackController == null && GameBox.Mode == GameType.Extra && GameBox.IsGameOver)
+            {
+                Runtime.CurrentRuntime.RemoveScreen(this);
+                ShowGameOverResults();
+                return;
+            }
             if (value)
             {
                 Runtime.CurrentRuntime.AddScreen(PauseMenu);
@@ -266,6 +277,15 @@ public class GameplayScreen : Screen
     }
 
     /// <summary>
+    /// Extra mode's counterpart to <see cref="ShowEnding"/> for an unrecoverable death (see the game-over branch
+    /// of the <see cref="Paused"/> setter). No clear happened, so — unlike <see cref="ShowEnding"/> — none of the
+    /// clear trophies fire and <see cref="ResultsScreen"/> records the run as a loss; it still gets the same
+    /// score-name-entry -> replay-save -> main-menu cascade as a real clear.
+    /// </summary>
+    private void ShowGameOverResults() =>
+        Runtime.CurrentRuntime.AddScreen(new ResultsScreen(this, Runtime.CurrentRuntime.ReturnToMainMenu, won: false));
+
+    /// <summary>
     /// Routes a full main-game clear into the character's "good" ending (<c>Endings/{ID}_good.json</c>), asking
     /// it to run the staff roll after. A missing or unreadable ending file just drops back to the main menu.
     /// </summary>
@@ -275,6 +295,16 @@ public class GameplayScreen : Screen
         // even a 1cc — and any run that spent a continue get the BAD ending and do NOT unlock Extra.
         bool goodEnding = GameBox.Difficulty >= 1 && GameBox.ContinuesUsed == 0;
         UnlockClearTrophies(goodEnding);
+
+        // Extra has no story ending/staff roll of its own — clearing it goes straight to the score/name-entry
+        // screen, then (Extra never allows continues, so this is unconditional) the replay-save screen, then
+        // directly back to the main menu rather than surfacing the DifficultyScreen/PersonSelectScreen chain
+        // still sitting underneath.
+        if (GameBox.Mode == GameType.Extra)
+        {
+            Runtime.CurrentRuntime.AddScreen(new ResultsScreen(this, Runtime.CurrentRuntime.ReturnToMainMenu));
+            return;
+        }
 
         string suffix = goodEnding ? "good" : "bad";
         string path = $"Assets/Data/Endings/{Data.ID}_{suffix}.json";

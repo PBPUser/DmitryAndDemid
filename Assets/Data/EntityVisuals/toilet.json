@@ -2,5 +2,11 @@
   "Texture": "toilet-sprite.png",
   "RenderSize": { "X": 96, "Y": 96 },
   "SourcePosition": { "X": 0, "Y": 0 },
-  "Collision": 48
+  "Collision": 48,
+  "FrameCount": 4,
+  "FrameTicks": 12,
+  "LeanLeftFrame": 4,
+  "LeanRightFrame": 5,
+  "DanceFrames": [1, 5, 3, 4],
+  "DanceTicks": 10
 }

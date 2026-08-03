@@ -19,13 +19,24 @@ public class ResultsScreen : Screen
     private readonly FontHandle Font;
     private readonly FontHandle TitleFont;
     private readonly float FontSize;
+    private readonly Action? OnDone;
+    private readonly bool Won;
     private string Current = "";
     private int LetterIndex;
     private bool Recorded;
 
-    public ResultsScreen(GameplayScreen run)
+    /// <summary>
+    /// <paramref name="onDone"/>, if given, replaces the plain "reveal whatever's underneath" ending: it fires
+    /// once the whole results/replay-save cascade is done (used by Extra mode to land directly back on the main
+    /// menu instead of the DifficultyScreen/PersonSelectScreen chain still sitting beneath the run).
+    /// <paramref name="won"/> is recorded onto the score board (<see cref="PlayerData.RecordGame"/>'s win-count
+    /// stat) — false for an unrecoverable death (Extra's game-over cascade), true for an actual clear.
+    /// </summary>
+    public ResultsScreen(GameplayScreen run, Action? onDone = null, bool won = true)
     {
         Run = run;
+        OnDone = onDone;
+        Won = won;
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
         Font = Runtime.CurrentRuntime.Fonts["googlesans"];
         TitleFont = Runtime.CurrentRuntime.Fonts["kodemono"];
@@ -65,7 +76,7 @@ public class ResultsScreen : Screen
         long seconds = (long)(Box.CurrentTick / GameBox.TargetTPS);
         PlayerData.Instance.LastName = name;
         PlayerData.Instance.RecordGame(Box.ProtogonistId, Box.Difficulty, Box.FinalScore,
-            won: true, seconds, stage: 0, percentage: 0f, name);
+            won: Won, seconds, stage: 0, percentage: 0f, name);
     }
 
     private void Next()
@@ -73,7 +84,9 @@ public class ResultsScreen : Screen
         Runtime.CurrentRuntime.RemoveScreen(this);
         // A clean, no-continue clear earns the chance to save a replay; otherwise straight back to the menu.
         if (Box.ContinuesUsed == 0 && Box.Player.Controller is PlayerController controller)
-            Runtime.CurrentRuntime.AddScreen(new IngameSaveReplayScreen(controller, Run));
+            Runtime.CurrentRuntime.AddScreen(new IngameSaveReplayScreen(controller, Run, OnDone));
+        else
+            OnDone?.Invoke();
     }
 
     public override void TopUpdate()

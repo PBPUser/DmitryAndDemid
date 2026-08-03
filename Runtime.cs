@@ -35,7 +35,7 @@ public class Runtime
 
     public static Rgba TransparentWhite = Rgba.White with { A = 0 };
     public static Rgba TransparentBlack = Rgba.Black with { A = 0 };
-    public string VersionString = "0.03a";
+    public string VersionString = "0.04a";
     public double Time;
     public int Width;
     public int Height;
@@ -649,6 +649,19 @@ public class Runtime
     
     public int GetScreenIndex(Screen screen) => Screens.IndexOf(screen);
 
+    /// <summary>
+    /// Tears down every screen above the persistent <see cref="ScreenMain"/> — e.g. once Extra mode's
+    /// results/replay-save cascade finishes, so the player lands directly back on the main menu instead of
+    /// revealing the DifficultyScreen/PersonSelectScreen chain a normal run's screens are pushed on top of and
+    /// never pop (see <see cref="AddScreen"/> callers throughout <c>Screens/</c>).
+    /// </summary>
+    public void ReturnToMainMenu()
+    {
+        foreach (Screen screen in Screens)
+            if (screen != ScreenMain)
+                RemoveScreen(screen);
+    }
+
     /// <summary>The screen immediately below <paramref name="screen"/> in the stack, or null if it's the
     /// bottom (or not present). Used by screens that render a real-time capture of what's behind them, e.g. the
     /// windowed <see cref="Screens.ListSelectScreen"/> refracting Settings through its glass panel.</summary>
@@ -659,6 +672,9 @@ public class Runtime
     }
 
     private bool WasHelpKeyDown = false;
+    #if DEBUG
+    bool WasDebugKeyDown = false;
+    #endif
     
     void PreRender(double delta)
     {
@@ -666,6 +682,12 @@ public class Runtime
         if(!WasHelpKeyDown && isHelpKeyDown)
             Helper.OpenWebPage("https://support.google.com/chrome");
         WasHelpKeyDown = isHelpKeyDown;
+        #if DEBUG
+        bool isKeyDebugDown = IsKeyDown(KeyCode.F3);
+        if (!WasDebugKeyDown && isKeyDebugDown)
+            ShowDebugInformation = !ShowDebugInformation;
+        WasDebugKeyDown = isKeyDebugDown;
+        #endif
         if (ScreenRefreshRequired)
             RefreshScreens();
         // Loading-screen -> main-menu hand-off, armed in Load(). Polled here (render loop) instead of via a
@@ -727,6 +749,10 @@ public class Runtime
         }    }
 
     public bool IsFrameCap240 = Config.FrameCap == 240;
+    #if DEBUG
+    bool ShowDebugInformation = false;
+    SystemInfo SystemInfo = Utils.SystemInfo.Collect();
+    #endif
 
     void Render()
     {
@@ -755,15 +781,24 @@ public class Runtime
         else
             DrawFPS((int)PresentRect.X + 4, (int)PresentRect.Y + 4);
 #if DEBUG
+        if (ShowDebugInformation)
         {
+            if (GetTime() - DebugMemLastUpdate > 0.5)
+            {
+                DebugMemLastUpdate = GetTime();
+                try { DebugRamBytes = Environment.WorkingSet; } catch { DebugRamBytes = 0; }
+                DebugVramBytes = EstimateTextureVramBytes();
+            }
             // Debug builds show renderer / version / build at the top-right of the game area.
             var vf = Fonts["kodemono"];
             float vfs = 14 * ScaleF;
-            string dbg = $"{Config.Renderer}  v{VersionString}  b{BuildInfo.Number}";
-            Vector2 dm = MeasureTextEx(vf, dbg, vfs, 1);
+            string leftDebugInformation = $"Subhumanian Fartalism {VersionString} ({VersionString}/{BuildInfo.Number})\n{GetFPS()} fps T: {(Config.FrameCap == -1 ? "inf" : Config.FrameCap)}";
+            string rightDebugInformation = $"Runtime: {RuntimeInformation.FrameworkDescription} {RuntimeInformation.ProcessArchitecture}\nMem: {Benchmark.FormatBytes(DebugRamBytes)}\nVMem: {Benchmark.FormatBytes(DebugVramBytes)}\n \nCPU: {Environment.ProcessorCount}x ({SystemInfo.CoreTopology}) {SystemInfo.CpuName} @ {SystemInfo.MaxClockMHz} MHz\n \nDisplay: {GetScreenWidth()}x{GetScreenHeight()} ({SystemInfo.PhysicalCores})\n \n{Config.Renderer}";
+            float leftX = WindowMode == FullScreenType.Window ? 0 : PresentRect.X;
             float rightX = WindowMode == FullScreenType.Window ? Width : PresentRect.X + PresentRect.Width;
             float topY = WindowMode == FullScreenType.Window ? 0 : PresentRect.Y;
-            DrawTextEx(vf, dbg, new Vector2(rightX - dm.X - 6 * ScaleF, topY + 4 * ScaleF), vfs, 1, Rgba.White);
+            DrawMultilineText(vf, leftDebugInformation, new Vector2(leftX + 6 * ScaleF, topY + 4 * ScaleF), vfs, 1, Rgba.White, TextAlign.Start, Rgba.DebugSemiTransparentGray);
+            DrawMultilineText(vf, rightDebugInformation, new Vector2(rightX - 6 * ScaleF, topY + 4 * ScaleF), vfs, 1, Rgba.White, TextAlign.Stop, Rgba.DebugSemiTransparentGray);
         }
         if (BackgroundTesterOpen)
             DrawBackgroundTester();
@@ -786,7 +821,24 @@ public class Runtime
 
 #if DEBUG
     private bool UseWhiteBackground = false;
-    
+
+    // RAM / VRAM readout shown at the bottom of the game area (see Render). Refreshed on a slow timer rather
+    // than every frame — WorkingSet is cheap, but the VRAM estimate walks the whole Textures dictionary, and
+    // neither number moves fast enough to need a per-frame update.
+    private long DebugRamBytes, DebugVramBytes;
+    private double DebugMemLastUpdate = -1;
+
+    /// <summary>Sum of every loaded texture's Width*Height*4 (assumed RGBA8) — an approximation of the game's
+    /// own texture VRAM footprint. It does not count render targets (Backbuffer, per-screen/per-GameBox render
+    /// textures), which aren't tracked centrally, so the true figure runs somewhat higher.</summary>
+    private long EstimateTextureVramBytes()
+    {
+        long total = 0;
+        foreach (TextureHandle t in Textures.Values)
+            total += (long)t.Width * t.Height * 4;
+        return total;
+    }
+
     void UpdateTextureView()
     {
         if (GetTime() - TextureViewerDelay < TextureViewerLastTimeKeyPressed)

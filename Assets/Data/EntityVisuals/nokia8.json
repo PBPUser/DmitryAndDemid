@@ -2,5 +2,11 @@
   "Texture": "nokia-8.png",
   "RenderSize": { "X": 48, "Y": 96 },
   "SourcePosition": { "X": 0, "Y": 0 },
-  "Collision": 18
+  "Collision": 18,
+  "FrameCount": 4,
+  "FrameTicks": 12,
+  "LeanLeftFrame": 4,
+  "LeanRightFrame": 5,
+  "DanceFrames": [1, 5, 3, 4],
+  "DanceTicks": 10
 }

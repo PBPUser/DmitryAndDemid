@@ -245,6 +245,13 @@ public class PersonSelectScreen : MenuScreen
         }
         else if (GameType == GameType.Extra)
         {
+            // Extra is its own self-contained run — FileStageInfo.ExtraStagePaths() is the counterpart split to
+            // CampaignStagePaths(), so this never pulls in (or from) the main story's stages.
+            var stages = FileStageInfo.ExtraStagePaths()
+                .Select(FileStageInfo.LoadFromFile).ToArray();
+            UseTLS = true;
+            var gamePlayScreen = new GameplayScreen(protogonistData, Difficulty, stages, 0, false, mode: GameType.Extra);
+            Runtime.CurrentRuntime.AddScreen(gamePlayScreen);
         }
         else
         {

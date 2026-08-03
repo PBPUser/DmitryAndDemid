@@ -9,9 +9,10 @@ namespace DmitryAndDemid.Data.Archive;
 public class FileStageInfo
 {
     /// <summary>
-    /// The packed campaign stages under <c>Assets/Data/SpellCards</c>: filtered to <c>.sid</c> and ordinally
-    /// sorted. This is the ONE source of truth for "which files are playable stages", and every gameplay entry
-    /// point (main story, replay/demo, practice, the bench) must go through it.
+    /// The packed campaign stages under <c>Assets/Data/SpellCards</c>: filtered to <c>.sid</c>, excluding the
+    /// extra-mode stage(s) (see <see cref="ExtraStagePaths"/>), and ordinally sorted. This is the ONE source of
+    /// truth for "which files are the main-story playable stages", and every main-story entry point (story,
+    /// replay/demo, practice, the bench) must go through it.
     ///
     /// The <c>.sid</c> filter is not cosmetic. That folder can also hold non-stage files — editor scratch, an
     /// OS artifact like <c>.DS_Store</c>, a stray unpacked asset — and feeding one of those to <see cref="Load"/>
@@ -21,7 +22,24 @@ public class FileStageInfo
     /// only ever reproduced where such a file existed (hence not on a clean desktop checkout).
     /// </summary>
     public static string[] CampaignStagePaths() =>
-        Assets.Files("Assets/Data/SpellCards", "*.sid").OrderBy(x => x, StringComparer.Ordinal).ToArray();
+        Assets.Files("Assets/Data/SpellCards", "*.sid")
+            .Where(x => !IsExtraStagePath(x))
+            .OrderBy(x => x, StringComparer.Ordinal).ToArray();
+
+    /// <summary>
+    /// The packed stage(s) for Extra mode (<see cref="DmitryAndDemid.Data.GameType.Extra"/>) — every <c>.sid</c>
+    /// under <c>Assets/Data/SpellCards</c> whose filename starts with "extra" (e.g. <c>extra1.sid</c>), the
+    /// counterpart split to <see cref="CampaignStagePaths"/>. Extra mode is its own self-contained run, entered
+    /// only through the main menu's "menu.extra" item — these never appear in the main story, practice, or
+    /// replay stage lists.
+    /// </summary>
+    public static string[] ExtraStagePaths() =>
+        Assets.Files("Assets/Data/SpellCards", "*.sid")
+            .Where(IsExtraStagePath)
+            .OrderBy(x => x, StringComparer.Ordinal).ToArray();
+
+    private static bool IsExtraStagePath(string path) =>
+        Path.GetFileName(path).StartsWith("extra", StringComparison.OrdinalIgnoreCase);
 
     public FileStageInfo()
     {

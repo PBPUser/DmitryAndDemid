@@ -2,5 +2,11 @@
   "Texture": "nikitos-sprite.png",
   "RenderSize": { "X": 64, "Y": 64 },
   "SourcePosition": { "X": 0, "Y": 0 },
-  "Collision": 32
+  "Collision": 32,
+  "FrameCount": 4,
+  "FrameTicks": 12,
+  "LeanLeftFrame": 4,
+  "LeanRightFrame": 5,
+  "DanceFrames": [1, 5, 3, 4],
+  "DanceTicks": 10
 }

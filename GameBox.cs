@@ -72,7 +72,12 @@ public class GameBox : IDisposable
     /// an object-initializer after construction, so read it lazily through here rather than caching it.</summary>
     public bool IsDemo => GameplayScreen.IsDemo;
 
-    int ComputeCurrentTickFromStartingTime => (int)(GetTime() * TargetTPS);
+    /// <summary>Holding Control while watching a replay (or the title-screen demo) races the tick target ahead
+    /// 4x faster than wall time; how much of that actually lands depends on how many frames render while it's
+    /// held, same as the normal 60 TPS throttle below already depends on frame rate.</summary>
+    float ReplaySpeedMultiplier => IsReplay && IsKeyDown(KeyCode.LeftControl) ? 4f : 1f;
+
+    int ComputeCurrentTickFromStartingTime => (int)(GetTime() * TargetTPS * ReplaySpeedMultiplier);
     
     public GameBox(GameplayScreen screen, ProtogonistData data, FileStageInfo[] stages, int chapter, int difficulty, bool isPractice,
         PlayerControllerBase? controller = null, GameType mode = GameType.Default, int startStage = 0)
@@ -670,16 +675,15 @@ public class GameBox : IDisposable
 
     /// <summary>
     /// Loads a collectable at <paramref name="position"/> and gives it a slight pop: a small upward launch with a
-    /// little horizontal jitter, so items burst out of the kill and arc up before the collectable gravity
-    /// (FloatingPoints[6]) pulls them back down, instead of appearing motionless. Velocity is intentionally
-    /// small ("slight") — a gentle scatter, not a fountain.
+    /// wide horizontal jitter, so items burst out of the kill and arc up before the collectable gravity
+    /// (FloatingPoints[6]) pulls them back down, instead of appearing motionless.
     /// </summary>
     RuntimeObject SpawnCollectableWithPop(FileEntityInfo preset, Vector2 position, Random rnd)
     {
         var obj = RuntimeObject.LoadFromFile(preset, this);
         obj.Position = position;
-        // +Y is down, so a negative Y is upward. ~0.8..2.0 up, ±0.75 sideways.
-        obj.CollectableVelocity = new Vector2((rnd.NextSingle() - 0.5f) * 1.5f, -(rnd.NextSingle() * 1.2f + 0.8f));
+        // +Y is down, so a negative Y is upward. ~0.8..2.0 up, ±1.5 sideways.
+        obj.CollectableVelocity = new Vector2((rnd.NextSingle() - 0.5f) * 3f, -(rnd.NextSingle() * 1.2f + 0.8f));
         return obj;
     }
     

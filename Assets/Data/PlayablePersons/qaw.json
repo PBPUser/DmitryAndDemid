@@ -2,9 +2,9 @@
   "ID": "qaw",
   "Speed": 2,
   "FocusSpeed": 1,
-  "WeaponClassName": "AkobPlayerWeapon",
+  "WeaponClassName": "QawPlayerWeapon",
   "ArtName": "qaw_art.png",
   "Description": "person.qaw.description",
   "DialogArtName": "qaw_dialog_arts.png",
-  "Sprite": "akob_sprite.png"
+  "Sprite": "qaw_sprite.png"
 }
