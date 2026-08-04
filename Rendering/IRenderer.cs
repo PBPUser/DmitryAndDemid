@@ -16,6 +16,24 @@ public interface IRenderer : IDisposable
     // ---- textures -------------------------------------------------------------------------
 
     TextureHandle LoadTexture(string path);
+
+    /// <summary>
+    /// Uploads raw pixels to a GPU texture — the entry point for images the game builds or edits on the CPU
+    /// (see <see cref="CpuImage"/>) instead of reading from a file. <paramref name="rgba"/> is tightly packed
+    /// RGBA, top row first: 4 bytes per pixel, at least <c>width * height * 4</c> long. The bytes are consumed
+    /// during the call, so the caller may mutate or drop the array afterwards.
+    ///
+    /// The result is backend-owned exactly like a <see cref="LoadTexture"/> one — free it with
+    /// <see cref="UnloadTexture"/>. Returns <see cref="TextureHandle.None"/> on degenerate arguments, or on a
+    /// backend with no upload path (the Switch deko3d backend, whose LoadTexture is a stub too).
+    /// </summary>
+    TextureHandle LoadTextureFromPixels(byte[] rgba, int width, int height);
+
+    /// <summary>The shared precondition for <see cref="LoadTextureFromPixels"/>, so every backend rejects the
+    /// same inputs rather than each inventing its own guard (and reading past the array on a short one).</summary>
+    static bool AreLoadablePixels(byte[] rgba, int width, int height) =>
+        width > 0 && height > 0 && (long)width * height * 4 <= rgba.Length;
+
     void UnloadTexture(TextureHandle texture);
     bool IsValid(TextureHandle texture);
     Vector2 GetTextureSize(TextureHandle texture);

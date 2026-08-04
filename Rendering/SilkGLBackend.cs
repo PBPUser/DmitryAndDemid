@@ -298,6 +298,13 @@ public sealed unsafe class SilkGLBackend : IBackend
         return CreateTexture(image.Data, image.Width, image.Height);
     }
 
+    /// <summary>Public face of <see cref="CreateTexture"/> — the same upload the file path already goes through,
+    /// for pixels the game produced itself (see <see cref="CpuImage"/>).</summary>
+    public TextureHandle LoadTextureFromPixels(byte[] rgba, int width, int height) =>
+        IRenderer.AreLoadablePixels(rgba, width, height)
+            ? CreateTexture(rgba, width, height)
+            : TextureHandle.None;
+
     private TextureHandle CreateTexture(byte[] rgba, int width, int height)
     {
         uint id = Gl.GenTexture();

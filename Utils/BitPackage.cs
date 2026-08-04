@@ -23,6 +23,8 @@ public class BitPackage : IDisposable, IAsyncDisposable
         return package;
     }
     
+    public static BitPackage OpenReadMemoryPackage(byte[] bytes) => GetStreamReadPackage(new MemoryStream(bytes));
+    public static BitPackage OpenWriteMemoryPackage(byte[] bytes) => new BitPackage();
     public static BitPackage OpenStreamReadPackage(string file) => GetStreamReadPackage(File.OpenRead(file));
     public static BitPackage OpenStreamWritePackage(string file) => GetStreamReadPackage(File.OpenWrite(file));
 

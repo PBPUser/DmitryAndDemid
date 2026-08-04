@@ -179,6 +179,13 @@ public sealed class MetalBackend : IBackend
         return new TextureHandle(id);
     }
 
+    /// <summary>Same upload as <see cref="LoadTexture"/>, minus the decode — for CPU-built pixels
+    /// (see <see cref="CpuImage"/>).</summary>
+    public TextureHandle LoadTextureFromPixels(byte[] rgba, int width, int height) =>
+        IRenderer.AreLoadablePixels(rgba, width, height)
+            ? CreateTexture(width, height, rgba)
+            : TextureHandle.None;
+
     public void UnloadTexture(TextureHandle texture)
     {
         if (Textures.Remove(texture.Id, out MtlTexture? t))

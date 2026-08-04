@@ -46,6 +46,37 @@ public sealed class RaylibBackend : IBackend
         return new TextureHandle(id);
     }
 
+    /// <summary>
+    /// Raylib has no upload-from-array entry point, so wrap the pixels in an Image that points straight at
+    /// them. LoadTextureFromImage copies to the GPU during the call and keeps nothing, so the pin only has to
+    /// outlive that call — and there is no Image to UnloadImage afterwards, since raylib never owned the data.
+    /// </summary>
+    public unsafe TextureHandle LoadTextureFromPixels(byte[] rgba, int width, int height)
+    {
+        if (!IRenderer.AreLoadablePixels(rgba, width, height))
+            return TextureHandle.None;
+
+        Texture2D texture;
+        fixed (byte* pixels = rgba)
+        {
+            Image image = new()
+            {
+                Data = pixels,
+                Width = width,
+                Height = height,
+                Mipmaps = 1,
+                Format = PixelFormat.UncompressedR8G8B8A8,
+            };
+            texture = Raylib.LoadTextureFromImage(image);
+        }
+
+        if (!Raylib.IsTextureValid(texture))
+            return TextureHandle.None;
+        int id = NextId++;
+        Textures[id] = texture;
+        return new TextureHandle(id);
+    }
+
     public void UnloadTexture(TextureHandle texture)
     {
         if (Textures.Remove(texture.Id, out Texture2D native))

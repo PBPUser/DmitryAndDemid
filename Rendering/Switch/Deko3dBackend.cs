@@ -212,6 +212,7 @@ public sealed unsafe class Deko3dBackend : IBackend
     // =========================================================================================
 
     public TextureHandle LoadTexture(string path) => TextureHandle.None;      // TODO: DkImage upload
+    public TextureHandle LoadTextureFromPixels(byte[] rgba, int width, int height) => TextureHandle.None;  // ditto
     public void UnloadTexture(TextureHandle texture) { }
     public bool IsValid(TextureHandle texture) => texture.Id != 0;
     public Vector2 GetTextureSize(TextureHandle texture) => Vector2.Zero;     // TODO: from DkImage layout

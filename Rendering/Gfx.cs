@@ -17,6 +17,12 @@ public static class Gfx
     // ---- textures -------------------------------------------------------------------------
 
     public static TextureHandle LoadTexture(string path) => R.LoadTexture(path);
+
+    /// <summary>Uploads tightly packed RGBA pixels (top row first) as a texture — see
+    /// <see cref="IRenderer.LoadTextureFromPixels"/>. <see cref="CpuImage.ToTexture"/> is the usual caller.</summary>
+    public static TextureHandle LoadTextureFromPixels(byte[] rgba, int width, int height) =>
+        R.LoadTextureFromPixels(rgba, width, height);
+
     public static void UnloadTexture(TextureHandle texture) => R.UnloadTexture(texture);
     public static bool IsTextureValid(TextureHandle texture) => R.IsValid(texture);
     public static void SetTextureFilter(TextureHandle texture, FilterMode filter) => R.SetTextureFilter(texture, filter);

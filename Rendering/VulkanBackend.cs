@@ -1033,7 +1033,9 @@ public sealed unsafe class VulkanBackend : IBackend
         ulong size = (ulong)(width * height * 4);
 
         RingBuffer staging = CreateRing(size, BufferUsageFlags.TransferSrcBit);
-        Marshal.Copy(rgba, 0, (nint)staging.Mapped, rgba.Length);
+        // Copy the image's worth of bytes, not rgba.Length: the staging buffer is sized width*height*4, and
+        // LoadTextureFromPixels accepts an array that is merely long ENOUGH (a caller's larger scratch buffer).
+        Marshal.Copy(rgba, 0, (nint)staging.Mapped, (int)size);
 
         // Record the copy into the SAME command buffer that carries this image's UNDEFINED->GENERAL barrier.
         // Submitting it separately (as a one-shot) ran the copy before that barrier had been submitted, so the
@@ -1143,6 +1145,13 @@ public sealed unsafe class VulkanBackend : IBackend
         ImageResult image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
         return CreateTexture(image.Data, image.Width, image.Height);
     }
+
+    /// <summary>Same image-plus-staging-copy path as <see cref="LoadTexture"/>, minus the decode. Needs the
+    /// device up (Ready), since the upload records into a command buffer.</summary>
+    public TextureHandle LoadTextureFromPixels(byte[] rgba, int width, int height) =>
+        Ready && IRenderer.AreLoadablePixels(rgba, width, height)
+            ? CreateTexture(rgba, width, height)
+            : TextureHandle.None;
 
     public void UnloadTexture(TextureHandle texture) => DestroyTextureInternal(texture);
 

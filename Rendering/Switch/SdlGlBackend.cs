@@ -250,6 +250,11 @@ public sealed unsafe class SdlGlBackend : IBackend
         Sdl.SDL_FreeSurface(conv);
         return h;
     }
+    // Straight to GL: pixels the game already holds managed need no native decode, so the LOS worry that makes
+    // LoadTexture go through SDL2_image doesn't apply — the caller's byte[] is the size it is either way.
+    public TextureHandle LoadTextureFromPixels(byte[] rgba, int width, int height) =>
+        Renderer.LoadTextureFromPixels(rgba, width, height);
+
     public void UnloadTexture(TextureHandle texture) => Renderer.UnloadTexture(texture);
     public bool IsValid(TextureHandle texture) => Renderer.IsValid(texture);
     public Vector2 GetTextureSize(TextureHandle texture) => Renderer.GetTextureSize(texture);

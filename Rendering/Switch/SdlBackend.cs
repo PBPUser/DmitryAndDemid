@@ -237,6 +237,29 @@ public sealed unsafe class SdlBackend : IBackend
         return new TextureHandle(id);
     }
 
+    /// <summary>Pixels straight into a static SDL texture — the same shape as <see cref="CreateSolidTexture"/>
+    /// and the font atlas upload, just sized by the caller. ABGR8888 is R,G,B,A in byte order, which is what
+    /// the RGBA contract asks for.</summary>
+    public TextureHandle LoadTextureFromPixels(byte[] rgba, int width, int height)
+    {
+        if (!IRenderer.AreLoadablePixels(rgba, width, height))
+            return TextureHandle.None;
+
+        IntPtr tex = Sdl.SDL_CreateTexture(Renderer, Sdl.PIXELFORMAT_ABGR8888, Sdl.TEXTUREACCESS_STATIC, width, height);
+        if (tex == IntPtr.Zero)
+        {
+            Console.WriteLine($"SDL: failed to create {width}x{height} texture: {Marshal.PtrToStringUTF8(Sdl.SDL_GetError())}");
+            return TextureHandle.None;
+        }
+        fixed (byte* p = rgba)
+            Sdl.SDL_UpdateTexture(tex, IntPtr.Zero, (IntPtr)p, width * 4);
+        Sdl.SDL_SetTextureBlendMode(tex, Sdl.BLENDMODE_BLEND);
+
+        int id = NextId++;
+        Textures[id] = new SdlTexture(tex, width, height, false);
+        return new TextureHandle(id);
+    }
+
     private TextureHandle CreateSolidTexture(uint rgba)
     {
         IntPtr tex = Sdl.SDL_CreateTexture(Renderer, Sdl.PIXELFORMAT_ABGR8888, Sdl.TEXTUREACCESS_STATIC, 1, 1);
