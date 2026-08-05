@@ -96,7 +96,7 @@ public class TouchLayoutScreen : Screen
 
     private Rect TopButtonRect(int index)
     {
-        float bw = 92 * S, bh = 64 * S, gap = 14 * S;
+        float bw = 92 * S, bh = 57 * S, gap = 14 * S;
         float total = TopButtons.Length * bw + (TopButtons.Length - 1) * gap;
         float startX = (Runtime.CurrentRuntime.Width - total) / 2f;
         return new Rect(startX + index * (bw + gap), 14 * S, bw, bh);
