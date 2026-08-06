@@ -57,6 +57,7 @@ public abstract class PlayerWeapon(Player player)
         Player.Bombs--;
         Player.GameBox.IsFailed = true;
         Player.GameBox.BombsUsedThisRun++;
+        DualSenseFeedback.OnBomb();
     }
 
     protected virtual void StartBombing()

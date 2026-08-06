@@ -18,6 +18,9 @@ namespace DmitryAndDemid.Gameplay.RuntimeData;
 /// early. Shoot is taken on the press, not while it is held, so keeping the button down through a fight's
 /// opening does not blow through the whole conversation. Holding shoot (or Control, its keyboard-only stand-in)
 /// for longer than <see cref="SkipHoldThreshold"/> instead skips the whole conversation at once.
+///
+/// A line flagged <see cref="FileDialogInfo.Unskippable"/> opts out of both: it can only be waited out, so a
+/// story beat that has to be read cannot be pressed or held away.
 /// </summary>
 public class RuntimeDialog
 {
@@ -93,7 +96,11 @@ public class RuntimeDialog
 
         bool shootDown = IsKeyDown(KeyCode.Z) || Controller.IsButtonDown(Configuration.Config.ShootButton)
                                               || TouchControls.IsDragging;
-        bool skipHeld = shootDown || IsKeyDown(KeyCode.LeftControl);
+        // An unskippable line ignores the input entirely: it cannot be advanced early and it cannot be held
+        // through, so the conversation runs at its own pace. The hold counter is kept at zero while such a line
+        // is up, so a button already held when it appears does not close the dialog the moment it ends.
+        bool unskippable = Current.Unskippable;
+        bool skipHeld = !unskippable && (shootDown || IsKeyDown(KeyCode.LeftControl));
         SkipHeldElapsed = skipHeld ? SkipHeldElapsed + delta : 0;
         if (SkipHeldElapsed > SkipHoldThreshold)
         {
@@ -101,7 +108,7 @@ public class RuntimeDialog
             return;
         }
 
-        bool pressed = shootDown && !ShootWasDown && LineElapsed > AdvanceCooldown;
+        bool pressed = !unskippable && shootDown && !ShootWasDown && LineElapsed > AdvanceCooldown;
         ShootWasDown = shootDown;
 
         if (pressed || LineElapsed >= LineDuration)
@@ -317,6 +324,8 @@ public class RuntimeDialog
     private class Line
     {
         public readonly bool IsPlayer;
+        /// <summary>The line refuses press-to-advance and hold-to-skip (see the file format's 0x10 bit).</summary>
+        public readonly bool Unskippable;
         public readonly TargetHandle TextTex;
         public readonly ForkDeco[] Forks;
         public readonly TextureHandle? PlayerArt;
@@ -333,6 +342,7 @@ public class RuntimeDialog
         public Line(FileDialogInfo info, ProtogonistData protogonist)
         {
             IsPlayer = info.IsPlayerDialog;
+            Unskippable = info.Unskippable;
 
             // Boss-name tag: resolve the boss key from the character art (e.g. "nikitab_dialog_art.png" ->
             // "nikitab"), then look up its profile json (for the name + accent colour) and the optional

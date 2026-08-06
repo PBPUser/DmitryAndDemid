@@ -1,0 +1,9 @@
+{
+  "Texture": "demid-sprite.png",
+  "RenderSize": { "X": 37, "Y": 96 },
+  "SourcePosition": { "X": 0, "Y": 0 },
+  "Collision": 30,
+  "DeathCircleColor": 3355647,
+  "DeathParticleGlowColor": 16776960,
+  "FrameCount": 1
+}

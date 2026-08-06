@@ -73,6 +73,18 @@ Entity and chapter behavior is **not** data-driven at runtime — it's a string�
 
 `RuntimeStageInfo` additionally compiles stage-level `Scripts` through Roslyn (`CSharpScript.Create`), and `Microsoft.CodeAnalysis.CSharp.Scripting` / `LuaCSharp` are referenced for that path, but the shipped content goes through `ActionsScope`.
 
+## DualSense
+
+Pads are read generically by the backends (GLFW/SDL), and that is untouched. `Utils/DualSense/` adds the parts a
+generic pad API cannot reach on Linux: rumble through evdev force feedback, the lightbar / player LEDs and the
+adaptive triggers through the raw HID output report (`/dev/hidraw*`, which needs `Tools/99-dualsense.rules`), and
+PlayStation button labels in the rebinding screen. `Gameplay/DualSenseFeedback.cs` maps game state onto all of it.
+
+Every piece is optional and fails to a no-op — no pad, no permission, or a non-Linux host each just turn it off.
+Verify against real hardware with `dotnet bin/Debug/net10.0/aag2.dll --dualsense-test` (headless, like
+`--selftest`); the pure parts (report layout, CRC-32, sysfs walk) are covered by `Tests/DualSenseTests.cs`.
+Full write-up in `docs/dualsense.md`.
+
 ## Persistence
 
 `Utils/BitPackage` is a hand-rolled varint binary reader/writer (7-bit continuation byte, sign bit `0x40`). It backs everything binary:

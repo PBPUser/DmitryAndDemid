@@ -42,6 +42,12 @@ Assets.Source = new FileSystemAssetSource(AppContext.BaseDirectory);
 if (args.Contains("--selftest"))
     return SelfTest.Run();
 
+// --dualsense-test: drives a connected DualSense's motors, lightbar, player LEDs and adaptive triggers in turn
+// and prints what it finds. Headless, like --selftest: these are the parts of the game that can only be verified
+// by holding the pad, so they get a path that does not need the game running.
+if (args.Contains("--dualsense-test"))
+    return DmitryAndDemid.Utils.DualSense.DualSenseSelfTest.Run();
+
 // --compile-stages [srcDir] [outDir]: headless build step that turns human-authored JSON stages into the
 // packed binary .sid the game loads. Defaults: Assets/Data/StagesJson -> Assets/Data/SpellCards. Exits WITHOUT
 // opening a window (like --selftest), so it can run during a build or from the CLI.

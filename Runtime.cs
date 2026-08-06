@@ -8,9 +8,11 @@ using static DmitryAndDemid.Configuration;
 using DmitryAndDemid.Backgrounds;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
+using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Rendering;
 using DmitryAndDemid.Screens;
 using DmitryAndDemid.Utils;
+using DmitryAndDemid.Utils.DualSense;
 #if DEBUG
 using ImGuiNET;
 #endif
@@ -177,6 +179,11 @@ public class Runtime
         if (Config.UseVSYNC)
             Engine.Platform.SetVSync(true);
         Engine.Platform.DisableExitKey();
+        // Look for a DualSense before the first frame, so the rebinding screen can label buttons the way they
+        // are printed on the pad and the one-time DualSense layout can be offered on this launch.
+        DualSensePad.Initialize();
+        if (DualSensePad.IsConnected && Config.GamepadProfile.Length == 0 && Config.IsUsingDefaultBindings())
+            Config.ApplyDualSenseDefaults();
         Time = GetTime();
         double c = 0;
         ScreenLoading = new LoadingScreen();
@@ -190,6 +197,9 @@ public class Runtime
         }
         while (!WindowShouldClose() || DisableClose)
             RunFrame();
+        // Hand the pad back before the window goes: otherwise the lightbar stays on the last frame's colour and
+        // the adaptive triggers stay stiff for whatever the player opens next.
+        DualSensePad.Shutdown();
         Engine.Platform.CloseWindow();
     }
 
@@ -723,6 +733,9 @@ public class Runtime
     {
         Engine.Input.RefreshGamepads();
         GamepadCount = Engine.Input.GamepadCount;
+        // Buttons and sticks come from the backend above; this drives the DualSense's lightbar, LEDs, triggers
+        // and motors, which no backend can see. It is a no-op with any other pad, or none.
+        DualSenseFeedback.Update();
     }
 
     void RefreshScreens()

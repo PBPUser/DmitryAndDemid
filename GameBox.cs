@@ -1291,6 +1291,7 @@ public class GameBox : IDisposable
             // background shader uses), fading out over the same 2s the attack banner plays.
             AddScreenEffect(new CirclesScreenEffect(this, new Vector2(192, 96), 0, GetTime(), GetTime()+2));
             FireBackgroundEvent("spell");
+            DualSenseFeedback.OnSpellCardStart();
         }
         else if (ChapterInfo.Type == ChapterType.NonSpell)
         {

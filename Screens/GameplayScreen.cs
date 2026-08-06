@@ -218,6 +218,9 @@ public class GameplayScreen : Screen
         GpTrace("PreRender before box.Update");
         GameBox.Update();
         GpTrace("PreRender after box.Update");
+        // Feed the run's state to the DualSense (lightbar colour, lives on the player LEDs, trigger resistance).
+        // From PreRender rather than TopUpdate so it keeps running while the pause menu sits on top of us.
+        Gameplay.DualSenseFeedback.UpdateGameplay(GameBox);
     }
 
     /// <summary>Edge state for F1 (see below) — there's no IsKeyPressed wrapper, only IsKeyDown, so a held key

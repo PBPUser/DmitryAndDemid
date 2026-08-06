@@ -1,0 +1,9 @@
+{
+  "Texture": "dmitry-sprite.png",
+  "RenderSize": { "X": 64, "Y": 85 },
+  "SourcePosition": { "X": 0, "Y": 0 },
+  "Collision": 34,
+  "DeathCircleColor": 8404992,
+  "DeathParticleGlowColor": 12634675,
+  "FrameCount": 1
+}

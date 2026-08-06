@@ -461,6 +461,7 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                                 FileDialogInfo dialog = Info.Chapters[SelectedObjectIndex].Dialogs[SelectedTextureIndex];
                                 Checkbox("Player speaks", ref dialog.IsPlayerDialog);
                                 Checkbox("Show boss name", ref dialog.ShowBossName);
+                                Checkbox("Unskippable", ref dialog.Unskippable);
 
                                 int artIndex = Math.Max(0, Array.IndexOf(DialogArts, dialog.CharacterTexture));
                                 if (Combo("Character art", ref artIndex, DialogArts, DialogArts.Length))

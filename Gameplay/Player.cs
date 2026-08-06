@@ -100,6 +100,7 @@ public class Player
                 // here once four of them convert into a whole heart, so this fires exactly on a FULL heart.
                 Helper.PlaySound(Runtime.CurrentRuntime.Sounds["extend"]);
                 GameBox.AddOverlay(new BasicGameplayOverlay(GameBox, "extend.png", .5f, 3));
+                DualSenseFeedback.OnExtend();
             }
 
             if (value < heartPoints)
@@ -379,6 +380,7 @@ public class Player
         IsInDeathCooldown = true;
         //RestoreTick = Game.CurrentTick + RestoreInvincibilityLength;
         Helper.PlaySound(Runtime.CurrentRuntime.Sounds["dead"]);
+        DualSenseFeedback.OnPlayerDeath();
         Weapon.DefocusTimestamp = GameBox.CurrentTick;
     }
 

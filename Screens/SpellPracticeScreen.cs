@@ -25,9 +25,11 @@ public class SpellPracticeScreen : MenuScreen
     public override void CreateMenu()
     {
         // Built from the stages that actually exist, rather than four hard-coded rows whose actions did
-        // nothing.
+        // nothing. Campaign stages first, THEN the extra-mode stage(s): the global spell-card numbers below are
+        // cumulative over this order, and a plain alphabetical sort put "extra1.sid" in front of "stage1.sid",
+        // which would have renumbered every campaign card (0..6) the moment extra1 gained cards of its own.
         StageFiles = Assets.DirectoryExists("Assets/Data/SpellCards")
-            ? Assets.Files("Assets/Data/SpellCards", "*.sid").OrderBy(f => f).ToArray()
+            ? [..FileStageInfo.CampaignStagePaths(), ..FileStageInfo.ExtraStagePaths()]
             : [];
 
         for (int i = 0; i < StageFiles.Length; i++)

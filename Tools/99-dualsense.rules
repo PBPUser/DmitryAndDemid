@@ -1,0 +1,22 @@
+# DualSense extras for AAG2 — see docs/dualsense.md
+#
+# Install:
+#   sudo cp Tools/99-dualsense.rules /etc/udev/rules.d/99-dualsense.rules
+#   sudo udevadm control --reload-rules && sudo udevadm trigger --subsystem-match=hidraw
+#   (re-plug the pad, or re-pair it over Bluetooth)
+#
+# What this grants and why: rumble already works without any of this, because logind puts an ACL for the seat's
+# user on /dev/input/event*. The lightbar, the player LEDs and the adaptive triggers are reached through the raw
+# HID node instead, and /dev/hidraw* is root-only by default. TAG+="uaccess" gives the logged-in user the same
+# kind of ACL on it — no group membership, no world-writable device.
+#
+# Product ids: 0ce6 is the DualSense, 0df2 the DualSense Edge.
+
+# USB: match the USB device the hidraw node hangs off.
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0ce6", MODE="0660", TAG+="uaccess"
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0df2", MODE="0660", TAG+="uaccess"
+
+# Bluetooth: there is no USB parent to match, so match the HID device id in the device path instead. (This also
+# matches the USB case, harmlessly — udev applies every rule that matches.)
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", KERNELS=="*054C:0CE6*", MODE="0660", TAG+="uaccess"
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", KERNELS=="*054C:0DF2*", MODE="0660", TAG+="uaccess"

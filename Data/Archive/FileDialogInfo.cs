@@ -15,6 +15,13 @@ public class FileDialogInfo
     public bool ShowBossName = false;
 
     /// <summary>
+    /// The line cannot be hurried: pressing shoot does not advance it and holding shoot does not close the
+    /// conversation — it stays up for its full <see cref="DmitryAndDemid.Gameplay.RuntimeData.RuntimeDialog.LineDuration"/>.
+    /// For story beats that must actually be read (the Extra stage's two Dmitry/Demid dialogs).
+    /// </summary>
+    public bool Unskippable = false;
+
+    /// <summary>
     /// Packs the boolean flags into <see cref="Header"/>[0], the inverse of the bit-unpacking in
     /// <see cref="Load"/>. Called at the top of <see cref="Save"/> and by the JSON importer so a hand-authored
     /// dialog line (which sets the friendly bools) produces the same <see cref="Header"/> a binary load would.
@@ -25,6 +32,7 @@ public class FileDialogInfo
         Header[0] |= SwitchReaction ? 2 : 0;
         Header[0] |= SwitchMusic ? 4 : 0;
         Header[0] |= ShowBossName ? 8 : 0;
+        Header[0] |= Unskippable ? 0x10 : 0;
     }
 
     public void Save(ref BitPackage package)
@@ -47,6 +55,7 @@ public class FileDialogInfo
         dialogInfo.SwitchReaction = (dialogInfo.Header[0] & 0x2) == 0x2;
         dialogInfo.SwitchMusic = (dialogInfo.Header[0] & 0x4) == 0x4;
         dialogInfo.ShowBossName = (dialogInfo.Header[0] & 0x8) == 0x8;
+        dialogInfo.Unskippable = (dialogInfo.Header[0] & 0x10) == 0x10;
         return dialogInfo;
     }
 }

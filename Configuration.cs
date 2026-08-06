@@ -101,6 +101,52 @@ public class Configuration
     [JsonInclude] public PadButton FocusButton = PadButton.RightFaceLeft;
     [JsonInclude] public PadButton JumpButton = PadButton.RightTrigger2;
 
+    /// <summary>
+    /// Which pad the bindings above were laid out for, so the DualSense layout is offered exactly once instead of
+    /// on every launch. Empty means "never asked"; see <see cref="ApplyDualSenseDefaults"/>.
+    /// </summary>
+    [JsonInclude] public string GamepadProfile = "";
+
+    /// <summary>
+    /// DualSense-only extras, all on by default and all silently inert without one (see Utils/DualSense).
+    /// Rumble needs no permissions on Linux; the lightbar and the triggers may need the udev rule.
+    /// </summary>
+    [JsonInclude] public bool DualSenseRumble = true;
+
+    /// <summary>Scales every rumble the game asks for, 0 (off) to 1 (as authored).</summary>
+    [JsonInclude] public float DualSenseRumbleStrength = 1.0f;
+
+    /// <summary>Lightbar tint and the life count on the player LEDs.</summary>
+    [JsonInclude] public bool DualSenseLightbar = true;
+
+    /// <summary>Trigger resistance: weight on L2 while focused, a shot's give on R2.</summary>
+    [JsonInclude] public bool DualSenseTriggers = true;
+
+    /// <summary>
+    /// The button layout for a DualSense: shoot on Cross, bomb on Square, focus on the R1 shoulder (where a
+    /// danmaku player expects to hold it) and pause on Options. Applied only over untouched defaults — see
+    /// <see cref="IsUsingDefaultBindings"/> — so it can never overwrite bindings the player chose.
+    /// </summary>
+    public void ApplyDualSenseDefaults()
+    {
+        ShootButton = PadButton.RightFaceDown;    // Cross
+        BombButton = PadButton.RightFaceLeft;     // Square
+        FocusButton = PadButton.RightTrigger1;    // R1
+        PauseButton = PadButton.MiddleRight;      // Options
+        JumpButton = PadButton.RightFaceUp;       // Triangle
+        GamepadProfile = "dualsense";
+        Save();
+    }
+
+    /// <summary>True while all five pad bindings are still the ones the game shipped with.</summary>
+    public bool IsUsingDefaultBindings()
+    {
+        var pristine = new Configuration();
+        return ShootButton == pristine.ShootButton && BombButton == pristine.BombButton &&
+               PauseButton == pristine.PauseButton && FocusButton == pristine.FocusButton &&
+               JumpButton == pristine.JumpButton;
+    }
+
     public void Save()
     {
         File.WriteAllText(Utils.Platform.DataPath("config.json"), JsonSerializer.Serialize(this));

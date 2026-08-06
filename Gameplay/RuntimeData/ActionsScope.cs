@@ -623,6 +623,649 @@ public static class ActionsScope
         }
     };
 
+    // ---------------------------------------------------------------------------------------------------
+    // EXTRA STAGE — Dmitry (three cards) and Demid (eight, the last two being the OBS logo and the window).
+    // The entity table these index into is Assets/Data/StagesJson/extra1.json; the bosses are two distinct
+    // BossIds so Demid's arrival can retire Dmitry the way stage 2 retires its first act.
+    // ---------------------------------------------------------------------------------------------------
+    private const int ExtraMicroIndex = 0;        // micro bullet
+    private const int ExtraCircleIndex = 1;       // plain round bullet (colourable)
+    private const int ExtraLargeIndex = 2;        // large round bullet (colourable)
+    private const int ExtraPentaIndex = 3;        // pentabullet
+    private const int ExtraRhombusIndex = 4;      // rhombus bullet
+    private const int ExtraOvalIndex = 5;         // oval bullet
+    private const int ExtraLightIndex = 6;        // light bullet
+    private const int ExtraBubbleIndex = 7;       // bubble bullet
+    private const int DmitryBossIndex = 8;        // Dmitry  (Visual "dmitry", BossId 0)
+    private const int DemidBossIndex = 9;         // Demid   (Visual "demid",  BossId 1)
+    private const int ExtraObsPixelIndex = 10;    // formation bullet held in the OBS logo
+    private const int ExtraWindowPixelIndex = 11; // formation bullet held in the window frame
+    private const int DmitryBossId = 0;
+    private const int DemidBossId = 1;
+
+    /// <summary>Where the OBS logo and the window are centred / anchored, in the 384x448 playfield.</summary>
+    private static readonly Vector2 ObsLogoCenter = new(192, 224);
+
+    /// <summary>
+    /// Per-tick housekeeping every Extra-stage boss shares: the elastic pop-in over its first 30 ticks and a
+    /// slow idle sway. Returns the chapter-local tick with <paramref name="graceTicks"/> subtracted — negative
+    /// while the boss is still budging in, so a caller can simply bail on a negative value.
+    /// </summary>
+    private static int ExtraBossTick(RuntimeObject c, int graceTicks = 30)
+    {
+        int born = c.Box.CurrentTick - c.Header[0x17];
+        c.EntranceScale = born >= 30 ? 1f : EaseOutElastic(born / 30f);
+        int tick = c.Box.ChapterTick;
+        c.RenderRotation = MathF.Sin(tick * 0.08f) * 0.22f;
+        return tick - graceTicks;
+    }
+
+    /// <summary>Difficulty 0..4 — Extra mode always plays at 4, spell practice offers the lower tiers.</summary>
+    private static int ExtraDiff(GameBox box) => Math.Clamp(box.Difficulty, 0, 4);
+
+    /// <summary>Dmitry standing in place for his arrival chapter: he only talks, so all this does is pose him.</summary>
+    private static readonly RuntimeObjectReferenceAction DmitryIdle = c => ExtraBossTick(c);
+
+    /// <summary>Demid doing nothing but talking — the chapter between the OBS card and the last one.</summary>
+    private static readonly RuntimeObjectReferenceAction DemidIdle = c => ExtraBossTick(c);
+
+    /// <summary>
+    /// Puts an Extra-stage boss at its post for a card and hands it that card's attack. <see
+    /// cref="GameBox.SpawnObject"/> reuses a boss that is already on screen (reloading its template, so its
+    /// health comes back full), which is what carries the same Dmitry / Demid through their whole act.
+    /// </summary>
+    private static RuntimeObject SpawnExtraBoss(GameBox box, int index, RuntimeObjectReferenceAction attack,
+        Vector2 post)
+    {
+        var boss = box.SpawnObject(index);
+        boss.Position = post;
+        boss.RenderAlpha = 1f;
+        boss.Header[0] &= ~RuntimeObject.FlagInvincible;   // the template carries none; a previous card may have
+        boss.UpdateAction = attack;
+        return boss;
+    }
+
+    /// <summary>
+    /// Shows or hides the boss health bar for the card about to start.
+    /// <see cref="RuntimeObject.LoadFromFile"/> only creates a bar on a boss's FIRST spawn (and skips it
+    /// entirely on a BossInvincible chapter), and every later card REUSES that same boss — so a boss keeps
+    /// whatever bar it was born with for its whole act. That is wrong in both directions on the Extra stage:
+    /// the survival card must not show one, and the finale right after it must.
+    /// </summary>
+    private static void SetBossHealthBar(GameBox box, RuntimeObject boss, bool visible)
+    {
+        var bars = new List<GameplayOverlays.BossHealthOverlay>();
+        foreach (var overlay in box.GameplayOverlays)
+            if (overlay is GameplayOverlays.BossHealthOverlay bar)
+                bars.Add(bar);
+        if (visible)
+        {
+            if (bars.Count == 0)
+                box.AddOverlay(new GameplayOverlays.BossHealthOverlay(box, boss));
+            return;
+        }
+        foreach (var bar in bars)
+            box.RemoveOverlay(bar);
+    }
+
+    /// <summary>
+    /// Retires every boss but <paramref name="keepBossId"/> — flag it dead so its health bar self-removes, drop
+    /// its lingering screen effects, and take it off the board. Used when Demid takes over from Dmitry, the same
+    /// hand-off stage 2 does between its two acts.
+    /// </summary>
+    private static void RetireOtherBosses(GameBox box, int keepBossId)
+    {
+        foreach (var old in box.BoxObjects)
+        {
+            if ((old.Header[0] & RuntimeObject.FlagIsBoss) != RuntimeObject.FlagIsBoss)
+                continue;
+            if (old.BossId == keepBossId)
+                continue;
+            old.Header[0] |= RuntimeObject.FlagIsDied;
+            if (old.BackgroundDistortionEffect != null)
+                box.RemoveScreenEffect(old.BackgroundDistortionEffect);
+            if (old.BossCircleEffect != null)
+                box.RemoveScreenEffect(old.BossCircleEffect);
+            box.RemoveObject(old);
+        }
+    }
+
+    /// <summary>
+    /// Dmitry's first card, "the empty canister": rings of brown gas that puff out, STALL in mid-air — the
+    /// magic is gone and nothing comes out with any pressure — and only then finally blow past the player,
+    /// with aimed pentabullets in between.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DmitryCard1 = c =>
+    {
+        int t = ExtraBossTick(c);
+        if (t < 0)
+            return;
+        int diff = ExtraDiff(c.Box);
+        if (t % Math.Max(48, 96 - diff * 12) == 0)
+        {
+            int count = 10 + diff * 3;
+            float baseAngle = TickHash(t) % 628 / 100f;
+            for (int k = 0; k < count; k++)
+            {
+                var b = c.Box.SpawnObject(ExtraOvalIndex, 0x8B5A2B);
+                b.Position = c.Position;
+                b.FacingRotation = b.RenderRotation = baseAngle + k * (MathF.PI * 2f / count);
+                b.CreatedAt = c.Box.CurrentTick;
+                b.UpdateAction = DmitryPuffMove;
+            }
+        }
+        if (t % Math.Max(24, 48 - diff * 6) == 0)
+        {
+            float aim = Helper.FindAngle(c.Position, c.Box.Player.Position);
+            int count = 1 + diff;
+            for (int k = 0; k < count; k++)
+            {
+                var b = c.Box.SpawnObject(ExtraPentaIndex, 0xC8A165);
+                b.Position = c.Position;
+                b.FacingRotation = b.RenderRotation = aim + (k - (count - 1) / 2f) * 0.16f;
+                b.Speed = 2.6f + diff * 0.35f;
+            }
+        }
+    };
+
+    /// <summary>The stalling gas of Dmitry's first card: a weak puff, a long hang, then the real blast.</summary>
+    private static readonly RuntimeObjectReferenceAction DmitryPuffMove = obj =>
+    {
+        int age = obj.Box.CurrentTick - obj.CreatedAt;
+        float speed = age < 24 ? 2.3f : age < 60 ? 0.1f : 3.0f;
+        obj.Position += Helper.GetDirection(obj.FacingRotation) * speed;
+        obj.RenderRotation = obj.FacingRotation + MathF.Sin(age * 0.2f) * 0.3f;
+    };
+
+    /// <summary>
+    /// Dmitry's second card, "pressure in the pipes": the castle's plumbing still works even if he does not —
+    /// walls of gas fire in from both side edges at a height that sweeps up and down, and he drops a slow
+    /// curtain of large bullets straight down the middle.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DmitryCard2 = c =>
+    {
+        int t = ExtraBossTick(c);
+        if (t < 0)
+            return;
+        int diff = ExtraDiff(c.Box);
+        if (t % Math.Max(5, 10 - diff) == 0)
+        {
+            float y = 72f + (MathF.Sin(t * 0.045f) * 0.5f + 0.5f) * 296f;
+            for (int side = 0; side < 2; side++)
+            {
+                var b = c.Box.SpawnObject(ExtraCircleIndex, side == 0 ? 0x6B8E23 : 0x8B4513);
+                b.X = side == 0 ? -8f : 392f;
+                b.Y = y + (side == 0 ? 0f : 24f);
+                b.FacingRotation = b.RenderRotation = side == 0 ? 0f : MathF.PI;
+                b.Speed = 2.1f + diff * 0.28f;
+            }
+        }
+        if (t % 90 == 0)
+        {
+            int count = 5 + diff;
+            for (int k = 0; k < count; k++)
+            {
+                var b = c.Box.SpawnObject(ExtraLargeIndex, 0xADFF2F);
+                b.X = 32f + k * (320f / MathF.Max(1, count - 1));
+                b.Y = -8f;
+                b.FacingRotation = b.RenderRotation = MathF.PI / 2f;
+                b.Speed = 1.5f + diff * 0.2f;
+            }
+        }
+    };
+
+    /// <summary>
+    /// Dmitry's third card, "the last exhaust": a tight rotating spiral of heavy bullets, each of which bursts
+    /// into a fan of micro shards partway across the screen — everything he has left, spent at once.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DmitryCard3 = c =>
+    {
+        int t = ExtraBossTick(c);
+        if (t < 0)
+            return;
+        int diff = ExtraDiff(c.Box);
+        if (t % Math.Max(4, 8 - diff) == 0)
+        {
+            int arms = 2 + diff / 2;
+            for (int a = 0; a < arms; a++)
+            {
+                var b = c.Box.SpawnObject(ExtraLargeIndex, 0xA0522D);
+                b.Position = c.Position;
+                b.FacingRotation = b.RenderRotation = t * 0.21f + a * (MathF.PI * 2f / arms);
+                b.Speed = 1.7f + diff * 0.16f;
+                b.CreatedAt = c.Box.CurrentTick;
+                b.UpdateAction = DmitryExhaustMove;
+            }
+        }
+    };
+
+    /// <summary>A heavy exhaust bullet: flies straight, then bursts into a fan of micro shards and is gone.</summary>
+    private static readonly RuntimeObjectReferenceAction DmitryExhaustMove = obj =>
+    {
+        int age = obj.Box.CurrentTick - obj.CreatedAt;
+        if (age >= 48)
+        {
+            int diff = ExtraDiff(obj.Box);
+            int shards = 3 + diff;
+            for (int k = 0; k < shards; k++)
+            {
+                var m = obj.Box.SpawnObject(ExtraMicroIndex, 0xFFD700);
+                m.Position = obj.Position;
+                m.FacingRotation = m.RenderRotation = obj.FacingRotation + (k - (shards - 1) / 2f) * 0.34f;
+                m.Speed = 1.9f + diff * 0.22f;
+            }
+            obj.Box.RemoveObject(obj);
+            return;
+        }
+        obj.Position += Helper.GetDirection(obj.FacingRotation) * obj.Speed;
+        obj.RenderRotation += 0.08f;
+    };
+
+    /// <summary>
+    /// Demid's first card, "the stream starts": rows of chat sliding in from the right edge, each with a
+    /// two-slot gap in a different place — the only way through is to read where the gap is and be there.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DemidCard1 = c =>
+    {
+        int t = ExtraBossTick(c);
+        if (t < 0)
+            return;
+        int diff = ExtraDiff(c.Box);
+        int rate = Math.Max(22, 44 - diff * 5);
+        if (t % rate == 0)
+        {
+            int row = t / rate;
+            int gap = TickHash(row * 13) % 8;
+            for (int i = 0; i < 9; i++)
+            {
+                if (i == gap || i == gap + 1)
+                    continue;
+                var b = c.Box.SpawnObject(ExtraCircleIndex, 0x9146FF);
+                b.X = 392f;
+                b.Y = 36f + i * 44f;
+                b.FacingRotation = b.RenderRotation = MathF.PI;
+                b.Speed = 1.7f + diff * 0.22f;
+            }
+        }
+    };
+
+    /// <summary>
+    /// Demid's second card, "a hundred tabs": clusters of three bullets — one browser tab each — drop from the
+    /// top of the screen in a row with exactly one tab missing.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DemidCard2 = c =>
+    {
+        int t = ExtraBossTick(c);
+        if (t < 0)
+            return;
+        int diff = ExtraDiff(c.Box);
+        int rate = Math.Max(26, 50 - diff * 5);
+        if (t % rate == 0)
+        {
+            const int tabs = 6;
+            int gap = TickHash(t) % tabs;
+            for (int i = 0; i < tabs; i++)
+            {
+                if (i == gap)
+                    continue;
+                for (int j = 0; j < 3; j++)
+                {
+                    var b = c.Box.SpawnObject(ExtraRhombusIndex, 0x4285F4);
+                    b.X = 40f + i * 61f + j * 11f;
+                    b.Y = -8f;
+                    b.FacingRotation = b.RenderRotation = MathF.PI / 2f;
+                    b.Speed = 2.0f + diff * 0.3f;
+                }
+            }
+        }
+    };
+
+    /// <summary>
+    /// Demid's third card, "the memory leak": slow bubbles that split in two twice over on their way down, so
+    /// what began as a trickle has filled the screen by the time the card is over.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DemidCard3 = c =>
+    {
+        int t = ExtraBossTick(c);
+        if (t < 0)
+            return;
+        int diff = ExtraDiff(c.Box);
+        if (t % Math.Max(24, 48 - diff * 6) == 0)
+        {
+            int count = 3 + diff / 2;
+            for (int k = 0; k < count; k++)
+            {
+                var b = c.Box.SpawnObject(ExtraBubbleIndex, 0x00C2A8);
+                b.Position = c.Position;
+                b.FacingRotation = b.RenderRotation =
+                    TickHash(t * 31 + k * 71) % 3600 / 3600f * (MathF.PI * 2f);
+                b.Speed = 1.0f + diff * 0.12f;
+                b.CreatedAt = c.Box.CurrentTick;
+                b.Header[LeakGenerationIndex] = 0;
+                b.UpdateAction = DemidLeakMove;
+            }
+        }
+    };
+
+    /// <summary>Scratch slot holding how many times a leaking bubble has already split (capped at two).</summary>
+    private const int LeakGenerationIndex = 0x61;
+
+    /// <summary>A leaking bubble: drifts, and at 100 ticks old splits into two slower halves — twice, no more.</summary>
+    private static readonly RuntimeObjectReferenceAction DemidLeakMove = obj =>
+    {
+        int age = obj.Box.CurrentTick - obj.CreatedAt;
+        obj.Position += Helper.GetDirection(obj.FacingRotation) * obj.Speed;
+        if (age != 100)
+            return;
+        int generation = obj.Header[LeakGenerationIndex];
+        if (generation >= 2)
+            return;
+        for (int s = -1; s <= 1; s += 2)
+        {
+            var b = obj.Box.SpawnObject(ExtraBubbleIndex, generation == 0 ? 0x00A2FF : 0x7B68EE);
+            b.Position = obj.Position;
+            b.FacingRotation = b.RenderRotation = obj.FacingRotation + s * 0.55f;
+            b.Speed = obj.Speed * 0.85f;
+            b.CreatedAt = obj.Box.CurrentTick;
+            b.Header[LeakGenerationIndex] = generation + 1;
+            b.UpdateAction = DemidLeakMove;
+        }
+        obj.Box.RemoveObject(obj);
+    };
+
+    /// <summary>
+    /// Demid's fourth card, "the blue screen": a wall of blue descends column by column with one column left
+    /// open, and the open column walks sideways one step per row.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DemidCard4 = c =>
+    {
+        int t = ExtraBossTick(c);
+        if (t < 0)
+            return;
+        int diff = ExtraDiff(c.Box);
+        int rate = Math.Max(20, 40 - diff * 4);
+        if (t % rate == 0)
+        {
+            const int columns = 8;
+            int row = t / rate;
+            int gap = (row + TickHash(row) % 3) % columns;
+            for (int i = 0; i < columns; i++)
+            {
+                if (i == gap)
+                    continue;
+                var b = c.Box.SpawnObject(ExtraCircleIndex, 0x0078D7);
+                b.X = 24f + i * 48f;
+                b.Y = -8f;
+                b.FacingRotation = b.RenderRotation = MathF.PI / 2f;
+                b.Speed = 1.8f + diff * 0.25f;
+            }
+        }
+    };
+
+    /// <summary>
+    /// Demid's fifth card, "click jitter": three-shot bursts fired exactly where the player is standing, each
+    /// shot flicking a little off-aim — a mouse hand that cannot hold still.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DemidCard5 = c =>
+    {
+        int t = ExtraBossTick(c);
+        if (t < 0)
+            return;
+        int diff = ExtraDiff(c.Box);
+        int period = Math.Max(24, 48 - diff * 6);
+        int phase = t % period;
+        if (phase < 3)
+        {
+            float aim = Helper.FindAngle(c.Position, c.Box.Player.Position);
+            float jitter = (TickHash(t) % 200 - 100) / 100f * 0.22f;
+            int count = 3 + diff;
+            for (int k = 0; k < count; k++)
+            {
+                var b = c.Box.SpawnObject(ExtraLightIndex, 0xFFFFFF);
+                b.Position = c.Position;
+                b.FacingRotation = b.RenderRotation = aim + jitter + (k - (count - 1) / 2f) * 0.1f;
+                b.Speed = 2.8f + diff * 0.3f + phase * 0.25f;
+            }
+        }
+    };
+
+    /// <summary>
+    /// Demid's sixth card, "dropped frames": a spiral that plays at full speed, freezes for a third of a
+    /// second, then jumps ahead to where it would have been — the stream is lagging, and so is the pattern.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DemidCard6 = c =>
+    {
+        int t = ExtraBossTick(c);
+        if (t < 0)
+            return;
+        if ((t / 20) % 3 == 2)   // the dropped frames: nothing is emitted at all
+            return;
+        int diff = ExtraDiff(c.Box);
+        if (t % Math.Max(3, 6 - diff) == 0)
+        {
+            int arms = 3 + diff / 2;
+            for (int a = 0; a < arms; a++)
+            {
+                var b = c.Box.SpawnObject(ExtraOvalIndex, 0x00E5FF);
+                b.Position = c.Position;
+                b.FacingRotation = b.RenderRotation = t * 0.17f + a * (MathF.PI * 2f / arms);
+                b.Speed = 2.2f + diff * 0.2f;
+            }
+        }
+    };
+
+    /// <summary>
+    /// Demid's seventh card, the survival one: the OBS logo — an outer ring, an inner ring and four spiralling
+    /// shutter blades, all built out of bullets (see <see cref="SpawnObsLogo"/>) — hangs in the middle of the
+    /// playfield and turns. Demid himself cannot be shot; the card is beaten by outlasting it. Dying or bombing
+    /// drops the invincibility and forfeits the survival bonus, exactly like stage 3's pizza card.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DemidObsBoss = c =>
+    {
+        if (c.Box.IsFailed)
+            c.Header[0] &= ~RuntimeObject.FlagInvincible;
+        int t = ExtraBossTick(c);
+        if (t < 0)
+            return;
+        int diff = ExtraDiff(c.Box);
+        // "Recording": every four seconds the logo throws a ring of bullets outward from its rim.
+        if (t % 240 == 60)
+        {
+            int count = 8 + diff * 2;
+            for (int k = 0; k < count; k++)
+            {
+                float ang = k * (MathF.PI * 2f / count) + t * 0.008f;
+                var b = c.Box.SpawnObject(ExtraCircleIndex, 0xE02D2D);
+                b.Position = ObsLogoCenter + Helper.GetDirection(ang) * ObsOuterRadius;
+                b.FacingRotation = b.RenderRotation = ang;
+                b.Speed = 1.9f + diff * 0.2f;
+            }
+        }
+        if (t % Math.Max(45, 90 - diff * 10) == 0)
+        {
+            float aim = Helper.FindAngle(c.Position, c.Box.Player.Position);
+            int count = 2 + diff;
+            for (int k = 0; k < count; k++)
+            {
+                var b = c.Box.SpawnObject(ExtraPentaIndex, 0xFFFFFF);
+                b.Position = c.Position;
+                b.FacingRotation = b.RenderRotation = aim + (k - (count - 1) / 2f) * 0.2f;
+                b.Speed = 2.4f + diff * 0.25f;
+            }
+        }
+    };
+
+    /// <summary>The logo's outer circle, and the radii its four spiralling blades run between.</summary>
+    private const float ObsOuterRadius = 112f;
+    private const float ObsBladeInnerRadius = 36f;
+    private const float ObsBladeOuterRadius = 100f;
+
+    /// <summary>
+    /// Lays the OBS logo out of formation bullets: the solid outer circle, and inside it four blades that
+    /// spiral out from the middle — the camera-aperture motif of the real mark, with the dark hole left in the
+    /// centre. Every bullet keeps its polar coordinates in its own scratch slots and <see cref="ObsPixelMove"/>
+    /// re-derives its position each tick, so the whole figure turns and breathes as one piece instead of
+    /// drifting apart.
+    /// </summary>
+    private static void SpawnObsLogo(GameBox box)
+    {
+        void Place(float radius, float angle, int color)
+        {
+            var b = box.SpawnObject(ExtraObsPixelIndex, color);
+            b.FloatingPoints[0x30] = radius;
+            b.FloatingPoints[0x31] = angle;
+            b.Position = ObsLogoCenter + Helper.GetDirection(angle) * radius;
+            b.CreatedAt = box.CurrentTick;
+            b.UpdateAction = ObsPixelMove;
+        }
+
+        const int outerCount = 44;
+        for (int i = 0; i < outerCount; i++)
+            Place(ObsOuterRadius, i * (MathF.PI * 2f / outerCount), 0xFFFFFF);
+        // Four blades, each spiralling out from near the centre and sweeping 150° around as it goes.
+        const int blades = 4, bladeSteps = 14;
+        const float bladeSweep = 150f * MathF.PI / 180f;
+        for (int blade = 0; blade < blades; blade++)
+        {
+            float start = blade * (MathF.PI * 2f / blades);
+            for (int s = 0; s < bladeSteps; s++)
+            {
+                float k = s / (float)(bladeSteps - 1);
+                Place(ObsBladeInnerRadius + (ObsBladeOuterRadius - ObsBladeInnerRadius) * k,
+                    start + k * bladeSweep, 0xC8C8C8);
+            }
+        }
+    }
+
+    /// <summary>One bullet of the OBS logo: polar position (0x30 radius, 0x31 angle) plus the shared spin/pulse.</summary>
+    private static readonly RuntimeObjectReferenceAction ObsPixelMove = obj =>
+    {
+        int t = Math.Max(0, obj.Box.ChapterTick);
+        float radius = obj.FloatingPoints[0x30];
+        float angle = obj.FloatingPoints[0x31] + t * 0.008f;
+        float pulse = 1f + MathF.Sin(t * 0.03f) * 0.07f;
+        obj.Position = ObsLogoCenter + Helper.GetDirection(angle) * radius * pulse;
+        obj.RenderRotation = angle;
+    };
+
+    // ---- The last card: a window, drawn in bullets, that minimises to the taskbar and maximises back. -----
+    /// <summary>One full minimise/hold/maximise/hold cycle, in ticks.</summary>
+    private const int WindowPeriod = 300;
+
+    /// <summary>
+    /// The window when maximised (origin, size) and when minimised down at the taskbar. The maximised frame
+    /// deliberately stops at y=380, above where the player stands at the start of a card (192, 400) — the whole
+    /// frame is lethal, and it must not materialise on top of them.
+    /// </summary>
+    private static readonly Vector2 WindowMaxOrigin = new(24, 36), WindowMaxSize = new(336, 344);
+    private static readonly Vector2 WindowMinOrigin = new(26, 400), WindowMinSize = new(64, 34);
+
+    /// <summary>
+    /// Where the cycle starts. The card opens on the minimised hold, so the frame is born small down at the
+    /// taskbar and grows out of it over the first second, instead of appearing full-size around the player.
+    /// </summary>
+    private const int WindowStartPhase = 120;
+
+    /// <summary>
+    /// Where the window is at a given chapter tick: maximised, then shrinking to the taskbar over a second,
+    /// held there, then growing back. The interpolation factor is 0 maximised, 1 minimised.
+    /// </summary>
+    /// <summary>Where in the minimise/maximise cycle a chapter tick falls: 0..60 shrinking, 60..120 held small,
+    /// 120..180 growing, 180..300 sitting maximised.</summary>
+    private static int WindowPhase(int tick) =>
+        ((tick + WindowStartPhase) % WindowPeriod + WindowPeriod) % WindowPeriod;
+
+    private static (Vector2 Origin, Vector2 Size) WindowRect(int tick)
+    {
+        int p = WindowPhase(tick);
+        float k = p < 60 ? SmoothStep(p / 60f)
+            : p < 120 ? 1f
+            : p < 180 ? 1f - SmoothStep((p - 120) / 60f)
+            : 0f;
+        return (Vector2.Lerp(WindowMaxOrigin, WindowMinOrigin, k),
+                Vector2.Lerp(WindowMaxSize, WindowMinSize, k));
+    }
+
+    private static float SmoothStep(float x)
+    {
+        x = Math.Clamp(x, 0f, 1f);
+        return x * x * (3f - 2f * x);
+    }
+
+    /// <summary>
+    /// Demid's last card: the window itself. Its frame, title bar and the three title-bar buttons are all
+    /// bullets ( <see cref="SpawnWindowFrame"/> ), and they are dragged along as the window minimises and
+    /// maximises — the sweep of the growing frame is the attack. While it sits maximised the close button
+    /// spits shots at the player.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DemidWindowBoss = c =>
+    {
+        int t = ExtraBossTick(c);
+        if (t < 0)
+            return;
+        int diff = ExtraDiff(c.Box);
+        int p = WindowPhase(t);
+        if (p >= 180 && p % Math.Max(12, 24 - diff * 3) == 0)   // only while it sits maximised
+        {
+            var (origin, size) = WindowRect(t);
+            Vector2 close = origin + size * new Vector2(0.94f, 0.05f);
+            float aim = Helper.FindAngle(close, c.Box.Player.Position);
+            int count = 2 + diff / 2;
+            for (int k = 0; k < count; k++)
+            {
+                var b = c.Box.SpawnObject(ExtraMicroIndex, 0xFF4444);
+                b.Position = close;
+                b.FacingRotation = b.RenderRotation = aim + (k - (count - 1) / 2f) * 0.15f;
+                b.Speed = 2.6f + diff * 0.25f;
+            }
+        }
+    };
+
+    /// <summary>
+    /// Builds the window out of bullets: the four edges of the frame, the line under the title bar, and the
+    /// minimise / maximise / close buttons in the top-right corner. Each bullet stores its position INSIDE the
+    /// window as a 0..1 pair, so <see cref="WindowPixelMove"/> can put it back wherever the window currently is.
+    /// </summary>
+    private static void SpawnWindowFrame(GameBox box)
+    {
+        void Place(float u, float v, int index, int color)
+        {
+            var b = box.SpawnObject(index, color);
+            b.FloatingPoints[0x30] = u;
+            b.FloatingPoints[0x31] = v;
+            b.CreatedAt = box.CurrentTick;
+            b.UpdateAction = WindowPixelMove;
+            var (origin, size) = WindowRect(Math.Max(0, box.ChapterTick));
+            b.Position = origin + new Vector2(u * size.X, v * size.Y);
+        }
+
+        const int horizontal = 22, vertical = 15;
+        for (int i = 0; i < horizontal; i++)
+        {
+            float u = i / (float)(horizontal - 1);
+            Place(u, 0f, ExtraWindowPixelIndex, 0xE8E8E8);      // top edge
+            Place(u, 1f, ExtraWindowPixelIndex, 0xE8E8E8);      // bottom edge
+            Place(u, 0.11f, ExtraWindowPixelIndex, 0x7FB3FF);   // the line under the title bar
+        }
+        for (int i = 1; i < vertical; i++)
+        {
+            float v = i / (float)vertical;
+            Place(0f, v, ExtraWindowPixelIndex, 0xE8E8E8);      // left edge
+            Place(1f, v, ExtraWindowPixelIndex, 0xE8E8E8);      // right edge
+        }
+        Place(0.84f, 0.055f, ExtraLargeIndex, 0xFFD23F);        // minimise
+        Place(0.90f, 0.055f, ExtraLargeIndex, 0x3FD36B);        // maximise
+        Place(0.96f, 0.055f, ExtraLargeIndex, 0xFF4444);        // close
+    }
+
+    /// <summary>One bullet of the window frame: pinned to its (u, v) spot inside the animating window.</summary>
+    private static readonly RuntimeObjectReferenceAction WindowPixelMove = obj =>
+    {
+        var (origin, size) = WindowRect(Math.Max(0, obj.Box.ChapterTick));
+        obj.Position = origin + new Vector2(obj.FloatingPoints[0x30] * size.X,
+            obj.FloatingPoints[0x31] * size.Y);
+    };
+
     static ActionsScope()
     {
         RebuildObjectActionsList();
@@ -875,6 +1518,62 @@ public static class ActionsScope
                 var obj = box.SpawnObject(22);
                 obj.Position = new Vector2(192, 224) + Helper.GetDirection2(angle) * (s * .4f + .6f) * 200;
             }
+        };
+        // ---- EXTRA STAGE ----------------------------------------------------------------------------------
+        // Dmitry's arrival: he is invincible here because the chapter is nothing but his (unskippable) speech —
+        // there is no attack to survive and nothing to shoot down yet.
+        dictionary["dmitry#extra#arrival#create"] = c =>
+        {
+            var boss = SpawnExtraBoss(c.GameBox, DmitryBossIndex, DmitryIdle, new Vector2(192, 96));
+            boss.Header[0] |= RuntimeObject.FlagInvincible;
+            ShowBossSplash(c.GameBox, "dmitry");
+        };
+        dictionary["dmitry#extra#card1#create"] = c =>
+            SpawnExtraBoss(c.GameBox, DmitryBossIndex, DmitryCard1, new Vector2(192, 96));
+        dictionary["dmitry#extra#card2#create"] = c =>
+            SpawnExtraBoss(c.GameBox, DmitryBossIndex, DmitryCard2, new Vector2(192, 88));
+        dictionary["dmitry#extra#card3#create"] = c =>
+            SpawnExtraBoss(c.GameBox, DmitryBossIndex, DmitryCard3, new Vector2(192, 112));
+        // Demid takes over: retire Dmitry (his act is done) and bring in a brand-new boss, BossId 1.
+        dictionary["demid#extra#card1#create"] = c =>
+        {
+            RetireOtherBosses(c.GameBox, DemidBossId);
+            SpawnExtraBoss(c.GameBox, DemidBossIndex, DemidCard1, new Vector2(192, 92));
+            ShowBossSplash(c.GameBox, "demid.png");
+        };
+        dictionary["demid#extra#card2#create"] = c =>
+            SpawnExtraBoss(c.GameBox, DemidBossIndex, DemidCard2, new Vector2(192, 92));
+        dictionary["demid#extra#card3#create"] = c =>
+            SpawnExtraBoss(c.GameBox, DemidBossIndex, DemidCard3, new Vector2(192, 100));
+        dictionary["demid#extra#card4#create"] = c =>
+            SpawnExtraBoss(c.GameBox, DemidBossIndex, DemidCard4, new Vector2(192, 84));
+        dictionary["demid#extra#card5#create"] = c =>
+            SpawnExtraBoss(c.GameBox, DemidBossIndex, DemidCard5, new Vector2(192, 96));
+        dictionary["demid#extra#card6#create"] = c =>
+            SpawnExtraBoss(c.GameBox, DemidBossIndex, DemidCard6, new Vector2(192, 104));
+        // The survival card: an invincible Demid up at the top and the OBS logo turning in the middle. There is
+        // nothing to whittle down, so the bar he has carried since his first card comes off for this one.
+        dictionary["demid#extra#obs#create"] = c =>
+        {
+            var boss = SpawnExtraBoss(c.GameBox, DemidBossIndex, DemidObsBoss, new Vector2(192, 60));
+            boss.Header[0] |= RuntimeObject.FlagInvincible;
+            SetBossHealthBar(c.GameBox, boss, false);
+            SpawnObsLogo(c.GameBox);
+        };
+        // The "you can't get back at my Google Chromines" speech, between the OBS card and the last one.
+        dictionary["demid#extra#chromines#create"] = c =>
+        {
+            var boss = SpawnExtraBoss(c.GameBox, DemidBossIndex, DemidIdle, new Vector2(192, 92));
+            boss.Header[0] |= RuntimeObject.FlagInvincible;
+            SetBossHealthBar(c.GameBox, boss, true);
+        };
+        dictionary["demid#extra#window#create"] = c =>
+        {
+            var boss = SpawnExtraBoss(c.GameBox, DemidBossIndex, DemidWindowBoss, new Vector2(192, 72));
+            SetBossHealthBar(c.GameBox, boss, true);
+            boss.Header[0] |= RuntimeObject.FlagIsFinalBossChapter;   // the true last card: he dies for real here
+            SpawnWindowFrame(c.GameBox);
+            ShowBossSplash(c.GameBox, "demid.png");
         };
         ChapterActions = dictionary.ToFrozenDictionary();
     }
@@ -1228,6 +1927,17 @@ public static class ActionsScope
                 obj.Box.AddObject(ray);
             }
         };
+        // ---- EXTRA STAGE ----------------------------------------------------------------------------------
+        // The bosses' default (template) behaviour is to just stand there; every card overrides UpdateAction
+        // with its own attack in the chapter's create script. The movers below are likewise assigned at spawn,
+        // and are named here so the entity templates in extra1.json have a valid script to load with.
+        dictionary["dmitry#idle"] = DmitryIdle;
+        dictionary["demid#idle"] = DemidIdle;
+        dictionary["dmitry#puff#move"] = DmitryPuffMove;
+        dictionary["dmitry#exhaust#move"] = DmitryExhaustMove;
+        dictionary["demid#leak#move"] = DemidLeakMove;
+        dictionary["demid#obs#pixel"] = ObsPixelMove;
+        dictionary["demid#window#pixel"] = WindowPixelMove;
         ObjectActions = dictionary.ToFrozenDictionary();
     }
 
