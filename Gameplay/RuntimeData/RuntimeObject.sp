@@ -92,6 +92,12 @@ Floating Points:
 [0x51] Laser Width (base width at the emitter)
 [0x52] Ray Spread (Is Ray only) — extra half-width px added per side at the tip; cone widens base -> base+2*spread
 
+# script scratch — nothing in the engine touches these, they belong to whatever ActionsScope script spawned
+# the object, and they are handed out at spawn time so the movers stay state-free (and so replay-safe)
+[0x30] Formation slot A — base angle on the stage-3 pizza circle / u inside the Extra-stage window frame
+[0x31] Formation slot B — radius fraction on that circle / v inside that window frame
+[0x32] Turn rate in radians per tick, for a bullet or beam that curves as it flies (Dmitry's stage-3 cards)
+
 # if the mystical toilet (Visual "toilet", scripts MysticalToilet / MysticalToiletDie)
 [0x55] Wander interval in ticks — it picks a new spot to drift to every this many chapter ticks
 [0x56] Escaping — set once its 12s clock (from Created At [0x17]) runs out and it starts climbing off the top

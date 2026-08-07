@@ -11,8 +11,8 @@ public class BossDeathScreenEffect : GameplayScreenEffect
         : base(box, position, index, "entity_die", timeAppear, timeDisappear)
     {
         LocationLeaves = GetShaderLocation(Shader, "textureLeaves");
-        SetShaderValueTexture(Shader, LocationLeaves, Runtime.CurrentRuntime.Textures["vilkaCut.png"]);
         Layer = EffectLayer.BackgroundAndGameplay;
+        SetShaderValueTexture(Shader, LocationLeaves, Runtime.CurrentRuntime.Textures["vilkaCut.png"]);
     }
 
     public int LocationLeaves;
