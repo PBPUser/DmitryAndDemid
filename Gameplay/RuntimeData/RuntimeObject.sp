@@ -20,9 +20,11 @@
 [0x17] Appear Timestamp
 # if collectable
 [0x0] Bit mask: {
-    [0x800000] Homing — spat back out by the mystical toilet: chases the player from any distance instead of
-               falling (see RuntimeObject.UpdateCollectable). An item WITHOUT this is fair game for the toilet,
-               which magnets and swallows whatever the player is not already claiming.
+    [0x800000] Homing — chases the player from any distance instead of falling (see
+               RuntimeObject.UpdateCollectable). Set on the hoard the mystical toilet spits back out, and on
+               every collectable still on the box when a dialog opens (GameBox.MagnetCollectablesToPlayer).
+               An item WITHOUT this is fair game for the toilet, which magnets and swallows whatever the
+               player is not already claiming.
 }
 [0x4] Type {
     0 - Power

@@ -24,6 +24,11 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
     
     private static FileEntityInfo BulletFileInfo = new FileEntityInfo();
     
+    /// <summary>What a bullet caught on the fork is worth, as a multiplier on the height-scaled value every
+    /// collected bullet pays (see <see cref="RuntimeObject.UpdateCollectableBullet"/>). One catch = one bullet's
+    /// worth; the bomb's own clear leaves the rest of the box at 0, so only what the fork actually swept pays.</summary>
+    private const int ForkCatchScoreModifier = 1;
+
     private static Rect PlayerBottomLayerSource = new Rect(0, 64, 64, 64);
     private static Rect PlayerTopLayerSource = new Rect(64, 64, 64, 64);
     private static Rect AkobRectangleSource = new Rect(128, 64, 16, 16);
@@ -76,13 +81,29 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         var sR = BombForkTarget with { Position = player.Position };
         foreach (var bObj in Player.GameBox.BoxObjects)
         {
-            if (RuntimeObject.FlagDangerousRelatedToEnemy ==
+            bool isBullet = (bObj.Header[0] & RuntimeObject.FlagIsBullet) == RuntimeObject.FlagIsBullet;
+            // The fork only touches what belongs to the other side, so the player's own shots are skipped —
+            // CONTINUE, not break: breaking abandoned the whole sweep at the first player bullet in the list, and
+            // the player is firing constantly, so most of the box was never tested at all. The player-shot marker
+            // (FlagDangerousRelatedToEnemy) also shares its bit with FlagUseDieScript on entities, hence the
+            // IsBullet test alongside it: without it an enemy that has a die script (the mystical toilet) reads
+            // as a player shot and the fork passes straight through it.
+            if (isBullet && RuntimeObject.FlagDangerousRelatedToEnemy ==
                 (bObj.Header[0] & RuntimeObject.FlagDangerousRelatedToEnemy))
-                break;
+                continue;
             if (IsColliding(sR, BombForkOrigin, ForkAngle, bObj.Position, bObj.Collision))
             {
-                if ((bObj.Header[0] & RuntimeObject.FlagIsBullet) == RuntimeObject.FlagIsBullet)
+                // An enemy bullet the fork touches is turned into loot: it stops being lethal (the box's damage
+                // pass skips a bullet in collectable state), flies to the player like a magneted item, and pays
+                // score when it reaches them — Header[5] is the per-bullet score modifier, and a bullet nobody
+                // has priced is worth nothing, so it has to be set here for the catch to pay out.
+                if (isBullet)
+                {
                     bObj.Header[0] |= RuntimeObject.FlagIsCollectableBullet;
+                    bObj.Header[2] = 128;   // half-transparent, the way every other converted bullet reads
+                    bObj.Header[5] = ForkCatchScoreModifier;
+                    bObj.CollectableVelocity = Helper.GetDirection(bObj.Position, Player.Position);
+                }
                 // Between chapters (the DelayBetweenChapters transition) AND while a dialog is on screen, all
                 // gameplay damage is frozen: the box loop skips its damage/health pass on InChapterDelay /
                 // IsDialogActive. The bomb deals damage directly here, from the weapon's own update, so without
@@ -94,13 +115,20 @@ public class AkobPlayerWeapon(Player player) : PlayerWeapon(player)
         }
     }
 
-    static bool IsColliding(Rect rect, Vector2 origin, float angle, Vector2 position, float radius)
+    /// <summary>
+    /// A bullet (circle) against the swinging fork (a rotated rectangle): undo the fork's rotation about its
+    /// pivot to put the bullet in the fork's own space, then clamp to the rectangle and compare the distance.
+    /// <paramref name="angleDegrees"/> is the same angle the fork is DRAWN at — DrawTexturePro takes degrees, so
+    /// it has to be converted here or the hit region turns about 57x slower than the sprite the player sees.
+    /// </summary>
+    static bool IsColliding(Rect rect, Vector2 origin, float angleDegrees, Vector2 position, float radius)
     {
         Vector2 diff = position - rect.Position;
+        float angle = angleDegrees * MathF.PI / 180f;
         float sin = MathF.Sin(-angle);
         float cos = MathF.Cos(-angle);
         float lX = diff.X * cos - diff.Y * sin;
-        float lY = diff.Y * sin - diff.Y * cos;
+        float lY = diff.X * sin + diff.Y * cos;   // was diff.Y twice, which sheared the fork's box off its sprite
         Vector2 lCirclePos = new Vector2(lX, lY) + origin;
         float cX = Math.Clamp(lCirclePos.X, 0f, rect.Size.X);
         float cY = Math.Clamp(lCirclePos.Y, 0f, rect.Size.Y);

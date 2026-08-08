@@ -588,6 +588,12 @@ public class GameBox : IDisposable
             }
             if(!Player.CollisionEnabled || Player.Weapon.IsBombActive)
                 continue;
+            // A bullet the player has already claimed — caught on Akob's fork, or swept up by a bomb / a death —
+            // is loot, not a threat. It flies AT the player on purpose (UpdateCollectableBullet), so leaving it in
+            // the damage pass would kill them the moment their prize arrived; it must not graze either. The bomb
+            // and death cases only ever looked safe because the player happens to be uncollidable through both.
+            if ((bitMask & RuntimeObject.FlagIsCollectableBullet) == RuntimeObject.FlagIsCollectableBullet)
+                continue;
             if ((bitMask & RuntimeObject.FlagDangerousRelatedToPlayer) ==
                 RuntimeObject.FlagDangerousRelatedToPlayer)
             {
@@ -1671,6 +1677,24 @@ public class GameBox : IDisposable
             return;
         }
         IsDialogActive = true;
+        MagnetCollectablesToPlayer();
+    }
+
+    /// <summary>
+    /// Hands the player every collectable left lying on the box. Nothing is dropping during a conversation and
+    /// the player is not steering, so loot that is still falling would either be lost to the bottom edge or
+    /// (stage 2) eaten by the mystical toilet while they are stuck reading. Flagged homing rather than collected
+    /// outright, so the items visibly fly in — and because the flag sticks, ones that do not reach the player
+    /// before the dialog ends finish the trip instead of dropping again mid-flight.
+    /// </summary>
+    void MagnetCollectablesToPlayer()
+    {
+        // The add queue too: items dropped by the last kill of the chapter we just left are still waiting to be
+        // folded into BoxObjects (that happens at the top of the next tick), and they are exactly the loot the
+        // player is most likely to still have coming.
+        foreach (var obj in BoxObjects.Concat(ObjectsAddQueue))
+            if ((obj.Header[0] & RuntimeObject.FlagIsCollectable) == RuntimeObject.FlagIsCollectable)
+                obj.Header[0] |= RuntimeObject.FlagHomingCollectable;
     }
 
     void EndDialog()

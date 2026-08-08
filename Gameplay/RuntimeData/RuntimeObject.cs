@@ -50,9 +50,10 @@ public class RuntimeObject
         // finite length. Shares the laser fields/phases but adds RaySpread, a cone-collision test, and a gradient
         // render (see MakeRay / GameBox.DrawRay). Bit 22, unused by any other flag / object kind.
         FlagIsRay = 0x400000,
-        // A collectable the mystical toilet has spat back out: instead of drifting down it homes in on the
-        // player from ANY distance (see UpdateCollectable), so the returned hoard always finds its way back
-        // wherever the player happens to be standing. Bit 23, unused by any other flag / object kind.
+        // A collectable that comes TO the player: instead of drifting down it homes in from ANY distance (see
+        // UpdateCollectable). Set on the hoard the mystical toilet spits back out, so the reward always finds
+        // its way back wherever the player is standing, and on everything still lying on the box when a dialog
+        // opens (GameBox.MagnetCollectablesToPlayer). Bit 23, unused by any other flag / object kind.
         FlagHomingCollectable = 0x800000;
 
     public static FileEntityInfo[] CollectableFEIs = new FileEntityInfo[8];
@@ -601,17 +602,36 @@ public class RuntimeObject
         Header[0] |= FlagIsMovingToTarget;
     }
 
+    /// <summary>Per-tick acceleration of a bullet turned into loot, and the speed it settles at (px/tick). It
+    /// used to steer at a target 100000 units out, i.e. accelerate for as long as it lived: a bullet caught early
+    /// was moving fast enough to cross the player between two ticks and sail off to be culled at the box edge,
+    /// never paying out. Bounded like the item magnet, it converges on the player instead.</summary>
+    private const float CollectableBulletAcceleration = 0.2f, CollectableBulletSpeed = 7f;
+
+    /// <summary>What one collected bullet pays before its own score modifier: the classic height bonus, worth the
+    /// most taken at the top of the playfield and tapering to the base at the bottom.</summary>
+    private const int CollectableBulletBaseScore = 100, CollectableBulletTopScore = 2000;
+
     public void UpdateCollectableBullet()
     {
         var direction = Helper.GetDirection(Position, new Vector2(Box.Player.X, Box.Player.Y));
-        FloatingPoints[2] = MathUtil.MoveTowards(FloatingPoints[2], direction.X * 100000, 0.2f);
-        FloatingPoints[6] = MathUtil.MoveTowards(FloatingPoints[6], direction.Y * 100000, 0.2f);
+        FloatingPoints[2] = MathUtil.MoveTowards(FloatingPoints[2], direction.X * CollectableBulletSpeed,
+            CollectableBulletAcceleration);
+        FloatingPoints[6] = MathUtil.MoveTowards(FloatingPoints[6], direction.Y * CollectableBulletSpeed,
+            CollectableBulletAcceleration);
         X += FloatingPoints[2];
         Y += FloatingPoints[6];
         RenderRotation += Helper.FindAngle(Position, new Vector2(Box.Player.X, Box.Player.Y)) * 0.09f;
         if (Helper.IsCollied(TargetRectangle, Box.Player.Collision))
         {
-            Box.ScoreTarget += (int)Math.Pow(10, (448-Y)/10) * Header[5];
+            // Header[5] is the bullet's score modifier — 0 for the ones a bomb or a death swept up, which are
+            // cleared as a courtesy rather than earned, and set by whatever priced this one (Akob's fork).
+            // The old award was 10^((448-Y)/10), which overflows int above y≈370 — i.e. over nearly the whole
+            // playfield — and turned any non-zero modifier into a garbage (negative) score.
+            float height = Math.Clamp((448f - Y) / 448f, 0f, 1f);
+            int value = (int)MathF.Round(CollectableBulletBaseScore
+                + (CollectableBulletTopScore - CollectableBulletBaseScore) * height * height);
+            Box.ScoreTarget += value * Header[5];
             Box.RemoveObject(this);
         }
     }
@@ -651,8 +671,10 @@ public class RuntimeObject
     {
         if ((Header[0] & FlagHomingCollectable) == FlagHomingCollectable)
         {
-            // Loot the toilet spat back out. It homes in on the player from anywhere on the playfield — the
-            // whole point of the reward is that you get the hoard back without having to chase it down.
+            // Loot that is coming to the player: the hoard the toilet spat back out, or everything that was
+            // lying around when a dialog opened. It homes in from anywhere on the playfield — the point of both
+            // is that the player gets it without having to chase it down (or read a conversation while it falls
+            // past them). The toilet cannot steal one of these: this branch runs before its own.
             Steer(new Vector2(Box.Player.X, Box.Player.Y), HomingAcceleration, HomingSpeed);
         }
         else if (Box.MysticalToilet is { } toilet && !Box.Player.IsMagneting(Position) &&
