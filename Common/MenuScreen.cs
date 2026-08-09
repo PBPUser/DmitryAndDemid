@@ -89,6 +89,26 @@ public abstract class MenuScreen : ScreenWithTitle
     Action<int>? Event;
     bool ItemActivated = false;
 
+    /// <summary>When an entry was last chosen, and which one. Drives the activation flourish in
+    /// <see cref="RowAnimation"/>, and is exposed so a screen can react to its own menu being used — the title
+    /// screen scatters its pizzas on it. Starts far in the past so nothing plays on the first frame.</summary>
+    protected double LastActivationTime = -100;
+    protected int LastActivatedIndex = -1;
+
+    /// <summary>
+    /// The activation flourish's progress, 0 → 1 → 0 across <see cref="MenuActivateCooldown"/>. It peaks halfway
+    /// and is back to rest exactly when the chosen entry's action fires, so whatever the menu does with it ends
+    /// where it started and there is nothing to unwind if the screen sticks around.
+    /// </summary>
+    protected float ActivationFlourish
+    {
+        get
+        {
+            float progress = (float)((GetTime() - LastActivationTime) / MenuActivateCooldown);
+            return progress is <= 0 or >= 1 ? 0f : MathF.Sin(progress * MathF.PI);
+        }
+    }
+
     public override void Activated()
     {
         base.Activated();
@@ -120,6 +140,7 @@ public abstract class MenuScreen : ScreenWithTitle
             (IsKeyDown(KeyCode.Left) || Controller.IsButtonDown(PadButton.LeftFaceLeft)) && HorizontalDirectionNavigation)
         {
             Helper.PlaySound(CurrentRuntime.Sounds["item-switch"]);
+            Gameplay.DualSenseFeedback.OnMenuMove();
             PreviousKeyTimestamp = GetTime();
             PreviousSelectedIndex = SelectedIndex;
             double j = ComputeAnimationIndex();
@@ -144,6 +165,7 @@ public abstract class MenuScreen : ScreenWithTitle
             PreviousKeyTimestamp = GetTime();
             double j = ComputeAnimationIndex();
             Helper.PlaySound(CurrentRuntime.Sounds["item-switch"]);
+            Gameplay.DualSenseFeedback.OnMenuMove();
             AnimationStartedIndex = j;
             AnimationStartedAt = GetTime();
             if (MenuItems.Count == 0)
@@ -164,8 +186,11 @@ public abstract class MenuScreen : ScreenWithTitle
             Helper.PlaySound(CurrentRuntime.Sounds["button"]);
             if(SelectedIndex > MenuItems.Count() - 1)
                 return;
+            Gameplay.DualSenseFeedback.OnMenuConfirm();
             Event = MenuItems[SelectedIndex].Action;
             ItemActivated = true;
+            LastActivationTime = GetTime();
+            LastActivatedIndex = SelectedIndex;
         }
         else if (IsKeyDown(KeyCode.Escape) || IsKeyDown(KeyCode.X) ||
                  Controller.IsButtonDown(PadButton.RightFaceRight))
@@ -185,12 +210,16 @@ public abstract class MenuScreen : ScreenWithTitle
             if (SelectedIndex == exitIndex)
             {
                 Helper.PlaySound(CurrentRuntime.Sounds["button"]);
+                Gameplay.DualSenseFeedback.OnMenuConfirm();
                 Event = MenuItems[exitIndex].Action;
                 ItemActivated = true;
+                LastActivationTime = GetTime();
+                LastActivatedIndex = exitIndex;
                 return;
             }
 
             Helper.PlaySound(CurrentRuntime.Sounds["esc"]);
+            Gameplay.DualSenseFeedback.OnMenuBack();
             PreviousSelectedIndex = SelectedIndex;
             AnimationStartedIndex = ComputeAnimationIndex();
             AnimationStartedAt = GetTime();
@@ -215,6 +244,7 @@ public abstract class MenuScreen : ScreenWithTitle
     protected void Exit()
     {
         Exiting();
+        Gameplay.DualSenseFeedback.OnMenuBack();
         ItemActivated = true;
         PreviousKeyTimestamp = GetTime();
         Event = a => CurrentRuntime.RemoveScreen(this);
@@ -458,9 +488,12 @@ public abstract class MenuScreen : ScreenWithTitle
             return;
         SelectedIndex = idx;
         Helper.PlaySound(CurrentRuntime.Sounds["button"]);
+        Gameplay.DualSenseFeedback.OnMenuConfirm();
         Event = MenuItems[idx].Action;
         ItemActivated = true;
         PreviousKeyTimestamp = GetTime();
+        LastActivationTime = GetTime();
+        LastActivatedIndex = idx;
     }
 
     /// <summary>Moves the selection by one, skipping disabled items — the touch equivalent of a left/right press.</summary>
@@ -469,6 +502,7 @@ public abstract class MenuScreen : ScreenWithTitle
         if (MenuItems.Count == 0)
             return;
         Helper.PlaySound(CurrentRuntime.Sounds["item-switch"]);
+        Gameplay.DualSenseFeedback.OnMenuMove();
         PreviousSelectedIndex = SelectedIndex;
         AnimationStartedIndex = ComputeAnimationIndex();
         AnimationStartedAt = GetTime();
@@ -482,6 +516,60 @@ public abstract class MenuScreen : ScreenWithTitle
                 SelectedIndex = Math.Clamp(SelectedIndex + direction, 0, MenuItems.Count - 1);
             z++;
         } while (z < MenuItems.Count && !MenuItems[SelectedIndex].Enabled);
+    }
+
+    /// <summary>
+    /// Everything that moves a single menu row, in one place so the plain and the windowed draw paths below
+    /// cannot drift apart. On top of the selection offset/scale the list already had, three things were added:
+    ///
+    /// • an idle drift — every row rides a slow sine phase-shifted by its index, so a menu nobody is touching
+    ///   still breathes as a wave rather than sitting frozen;
+    /// • a pop — the row that just gained the cursor overshoots its size and springs back (a damped sine), so
+    ///   the selection lands with weight instead of appearing;
+    /// • the activation flourish — the chosen row swells and lunges to the right while the rest recoil away from
+    ///   it and fade, all of it returning to rest exactly as the entry's action fires (see
+    ///   <see cref="ActivationFlourish"/>), so a menu that stays on screen is left exactly as it was.
+    /// </summary>
+    private void RowAnimation(int index, double cIndex, float swapNoise, float t,
+        out Vector2 offset, out float scale, out float alpha, out float layoutScale)
+    {
+        float sf = CurrentRuntime.ScaleF;
+        float offsetState = (float)Math.Abs(1 - Math.Clamp(Math.Abs(cIndex - index), 0, 1));
+        offset = offsetState * SelectedItemOffset;
+        scale = SelectedItemScale * offsetState + 1f * (1 - offsetState);
+        // What the list is LAID OUT with — the selection scale only. The pop and the flourish below are drawing
+        // effects: feeding them into the row heights would ripple down the column and shear the whole list.
+        layoutScale = scale;
+        alpha = 1f;
+
+        // Idle drift. Deliberately about a pixel and a half at 1x: enough that the list is alive in peripheral
+        // vision, small enough that it never fights the text for legibility.
+        float phase = t * 1.6f + index * 0.55f;
+        offset += new Vector2(MathF.Sin(phase), MathF.Cos(phase * 0.77f) * 0.7f) * 1.5f * sf;
+
+        if (index == SelectedIndex)
+        {
+            offset += swapNoise * SelectedNoise * new Vector2(MathF.Sin(t * 100 + 24), MathF.Cos(t * 100));
+            // Damped spring on the freshly selected row: two or three visible bounces inside a quarter second.
+            float since = (float)(GetTime() - AnimationStartedAt);
+            scale *= 1f + MathF.Exp(-since * 11f) * MathF.Sin(since * 38f) * 0.14f;
+        }
+
+        float flourish = ActivationFlourish;
+        if (flourish <= 0f)
+            return;
+        if (index == LastActivatedIndex)
+        {
+            scale *= 1f + flourish * 0.3f;
+            offset.X += flourish * 22f * sf;
+        }
+        else
+        {
+            // The unchosen rows are shoved away from the one that was picked — up if they sit above it, down if
+            // below — and dim while they are out of position.
+            offset.Y += Math.Sign(index - LastActivatedIndex) * flourish * 26f * sf;
+            alpha *= 1f - flourish * 0.75f;
+        }
     }
 
     protected void DrawMenu()
@@ -529,18 +617,15 @@ public abstract class MenuScreen : ScreenWithTitle
             for (int index = 0; index < count; index++)
             {
                 var x = MenuItems[index];
-                float offsetState = (float)Math.Abs(1-Math.Clamp(Math.Abs(cIndex - index), 0, 1));
-                Vector2 offset = offsetState * SelectedItemOffset;
-                if (index == SelectedIndex)
-                    offset += swapNoise*SelectedNoise*new Vector2(MathF.Sin(t*100+24), MathF.Cos(t*100));
-                float scale = SelectedItemScale * offsetState + 1f * (1 - offsetState);
-                ItemHitboxes.Add((new Rect(CurrentX, y0, MathF.Min(x.Texture.Width * scale, ItemMaxWidth()), x.Texture.Height * scale),
+                RowAnimation(index, cIndex, swapNoise, t, out Vector2 offset, out float scale, out float rowAlpha,
+                    out float layoutScale);
+                ItemHitboxes.Add((new Rect(CurrentX, y0, MathF.Min(x.Texture.Width * layoutScale, ItemMaxWidth()), x.Texture.Height * layoutScale),
                     index, x.Enabled));
                 Rgba col = (index == SelectedIndex ? Helper.Mix(Rgba.Yellow, Rgba.White, MathF.Abs((t *
                         (ItemActivated ? 30 : 2)
-                        ) % 2 - 1)) : Rgba.White) with { A = (byte)(x.Enabled ? 255 : 128) };
+                        ) % 2 - 1)) : Rgba.White) with { A = (byte)((x.Enabled ? 255 : 128) * rowAlpha) };
                 DrawMenuItemTexture(x, index, CurrentX + offset.X, y0 + offset.Y, scale, Modulate(col, x.Tint));
-                y0 += (int)(x.Texture.Height * scale);
+                y0 += (int)(x.Texture.Height * layoutScale);
             }
             return;
         }
@@ -591,17 +676,14 @@ public abstract class MenuScreen : ScreenWithTitle
             if (edgeFade <= 0.02f)
                 continue;
 
-            float offsetState = (float)Math.Abs(1-Math.Clamp(Math.Abs(cIndex - index), 0, 1));
-            Vector2 offset = offsetState * SelectedItemOffset;
-            if (index == SelectedIndex)
-                offset += swapNoise*SelectedNoise*new Vector2(MathF.Sin(t*100+24), MathF.Cos(t*100));
-            float scale = SelectedItemScale * offsetState + 1f * (1 - offsetState);
-            ItemHitboxes.Add((new Rect(CurrentX, (int)y, MathF.Min(x.Texture.Width * scale, ItemMaxWidth()), x.Texture.Height * scale),
+            RowAnimation(index, cIndex, swapNoise, t, out Vector2 offset, out float scale, out float rowAlpha,
+                out float layoutScale);
+            ItemHitboxes.Add((new Rect(CurrentX, (int)y, MathF.Min(x.Texture.Width * layoutScale, ItemMaxWidth()), x.Texture.Height * layoutScale),
                 index, x.Enabled));
             Rgba color = index == SelectedIndex
                 ? Helper.Mix(Rgba.Yellow, Rgba.White, MathF.Abs((t * (ItemActivated ? 30 : 2)) % 2 - 1))
                 : Rgba.White;
-            byte alpha = (byte)((x.Enabled ? 255 : 128) * edgeFade);
+            byte alpha = (byte)((x.Enabled ? 255 : 128) * edgeFade * rowAlpha);
             DrawMenuItemTexture(x, index, CurrentX + offset.X, y + offset.Y, scale,
                 Modulate(color with { A = alpha }, x.Tint));
         }

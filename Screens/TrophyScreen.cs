@@ -84,6 +84,25 @@ public class TrophyScreen : ScreenWithTitle
         Runtime.CurrentRuntime.AddScreen(new CreditsScreen());
     }
     
+    /// <summary>How long one pass of the shine takes to cross the whole grid, and how much of that pass any one
+    /// trophy spends lit. A long period and a narrow band: it should read as an occasional glint, not a strobe.
+    /// </summary>
+    private const float ShinePeriod = 5f, ShineWidth = 0.12f, ShineStagger = 0.045f;
+
+    /// <summary>
+    /// The travelling highlight's strength on trophy <paramref name="i"/>, 0 when it is unearned or the band is
+    /// elsewhere. The per-index stagger is what turns a single pulse into something that sweeps.
+    /// </summary>
+    private float EarnedShine(int i, float time)
+    {
+        if (i >= Infos.Length || !PlayerData.Instance.IsTrophyUnlocked(Infos[i].Index))
+            return 0f;
+        float phase = (time / ShinePeriod - i * ShineStagger) % 1f;
+        if (phase < 0f)
+            phase += 1f;
+        return phase < ShineWidth ? MathF.Sin(phase / ShineWidth * MathF.PI) : 0f;
+    }
+
     public override void Render()
     {
         DrawBackground();
@@ -116,6 +135,16 @@ public class TrophyScreen : ScreenWithTitle
             }
             // Selected trophy highlights white; the rest stay a softer grey so the grid reads calm.
             Rgba tint = Index == i ? new Rgba(255, 255, 255, 255) : new Rgba(185, 185, 185, 255);
+            // …and every so often a band of light sweeps across the grid, catching the EARNED trophies one after
+            // another as it passes. The still-locked ones (drawn as **) are skipped entirely, so what the player
+            // has actually collected picks itself out of the grid without the layout saying anything different.
+            float shine = EarnedShine(i, time);
+            if (shine > 0f)
+            {
+                tint = Helper.Mix(tint, new Rgba(255, 240, 170, 255), shine);
+                // The catch is a lift as well as a brightening — a couple of pixels, pivoting on the tile's centre.
+                dest = dest with { Y = dest.Y - shine * 3f * Runtime.CurrentRuntime.ScaleF };
+            }
             DrawTexturePro(Menu[i].Texture, rc, dest, Vector2.Zero, 0, tint);
         }
         base.Render();

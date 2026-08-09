@@ -81,6 +81,7 @@ public class LoadingScreen : Screen
     public override void Render()
     {
         float time = (float)GetTime();
+        SugarSource.Y = (int)(MathF.Sin(time * 2) * 10 + 10);
         DrawTexturePro(SugarTexture, SugarSource, SugarTarget, Vector2.Zero, 0f, Rgba.White with { A = Helper.TimeToTransparency(Helper.ComputeObjectTime(GetTime(), 0, 0.25, 1.5, 0.25)) });
         // Build number under the sugar logo — fades in and stays, so it's always clear WHICH build is running
         // (catches a stale aag2.dll on the SD vs the one just deployed). Auto-incremented every build (see csproj).

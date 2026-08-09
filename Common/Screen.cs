@@ -93,9 +93,37 @@ public abstract class Screen : IDisposable
     public void DrawBackground()
     {
         float appear = (float)Helper.ComputeObjectTime(GetTime(), TimeAppear, .5f, TimeDisappear, .5f);
-        DrawTexturePro(Background, BGRectSource, BGRectDest, Vector2.Zero, 0,
+        DrawTexturePro(Background, BGRectSource, DriftedBackgroundRect(), Vector2.Zero, 0,
             Rgba.White with { A = (byte)(255 * appear) });
         DrawFallingForks(appear);
+    }
+
+    /// <summary>How far past the screen the backdrop is blown up, as a fraction of its size.</summary>
+    private const float BackdropOverscan = 0.05f;
+
+    /// <summary>
+    /// The backdrop drawn slightly larger than the screen and drifting inside that margin — a slow pan and a
+    /// slower zoom, on periods long enough (7 s and 11 s, and not multiples of each other) that the loop never
+    /// announces itself. It turns every menu's wallpaper from a flat still into something that breathes, and
+    /// every screen that calls <see cref="DrawBackground"/> gets it at once.
+    ///
+    /// The overscan is the whole trick: the drawn rect is never smaller than the screen and the pan is bounded
+    /// by exactly the spare margin the zoom created, so no amount of drift can pull an edge into view.
+    /// </summary>
+    private Rect DriftedBackgroundRect()
+    {
+        float time = (float)GetTime();
+        float zoom = 1f + BackdropOverscan * (0.5f + 0.5f * MathF.Sin(time / 11f));
+        float width = BGRectDest.Width * zoom, height = BGRectDest.Height * zoom;
+        float spareX = width - BGRectDest.Width, spareY = height - BGRectDest.Height;
+        // pan ∈ [-1, 1] places the rect anywhere from "flush right" to "flush left"; at the bottom of the zoom
+        // there is no spare at all and both terms collapse to a plain full-screen blit.
+        float panX = MathF.Sin(time / 7f);
+        float panY = MathF.Cos(time / 9f);
+        return new Rect(
+            BGRectDest.X - spareX / 2f + panX * spareX / 2f,
+            BGRectDest.Y - spareY / 2f + panY * spareY / 2f,
+            width, height);
     }
 
     private const int ForkCount = 16;

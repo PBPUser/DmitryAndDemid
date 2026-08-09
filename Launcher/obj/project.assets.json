@@ -1,5 +1,5 @@
 {
-  "version": 3,
+  "version": 4,
   "targets": {
     "net10.0": {
       "AtkSharp/3.24.24.95": {
@@ -194,29 +194,42 @@
     ]
   },
   "packageFolders": {
-    "/home/iwuwka/.nuget/packages/": {}
+    "C:\\Users\\iwuwka\\.nuget\\packages\\": {},
+    "C:\\Users\\iwuwka\\AppData\\Roaming\\Godot\\mono\\GodotNuGetFallbackFolder": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/home/iwuwka/Documents/DmitryAndDemid/Launcher/DmitryAndDemid.Launcher.csproj",
+      "projectUniqueName": "G:\\Profile\\Documents\\DmitryAndDemid\\Launcher\\DmitryAndDemid.Launcher.csproj",
       "projectName": "custom",
-      "projectPath": "/home/iwuwka/Documents/DmitryAndDemid/Launcher/DmitryAndDemid.Launcher.csproj",
-      "packagesPath": "/home/iwuwka/.nuget/packages/",
-      "outputPath": "/home/iwuwka/Documents/DmitryAndDemid/Launcher/obj/",
+      "projectPath": "G:\\Profile\\Documents\\DmitryAndDemid\\Launcher\\DmitryAndDemid.Launcher.csproj",
+      "packagesPath": "C:\\Users\\iwuwka\\.nuget\\packages\\",
+      "outputPath": "G:\\Profile\\Documents\\DmitryAndDemid\\Launcher\\obj\\",
       "projectStyle": "PackageReference",
+      "fallbackFolders": [
+        "C:\\Users\\iwuwka\\AppData\\Roaming\\Godot\\mono\\GodotNuGetFallbackFolder",
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+      ],
       "configFilePaths": [
-        "/home/iwuwka/.nuget/NuGet/NuGet.Config"
+        "C:\\Users\\iwuwka\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\iwuwka\\AppData\\Roaming\\NuGet\\config\\Godot.Offline.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
       ],
       "sources": {
-        "/usr/share/dotnet/library-packs": {},
+        "C:\\PROGRAM FILES\\DOTNET\\library-packs": {},
+        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+        "D:\\PortableApps\\Godot\\LimboAINuget": {},
+        "D:\\Profile\\source\\repos\\JVOS\\JVOS.Controls\\bin\\Debug": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
         "net10.0": {
+          "framework": "net10.0",
           "targetAlias": "net10.0",
           "projectReferences": {}
         }
@@ -231,10 +244,11 @@
         "auditLevel": "low",
         "auditMode": "all"
       },
-      "SdkAnalysisLevel": "10.0.100"
+      "SdkAnalysisLevel": "10.0.300"
     },
     "frameworks": {
       "net10.0": {
+        "framework": "net10.0",
         "targetAlias": "net10.0",
         "dependencies": {
           "GtkSharp": {
@@ -253,18 +267,12 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
-        "downloadDependencies": [
-          {
-            "name": "Microsoft.AspNetCore.App.Ref",
-            "version": "[10.0.4, 10.0.4]"
-          }
-        ],
         "frameworkReferences": {
           "Microsoft.NETCore.App": {
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.104/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\PROGRAM FILES\\DOTNET\\sdk\\10.0.302/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.CSharp": "(,4.7.32767]",
           "Microsoft.VisualBasic": "(,10.4.32767]",

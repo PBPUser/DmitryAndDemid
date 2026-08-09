@@ -55,6 +55,34 @@ public class RuntimeDialog
     private bool ShootWasDown;
     private double SkipHeldElapsed;
 
+    /// <summary>How long a new line takes to take hold: the speaker steps forward, the listener steps back, and
+    /// the text writes itself out.</summary>
+    private const double LineEnterDuration = 0.35;
+
+    /// <summary>
+    /// Which side spoke the PREVIOUS line, so a portrait knows which pose it is animating away FROM. Without it
+    /// a character with two lines in a row would visibly shrink back to the listener pose and regrow between
+    /// them. Seeded as the opposite of the first line's speaker so that opener animates in rather than starting
+    /// already emphasised.
+    /// </summary>
+    private bool PreviousIsPlayer;
+
+    /// <summary>The current line's entrance progress, 0 → 1.</summary>
+    private float LineEnter => (float)Math.Clamp(LineElapsed / LineEnterDuration, 0, 1);
+
+    /// <summary>
+    /// How strongly the given side is holding the floor right now: 1 while it is the speaker, 0 while it is
+    /// listening, easing between the two across <see cref="LineEnter"/> when the turn changes. Drives the
+    /// portrait's size, its step toward the middle and how brightly it is lit, so a turn passing from one
+    /// character to the other is a movement rather than a cut.
+    /// </summary>
+    private float SpeakingPose(bool playerSide)
+    {
+        float from = PreviousIsPlayer == playerSide ? 1f : 0f;
+        float to = Current.IsPlayer == playerSide ? 1f : 0f;
+        return Helper.Mix(from, to, LineEnter);
+    }
+
     public bool Finished { get; private set; }
 
     /// <summary>The line on screen right now.</summary>
@@ -66,6 +94,8 @@ public class RuntimeDialog
         Lines = dialogs.Select(d => new Line(d, protogonist)).ToArray();
         Finished = Lines.Length == 0;
         LastUpdate = Gfx.GetTime();
+        if (Lines.Length > 0)
+            PreviousIsPlayer = !Lines[0].IsPlayer;
     }
 
     /// <summary>
@@ -124,6 +154,7 @@ public class RuntimeDialog
             return;
         }
         Helper.PlaySound(Runtime.CurrentRuntime.Sounds["dialogue"]);
+        PreviousIsPlayer = Current.IsPlayer;   // recorded BEFORE the index moves — see SpeakingPose
         Index++;
         LineElapsed = 0;
     }
@@ -167,6 +198,11 @@ public class RuntimeDialog
         float scale = Runtime.CurrentRuntime.ScaleF;
         float width = target.Texture.Width;
         float height = target.Texture.Height;
+        float time = (float)GetTime();
+
+        // The window opens with a vertical bounce about its own centre; content (forks, text) fades in with it.
+        // Read before the portraits now, because they ride it in from the sides too.
+        float open = OpenAmount();
 
         // Portraits stand on the bottom edge, player on the left, boss on the right, each turned inward.
         float artHeight = height * 0.62f;
@@ -174,12 +210,12 @@ public class RuntimeDialog
         float artY = height - artHeight;
 
         DrawPortrait(Current.PlayerArt, Current.PlayerFrame,
-            new Rect(-artWidth * 0.12f, artY, artWidth, artHeight), Current.IsPlayer, false);
+            new Rect(-artWidth * 0.12f, artY, artWidth, artHeight), false,
+            SpeakingPose(true), open, time, scale, (float)LineElapsed);
         DrawPortrait(Current.BossArt, Current.BossFrame,
-            new Rect(width - artWidth * 0.88f, artY, artWidth, artHeight), !Current.IsPlayer, true);
+            new Rect(width - artWidth * 0.88f, artY, artWidth, artHeight), true,
+            SpeakingPose(false), open, time, scale, (float)LineElapsed);
 
-        // The window opens with a vertical bounce about its own centre; content (forks, text) fades in with it.
-        float open = OpenAmount();
         if (open <= 0.001f)
             return;
         float contentA = Math.Clamp((open - 0.35f) / 0.5f, 0f, 1f);   // forks/text fade in once the panel is open
@@ -205,8 +241,12 @@ public class RuntimeDialog
         {
             float fw = d.Scale * 26f * scale;
             float fh = fw * aspect;
+            // The dressing drifts and turns instead of sitting there: each fork spins at its own lazy rate and
+            // bobs on its own phase. Applied BEFORE the clamp below, so a drifting fork is still cut to the panel.
+            float bob = MathF.Sin(time * (0.5f + d.Scale) + d.Rx * 7f) * 3f * scale;
+            float spin = d.Rotation + time * d.Spin;
             float fx = win.X + d.Rx * win.Width;
-            float fy = win.Y + d.Ry * win.Height;
+            float fy = win.Y + d.Ry * win.Height + bob;
             // Cut: keep the fork inside the panel. Rotated quads have a diagonal reach, so clamp the centre by
             // the half-diagonal — a fork that would overhang the window edge is pulled in and "cut" to fit,
             // instead of spilling past the dark panel onto the playfield. (No cross-backend scissor is available.)
@@ -219,7 +259,7 @@ public class RuntimeDialog
             // into the background behind the text rather than competing with it.
             Rgba dim = Helper.Mix(d.Color, new Rgba(12, 12, 22), 0.5f) with { A = (byte)(contentA * 70) };
             DrawTexturePro(fork, new Rect(0, 0, fsz.X, fsz.Y),
-                new Rect(fx, fy, fw, fh), new Vector2(fw / 2f, fh / 2f), d.Rotation, dim);
+                new Rect(fx, fy, fw, fh), new Vector2(fw / 2f, fh / 2f), spin, dim);
         }
 
         // The line's translated text, rendered once into a texture, blitted into the left portion of the window.
@@ -230,16 +270,42 @@ public class RuntimeDialog
             float availH = win.Height * 0.82f;
             float ts = MathF.Min(availW / text.Width, availH / text.Height);
             float tw = text.Width * ts, th = text.Height * ts;
+            // The line writes itself out top-down rather than appearing whole: the source is cropped to the top
+            // `reveal` of the pre-rendered block and the destination cropped to match, which unrolls the text a
+            // row at a time. It works on the finished texture, so nothing has to be re-rendered per frame — and
+            // it stays put, because the block is positioned from its top edge, not re-centred as it grows.
+            float reveal = LineEnter;
             // No Y-flip: this composites into the UIAboveGameplay render target, where render-texture content
             // (the boss/chapter titles right above) blits upright with a positive source. The old -Height flip
             // is what turned the dialog text upside-down.
             DrawTexturePro(text,
-                new Rect(0, 0, text.Width, text.Height),
-                new Rect(win.X + 12 * scale, win.Y + (win.Height - th) / 2f, tw, th),
+                new Rect(0, 0, text.Width, text.Height * reveal),
+                new Rect(win.X + 12 * scale, win.Y + (win.Height - th) / 2f, tw, th * reveal),
                 Vector2.Zero, 0, Rgba.White with { A = (byte)(contentA * 255) });
         }
 
-        DrawBossNameCard(width, scale, contentA);
+        DrawContinueHint(win, fork, fsz, aspect, scale, time, contentA);
+        DrawBossNameCard(width, scale, contentA, time);
+    }
+
+    /// <summary>
+    /// A small fork bobbing in the window's bottom-right corner once the line can actually be dismissed — the
+    /// game's "press to continue". It is gated on the same conditions the input is, so an unskippable line (or a
+    /// line still inside its advance cooldown) never shows a prompt that would do nothing if obeyed.
+    /// </summary>
+    private void DrawContinueHint(Rect win, TextureHandle fork, Vector2 fsz, float aspect, float scale,
+        float time, float contentA)
+    {
+        if (Current.Unskippable || CloseElapsed >= 0 || LineElapsed <= AdvanceCooldown || contentA <= 0f)
+            return;
+
+        float w = 13f * scale, h = w * aspect;
+        float bob = MathF.Sin(time * 5.2f) * 2.5f * scale;
+        float blink = 0.5f + 0.5f * MathF.Sin(time * 5.2f);
+        DrawTexturePro(fork, new Rect(0, 0, fsz.X, fsz.Y),
+            new Rect(win.X + win.Width - w, win.Y + win.Height - h * 0.75f + bob, w, h),
+            new Vector2(w / 2f, h / 2f), 180f + MathF.Sin(time * 2.6f) * 8f,
+            Rgba.White with { A = (byte)(contentA * blink * 210) });
     }
 
     /// <summary>
@@ -247,13 +313,12 @@ public class RuntimeDialog
     /// tinted in the boss's accent colour, and (if it exists) the profile-&lt;boss&gt;.png art. Everything is drawn
     /// only when a profile json exists for the speaker; missing art just omits that piece.
     /// </summary>
-    private void DrawBossNameCard(float width, float scale, float contentA)
+    private void DrawBossNameCard(float width, float scale, float contentA, float t)
     {
         Line line = Current;
         if (!line.ShowBossName || line.Profile == null || contentA <= 0f)
             return;
 
-        float t = (float)GetTime();
         byte alpha = (byte)(contentA * 255);
         Rgba accent = line.Profile.AccentColor() with { A = alpha };
 
@@ -261,6 +326,10 @@ public class RuntimeDialog
         float pad = 8f * scale;
         float x = width - art - pad * 2f;           // top-right corner (the boss stands on the right)
         float y = pad;
+        // The card rides in from off the right edge with the rest of the content, and once it has landed it
+        // keeps drifting a couple of pixels so the corner is never completely dead.
+        x += (1f - contentA) * (art + pad * 3f) + MathF.Sin(t * 1.3f) * 2f * scale;
+        y += MathF.Cos(t * 1.1f) * 2f * scale;
 
         // Rotating tinted fork behind the profile.
         TextureHandle fork = Runtime.CurrentRuntime.Textures["forkCut.png"];
@@ -291,18 +360,50 @@ public class RuntimeDialog
         }
     }
 
-    private static void DrawPortrait(TextureHandle? art, int frame, Rect destination, bool speaking, bool flip)
+    /// <summary>
+    /// One character. They used to be two still images that swapped tint when the turn changed; now the pair
+    /// acts the conversation out:
+    ///
+    /// • they walk on from their own side of the screen as the window opens, and back off as it closes;
+    /// • whoever has the floor steps toward the middle, grows slightly and lights up, while the other backs off
+    ///   and dims — eased across the turn (<paramref name="pose"/>), so it reads as one handing over to the other;
+    /// • both breathe on a slow sine, out of phase with each other so they never look like one sprite drawn twice;
+    /// • the speaker punches in with a couple of quick nods as their line lands, which is what sells it as talking.
+    ///
+    /// All the growth is anchored to the BOTTOM edge, so however much a character swells their feet stay planted
+    /// on the floor of the playfield rather than sliding down it.
+    /// </summary>
+    private static void DrawPortrait(TextureHandle? art, int frame, Rect destination, bool flip,
+        float pose, float open, float time, float scale, float lineElapsed)
     {
-        if (art == null)
+        if (art == null || open <= 0.001f)
             return;
 
         int frames = Math.Max(1, art.Value.Width / FrameWidth);
         Rect source = new(Math.Clamp(frame, 0, frames - 1) * FrameWidth, 0,
             flip ? -FrameWidth : FrameWidth, FrameHeight);
 
-        // The listener stays on screen but recedes: dimmed, so it is obvious who is talking.
-        Rgba tint = speaking ? Rgba.White : new Rgba(128, 128, 148, 220);
-        DrawTexturePro(art.Value, source, destination, Vector2.Zero, 0, tint);
+        // Outward is +x for the character on the right, -x for the one on the left.
+        float outward = flip ? 1f : -1f;
+        // Walk-on. `open` overshoots slightly past 1 (EaseOutBack), which carries them a few pixels past their
+        // mark and back — the same bounce the window itself lands with.
+        float entrance = (1f - open) * destination.Width * 0.55f * outward;
+        // Holding the floor: a step toward the centre, and a lift out of the breath.
+        float step = pose * 7f * scale * -outward;
+        float breath = MathF.Sin(time * 1.4f + (flip ? 1.7f : 0f)) * 2.5f * scale;
+        float nod = MathF.Exp(-lineElapsed * 6f) * MathF.Sin(lineElapsed * 22f) * 7f * scale * pose;
+
+        float grow = 1f + pose * 0.05f;
+        float grownW = destination.Width * grow, grownH = destination.Height * grow;
+        Rect dest = new(
+            destination.X + entrance + step - (grownW - destination.Width) / 2f,
+            destination.Y - (grownH - destination.Height) + breath + nod,
+            grownW, grownH);
+
+        // The listener stays on screen but recedes: dimmed, so it is obvious who is talking. Mixed by the pose
+        // rather than switched, so the lighting crossfades with the movement instead of snapping a frame early.
+        Rgba tint = Helper.Mix(new Rgba(128, 128, 148, 220), Rgba.White, pose);
+        DrawTexturePro(art.Value, source, dest, Vector2.Zero, 0, tint);
     }
 
     public void Unload()
@@ -316,6 +417,7 @@ public class RuntimeDialog
     {
         public float Rx, Ry;      // 0..1 position within the window
         public float Rotation;    // degrees
+        public float Spin;        // degrees per second, either direction
         public float Scale;
         public Rgba Color;
     }
@@ -373,6 +475,7 @@ public class RuntimeDialog
                     Rx = 0.58f + GetRandomValue(0, 1000) / 1000f * 0.38f,
                     Ry = 0.12f + GetRandomValue(0, 1000) / 1000f * 0.76f,
                     Rotation = GetRandomValue(0, 359),
+                    Spin = GetRandomValue(-120, 120) / 10f,   // ±12°/s: a lazy turn, not a spin
                     Scale = 0.55f + GetRandomValue(0, 1000) / 1000f * 0.75f,
                     Color = new Rgba((byte)GetRandomValue(70, 255), (byte)GetRandomValue(70, 255),
                         (byte)GetRandomValue(70, 255), 255),

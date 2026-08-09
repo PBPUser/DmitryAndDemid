@@ -53,28 +53,45 @@ public static class Keyboard
         KeyboardHeight = LineHeight * 7;
     }
     
+    /// <summary>
+    /// A slow horizontal wave running down the keyboard, each row a little behind the one above, so the block of
+    /// keys ripples instead of sitting there as a slab. Kept to a couple of pixels — the cursor has to stay
+    /// visibly on the letter it is over, and it rides the very same offset below so the two never come apart.
+    /// </summary>
+    private static float RowWave(float row) =>
+        MathF.Sin((float)GetTime() * 1.5f - row * 0.5f) * 2.5f * Runtime.CurrentRuntime.ScaleF;
+
     public static void DrawKeyboard(int x, int y)
     {
         float state = (float)Helper.ComputeObjectTimeStart(GetTime(), LastSwitchTimestamp, InputCooldown);
         float state2 = (float)Helper.ComputeObjectTimeStart(GetTime(), LastClickTimestamp, InputCooldown);
-        for(int i = 0; i < 6; i++)
+        for (int i = 0; i < 6; i++)
+        {
+            // The row a key was just taken from flares and settles — the press lands on the whole row, which
+            // reads at a glance even when the cursor itself is somewhere in the middle of it.
+            Rgba tint = i == Y ? Helper.Mix(new Rgba(255, 240, 150, 255), Rgba.White, state2) : Rgba.White;
             DrawTexturePro(Texture.Texture,
                 new Rect(i*(LineWidth+Spacing),0, LineWidth, LineHeight),
-                new Rect(x, y+i*LineHeight, LineWidth, LineHeight),
-                Vector2.Zero, 0, Rgba.White);
+                new Rect(x + RowWave(i), y+i*LineHeight, LineWidth, LineHeight),
+                Vector2.Zero, 0, tint);
+        }
         var s = CursosorTarget.Size * state2 + (1 - state2) * (0.5f * CursosorTarget.Size);
+        // The cursor is mid-slide between two rows during a switch, so it takes the same blend of the two rows'
+        // wave offsets that its position already takes — otherwise it would drift off the letter it is over.
+        float wave = state * RowWave(Y) + (1 - state) * RowWave(PreviousCursosorPosition.Y);
         DrawTexturePro(
             Cursosor, CursosorSource,
             CursosorTarget with
             {
                 Position = (new Vector2(x + X * (LetterWidth+Spacing), y + Y * LineHeight) * state +
-                           (new Vector2(x,y) + PreviousCursosorPosition * new Vector2((LetterWidth+Spacing), LineHeight)) * (1 - state)) + new Vector2(LetterWidth + Spacing, LineHeight) / 2,
+                           (new Vector2(x,y) + PreviousCursosorPosition * new Vector2((LetterWidth+Spacing), LineHeight)) * (1 - state)) + new Vector2(LetterWidth + Spacing, LineHeight) / 2
+                           + new Vector2(wave, 0),
                 Size = s
             },
             s,
             state * TargetCursosorRotation + (1-state) * PreviousCursosorRotation
             , Rgba.White);
-        
+
     }
     
     public static void Reset()

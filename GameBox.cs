@@ -284,8 +284,89 @@ public class GameBox : IDisposable
     }
     public void Update()
     {
+        // A pause freezes the box clock through PauseTimestamp and rebuilds CountTimeFrom on the way out, so the
+        // slow-motion accounting has to stand down for the duration or it would push the origin twice.
+        if (IsPaused || IsGameOver)
+            LastRealTime = Gfx.GetTime();
+        else
+            UpdateTimeScale();
         BoxUpdate();
     }
+
+    #region Slow motion
+
+    /// <summary>
+    /// How fast the simulation is currently running against real time; 1 is normal.
+    ///
+    /// The box clock is the ONLY thing that paces the game — <see cref="CurrentTick"/> chases
+    /// <c>GetTime() * TargetTPS</c> — so slowing the game means slowing that clock rather than reaching into the
+    /// tick loop. Each frame the clock's origin is pushed forward by the slice of real time being skipped, which
+    /// is precisely the lever the pause code uses. Nothing else has to know it is happening: bullets, the player,
+    /// the chapter countdown, the screen effects and the overlays all read this one clock and slow together.
+    /// </summary>
+    public float TimeScale { get; private set; } = 1f;
+
+    private double LastRealTime = Gfx.GetTime();
+
+    /// <summary>Real time at which the current boss finale began; negative infinity when none is running.</summary>
+    private double FinaleStartedReal = double.NegativeInfinity;
+
+    /// <summary>How long a boss's send-off lasts, in REAL seconds — the beat is the same length however far the
+    /// game is slowed inside it.</summary>
+    public const float BossFinaleDuration = 1.5f;
+
+    /// <summary>The floor the finale drags the game down to.</summary>
+    private const float BossFinaleSlowest = 0.3f;
+
+    public bool InBossFinale => Gfx.GetTime() - FinaleStartedReal < BossFinaleDuration;
+
+    private void UpdateTimeScale()
+    {
+        double now = Gfx.GetTime();
+        // Clamped: a load, an alt-tab or the frame after a pause leaves an arbitrarily large gap, and spending
+        // it here would shove the clock's origin forward by seconds at once.
+        double realDelta = Math.Clamp(now - LastRealTime, 0, 0.1);
+        LastRealTime = now;
+        TimeScale = ComputeTimeScale(now);
+        if (TimeScale < 1f)
+            CountTimeFrom += realDelta * (1f - TimeScale);
+    }
+
+    /// <summary>
+    /// The finale's speed curve: snap down almost at once, hold there for the middle of the beat, then let the
+    /// game climb back to full speed across the last third. Recovering rather than switching back is what keeps
+    /// the return from reading as a dropped frame.
+    /// </summary>
+    private float ComputeTimeScale(double now)
+    {
+        float progress = (float)((now - FinaleStartedReal) / BossFinaleDuration);
+        if (progress is <= 0f or >= 1f)
+            return 1f;
+        const float snap = 0.08f, hold = 0.65f;
+        if (progress < snap)
+            return Helper.Mix(1f, BossFinaleSlowest, progress / snap);
+        if (progress < hold)
+            return BossFinaleSlowest;
+        return Helper.Mix(BossFinaleSlowest, 1f, (progress - hold) / (1f - hold));
+    }
+
+    /// <summary>
+    /// Starts a beaten boss's send-off: the slow motion, the exit animation and the shower of motes.
+    ///
+    /// WHICH exit it gets is decided here, and it is decided by how the fight went — a card the player took
+    /// cleanly blows the boss apart, while one that ran its clock out or cost a life or a bomb ends with the
+    /// boss getting away instead. So the exit reports the result before the score does, without a word of text.
+    /// If the two should instead be authored per boss, this is the single line to change.
+    /// </summary>
+    void BeginBossFinale(RuntimeObject boss)
+    {
+        FinaleStartedReal = Gfx.GetTime();
+        BossFinaleKind kind = IsFailed || SpellTimedOut ? BossFinaleKind.Retreat : BossFinaleKind.Destruct;
+        AddOverlay(new BossFinaleOverlay(this, boss, kind, BossFinaleDuration));
+        DualSenseFeedback.OnBossFinale(kind == BossFinaleKind.Destruct);
+    }
+
+    #endregion
 
     public void ProcessInput()
     {
@@ -1086,6 +1167,10 @@ public class GameBox : IDisposable
                     Player.GameBox.AddScreenEffect(new ShakeScreenEffect(Player.GameBox, 0.1f,  20, 100, 
                         time, time+.5f));
                     AddScreenEffect(new BossDeathScreenEffect(this, obj.Position, 45, time, time+2f));
+                    // Hand the boss's last drawn state to the finale BEFORE it leaves the simulation: the
+                    // overlay animates a snapshot, so the object itself is still removed here exactly as it
+                    // always was and nothing about collision, culling or the chapter clock changes.
+                    BeginBossFinale(obj);
                     RemoveObject(obj);
                     SpawnDrop(obj.Position, IsFailed && (obj.Header[0] & RuntimeObject.FlagUseBadDropScenario) == RuntimeObject.FlagUseBadDropScenario ? obj.BadDrop : obj.GoodDrop);
                 }
@@ -1196,7 +1281,16 @@ public class GameBox : IDisposable
 
         // The card we are leaving, if it was one, goes into the player's record before we move on.
         if (ChapterInfo is { Type: ChapterType.Spell })
-            RecordSpellAttempt(ChapterInfo.SpellcardTitle, !IsFailed && !SpellTimedOut);
+        {
+            bool captured = !IsFailed && !SpellTimedOut;
+            RecordSpellAttempt(ChapterInfo.SpellcardTitle, captured);
+            // The pad tells the two apart before the score readout does: a captured card celebrates, a lost one
+            // gets a single flat thud. Fired outside RecordSpellAttempt so a replay is felt as well as watched.
+            if (captured)
+                DualSenseFeedback.OnSpellCaptured();
+            else
+                DualSenseFeedback.OnSpellFailed();
+        }
 
         // Chapter-end reward for the spell/non-spell we are leaving (the initial null load and non-boss chapters
         // are skipped). IsFailed is set by both a death and a bomb (PlayerWeapon.Bomb); SpellTimedOut by the clock
@@ -1559,7 +1653,9 @@ public class GameBox : IDisposable
                 (int)titleRightEdge, (int)(titlePosition.Y + titleDrawnHeight), SpellFailedText, subtitleVisible);
         }
         RbTrace("ui-above target done");
-        if (IsUIUpdateRequired)
+        // HudAnimating keeps the cached strip redrawing while one of its bursts is still playing; without it a
+        // life-loss ripple would draw exactly one frame and then sit frozen until the next thing changed.
+        if (IsUIUpdateRequired || HudAnimating)
         {
             RbTrace("RedrawUI enter");
             RedrawUI();
@@ -1792,38 +1888,127 @@ public class GameBox : IDisposable
             Vector2.Zero, 0, Rgba.White);
     }
 
+    // --- HUD flourishes ---------------------------------------------------------------------------------------
+    // The stats strip is a CACHED render target: it is only redrawn when something on it changed. That makes it a
+    // bad place for anything that animates continuously — a per-frame redraw of the whole strip would be paid for
+    // in the middle of the densest patterns in the game. So the flourishes here are all short bursts fired by
+    // events that happen a handful of times a run (a life or bomb gained or lost, the score gaining a digit), and
+    // HudAnimating below keeps the strip redrawing only for as long as one is actually running. Grazing and power
+    // deliberately get nothing: they change many times a second and would amount to a permanent redraw.
+
+    /// <summary>Wall-clock stamps of the last life/bomb change and score milestone. Wall clock, not box time, so
+    /// a burst that is interrupted by a pause finishes rather than freezing half-played.</summary>
+    private float HeartsPopAt = -100, BombsPopAt = -100, ScoreFlareAt = -100;
+    private int LastDrawnHearts = int.MinValue, LastDrawnBombs = int.MinValue, LastScoreLength = int.MinValue;
+
+    private const float IconPopLength = 0.5f;
+    /// <summary>Delay per icon, which turns the row's bounce into a ripple travelling along it.</summary>
+    private const float IconPopStagger = 0.035f;
+    private const float ScoreFlareLength = 0.7f;
+
+    /// <summary>Whether a flourish is still in flight, and the strip therefore has to be redrawn this frame.</summary>
+    private bool HudAnimating
+    {
+        get
+        {
+            float now = (float)Gfx.GetTime();
+            return now - HeartsPopAt < IconPopLength + 8 * IconPopStagger
+                || now - BombsPopAt < IconPopLength + 8 * IconPopStagger
+                || now - ScoreFlareAt < ScoreFlareLength;
+        }
+    }
+
+    /// <summary>
+    /// A damped bounce for one icon in a life/bomb row, staggered by its position so the row ripples from left
+    /// to right. Returns how much to grow the icon by, 0 when nothing is playing.
+    /// </summary>
+    private static float IconPop(float startedAt, int index)
+    {
+        float since = (float)Gfx.GetTime() - startedAt - index * IconPopStagger;
+        if (since < 0 || since > IconPopLength)
+            return 0f;
+        return MathF.Exp(-since * 9f) * MathF.Sin(since * 26f) * 0.5f;
+    }
+
+    /// <summary>The score milestone flare, 1 → 0 over <see cref="ScoreFlareLength"/>.</summary>
+    private float ScoreFlare()
+    {
+        float since = (float)Gfx.GetTime() - ScoreFlareAt;
+        return since < 0 || since > ScoreFlareLength ? 0f : 1f - since / ScoreFlareLength;
+    }
+
+    /// <summary>Grows a rect by <paramref name="amount"/> of its own size about its centre, so an icon pops in
+    /// place instead of sliding off its slot.</summary>
+    private static Rect Grow(Rect rc, float amount) => new(
+        rc.X - rc.Width * amount / 2f, rc.Y - rc.Height * amount / 2f,
+        rc.Width * (1f + amount), rc.Height * (1f + amount));
+
+    /// <summary>Notices what changed since the last redraw and stamps the matching burst. First call only
+    /// records the starting values — the strip's very first draw must not fire every flourish at once.</summary>
+    private void StampHudChanges(string scoreString)
+    {
+        float now = (float)Gfx.GetTime();
+        if (Player.HeartPoints != LastDrawnHearts)
+        {
+            if (LastDrawnHearts != int.MinValue)
+                HeartsPopAt = now;
+            LastDrawnHearts = Player.HeartPoints;
+        }
+        if (Player.Bombs != LastDrawnBombs)
+        {
+            if (LastDrawnBombs != int.MinValue)
+                BombsPopAt = now;
+            LastDrawnBombs = Player.Bombs;
+        }
+        // A digit's worth of score is a real milestone and rare; flaring on every point item instead would be a
+        // permanent jitter, since the figure changes several times a second.
+        if (scoreString.Length != LastScoreLength)
+        {
+            if (LastScoreLength != int.MinValue && scoreString.Length > LastScoreLength)
+                ScoreFlareAt = now;
+            LastScoreLength = scoreString.Length;
+        }
+    }
+
     void RedrawUI()
     {
         BeginTextureMode(UILeft);
         ClearBackground(Transparent);
         DrawTextureEx(Runtime.CurrentRuntime.Textures["rightside_info.png"], Vector2.Zero, 0, Runtime.CurrentRuntime.ScaleF/4,Rgba.White);
         DrawText(GetTime()+"", 16, 16, 24, Rgba.Red);
-        for (int i = 0; i < 8; i++)
-        {
-            DrawTexturePro(StaffTexture, HeartBombSource with { Y = 96, 
-                    X = 
-                    i > Player.Bombs ? 384 : 
-                    i < Player.Bombs ? 0 :
-                    384 - (Player.BombsSpices * 96)
-                },
-                HeartBombDest with {Y = BombsY, X = ResX - SizeOfRes * (8-i) },
-                Vector2.Zero, 0, Rgba.White);
-            DrawTexturePro(StaffTexture, HeartBombSource with {  X = 
-                    i > Player.HeartPoints ? 384 : 
-                    i < Player.HeartPoints ? 0 :
-                    384 - (Player.HeartSpices * 96)
-                },
-                HeartBombDest with {Y = HeartsY, X = ResX - SizeOfRes * (8-i) },
-                Vector2.Zero, 0, Rgba.White);
-        }
         const float fontSizeBig = 22;
         const float fontSizeSmall = 12;
         string scoreString = Helper.FormatScore(score, Continue);
+        StampHudChanges(scoreString);
+        for (int i = 0; i < 8; i++)
+        {
+            DrawTexturePro(StaffTexture, HeartBombSource with { Y = 96,
+                    X =
+                    i > Player.Bombs ? 384 :
+                    i < Player.Bombs ? 0 :
+                    384 - (Player.BombsSpices * 96)
+                },
+                Grow(HeartBombDest with {Y = BombsY, X = ResX - SizeOfRes * (8-i) }, IconPop(BombsPopAt, i)),
+                Vector2.Zero, 0, Rgba.White);
+            DrawTexturePro(StaffTexture, HeartBombSource with {  X =
+                    i > Player.HeartPoints ? 384 :
+                    i < Player.HeartPoints ? 0 :
+                    384 - (Player.HeartSpices * 96)
+                },
+                Grow(HeartBombDest with {Y = HeartsY, X = ResX - SizeOfRes * (8-i) }, IconPop(HeartsPopAt, i)),
+                Vector2.Zero, 0, Rgba.White);
+        }
         string hiScoreString = score > MaxScore ? scoreString : Helper.FormatScore(MaxScore, MaxScoreContinue);
         var positionHiScore = new Vector2(206, 64) * Runtime.CurrentRuntime.ScaleF - Helper.GetScoreTextureSize(hiScoreString,fontSizeBig);
-        var positionScore = new Vector2(206, 86) * Runtime.CurrentRuntime.ScaleF - Helper.GetScoreTextureSize(scoreString, fontSizeBig);
+        // The score swells and flushes yellow as it gains a digit. It is right-aligned by subtracting its own
+        // measured size from the anchor, so measuring at the flared size keeps that edge pinned and the figure
+        // grows leftwards into empty strip rather than drifting off it. Kept small enough not to reach the
+        // hi-score row 22px above.
+        float flare = ScoreFlare();
+        float scoreFont = fontSizeBig * (1f + flare * 0.15f);
+        var positionScore = new Vector2(206, 86) * Runtime.CurrentRuntime.ScaleF - Helper.GetScoreTextureSize(scoreString, scoreFont);
         Helper.DrawScoreText(hiScoreString, fontSizeBig, positionHiScore, Rgba.LightGray);
-        Helper.DrawScoreText(scoreString, fontSizeBig, positionScore, Rgba.White);
+        Helper.DrawScoreText(scoreString, scoreFont, positionScore, Helper.Mix(Rgba.White, Rgba.Yellow, flare));
         Helper.DrawScoreText($"{Player.HeartSpices}/5", fontSizeSmall, new Vector2(175, 112) * Runtime.CurrentRuntime.ScaleF, Rgba.White);
         Helper.DrawScoreText($"{Player.BombsSpices}/5", fontSizeSmall, new Vector2(175, 152) * Runtime.CurrentRuntime.ScaleF, Rgba.White);
         var sizeH = Helper.GetScoreTextureSize("..", fontSizeBig);
@@ -1878,6 +2063,7 @@ public class GameBox : IDisposable
             else
                 CountTimeFrom = Gfx.GetTime() - PauseTimestamp;
             isPaused = value;
+            DualSenseFeedback.OnPauseToggled(value);
             GameplayScreen.Paused = value;
         }
     }
@@ -1893,6 +2079,8 @@ public class GameBox : IDisposable
             if (value)
             {
                 IsPaused = true;
+                // After IsPaused, so this outranks (and replaces) the pause bump that setter just fired.
+                DualSenseFeedback.OnGameOver();
                 GameoverTimestamp = GetTime();
                 if (!IsReplay)
                     PlayerData.Instance.SetMusicUnlocked(11, true);   // game-over theme

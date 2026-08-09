@@ -701,6 +701,9 @@ public class RuntimeObject
         }
         if (Helper.IsCollied(TargetRectangle, Box.Player.Collision))
         {
+            // A soft patter on the heavy motor as loot lands. Coalesced like grazing is — a cleared screen sends
+            // dozens of these in a couple of frames.
+            DualSenseFeedback.OnItemCollect();
             switch (Header[4])
             {
                 case 0:

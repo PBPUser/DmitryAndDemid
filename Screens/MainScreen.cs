@@ -331,8 +331,12 @@ public class MainScreen : MenuScreen
     /// Decorative pizzas drifting slowly up the title screen and lazily spinning, each bobbing side to side.
     /// Purely a function of time and index (a stable per-pizza pseudo-random spread), so there is no state to
     /// carry — mirrors the falling-forks backdrop other screens use.
+    ///
+    /// <paramref name="burst"/> (0 → 1 → 0, the menu's activation flourish) blows them outward from the centre
+    /// of the screen and spins them up while an entry is being chosen — the title reacting to the player rather
+    /// than ignoring them. It returns to zero on its own, so the drift is left exactly as it was.
     /// </summary>
-    private void DrawFloatingPizzas(float time, float appear)
+    private void DrawFloatingPizzas(float time, float appear, float burst)
     {
         if (!Runtime.CurrentRuntime.Textures.TryGetValue("pizza.png", out TextureHandle pizza))
             return;
@@ -355,11 +359,44 @@ public class MainScreen : MenuScreen
             float x = r3 * width + MathF.Sin(time * (0.4f + r2 * 0.5f) + i) * 36f * scale;
             float rotation = time * (18f + r1 * 30f) + i * 53f;
 
+            if (burst > 0f)
+            {
+                // Shoved straight out from the middle of the screen, each spinning the way its own seed says.
+                float dx = x - width / 2f, dy = y - height / 2f;
+                float distance = MathF.Sqrt(dx * dx + dy * dy);
+                if (distance > 0.001f)
+                {
+                    x += dx / distance * burst * 46f * scale;
+                    y += dy / distance * burst * 46f * scale;
+                }
+                rotation += burst * 260f * (r3 > 0.5f ? 1f : -1f);
+                drawScale *= 1f + burst * 0.3f;
+            }
+
             Rgba tint = Rgba.White with { A = (byte)(150 * appear) };
             DrawTexturePro(pizza, source,
                 new Rect(x, y, pizza.Width * drawScale, pizza.Height * drawScale),
                 new Vector2(pizza.Width * drawScale / 2, pizza.Height * drawScale / 2), rotation, tint);
         }
+    }
+
+    /// <summary>
+    /// The character standing at the right of the title. They used to be a still image pasted at a rect; now
+    /// they sway on the spot and — the point of it — flinch each time the menu cursor moves, hopping a little
+    /// and leaning into the direction it went. The pivot is at their FEET, so a lean reads as a lean rather
+    /// than the whole sprite sliding sideways.
+    /// </summary>
+    private void DrawTitlePerson(Rect dest, float time)
+    {
+        // Damped spring off the menu's own selection-change timestamp, signed by which way the cursor travelled.
+        float since = (float)(GetTime() - AnimationStartedAt);
+        float direction = SelectedIndex >= PreviousSelectedIndex ? 1f : -1f;
+        float kick = MathF.Exp(-since * 7f) * MathF.Sin(since * 26f) * direction;
+        float lean = MathF.Sin(time * 0.85f) * 1.4f + kick * 6f;
+        float hop = MathF.Abs(kick) * 9f * Runtime.CurrentRuntime.ScaleF;
+        Vector2 origin = new Vector2(dest.Width / 2f, dest.Height);
+        Rect pivoted = dest with { X = dest.X + dest.Width / 2f, Y = dest.Y + dest.Height - hop };
+        DrawTexturePro(SelectedPerson, RCPersonSource, pivoted, origin, lean, Rgba.White);
     }
 
     public override void Render()
@@ -407,10 +444,10 @@ public class MainScreen : MenuScreen
         DrawNeonSign(SideLogoRight, SideLogoRightGlowBuffer, SideLogoRightTarget, Vector2.Zero, 0f, logoTint);
         DrawNeonSign(SideLogoLeft, SideLogoLeftGlowBuffer, SideLogoLeftTarget, Vector2.Zero, 0f, logoTint);
         // Floating pizzas drawn AFTER the top telecom logos so they pass in front of them (requested).
-        DrawFloatingPizzas(time, (float)appear2);
+        DrawFloatingPizzas(time, (float)appear2, ActivationFlourish);
         // The menu list is drawn AFTER the pizzas so its entries stay readable ABOVE them (requested).
         DrawMenu();
-        DrawTexturePro(SelectedPerson, RCPersonSource, Helper.Mix(RCPersonTarget1, RCPersonTarget2, appear4), Vector2.Zero, 0f, Rgba.White);
+        DrawTitlePerson(Helper.Mix(RCPersonTarget1, RCPersonTarget2, appear4), time);
         // The title logo, drawn AFTER the person so it sits ABOVE (in front of) them. Centred, rotated 45°, and
         // lit through the neon_sign shader so it glows and flickers like an old sign; origin at its own centre so
         // placement and rotation pivot are the logo's middle. Still uses the elastic drop-in animation.

@@ -25,10 +25,16 @@ public class PlayerData
     public void SetTrophyUnlocked(int i, bool state)
     {
         long a = 1L << i;
+        // Only a genuine locked → unlocked transition is worth feeling. Several of these setters are called
+        // unconditionally on things that are usually already unlocked (the game-over theme, every run), so
+        // firing on the call rather than on the change would buzz the pad for nothing.
+        bool isNew = state && (Trophies & a) != a;
         if (state)
             Trophies |= a;
         else
             Trophies &= ~a;
+        if (isNew)
+            Gameplay.DualSenseFeedback.OnUnlock();
         Save();
     }
 
@@ -43,10 +49,13 @@ public class PlayerData
     public void SetMusicUnlocked(int i, bool state)
     {
         long a = 1 << i;
+        bool isNew = state && (Music & a) != a;
         if (state)
             Music |= a;
         else
             Music &= ~a;
+        if (isNew)
+            Gameplay.DualSenseFeedback.OnUnlock();
         Save();
     }
     
@@ -59,10 +68,13 @@ public class PlayerData
     public void SetNicknameUnlocked(int i, bool state)
     {
         long a = 1 << i;
+        bool isNew = state && (Nicknames & a) != a;
         if (state)
             Nicknames |= a;
         else
             Nicknames &= ~a;
+        if (isNew)
+            Gameplay.DualSenseFeedback.OnUnlock();
         Save();
     }
 
