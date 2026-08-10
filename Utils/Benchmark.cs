@@ -139,12 +139,13 @@ public static class Benchmark
             box.AddObject(live[i % live.Count].DeepCloneForBench());
     }
 
+    static string[] ByteTypes = ["B","KiB","MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"];
+
     /// <summary>Format a byte count as a compact human-readable string (used by the stats screen and --bench log).</summary>
     public static string FormatBytes(long bytes)
     {
-        if (bytes >= 1L << 30) return $"{bytes / (double)(1L << 30):F1} GB";
-        if (bytes >= 1L << 20) return $"{bytes / (double)(1L << 20):F1} MB";
-        if (bytes >= 1L << 10) return $"{bytes / (double)(1L << 10):F1} KB";
-        return $"{bytes} B";
+        // TODO: FIX THAT)
+        int index = (int)(Math.Log2(1024) / Math.Log2(bytes));
+        return $"{bytes / Math.Pow(1024, index):F1} {ByteTypes[index]}";
     }
 }
