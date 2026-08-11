@@ -1465,6 +1465,13 @@ public class GameBox : IDisposable
     public void RenderBox()
     {
         RbTrace("enter");
+#if DEBUG
+        // Start this frame's debug lines. Both readers are DrawImgui overrides (GameplayScreen, PauseMenu)
+        // and Runtime.Render reaches those after every Screen.Render — later in the same frame than this
+        // call — so clearing here, rather than in a reader only one backend ever invokes, is what keeps
+        // the buffer bounded. See DebugStrings.
+        DebugStrings.Clear();
+#endif
         float time = GetTime();
         int typeI = ChapterInfo != null ? (int)ChapterInfo!.Type : 0;
         float tickDelta = GetTime() - (CurrentTick / TargetTPS);
@@ -1665,10 +1672,10 @@ public class GameBox : IDisposable
         RbTrace("exit");
         _rbTrace++;
 #if DEBUG
-        DebugStrings.Add($"PauseTimestamp: {PauseTimestamp}");
-        DebugStrings.Add($"CountTimeFrom: {CountTimeFrom}");
-        DebugStrings.Add($"Box Time: {GetTime()}");
-        DebugStrings.Add($"Raylib Time: {GetTime()}");
+        DebugLog($"PauseTimestamp: {PauseTimestamp}");
+        DebugLog($"CountTimeFrom: {CountTimeFrom}");
+        DebugLog($"Box Time: {GetTime()}");
+        DebugLog($"Raylib Time: {GetTime()}");
 #endif
     }
     #endregion
@@ -2095,6 +2102,37 @@ public class GameBox : IDisposable
     #endregion
 
 #if DEBUG
+    /// <summary>
+    /// One frame's worth of debug lines, produced during <see cref="RenderBox"/> (and by every
+    /// <see cref="Common.GameplayScreenEffect.ApplyShading"/> it drives) and read back later in the SAME
+    /// frame by <c>GameplayScreen.DrawImgui</c> / <c>PauseMenu.DrawImgui</c>. <see cref="RenderBox"/>
+    /// clears it, so the lifetime is owned by the producer.
+    ///
+    /// It used to be cleared by the ImGui reader instead, which leaked without bound on every backend
+    /// whose <c>SupportsDebugUi</c> is false (Silk, Vulkan, Metal, SDL, Deko3d — i.e. everything except
+    /// Raylib): Runtime.Render skips the whole ImGui pass there, so nothing ever cleared it while
+    /// RenderBox kept appending every frame. Worst during the attract-mode demo, which is gameplay that
+    /// runs unattended and can never be paused, so the PauseMenu clear could not cover for it either.
+    /// </summary>
     public List<string> DebugStrings = new();
+
+    /// <summary>Upper bound on <see cref="DebugStrings"/>. Nothing should come close — RenderBox clears
+    /// every frame — so this only matters if a future change adds a producer on a path that skips the
+    /// clear. Then the buffer stops growing and the extra lines fall out of scope immediately, instead of
+    /// the process eating the machine.</summary>
+    private const int DebugStringsCap = 512;
+
+    /// <summary>
+    /// Appends one line to <see cref="DebugStrings"/>, up to <see cref="DebugStringsCap"/>. On reaching the
+    /// cap it writes one marker line and then stops, so a truncated overlay says so rather than quietly
+    /// reading as the whole picture.
+    /// </summary>
+    public void DebugLog(string line)
+    {
+        if (DebugStrings.Count < DebugStringsCap)
+            DebugStrings.Add(line);
+        else if (DebugStrings.Count == DebugStringsCap)
+            DebugStrings.Add($"... truncated at {DebugStringsCap} lines");
+    }
 #endif
 }

@@ -57,8 +57,10 @@ public class GameplayScreenEffect
 
         float state = UseSteps ? State2(time) : State(time);
 #if DEBUG
-        Box.DebugStrings.Add($"Shader: {Shader}");
-        Box.DebugStrings.Add($"State: {state}");
+        // Two lines per live effect per frame. Grazing spawns one effect per bullet with a one-second
+        // life, so this is the bulk of the buffer during dense play — hence the cap behind DebugLog.
+        Box.DebugLog($"Shader: {Shader}");
+        Box.DebugLog($"State: {state}");
 #endif
         SetShaderValue(Shader, LocationTime, state, UniformType.Float);
         SetShaderValue(Shader, LocationRealTime, gameTime, UniformType.Float);

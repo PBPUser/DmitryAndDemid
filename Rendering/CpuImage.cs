@@ -36,11 +36,19 @@ public class CpuImage
     /// (a managed decode is enough to OOM that platform's constrained interpreter) in favor of native SDL2_image.
     /// Calling this on Switch would reintroduce that same risk — fine for tooling/desktop use, but if this ever
     /// needs to run there too it should get a native-decode fallback rather than reuse StbImageSharp as-is.</summary>
-    public static CpuImage Load(string path)
+    public static CpuImage LoadFromGenericFormat(string path)
     {
         using Stream stream = Assets.OpenRead(path);
         ImageResult image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
         return new CpuImage(image.Width, image.Height, image.Data);
+    }
+
+    public static CpuImage Load(string path)
+    {
+        using Stream stream = File.OpenRead(path);
+        var cpuImage = new CpuImage(0, 0, []);
+        throw new NotImplementedException("CpuImage.Load needs correction");
+        return cpuImage;
     }
 
     public Rgba GetPixel(int x, int y)
@@ -50,14 +58,14 @@ public class CpuImage
     }
 
     /// <summary>Placeholder: encode <see cref="Pixels"/> back out to a PNG on disk, the write-side counterpart
-    /// to <see cref="Load"/>. Not implemented yet — the project has no PNG encoder referenced (StbImageSharp only
+    /// to <see cref="LoadFromGenericFormat"/>. Not implemented yet — the project has no PNG encoder referenced (StbImageSharp only
     /// decodes); this needs something like StbImageWriteSharp added before it can do real work.</summary>
     public void Save(string path)
     {
         if(File.Exists(path))
             throw new IOException($"File {path} already exists");
         var bitPackage = BitPackage.OpenStreamWritePackage(path);
-        
+
         throw new NotImplementedException();
     }
 

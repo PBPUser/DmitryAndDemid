@@ -251,7 +251,9 @@ public class PauseMenu : MenuScreen
             ImGui.Text(s);
         }
         ImGui.End();
-        GameplayScreen.GameBox.DebugStrings.Clear();
+        // No Clear() here: GameBox.RenderBox owns the buffer's lifetime and clears it at the top of every
+        // frame. Clearing from a reader only worked on Raylib — the sole backend where Runtime.Render
+        // reaches DrawImgui at all.
     }
 #endif
 }

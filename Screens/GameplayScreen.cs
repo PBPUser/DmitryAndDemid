@@ -565,7 +565,8 @@ public class GameplayScreen : Screen
             ImGui.Text(debugString);
         }
         ImGui.End();
-        GameBox.DebugStrings.Clear();
+        // No Clear() here — see GameBox.DebugStrings. RenderBox clears at the top of each frame, so the
+        // buffer stays bounded on the backends that never call DrawImgui.
         base.DrawImgui();
     }
 #endif
