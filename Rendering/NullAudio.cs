@@ -16,6 +16,7 @@ public sealed class NullAudio : IAudio
     public float SfxVolume { get; set; } = 1f;
 
     public SoundHandle LoadSound(string path) => new(NextId++);
+    public SoundHandle LoadSoundFromPcm(short[] samples, int sampleRate, int channels) => new(NextId++);
     public void UnloadSound(SoundHandle sound) { }
     public void Play(SoundHandle sound) { }
     public void Dispose() { }

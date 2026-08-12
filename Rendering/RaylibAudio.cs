@@ -43,9 +43,47 @@ public sealed class RaylibAudio : IAudio
         if (!IsAvailable)
             return SoundHandle.None;
         Sound sound = Raylib.LoadSound(path);
+        // Raylib returns a zero-frame Sound for a format it was not built to decode (it only logs to its own
+        // console). Registering that gives a handle that loads "fine" and plays silence forever — which is
+        // exactly how the FLAC assets went unnoticed. Refuse it here so the caller can report the file.
+        if (!Raylib.IsSoundValid(sound))
+            return SoundHandle.None;
         int id = NextId++;
         Sounds[id] = sound;
         return new SoundHandle(id);
+    }
+
+    /// <summary>
+    /// Wraps caller-decoded PCM in a Wave and uploads it. Raylib copies the samples into the Sound during
+    /// LoadSoundFromWave (converting to the device format), so the pin only has to survive that call and the
+    /// Wave is unloaded immediately after.
+    /// </summary>
+    public unsafe SoundHandle LoadSoundFromPcm(short[] samples, int sampleRate, int channels)
+    {
+        if (!IsAvailable || samples.Length == 0 || channels < 1)
+            return SoundHandle.None;
+
+        fixed (short* p = samples)
+        {
+            Wave wave = new()
+            {
+                // Raylib-cs still calls this SampleCount, but it sits over native raylib's `frameCount`, so
+                // it counts FRAMES, not interleaved samples. Passing samples.Length here plays a stereo clip
+                // at half speed for twice as long.
+                SampleCount = (uint)(samples.Length / channels),
+                SampleRate = (uint)sampleRate,
+                SampleSize = 16,
+                Channels = (uint)channels,
+                Data = p,
+            };
+            Sound sound = Raylib.LoadSoundFromWave(wave);
+            // Not UnloadWave: that would free Data, which is this managed array, not raylib's to release.
+            if (!Raylib.IsSoundValid(sound))
+                return SoundHandle.None;
+            int id = NextId++;
+            Sounds[id] = sound;
+            return new SoundHandle(id);
+        }
     }
 
     public void UnloadSound(SoundHandle sound)

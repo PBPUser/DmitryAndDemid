@@ -1,4 +1,4 @@
-#if SWITCH
+﻿#if SWITCH
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -206,6 +206,8 @@ public sealed unsafe class SdlGlBackend : IBackend
     public bool Initialize() => audio.Initialize();
     public bool IsAvailable => audio.IsAvailable;
     public SoundHandle LoadSound(string path) => audio.LoadSound(path);
+    public SoundHandle LoadSoundFromPcm(short[] samples, int sampleRate, int channels) =>
+        audio.LoadSoundFromPcm(samples, sampleRate, channels);
     public void UnloadSound(SoundHandle sound) => audio.UnloadSound(sound);
     public void Play(SoundHandle sound) => audio.Play(sound);
     public float SfxVolume { get => audio.SfxVolume; set => audio.SfxVolume = value; }

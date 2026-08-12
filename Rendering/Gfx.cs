@@ -192,7 +192,27 @@ public static class Gfx
 
     // ---- audio ----------------------------------------------------------------------------
 
-    public static SoundHandle LoadSound(string path) => Engine.Audio.LoadSound(path);
+    /// <summary>
+    /// Loads a sound, decoding the formats the backend cannot read itself. Only FLAC needs that today: no
+    /// shipped raylib native is built with SUPPORT_FILEFORMAT_FLAC, so it is decoded in managed code (see
+    /// <see cref="Utils.FlacAudio"/>) and handed over as PCM. A file that fails to decode returns
+    /// <see cref="SoundHandle.None"/> and says so, rather than becoming a sound that plays silence.
+    /// </summary>
+    public static SoundHandle LoadSound(string path)
+    {
+        if (!Utils.FlacAudio.IsFlac(path))
+            return Engine.Audio.LoadSound(path);
+        try
+        {
+            Utils.FlacAudio.PcmSound pcm = Utils.FlacAudio.Decode(Utils.Assets.ReadAllBytes(path));
+            return Engine.Audio.LoadSoundFromPcm(pcm.Samples, pcm.SampleRate, pcm.Channels);
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine($"[audio] could not decode {path}: {e.Message}");
+            return SoundHandle.None;
+        }
+    }
     public static void UnloadSound(SoundHandle sound) => Engine.Audio.UnloadSound(sound);
     public static void PlaySound(SoundHandle sound) => Engine.Audio.Play(sound);
 }

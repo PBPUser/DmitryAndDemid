@@ -102,7 +102,7 @@ public class ListSelectScreen : MenuScreen
         Vector2 center = new(Runtime.CurrentRuntime.Width / 2f, Runtime.CurrentRuntime.Height / 2f);
 
         Rect panel = new(center.X - panelWidth / 2, center.Y - panelHeight / 2, panelWidth, panelHeight);
-        float radius = ((1 - bounceAppear) * 80 + 20) * Runtime.CurrentRuntime.ScaleF; 
+        float radius = ((1 - bounceAppear) * 80 + 20) * Runtime.CurrentRuntime.ScaleF;  
 
         // BackgroundCapture was filled a moment ago in PreRender(), outside the render target this Render()
         // call is already nested in.

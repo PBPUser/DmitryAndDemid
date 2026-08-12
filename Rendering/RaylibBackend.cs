@@ -533,6 +533,9 @@ public sealed class RaylibBackend : IBackend
 
     public SoundHandle LoadSound(string path) => AudioDevice.LoadSound(path);
 
+    public SoundHandle LoadSoundFromPcm(short[] samples, int sampleRate, int channels) =>
+        AudioDevice.LoadSoundFromPcm(samples, sampleRate, channels);
+
     public void UnloadSound(SoundHandle sound) => AudioDevice.UnloadSound(sound);
 
     public void Play(SoundHandle sound) => AudioDevice.Play(sound);

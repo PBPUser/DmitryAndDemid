@@ -1,4 +1,4 @@
-using System.Numerics;
+﻿using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Silk.NET.Core;
@@ -2221,6 +2221,9 @@ public sealed unsafe class VulkanBackend : IBackend
     public bool Initialize() => AudioDevice.Initialize();
 
     public SoundHandle LoadSound(string path) => AudioDevice.LoadSound(path);
+
+    public SoundHandle LoadSoundFromPcm(short[] samples, int sampleRate, int channels) =>
+        AudioDevice.LoadSoundFromPcm(samples, sampleRate, channels);
 
     public void UnloadSound(SoundHandle sound) => AudioDevice.UnloadSound(sound);
 

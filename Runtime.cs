@@ -499,7 +499,15 @@ public class Runtime
     void LoadAudio()
     {
         foreach (var file in Assets.Files("Assets/Sounds"))
-            Sounds[Path.GetFileNameWithoutExtension(file)] = LoadSound(file);
+        {
+            SoundHandle sound = LoadSound(file);
+            // A sound that fails to load is still registered, so Sounds["name"] keeps resolving and callers
+            // stay unchanged — it just plays nothing. Say so once at boot: an unplayable file is otherwise
+            // indistinguishable from one nobody triggers, which is how three silent FLACs went unnoticed.
+            if (!sound.IsValid && Engine.Audio.IsAvailable)
+                Console.Error.WriteLine($"[audio] {Path.GetFileName(file)} did not load — it will be silent");
+            Sounds[Path.GetFileNameWithoutExtension(file)] = sound;
+        }
     }
     
     void LoadTextures()

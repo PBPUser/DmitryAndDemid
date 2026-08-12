@@ -12,6 +12,7 @@ using DmitryAndDemid.Gameplay.RuntimeData;
 using DmitryAndDemid.Screens;
 using DmitryAndDemid.Utils;
 using static DmitryAndDemid.Rendering.Gfx;
+using System.Text.RegularExpressions;
 
 namespace DmitryAndDemid;
 
@@ -1162,6 +1163,7 @@ public class GameBox : IDisposable
                 if ((bm & RuntimeObject.FlagIsFinalBossChapter) == RuntimeObject.FlagIsFinalBossChapter)
                 {
                     var time = GetTime();
+                    Helper.PlaySound(Runtime.CurrentRuntime.Sounds["finalDefeat"]);
                     // TODO: Play boss death
                     obj.Header[0] |= RuntimeObject.FlagIsDied;
                     Player.GameBox.AddScreenEffect(new ShakeScreenEffect(Player.GameBox, 0.1f,  20, 100, 
@@ -1176,6 +1178,7 @@ public class GameBox : IDisposable
                 }
                 else
                 {
+                    Helper.PlaySound(Runtime.CurrentRuntime.Sounds["defeat" + new Random(bm).Next(0, 1)]);
                     SpawnDrop(obj.Position, IsFailed && (obj.Header[0] & RuntimeObject.FlagUseBadDropScenario) == RuntimeObject.FlagUseBadDropScenario ? obj.BadDrop : obj.GoodDrop);
                     obj.UpdateAction = null;
                 }

@@ -1,4 +1,4 @@
-#if SWITCH
+﻿#if SWITCH
 using System.Runtime.InteropServices;
 using DmitryAndDemid.Utils;
 
@@ -22,7 +22,9 @@ internal sealed class SwitchAudio : IDisposable
 {
     private uint device;
     private bool available;
-    private readonly List<(IntPtr buf, int len)> sounds = new();   // SoundHandle.Id -> SDL-owned PCM
+    // SoundHandle.Id -> PCM. sdlOwned distinguishes SDL_LoadWAV_RW buffers (freed with SDL_FreeWAV) from
+    // ones this class allocated for caller-decoded PCM (freed with Marshal.FreeHGlobal).
+    private readonly List<(IntPtr buf, int len, bool sdlOwned)> sounds = new();
     private float sfxVolume = 1f;
 
     // One playing voice: which sound, byte offset into it, and the gain it was started at (snapshot of volume).
@@ -72,12 +74,32 @@ internal sealed class SwitchAudio : IDisposable
                 if (rw == IntPtr.Zero) return SoundHandle.None;
                 IntPtr res = Sdl.SDL_LoadWAV_RW(rw, 1, out Sdl.SDL_AudioSpec _, out IntPtr buf, out uint len);
                 if (res == IntPtr.Zero || buf == IntPtr.Zero) { Console.WriteLine($"[audio] LoadWAV failed {path}: {Err()}"); return SoundHandle.None; }
-                sounds.Add((buf, (int)len));
+                sounds.Add((buf, (int)len, true));
                 return new SoundHandle(sounds.Count - 1);
             }
             finally { pin.Free(); }
         }
         catch (Exception e) { Console.WriteLine($"[audio] LoadSound {path} threw: {e.Message}"); return SoundHandle.None; }
+    }
+
+    /// <summary>
+    /// Takes caller-decoded PCM (FLAC arrives this way — see Utils.FlacAudio). The mixer in <see cref="Pump"/>
+    /// does no resampling or channel mapping: it reads sounds as s16 straight into the device's own stream, so
+    /// anything that is not 44100 Hz stereo is refused rather than played at the wrong pitch.
+    /// </summary>
+    public SoundHandle LoadSoundFromPcm(short[] samples, int sampleRate, int channels)
+    {
+        if (!available || samples.Length == 0) return SoundHandle.None;
+        if (sampleRate != Freq || channels != Channels)
+        {
+            Console.WriteLine($"[audio] refusing PCM at {sampleRate}Hz {channels}ch; device is {Freq}Hz {Channels}ch");
+            return SoundHandle.None;
+        }
+        int bytes = samples.Length * 2;
+        IntPtr buf = Marshal.AllocHGlobal(bytes);
+        Marshal.Copy(samples, 0, buf, samples.Length);
+        sounds.Add((buf, bytes, false));
+        return new SoundHandle(sounds.Count - 1);
     }
 
     public void Play(SoundHandle sound)
@@ -103,7 +125,7 @@ internal sealed class SwitchAudio : IDisposable
         for (int v = voices.Count - 1; v >= 0; v--)
         {
             Voice voice = voices[v];
-            (IntPtr src, int srcLen) = sounds[voice.sound];
+            (IntPtr src, int srcLen, _) = sounds[voice.sound];
             int pos = voice.pos, i = 0;
             for (; i < samples && pos + 1 < srcLen; i++, pos += 2)
                 acc[i] += (Marshal.ReadInt16(src, pos) * voice.vol256) >> 8;
@@ -130,8 +152,9 @@ internal sealed class SwitchAudio : IDisposable
     {
         if (!available) return;
         if (device != 0) { try { Sdl.SDL_CloseAudioDevice(device); } catch { } }
-        foreach (var (buf, _) in sounds)
-            if (buf != IntPtr.Zero) { try { Sdl.SDL_FreeWAV(buf); } catch { } }
+        foreach (var (buf, _, sdlOwned) in sounds)
+            if (buf != IntPtr.Zero)
+                try { if (sdlOwned) Sdl.SDL_FreeWAV(buf); else Marshal.FreeHGlobal(buf); } catch { }
         sounds.Clear();
         available = false;
     }

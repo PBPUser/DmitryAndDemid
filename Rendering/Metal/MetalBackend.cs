@@ -1,4 +1,4 @@
-#if METAL
+﻿#if METAL
 using System.Numerics;
 using System.Text.Json;
 using CoreAnimation;
@@ -594,6 +594,8 @@ public sealed class MetalBackend : IBackend
     public bool Initialize() => Audio.Initialize();
     public bool IsAvailable => Audio.IsAvailable;
     public SoundHandle LoadSound(string path) => Audio.LoadSound(path);
+    public SoundHandle LoadSoundFromPcm(short[] samples, int sampleRate, int channels) =>
+        Audio.LoadSoundFromPcm(samples, sampleRate, channels);
     public void UnloadSound(SoundHandle sound) => Audio.UnloadSound(sound);
     public void Play(SoundHandle sound) => Audio.Play(sound);
     public float SfxVolume { get => Audio.SfxVolume; set => Audio.SfxVolume = value; }

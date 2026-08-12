@@ -1349,6 +1349,9 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     public SoundHandle LoadSound(string path) => Audio.LoadSound(path);
 
+    public SoundHandle LoadSoundFromPcm(short[] samples, int sampleRate, int channels) =>
+        Audio.LoadSoundFromPcm(samples, sampleRate, channels);
+
     public void UnloadSound(SoundHandle sound) => Audio.UnloadSound(sound);
 
     public void Play(SoundHandle sound) => Audio.Play(sound);

@@ -93,6 +93,15 @@ public interface IAudio : IDisposable
     bool IsAvailable { get; }
 
     SoundHandle LoadSound(string path);
+
+    /// <summary>
+    /// Loads a sound from already-decoded interleaved signed 16-bit PCM. The seam exists for formats the
+    /// backend's own loader cannot read — FLAC is decoded in managed code by <see cref="Utils.FlacAudio"/>
+    /// and handed over here (see <see cref="Gfx.LoadSound"/>). Returns <see cref="SoundHandle.None"/> on a
+    /// backend with no way to accept raw PCM.
+    /// </summary>
+    SoundHandle LoadSoundFromPcm(short[] samples, int sampleRate, int channels);
+
     void UnloadSound(SoundHandle sound);
 
     /// <summary>Plays a one-shot at the current SFX volume, overlapping any already-playing copy.</summary>

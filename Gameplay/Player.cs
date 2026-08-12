@@ -278,7 +278,7 @@ public class Player
             // Counted rather than played on the spot: a dense pattern grazes many times a second, and the pad
             // coalesces the run of them into one sustained hum (see DualSenseFeedback.OnGraze).
             DualSenseFeedback.OnGraze();
-            // TODO: Play Graze SFX
+            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["graze"]);
         }
     }
 
