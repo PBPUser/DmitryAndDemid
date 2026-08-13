@@ -19,7 +19,7 @@ using DmitryAndDemid.Utils;
 namespace DmitryAndDemid.Rendering;
 
 /// <summary>
-/// Third renderer: Silk.NET + Vulkan.
+/// Third renderer for the Nikitos Engine: Silk.NET + Vulkan.
 ///
 /// SHADERS: Vulkan cannot eat the game's GLSL (47 of 48 shaders use gl_FragColor, all uniforms are
 /// free-standing). Tools/compile_shaders.py transforms and compiles them to SPIR-V ahead of time, into

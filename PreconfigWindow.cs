@@ -15,7 +15,7 @@ public class PreconfigWindow
         Application.Init();
         var app = new Application("co.sugar.DmitryAndDemid", GLib.ApplicationFlags.None);
         app.Register(GLib.Cancellable.Current);
-        Window = new Window("AAG2");
+        Window = new Window($"AAG2 — {Engine.Name}");
         Window.Resizable = false;
         Window.DeleteEvent += (a, b) => Application.Quit();
         var display = Gdk.Display.Default;
@@ -83,9 +83,10 @@ public class PreconfigWindow
             Bind(nonFullScreen, FullScreenType.Window, x); // was writing Borderless — "Window" left you borderless
             rowS++;
         }
-        // Renderer picker. Built from Engine.Available, so it lists exactly the renderers that exist.
+        // Renderer picker. Built from Engine.Available, so it lists exactly the renderers that exist. Labelled
+        // with the engine's name because this row picks what the Nikitos Engine runs ON, not which engine runs.
         var rendererBox = new Box(Orientation.Horizontal, 8) { Halign = Align.Start };
-        rendererBox.Add(new Label("Renderer:"));
+        rendererBox.Add(new Label($"{Engine.Name} renderer:"));
 
         var rendererCombo = new ComboBoxText();
         foreach ((string key, string name) in Engine.Available)

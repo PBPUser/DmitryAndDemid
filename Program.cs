@@ -153,7 +153,8 @@ static class StageCompiler
             {
                 DmitryAndDemid.Data.Archive.FileStageInfo info = DmitryAndDemid.Data.Archive.StageJson.Load(json);
                 var package = new DmitryAndDemid.Utils.BitPackage();
-                // Info.Save writes debug spam through BitPackage.WriteVarULong; keep the build output clean.
+                // BitPackage.WriteVarULong used to print every byte it wrote; that is gone, but the guard stays
+                // so nothing a future writer prints can bury the per-file lines below in a build log.
                 System.IO.TextWriter previous = Console.Out;
                 Console.SetOut(System.IO.TextWriter.Null);
                 try { info.Save(ref package); }

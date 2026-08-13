@@ -1,9 +1,12 @@
+using DmitryAndDemid.Data.Archive;
 using System.Numerics;
 
 namespace DmitryAndDemid.Rendering;
 
 /// <summary>
-/// The game's drawing API. Method names mirror Raylib's on purpose: game files previously did
+/// Likhanov32D, the graphics half of the Nikitos Engine — the surface every screen, background and bullet
+/// actually draws through.
+/// Method names mirror Raylib's on purpose: game files previously did
 /// `using static Raylib_cs.Raylib;` and called DrawTexturePro/SetShaderValue/... unqualified. Swapping that
 /// single using for `using static DmitryAndDemid.Rendering.Gfx;` re-points every one of those calls at the
 /// active backend, with no other edit — which is what makes a second renderer possible at all.

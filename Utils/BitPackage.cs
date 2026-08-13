@@ -1,6 +1,6 @@
-using DmitryAndDemid.Rendering;
 using static DmitryAndDemid.Rendering.Gfx;
 using System.Text;
+using DmitryAndDemid.Data.Archive;
 
 namespace DmitryAndDemid.Utils;
 
@@ -232,7 +232,11 @@ public class BitPackage : IDisposable, IAsyncDisposable
         Write(bytes.ToArray());
     }   
     
-    public void WriteByte(byte value) => BytesWrite.Add(value);
+    /// <summary>Goes through <see cref="Write(byte[])"/> like every other writer. It used to append straight to
+    /// <see cref="BytesWrite"/>, which silently dropped the byte on a stream-backed package (the write path
+    /// <c>StageEditorScreen.Save</c> and <see cref="CpuImage.Save"/> both use) — the in-memory list is never
+    /// flushed to a stream, only handed back by <see cref="Export"/>.</summary>
+    public void WriteByte(byte value) => Write([value]);
     public void WriteVarULong(ulong value)
     {
         List<byte> bytes = new();
@@ -242,7 +246,6 @@ public class BitPackage : IDisposable, IAsyncDisposable
             c = (byte)((value % ContinueByte) | ContinueByte);
             bytes.Add(c);
             value >>= 7;
-            Console.Write(Convert.ToString(c, 2).PadLeft(8, '0') + " ");
             if (value == 0)
                 break;
         }

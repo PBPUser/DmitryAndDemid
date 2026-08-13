@@ -1,9 +1,26 @@
 namespace DmitryAndDemid.Rendering;
 
 /// <summary>
-/// The single place the backend is chosen. Everything else in the game talks to
+/// The Nikitos Engine — the thing this class is the front door of, and the name the whole rendering /
+/// platform / input / audio seam goes by. It answers to two names, used interchangeably and with no
+/// difference in meaning: the <b>Nikitos Engine</b> and the <b>Lihanov Engine</b>, both after Никита
+/// Лиханов, who is stage 1's boss and whose nickname the engine took. See <see cref="Name"/> and
+/// <see cref="AlternateName"/> — anything that puts a name on screen or in a log reads it from there
+/// rather than spelling it out, so the two never drift apart.
+///
+/// Its parts have names of their own, and they are the names to use when you mean the part rather than the
+/// whole: <b>Likhanov32D</b> is the graphics (<see cref="GraphicsName"/> — the "32D" is 3D and 2D),
+/// <b>Demidonic</b> is the sound (<see cref="AudioName"/>), and <b>Pizzics</b> is the physics
+/// (<see cref="PhysicsName"/>, pizza + physics). <see cref="Renderer"/> and <see cref="Audio"/> below are the
+/// first two; the third has no property here because it is not a backend service — it is the collision pass in
+/// <c>GameBox</c>.
+///
+/// Mechanically this is the single place the backend is chosen. Everything else in the game talks to
 /// <see cref="Renderer"/>/<see cref="Platform"/>/<see cref="Input"/>/<see cref="Audio"/> and never
 /// names a concrete backend, so swapping Raylib for another implementation is a one-line change here.
+/// The engine is the seam, not the backend behind it: Raylib, Silk/GL, Vulkan, Metal and the Switch
+/// backends are all things the Nikitos Engine runs ON, which is why <see cref="Name"/> and
+/// <see cref="BackendName"/> are two different strings and both get printed.
 ///
 /// This is a service locator rather than constructor injection on purpose: the codebase already reaches
 /// for the global <c>Runtime.CurrentRuntime</c> from everywhere, and threading a renderer through every
@@ -11,6 +28,44 @@ namespace DmitryAndDemid.Rendering;
 /// </summary>
 public static class Engine
 {
+    /// <summary>
+    /// The engine's name. NOT the backend's — that is <see cref="BackendName"/>, and the two are printed
+    /// side by side (window title, splash, debug overlay) precisely so nobody reads "Vulkan" as the name of
+    /// the engine.
+    /// </summary>
+    public const string Name = "Nikitos Engine";
+
+    /// <summary>
+    /// The engine's other name, equally correct and equally used — the Lihanov Engine. Same engine, same
+    /// Никита Лиханов; the project has simply never settled on one and does not intend to. Callers pick
+    /// whichever fits the surface (the splash credits both, the debug overlay uses this one), but they pick
+    /// from here — a hand-typed "Lihanov engine" somewhere is how the two names start disagreeing about
+    /// capitalisation and then about spelling.
+    /// </summary>
+    public const string AlternateName = "Lihanov Engine";
+
+    /// <summary>
+    /// The graphics half of the engine, named in its own right: <b>Likhanov32D</b> — everything reached through
+    /// <see cref="Renderer"/>, i.e. <see cref="Gfx"/>, <see cref="IRenderer"/> and whichever backend is behind
+    /// them. The "32D" is 3D and 2D. Note the spelling: Likhanov here, Lihanov in <see cref="AlternateName"/> —
+    /// they are separate names that grew separately, and neither is a typo of the other.
+    /// </summary>
+    public const string GraphicsName = "Likhanov32D";
+
+    /// <summary>
+    /// The sound engine: <b>Demidonic</b> — <see cref="Audio"/> / <c>IAudio</c>, its backend implementations,
+    /// and the <c>Sounds</c> / music side of <c>Runtime</c> that drives them.
+    /// </summary>
+    public const string AudioName = "Demidonic";
+
+    /// <summary>
+    /// The physics engine: <b>Pizzics</b> (pizza + physics) — the collision and movement pass, which lives in
+    /// <c>GameBox</c>'s per-tick sweep and <c>Helper.IsCollied</c> / <c>MathUtil</c> rather than in a subsystem
+    /// folder of its own. Naming it does not move it; it gives the danmaku's one genuinely physical job a name
+    /// to be discussed by.
+    /// </summary>
+    public const string PhysicsName = "Pizzics";
+
     private static IBackend? Active;
 
     public static IRenderer Renderer => Require();

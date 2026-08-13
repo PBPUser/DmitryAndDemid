@@ -82,7 +82,8 @@ public interface IInput
 }
 
 /// <summary>
-/// Sound effects. Overlapping playback of the same sample is the backend's problem, not the caller's:
+/// Demidonic — the engine's sound half, and the contract a backend signs to provide it. Sound effects:
+/// overlapping playback of the same sample is the backend's problem, not the caller's:
 /// <see cref="Play"/> may be called many times in a frame for the same handle.
 /// </summary>
 public interface IAudio : IDisposable

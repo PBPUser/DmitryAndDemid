@@ -1,11 +1,13 @@
 # Nintendo Switch (Horizon OS) port — roadmap
 
-Target: run the game on a real Switch as homebrew, with **[mono-nx](https://github.com/exelix11/mono-nx)**
-as the managed runtime and **[deko3d](https://github.com/devkitPro/deko3d)** as the GPU backend.
+Target: run the game — and so the **Nikitos Engine** under it — on a real Switch as homebrew, with
+**[mono-nx](https://github.com/exelix11/mono-nx)** as the managed runtime and
+**[deko3d](https://github.com/devkitPro/deko3d)** as the GPU backend.
 
 This document is the map. Most of the work is **not** in this C# repo — it is in a fork of the mono-nx
 native runtime and in an offline shader-compilation step. The C# side only has to grow one new backend
-(`Rendering/Switch/Deko3dBackend.cs`) behind a `SWITCH` compile guard.
+(`Rendering/Switch/Deko3dBackend.cs`) behind a `SWITCH` compile guard — a new thing for Likhanov32D to run on,
+not a new engine.
 
 > Reality check: this is a large, multi-repo effort with real showstopper-class risks (interpreter
 > performance, offline shaders). Nothing here can be built or tested on a desktop — the `SWITCH` guard keeps

@@ -1,6 +1,7 @@
 # Native Metal backend (macOS / iOS)
 
-A native Apple **Metal** implementation of `IBackend`, the durable alternative to the MoltenVK path in
+A native Apple **Metal** implementation of `IBackend` — another backend for the **Nikitos Engine** to run on
+— and the durable alternative to the MoltenVK path in
 `docs/ios-port.md` — no third-party Vulkan driver, Apple-blessed, and the long-term graphics path for both
 macOS and iOS.
 
@@ -82,7 +83,7 @@ On Apple the window, run-loop and input belong to the UIKit/AppKit host — a vi
   `Runtime.StartAndroid`) and pumps `BeginFrame`/…/`EndFrame` itself.
 - Input is fed in: `SetTouches(...)` / `SetKeyState(...)`, surfaced through `IInput` exactly as the Android host
   feeds the Silk backend. `TouchCount`/`GetTouchPosition` then drive the existing `TouchControls`.
-- Audio is **injected** via `StartMetal` (an `IAudio` the host supplies, e.g. AVAudioEngine), so the backend
+- Audio (Demidonic) is **injected** via `StartMetal` (an `IAudio` the host supplies, e.g. AVAudioEngine), so the backend
   stays constructible parameterlessly through `Engine.Create` — same split as `SilkGLBackend` + `StartAndroid`.
 
 ### Coordinate note (will bite during bring-up)

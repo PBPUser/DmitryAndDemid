@@ -187,6 +187,49 @@ public class StageDataTests
     }
 
     /// <summary>
+    /// The packed <c>.sid</c> files are what ships and what the game loads; the <c>.json</c> under
+    /// <c>Assets/Data/StagesJson</c> is the source they are compiled from (<c>--compile-stages</c>, or the Stage
+    /// Editor's "Compile JSON to SID"). Both are committed, and nothing in an ordinary <c>dotnet build</c>
+    /// regenerates one from the other — so editing a stage's JSON and forgetting to recompile leaves the two
+    /// disagreeing and the change simply absent from the game, with every other check here still passing
+    /// because the .sid it reads is internally consistent, just stale.
+    /// </summary>
+    [Fact]
+    public void Packed_stages_match_their_json_sources()
+    {
+        var drifted = new List<string>();
+        foreach (string jsonPath in Assets.Files("Assets/Data/StagesJson", "*.json"))
+        {
+            string name = Path.GetFileNameWithoutExtension(jsonPath);
+            if (!Assets.Exists(Path.Combine("Assets/Data/SpellCards", name + ".sid")))
+            {
+                drifted.Add($"{name}.json has no compiled {name}.sid");
+                continue;
+            }
+            FileChapterInfo[] source = StageJson.Load(jsonPath).Chapters;
+            FileChapterInfo[] packed = Load(name + ".sid").Chapters;
+            if (source.Length != packed.Length)
+            {
+                drifted.Add($"{name}: {source.Length} chapters in JSON, {packed.Length} in the .sid");
+                continue;
+            }
+            for (int i = 0; i < source.Length; i++)
+            {
+                // Id, type, length and the create script — enough to catch an added, removed, reordered or
+                // retimed chapter, which is what recompiling actually changes.
+                string a = $"{source[i].Id}/{source[i].Header[0]}/{source[i].Header[2]}/{source[i].CreateScript}";
+                string b = $"{packed[i].Id}/{packed[i].Header[0]}/{packed[i].Header[2]}/{packed[i].CreateScript}";
+                if (a != b)
+                    drifted.Add($"{name} chapter {i}: JSON has {a}, the .sid has {b}");
+            }
+        }
+
+        Assert.True(drifted.Count == 0,
+            "Stage .sid files are out of date with their JSON — rerun `dotnet bin/Debug/net10.0/aag2.dll " +
+            "--compile-stages Assets/Data/StagesJson Assets/Data/SpellCards`: " + string.Join("; ", drifted));
+    }
+
+    /// <summary>
     /// A spell chapter cannot carry dialog: the packed format reuses Header[4] for its max score and
     /// <see cref="FileChapterInfo.Save"/> skips the lines entirely, so authoring a conversation on a card
     /// silently drops it. Dialogs belong on a preceding non-spell chapter.

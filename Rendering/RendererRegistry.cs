@@ -3,7 +3,8 @@ using System.Runtime.InteropServices;
 namespace DmitryAndDemid.Rendering;
 
 /// <summary>
-/// The list of renderers that exist. Deliberately free of any dependency on the backends themselves, so the
+/// The list of renderers the Nikitos Engine can run on. Deliberately free of any dependency on the backends
+/// themselves, so the
 /// standalone configurator can link this file without dragging in Raylib/Silk/Vulkan — a config tool has no
 /// business loading a graphics stack.
 ///

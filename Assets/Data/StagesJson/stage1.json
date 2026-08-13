@@ -23,7 +23,7 @@
       "Header": [
         0,
         8,
-        674,
+        337,
         0,
         0,
         0,
@@ -43,6 +43,58 @@
       "HasDialogs": false,
       "UseUpdateScript": true,
       "UseCreateScript": false,
+      "ApplyShader": false
+    },
+    {
+      "Header": [
+        2,
+        16,
+        1200,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Dialogs": [],
+      "Id": "stage#midboss#easy",
+      "SpellcardTitle": "",
+      "BossName": "Никита Лиханов",
+      "CreateScript": "nikitos#midboss#create",
+      "UpdateScript": "",
+      "SpellcardTexture": "",
+      "SpellcardShader": "",
+      "TimeoutCard": false,
+      "BossInvincible": false,
+      "HasDialogs": false,
+      "UseUpdateScript": false,
+      "UseCreateScript": true,
+      "ApplyShader": false
+    },
+    {
+      "Header": [
+        0,
+        24,
+        337,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Dialogs": [],
+      "Id": "stage#chapter1b#easy",
+      "SpellcardTitle": "",
+      "BossName": "",
+      "CreateScript": "stage#midboss#retire",
+      "UpdateScript": "",
+      "SpellcardTexture": "",
+      "SpellcardShader": "",
+      "TimeoutCard": false,
+      "BossInvincible": false,
+      "HasDialogs": false,
+      "UseUpdateScript": true,
+      "UseCreateScript": true,
       "ApplyShader": false
     },
     {

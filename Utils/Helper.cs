@@ -1190,6 +1190,8 @@ public static class Helper
             areaEnd.X > xPositionTo.X && areaEnd.Y > xPositionTo.Y;
     }
 
+    /// <summary>Pizzics' one primitive: two rects overlap if their centres are closer than their half-widths
+    /// added together — i.e. they are treated as circles, which is what every collision in the game wants.</summary>
     public static bool IsCollied(Rect rc1, Rect rc2)
     {
         #if DEBUG

@@ -1,11 +1,14 @@
+using DmitryAndDemid.Data.Archive;
 using System.Numerics;
 
 namespace DmitryAndDemid.Rendering;
 
 /// <summary>
-/// Everything the game needs from a graphics backend. Contains no backend type — resources are handles,
-/// geometry is Rect/Rgba/Vector2 — so a second implementation (Silk.NET/OpenGL, later Vulkan) can be
-/// dropped in without touching gameplay code.
+/// Everything Likhanov32D — the Nikitos Engine's graphics half — needs from a graphics backend, and the
+/// contract a backend signs to provide it. This is the reason the engine's name and the backend's are
+/// separate things. Contains no backend type —
+/// resources are handles, geometry is Rect/Rgba/Vector2 — so a second implementation (Silk.NET/OpenGL, later
+/// Vulkan) can be dropped in without touching gameplay code.
 ///
 /// Ordering contract a backend may rely on:
 ///   BeginFrame … EndFrame wraps every frame.

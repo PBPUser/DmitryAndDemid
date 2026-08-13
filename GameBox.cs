@@ -638,6 +638,12 @@ public class GameBox : IDisposable
                     ScreenEffects.Add(new EntityDeathScreenEffect(this, new Vector2(obj.X, obj.Y), 40, GetTime(), GetTime()+0.75f, obj.Header[0xC], obj.Header[0xB]));
                 }
             }
+            // ---- Pizzics ------------------------------------------------------------------------------
+            // Pizza + physics: the engine's physics half, and all of it. Every collision in the game is a
+            // distance test between two radii — player shot vs enemy here, player vs bullet and player vs laser
+            // below — because a danmaku needs no more than that, and a bullet-hell's whole feel comes from those
+            // radii being small and exact rather than from a solver. It lives inline in this per-tick sweep
+            // rather than in a subsystem folder; the name is for talking about it, not a plan to move it.
             if ((bitMask & RuntimeObject.FlagDangerousRelatedToEnemy) ==
                 RuntimeObject.FlagDangerousRelatedToEnemy)
             {

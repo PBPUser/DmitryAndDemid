@@ -8,7 +8,7 @@ namespace DmitryAndDemid.Backgrounds;
 
 /// <summary>
 /// An endless field of low houses seen from a camera flying ~9 m above the ground.
-/// The engine only draws in 2D, so the perspective city lives entirely in the
+/// Likhanov32D only rasterises in 2D — the 3D in its name is raymarching like this — so the city lives in the
 /// <c>houses.fs</c> fragment shader; this class just drives its <c>time</c> uniform and
 /// blits a full-screen quad through it (same pattern as <see cref="DrogichinBackground"/>).
 ///

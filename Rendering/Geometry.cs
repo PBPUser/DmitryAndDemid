@@ -146,7 +146,7 @@ public enum NinePatchLayout
     ThreePatchHorizontal = 2,
 }
 
-/// <summary>Shader uniform types. Values are the engine's own; backends map them to their API.</summary>
+/// <summary>Shader uniform types. Values are Likhanov32D's own; backends map them to their API.</summary>
 public enum UniformType
 {
     Float = 0,

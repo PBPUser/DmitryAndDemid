@@ -623,6 +623,49 @@ public static class ActionsScope
         }
     };
 
+    /// <summary>How many points along the top of the playfield the midboss rain falls from.</summary>
+    private const int NikitosMidbossEmitters = 3;
+
+    /// <summary>
+    /// Stage 1's midboss non-spell: nikitos turns up halfway through the level and drizzles light bullets from
+    /// a few points strung across the top of the playfield.
+    ///
+    /// The emitters are positions, not objects — each is a sine of the chapter tick on its own phase, so they
+    /// slide past each other and the columns never settle into fixed lanes the player can just stand between.
+    /// Deriving them from the tick rather than spawning carrier entities keeps the whole attack replay-safe
+    /// (nothing to desync) and costs the stage no entity-table slots.
+    ///
+    /// Deliberately the lightest thing in the stage: it opens the level, it is over in twenty seconds, and it
+    /// sits before a player has any power. Slow bullets, a wide cadence, and only a few degrees of spread — the
+    /// pressure comes later, from the two non-spells at the boss.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction NikitosMidbossRain = c =>
+    {
+        int tick = c.Box.ChapterTick;
+        if (tick <= 0)
+        {
+            c.RenderRotation = 0;
+            return;
+        }
+        int diff = Math.Clamp(c.Box.Difficulty, 0, 3);
+        c.RenderRotation = MathF.Sin(tick * 0.07f) * 0.22f;
+
+        if (tick % Math.Max(8, 17 - diff * 3) != 0)
+            return;
+        for (int e = 0; e < NikitosMidbossEmitters; e++)
+        {
+            float phase = tick * 0.013f + e * (MathF.PI * 2f / NikitosMidbossEmitters);
+            var b = c.Box.SpawnObject(NikitosNonspellLightIndex);
+            b.X = 192f + MathF.Sin(phase) * 150f;
+            b.Y = 16f;
+            // Straight down, give or take a couple of degrees — enough that the rain scatters instead of
+            // falling in three clean columns.
+            b.FacingRotation = b.RenderRotation =
+                MathF.PI / 2f + (TickHash(tick * 31 + e * 17) % 100 - 50) / 500f;
+            b.Speed = 1.4f + diff * 0.25f;
+        }
+    };
+
     // ---------------------------------------------------------------------------------------------------
     // EXTRA STAGE — Dmitry (three cards) and Demid (eight, the last two being the OBS logo and the window).
     // The entity table these index into is Assets/Data/StagesJson/extra1.json; the bosses are two distinct
@@ -710,10 +753,14 @@ public static class ActionsScope
             box.RemoveOverlay(bar);
     }
 
+    /// <summary>A BossId no boss carries, so <see cref="RetireOtherBosses"/> keeps none of them.</summary>
+    private const int NoBossId = -1;
+
     /// <summary>
     /// Retires every boss but <paramref name="keepBossId"/> — flag it dead so its health bar self-removes, drop
     /// its lingering screen effects, and take it off the board. Used when Demid takes over from Dmitry, the same
-    /// hand-off stage 2 does between its two acts.
+    /// hand-off stage 2 does between its two acts, and with <see cref="NoBossId"/> to clear the board entirely
+    /// when stage 1's midboss is done.
     /// </summary>
     private static void RetireOtherBosses(GameBox box, int keepBossId)
     {
@@ -1534,6 +1581,125 @@ public static class ActionsScope
         obj.RenderRotation += 0.09f;
     };
 
+    // ---- Dmitry's stage-3 non-spells. Three of them, run before cards 1, 3 and 5, so his act alternates the
+    // way the rest of the campaign's do instead of being five spell cards back to back.
+    //
+    // Each is a plain, readable version of the idea the card after it complicates: a bare turning ring before
+    // the four winds, a moving gap before the sinking clouds, a lane sweep before the burst finale. They reuse
+    // the cards' bullet templates and colours (Assets/Data/StagesJson/stage3.json) — a non-spell is the same
+    // boss with the same gas, just not trying as hard — and none of them needs a per-bullet mover, so there is
+    // nothing here but the boss's own update.
+
+    /// <summary>
+    /// Before "the four winds": one ring of gas at a time, the whole ring turned a step further with each wave
+    /// and the step reversing every few seconds. Nothing aimed — the only thing to read is which way the gaps
+    /// are walking, which is the skill the card then asks for under pressure.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DmitryStage3Nonspell1 = c =>
+    {
+        int t = BossCardTick(c);
+        if (t < 0)
+            return;
+        int diff = CardDiff(c.Box);
+        int period = Math.Max(24, 44 - diff * 5);
+        if (t % period != 0)
+            return;
+        int wave = t / period;
+        int count = 8 + diff * 2;
+        float spin = (wave / 6 % 2 == 0 ? 1f : -1f) * wave * 0.29f;
+        for (int k = 0; k < count; k++)
+        {
+            var b = c.Box.SpawnObject(Stage3OvalIndex, 0x8B5A2B);
+            b.Position = c.Position;
+            b.FacingRotation = b.RenderRotation = spin + k * (MathF.PI * 2f / count);
+            b.Speed = 2.0f + diff * 0.22f;
+        }
+    };
+
+    /// <summary>
+    /// Before "the stink cloud": rows of gas walk in from both side edges, each row with one gap in it, and the
+    /// gap slides a lane per row. He paces the top slowly and drops the odd aimed shot so the player cannot
+    /// simply follow the gap without watching him too.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DmitryStage3Nonspell2 = c =>
+    {
+        int t = BossCardTick(c);
+        if (t < 0)
+            return;
+        int diff = CardDiff(c.Box);
+        c.X = DmitryStage3Post.X + MathF.Sin(t * 0.010f) * 84f;
+
+        const int lanes = 7;
+        int period = Math.Max(26, 46 - diff * 5);
+        if (t % period == 0)
+        {
+            int row = t / period;
+            int gap = row % lanes;                       // the hole moves one lane per row
+            for (int lane = 0; lane < lanes; lane++)
+            {
+                if (lane == gap)
+                    continue;
+                int side = row % 2;                      // rows come in from alternating edges
+                var b = c.Box.SpawnObject(Stage3CircleIndex, side == 0 ? 0x6B8E23 : 0x8B4513);
+                b.X = side == 0 ? -8f : 392f;
+                b.Y = 96f + lane * 44f;
+                b.FacingRotation = b.RenderRotation = side == 0 ? 0f : MathF.PI;
+                b.Speed = 1.7f + diff * 0.22f;
+            }
+        }
+        if (t % Math.Max(30, 60 - diff * 7) == 0)
+        {
+            float aim = Helper.FindAngle(c.Position, c.Box.Player.Position);
+            int count = 1 + diff / 2;
+            for (int k = 0; k < count; k++)
+            {
+                var b = c.Box.SpawnObject(Stage3PentaIndex, 0xC8A165);
+                b.Position = c.Position;
+                b.FacingRotation = b.RenderRotation = aim + (k - (count - 1) / 2f) * 0.2f;
+                b.Speed = 2.2f + diff * 0.25f;
+            }
+        }
+    };
+
+    /// <summary>
+    /// Before "the apotheosis": a curtain of light bullets falls in sweeps across the playfield, left to right
+    /// and back, with a ring off the boss every couple of seconds to break up the rhythm. The last quiet moment
+    /// of the campaign before the card that ends it.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DmitryStage3Nonspell3 = c =>
+    {
+        int t = BossCardTick(c);
+        if (t < 0)
+            return;
+        int diff = CardDiff(c.Box);
+        if (t % Math.Max(4, 8 - diff) == 0)
+        {
+            // A triangle wave over 240 ticks: the drop point runs the width of the playfield and back.
+            int phase = t % 240;
+            float sweep = phase < 120 ? phase / 120f : (240 - phase) / 120f;
+            for (int k = 0; k < 1 + diff / 2; k++)
+            {
+                var b = c.Box.SpawnObject(Stage3LightIndex, 0xFFD700);
+                b.X = 24f + sweep * 336f + k * 16f;
+                b.Y = -8f;
+                b.FacingRotation = b.RenderRotation = MathF.PI / 2f;
+                b.Speed = 2.3f + diff * 0.25f;
+            }
+        }
+        if (t % Math.Max(70, 130 - diff * 15) == 0)
+        {
+            int count = 10 + diff * 2;
+            float baseAngle = TickHash(t) % 628 / 100f;
+            for (int k = 0; k < count; k++)
+            {
+                var b = c.Box.SpawnObject(Stage3CircleIndex, 0xADFF2F);
+                b.Position = c.Position;
+                b.FacingRotation = b.RenderRotation = baseAngle + k * (MathF.PI * 2f / count);
+                b.Speed = 1.8f + diff * 0.2f;
+            }
+        }
+    };
+
     static ActionsScope()
     {
         RebuildObjectActionsList();
@@ -1685,12 +1851,25 @@ public static class ActionsScope
         // retires Nikitab (whose survival card is done with him) and brings in a brand-new boss, BossId 3 — the
         // same hand-off stage 2 does between its two acts. SpawnObject then REUSES that Dmitry for every later
         // card, so one boss with one health bar carries the whole act.
+        // His arrival is now the FIRST non-spell, not card 1 — the non-spell is what he turns up on, so it is
+        // what retires Nikitab, plays the sting and shows the splash. Card 1 is a plain spawn behind it. (Spell
+        // practice starts at a card, so a practiced card 1 gets no splash — the same as every other practiced
+        // card, none of which shows one.)
+        dictionary["dmitry#stage3#nonspell1#create"] = c =>
+        {
+            RetireOtherBosses(c.GameBox, DmitryStage3BossId);
+            SpawnCardBoss(c.GameBox, DmitryStage3BossIndex, DmitryStage3Nonspell1, DmitryStage3Post);
+            PlaySound(Runtime.CurrentRuntime.Sounds["boss-appear"]);
+            ShowBossSplash(c.GameBox, "dmitry");
+        };
+        dictionary["dmitry#stage3#nonspell2#create"] = c =>
+            SpawnCardBoss(c.GameBox, DmitryStage3BossIndex, DmitryStage3Nonspell2, DmitryStage3Post);
+        dictionary["dmitry#stage3#nonspell3#create"] = c =>
+            SpawnCardBoss(c.GameBox, DmitryStage3BossIndex, DmitryStage3Nonspell3, DmitryStage3Post);
         dictionary["dmitry#stage3#card1#create"] = c =>
         {
             RetireOtherBosses(c.GameBox, DmitryStage3BossId);
             SpawnCardBoss(c.GameBox, DmitryStage3BossIndex, DmitryStage3Card1, DmitryStage3Post);
-            PlaySound(Runtime.CurrentRuntime.Sounds["boss-appear"]);
-            ShowBossSplash(c.GameBox, "dmitry");
         };
         dictionary["dmitry#stage3#card2#create"] = c =>
             SpawnCardBoss(c.GameBox, DmitryStage3BossIndex, DmitryStage3Card2, DmitryStage3Post);
@@ -1783,6 +1962,22 @@ public static class ActionsScope
         // SpawnObject(2) reuses the shared nikitos boss (all nikitos entities are BossId 0, same as the stage's
         // spell cards), so the same boss carries through the fight. Place it dead centre-top so it — and the
         // bullets it fires from its position — are on screen.
+        // The midboss: the same nikitos entity, met halfway through the level between the two halves of the
+        // stage section. Lower down the screen than his boss posts (there is no health bar crowding the top
+        // yet) and on half health, because this is a drive-by, not the fight.
+        dictionary["nikitos#midboss#create"] = c =>
+        {
+            var boss = c.GameBox.SpawnObject(2);
+            boss.X = 192;
+            boss.Y = 72;
+            boss.Health = boss.MaxHealth = boss.Health / 2f;
+            boss.UpdateAction = NikitosMidbossRain;
+        };
+        // ...and leaves when the level resumes. A chapter boundary does NOT clear the board — the boss fight
+        // depends on that, since every one of nikitos's chapters reuses the same object — so the half of the
+        // stage section after the midboss has to take him off it, or he hangs there raining for the rest of the
+        // level and then again through the fight. Finds nothing to do if the player shot him down.
+        dictionary["stage#midboss#retire"] = c => RetireOtherBosses(c.GameBox, NoBossId);
         dictionary["nikitos#nonspell1#create"] = c =>
         {
             var boss = c.GameBox.SpawnObject(2);

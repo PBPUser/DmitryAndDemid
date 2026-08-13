@@ -6,6 +6,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A Touhou-style danmaku (bullet-hell) game written in C# on .NET 10, rendering through Raylib-cs. Single project, no solution file, no test suite.
 
+The engine it runs on is part of this repo and has a name — in fact two, used interchangeably and with no difference in meaning:
+
+> **the Nikitos Engine**, also **the Lihanov Engine**
+
+Both are after Никита Лиханов (nikitos), stage 1's boss. Either is correct; the project has never settled on one and does not intend to, so prose, comments and docs mix them freely. What is *not* free-form is the spelling: anything that puts the name on screen or in a log reads it from `Engine.Name` / `Engine.AlternateName` (`Rendering/Engine.cs`) rather than typing a literal, which is what keeps the two names from quietly becoming four.
+
+Its three parts are named too, and those names are the ones to use when you mean the part rather than the whole:
+
+| Part | Name | Constant | Where it lives |
+|---|---|---|---|
+| Graphics | **Likhanov32D** — the "32D" is 3D *and* 2D | `Engine.GraphicsName` | `Rendering/Gfx.cs`, `IRenderer`, the backends |
+| Sound | **Demidonic** | `Engine.AudioName` | `IAudio` (`Rendering/IPlatform.cs`) and its backend implementations |
+| Physics | **Pizzics** — pizza + physics | `Engine.PhysicsName` | the collision sweep in `GameBox`, `Helper.IsCollied` |
+
+Watch the spelling of the graphics one: **Likh**anov32D, but **Lih**anov Engine. They grew separately and neither is a typo of the other — don't "fix" either to match.
+
+Pizzics has no folder: every collision in the game is a distance test between two radii, inline in `GameBox`'s per-tick sweep. The name exists to talk about that code, not as a plan to extract it. Likhanov32D rasterises in 2D only — the 3D half of its name is raymarching inside fragment shaders (`Assets/Shaders/houses.fs` is the reference case), not a geometry pipeline.
+
+**The engine is not the backend.** `Engine.Name` is the Nikitos Engine; `Engine.BackendName` is Raylib / Silk-GL / Vulkan / Metal / an SDL flavour on Switch — whichever it happens to be running on this launch. The window title, the startup splash and the debug overlay all print both, side by side, for exactly that reason. When you write "the engine", mean the seam (`Rendering/Engine.cs`, `Gfx`, `IRenderer`), not the thing behind it.
+
 ## Commands
 
 ```bash
@@ -41,6 +61,18 @@ Native prerequisites: GTK 3 (used for the pre-launch config dialog and error pop
 | `BulletVisualPresets` | `Assets/Data/BulletVisuals/*.json` | filename without extension |
 
 A fragment shader is paired with a same-named `.vs` if one exists, otherwise with `Assets/Shaders/base.vs`.
+
+## The Nikitos Engine (rendering, platform, input, audio)
+
+Everything under `Rendering/` is the engine — the Nikitos Engine, or the Lihanov Engine, whichever you feel like calling it that day. Three pieces:
+
+- `Rendering/Engine.cs` — the front door and the only place a backend is chosen. Holds every name constant (`Name`, `AlternateName`, `GraphicsName`, `AudioName`, `PhysicsName`) plus `BackendName` (what it is running on this launch).
+- `Rendering/Gfx.cs` — Likhanov32D's drawing API, what everything else calls via `using static DmitryAndDemid.Rendering.Gfx;`. Method names mirror Raylib's because they used to *be* Raylib's; every one is a thin forward to the active backend.
+- `Rendering/IRenderer.cs` + `IBackend` — the contract a backend signs (with `IAudio`, Demidonic's half of it, in `IPlatform.cs`). No backend type appears in any signature anywhere in the game, which is what makes a second renderer possible at all.
+
+Backends: Raylib-cs (desktop default), Silk.NET/OpenGL, Vulkan, Metal (`#if METAL`, scaffold), and SDL/SDL-GL/deko3d on Switch (`#if SWITCH`). `RendererRegistry` lists the ones that exist and is deliberately backend-dependency-free so the GTK configurator can link it without loading a graphics stack.
+
+**The engine is not the backend**, and the names are drawn side by side so nobody confuses them: the window title (`Nikitos Engine / <backend>`), the GTK configurator's title and renderer row, the startup splash — which is the engine credit proper, both engine names under the sugar logo with `Likhanov32D · Demidonic · Pizzics` beneath — and the debug overlay, which uses the Lihanov spelling. All read the constants; `Tests/EngineNameTests.cs` fails the build if any of them is ever typed out as a literal instead.
 
 ## Screen stack
 
@@ -91,6 +123,7 @@ Full write-up in `docs/dualsense.md`.
 - `scoreaag2.gsy` — `PlayerData.Instance`, a lazily-loaded static singleton that **saves on every mutation** (each unlock setter calls `Save()`). Holds high scores, unlocked stages/music/nicknames, per-character spell-card try counts.
 - `Replays/*.rpy` — a JSON header plus one packed input byte per tick. `PlayerController.Update` writes the bitfield (left/right/up/down/focus/shoot/bomb) into `Movements[tick]`; `ReplayController` replays it. Both derive from `PlayerControllerBase`, so gameplay code is agnostic to which is driving.
 - `Assets/Data/SpellCards/*.sid` — spell cards authored by `StageEditorScreen`.
+- `*.negr` — the in-project image format (`Rendering/CpuImage.cs`). Unlike the above, it is a **block** stream rather than a fixed field order: `[type:1][length:varint][payload]` repeated to an END block, where bit `0x80` of the type byte says whether a reader that does not know the type must fail or skip it by its length. The abstract `ImageBlock` (`Rendering/ImageBlock.cs`) owns all the framing; each concrete block is a subclass in `Rendering/ImageBlocks.cs` declaring its id with `[ImageBlock(id)]`, found by reflection — **adding a block type means adding a class with that attribute, and nothing else**. Spec in `Rendering/CpuImage.sp`; both the id table and the spec's worked example are pinned by `Tests/CpuImageFormatTests.cs`.
 
 Everything else is JSON under `Assets/Data/` (bullet visuals, entity visuals, playable characters, stages, endings, trophies, music descriptions) plus `config.json` at the root.
 

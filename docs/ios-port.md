@@ -1,6 +1,7 @@
 # iOS (iPadOS) port — roadmap
 
-Target: run the game on iPhone/iPad via **[.NET for iOS](https://learn.microsoft.com/dotnet/ios/)**
+Target: run the game, and the **Nikitos Engine** under it, on iPhone/iPad via
+**[.NET for iOS](https://learn.microsoft.com/dotnet/ios/)**
 (`net10.0-ios`, full AOT) with **[MoltenVK](https://github.com/KhronosGroup/MoltenVK)** — Vulkan-over-Metal —
 so the existing `Rendering/VulkanBackend.cs` can be reused instead of writing a native Metal backend.
 
@@ -106,7 +107,7 @@ Mirror `Android/` file-for-file:
 - **`IosPlatform`** — set `Platform.DataDirectory` to the app's Documents dir
   (`Environment.GetFolderPath(SpecialFolder.Personal)`), `TraceHandler`/`FatalErrorHandler` → `NSLog` /
   `Console.Error`. (`Utils/Platform.cs` is already the hook seam.)
-- **`IosAudio : IAudio`** — the one genuinely new subsystem. Implement against **AVAudioEngine** (or OpenAL via
+- **`IosAudio : IAudio`** — Demidonic's iOS half, and the one genuinely new subsystem. Implement against **AVAudioEngine** (or OpenAL via
   `OpenTK`/`Silk.NET.OpenAL`). Model it on `Android/AndroidAudio.cs`; the game only needs SFX one-shots + a
   volume, so a small player-pool over AVAudioPlayerNode is enough. (Music is currently stubbed —
   `Helper.UpdatePlayingMusic` throws — so audio scope is SFX only for now.)

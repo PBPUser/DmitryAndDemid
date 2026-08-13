@@ -3,7 +3,8 @@ using System.Numerics;
 namespace DmitryAndDemid.Rendering;
 
 /// <summary>
-/// Opaque references to backend-owned GPU/audio resources. The backend keeps the real object (a Raylib
+/// The Nikitos Engine's opaque references to backend-owned GPU/audio resources. The backend keeps the real
+/// object (a Raylib
 /// Texture2D, a GL texture name, …) in a private table and hands out an id, so game code never names a
 /// backend type. Id 0 always means "nothing", which preserves the `if (thing.Id != 0)` checks the game
 /// already makes against Raylib's own handles.

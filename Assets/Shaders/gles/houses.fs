@@ -5,7 +5,7 @@ precision highp sampler2D;
 out vec4 _fragColorOut;
 
 // Infinite low-house cityscape seen from a low-flying camera (~9 m above ground).
-// The engine is 2D/orthographic, so the whole perspective ground plane is raymarched
+// Likhanov32D rasterises in 2D/orthographic only, so the whole perspective ground plane is raymarched
 // here in the fragment shader. Driven by a single `time` uniform (seconds); the camera
 // flies forward forever over a domain-repeated grid of small houses.
 

@@ -1,8 +1,8 @@
 #version 330
 
 // Infinite low-house cityscape seen from a low-flying camera (~9 m above ground).
-// The engine is 2D/orthographic, so the whole perspective ground plane is raymarched
-// here in the fragment shader. Driven by a single `time` uniform (seconds); the camera
+// Likhanov32D rasterises in 2D/orthographic only, so the whole perspective ground plane is raymarched
+// here in the fragment shader — the 3D half of that name is this, not a geometry pipeline. Driven by a single `time` uniform (seconds); the camera
 // flies forward forever over a domain-repeated grid of small houses.
 
 in vec2 fragTexCoord;

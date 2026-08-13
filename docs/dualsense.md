@@ -1,6 +1,6 @@
 # DualSense support
 
-The game reads a DualSense as an ordinary gamepad through whichever backend is running (GLFW/SDL under Raylib,
+The Nikitos Engine reads a DualSense as an ordinary gamepad through whichever backend is running (GLFW/SDL under Raylib,
 Silk.NET under the OpenGL and Vulkan backends) — buttons and sticks have always worked and are untouched by any
 of this. What this feature adds is the hardware that generic path cannot see:
 
@@ -47,7 +47,7 @@ four seconds. Anything unavailable is reported with the errno that made it so.
   free.
 - **Rumble** — death (heavy), bomb, extend (light tick), spell-card start.
 - **Buttons** — with a DualSense connected, the controller settings screen names buttons the way the pad does
-  (Cross, Square, R1, Options) instead of the engine's positional names (RightFaceDown, …).
+  (Cross, Square, R1, Options) instead of the Nikitos Engine's positional names (RightFaceDown, …).
 
 On first launch with a DualSense connected the game applies a DualSense layout — shoot on Cross, bomb on Square,
 focus on R1, pause on Options. It does this **only** if the bindings are still the shipped defaults, so it can

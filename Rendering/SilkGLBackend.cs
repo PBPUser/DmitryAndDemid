@@ -16,7 +16,7 @@ using DmitryAndDemid.Utils;
 namespace DmitryAndDemid.Rendering;
 
 /// <summary>
-/// Second renderer: Silk.NET windowing + OpenGL 3.3 core.
+/// Second renderer for the Nikitos Engine: Silk.NET windowing + OpenGL 3.3 core.
 ///
 /// It deliberately reproduces Raylib's conventions rather than inventing its own, which is what lets the
 /// game's ~60 existing GLSL shaders load UNCHANGED:

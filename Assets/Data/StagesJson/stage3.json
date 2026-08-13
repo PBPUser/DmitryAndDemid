@@ -73,6 +73,32 @@
     },
     {
       "Header": [
+        2,
+        16,
+        1500,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Dialogs": [],
+      "Id": "dmitry#stage3#nonspell1",
+      "SpellcardTitle": "",
+      "BossName": "Дмитрий",
+      "CreateScript": "dmitry#stage3#nonspell1#create",
+      "UpdateScript": "",
+      "SpellcardTexture": "",
+      "SpellcardShader": "",
+      "TimeoutCard": false,
+      "BossInvincible": false,
+      "HasDialogs": false,
+      "UseUpdateScript": false,
+      "UseCreateScript": true,
+      "ApplyShader": false
+    },
+    {
+      "Header": [
         3,
         0,
         1800,
@@ -125,6 +151,32 @@
     },
     {
       "Header": [
+        2,
+        16,
+        1500,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Dialogs": [],
+      "Id": "dmitry#stage3#nonspell2",
+      "SpellcardTitle": "",
+      "BossName": "Дмитрий",
+      "CreateScript": "dmitry#stage3#nonspell2#create",
+      "UpdateScript": "",
+      "SpellcardTexture": "",
+      "SpellcardShader": "",
+      "TimeoutCard": false,
+      "BossInvincible": false,
+      "HasDialogs": false,
+      "UseUpdateScript": false,
+      "UseCreateScript": true,
+      "ApplyShader": false
+    },
+    {
+      "Header": [
         3,
         0,
         1800,
@@ -174,6 +226,32 @@
       "UseUpdateScript": false,
       "UseCreateScript": true,
       "ApplyShader": true
+    },
+    {
+      "Header": [
+        2,
+        16,
+        1500,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Dialogs": [],
+      "Id": "dmitry#stage3#nonspell3",
+      "SpellcardTitle": "",
+      "BossName": "Дмитрий",
+      "CreateScript": "dmitry#stage3#nonspell3#create",
+      "UpdateScript": "",
+      "SpellcardTexture": "",
+      "SpellcardShader": "",
+      "TimeoutCard": false,
+      "BossInvincible": false,
+      "HasDialogs": false,
+      "UseUpdateScript": false,
+      "UseCreateScript": true,
+      "ApplyShader": false
     },
     {
       "Header": [

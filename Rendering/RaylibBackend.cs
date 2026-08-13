@@ -10,7 +10,8 @@ using DmitryAndDemid.Utils;
 namespace DmitryAndDemid.Rendering;
 
 /// <summary>
-/// Raylib implementation of <see cref="IBackend"/>. Together with SilkGLBackend these are the ONLY files
+/// Raylib implementation of <see cref="IBackend"/> — the Nikitos Engine's default backend on desktop.
+/// Together with SilkGLBackend these are the ONLY files
 /// that may reference a graphics API; everything else goes through <see cref="Engine"/>/<see cref="Gfx"/>.
 /// </summary>
 public sealed class RaylibBackend : IBackend

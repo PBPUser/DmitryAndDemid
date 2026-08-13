@@ -125,8 +125,10 @@ public class Runtime
         Scale = Width / 640d;
         ScaleF = (float)Scale;
         var size = 100 * ScaleF;
+        // Engine name AND backend name: the Nikitos Engine is the seam, the backend is what it is running on
+        // this launch, and a bug report that says only "Vulkan" has told us half of what we need.
         Engine.Platform.OpenWindow(width, height,
-            $"AAG2 ~ Subhumanian Fartalism [{Engine.BackendName}]");
+            $"AAG2 ~ Subhumanian Fartalism [{Engine.Name} / {Engine.BackendName}]");
         Engine.Platform.SetWindowIcon("Assets/Textures/icon.png");
         SetWindowMode(Config.FullScreenType);
         Backbuffer = LoadRenderTexture(Width, Height);
@@ -144,7 +146,7 @@ public class Runtime
         BeginTextureMode(Backbuffer);
         ClearBackground(Rgba.Black);
         if (showBuild)
-            DrawText($"Version: {VersionString}; Build: {BuildInfo.Number}; Renderer: {rendererName}", 0, 0, (int)(14 * ScaleF),Rgba.White);
+            DrawText($"{Engine.Name}; Version: {VersionString}; Build: {BuildInfo.Number}; Renderer: {rendererName}", 0, 0, (int)(14 * ScaleF),Rgba.White);
         DrawTexturePro(sugarTexture,
             new Rect(Vector2.Zero, 400, 400),
             new Rect((Width - size) / 2, (Height - size) / 2, size, size),
@@ -813,7 +815,10 @@ public class Runtime
             // Debug builds show renderer / version / build at the top-right of the game area.
             var vf = Fonts["kodemono"];
             float vfs = 14 * ScaleF;
-            string leftDebugInformation = $"Subhumanian Fartalism {VersionString} ({VersionString}/{BuildInfo.Number})\n{GetFPS()} fps T: {(Config.FrameCap == -1 ? "inf" : Config.FrameCap)}";
+            // The Lihanov name here, the Nikitos one on the splash and the window title — both are the engine's,
+            // and this overlay is where a developer is reading rather than a player, so it gets the one the
+            // codebase's own comments tend to use.
+            string leftDebugInformation = $"Subhumanian Fartalism {VersionString} ({VersionString}/{BuildInfo.Number})\n{Engine.AlternateName} on {Engine.BackendName}\n{GetFPS()} fps T: {(Config.FrameCap == -1 ? "inf" : Config.FrameCap)}";
             string rightDebugInformation = $"Runtime: {RuntimeInformation.FrameworkDescription} {RuntimeInformation.ProcessArchitecture}\nMem: {Benchmark.FormatBytes(DebugRamBytes)}\nVMem: {Benchmark.FormatBytes(DebugVramBytes)}\n \nCPU: {Environment.ProcessorCount}x ({SystemInfo.CoreTopology}) {SystemInfo.CpuName} @ {SystemInfo.MaxClockMHz} MHz\n \nDisplay: {GetScreenWidth()}x{GetScreenHeight()} ({SystemInfo.PhysicalCores})\n \n{Config.Renderer}";
             float leftX = WindowMode == FullScreenType.Window ? 0 : PresentRect.X;
             float rightX = WindowMode == FullScreenType.Window ? Width : PresentRect.X + PresentRect.Width;
