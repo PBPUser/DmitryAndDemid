@@ -3,7 +3,7 @@ using DmitryAndDemid.Utils;
 
 namespace DmitryAndDemid.Rendering;
 
-// Every block type the .negr format defines, one class each, specified in Rendering/CpuImage.sp. The ids in the
+// Every block type the .negr format defines, one class each, specified in Data/Archive/CpuImage.sp. The ids in the
 // attributes below and the ids in that file are the same list, and it is the file to change first. Adding a
 // block here is all it takes to make it readable — see ImageBlockAttribute.
 
@@ -72,6 +72,50 @@ public sealed class ResolutionBlock : ImageBlock
     }
 }
 
+/// <summary>
+/// The manifest: what is true of the image as a whole rather than of any one tile. One varint of flags, and
+/// today exactly one flag in it — <see cref="FlagAlphaEnabled"/>.
+///
+/// It has to be read before any <see cref="TileBlock"/> because it decides how long a tile's payload is: with
+/// alpha every pixel is 4 bytes, without it 3. That is the whole reason the alpha bit lives here and not in
+/// each tile — 8 bits once per file instead of a redundant per-tile repeat of a decision that cannot vary
+/// within an image anyway.
+/// </summary>
+[ImageBlock(0x02)]
+public sealed class ManifestBlock : ImageBlock
+{
+    /// <summary>The image carries an alpha channel. Clear means every pixel is opaque and no tile stores an
+    /// alpha byte — a quarter smaller, and the normal case for a background or a sheet with no cutouts.</summary>
+    public const int FlagAlphaEnabled = 0x01;
+
+    public int Flags;
+
+    public bool AlphaEnabled
+    {
+        get => (Flags & FlagAlphaEnabled) != 0;
+        set => Flags = value ? Flags | FlagAlphaEnabled : Flags & ~FlagAlphaEnabled;
+    }
+
+    public ManifestBlock() { }
+
+    public ManifestBlock(bool alphaEnabled) => AlphaEnabled = alphaEnabled;
+
+    protected override void ReadPayload(BitPackage payload, int length)
+    {
+        ulong flags = payload.ReadVarULong();
+        if (flags > int.MaxValue)
+            throw new InvalidDataException($"A MANIFEST block declares flags of {flags}");
+        // Unknown flags are NOT an error. A flag bit cannot change how anything already understood is read —
+        // that is what a new required block type is for — so an old reader ignoring one still decodes the file
+        // exactly right. Same forward-compatibility bargain the optional-block rule makes, one level down.
+        Flags = (int)flags;
+    }
+
+    protected override void WritePayload(BitPackage payload) => payload.WriteVarULong((ulong)Flags);
+
+    public override void Apply(CpuImageBuilder image) => image.SetManifest(Flags);
+}
+
 /// <summary>One key/value pair of free-form text. Optional — a reader that does not care about metadata skips
 /// these — and there may be any number of them, anywhere in the file.</summary>
 [ImageBlock(0x04, Required = false)]
@@ -104,139 +148,121 @@ public sealed class MetadataBlock : ImageBlock
 }
 
 /// <summary>
-/// What the two pixel-carrying blocks share: a payload that is nothing but bytes, and a decoded form that is
-/// appended to the image in file order. Abstract, so it claims no id of its own. Both decode to RGBA8888 — the
-/// format's one pixel layout, see <see cref="ResolutionBlock"/>.
+/// A tile: one 16x16 patch of the image, and the instructions for painting it. Every pixel-carrying block in
+/// the format is one of these — the image is a grid of tiles in row-major order (left to right, then top to
+/// bottom) and the Nth tile block in the file is the Nth cell of that grid, so a tile carries no coordinates
+/// of its own. Abstract, so it claims no id; the concrete encodings take ids from 0x10 up.
+///
+/// Why tiles and not scanlines: a tile is a square of the picture, so whatever an encoding is good at — one
+/// flat colour, four colours, a gradient, a repeat of the tile above — it can decide per patch and say so in
+/// one byte, with no run ever having to survive the wrap from the end of a row to the start of the next.
+/// Every encoding decodes to the same thing, a 16x16 block of RGBA8888, so a reader mixes them freely and a
+/// writer picks whichever is smallest for each patch independently.
+///
+/// The grid covers the image and then some: a 20x20 image is 2x2 tiles, and the tiles hanging off the right
+/// and bottom edges are still whole 16x16 blocks. Their out-of-image pixels are written as zero and DISCARDED
+/// on read — see <see cref="CpuImageBuilder.AppendTile"/>. That keeps every tile the same size, which is what
+/// lets a payload length be checked against the manifest instead of against the tile's position.
 /// </summary>
-public abstract class PixelsBlock : ImageBlock
+public abstract class TileBlock : ImageBlock
 {
-    /// <summary>The payload as it sits on disk — pixels for <see cref="PixelsRawBlock"/>, coded runs for
-    /// <see cref="PixelsRleBlock"/>.</summary>
-    public byte[] Data = [];
+    /// <summary>A tile is 16x16. Not a parameter — it is the format.</summary>
+    public const int Size = 16;
 
-    /// <summary>The cheaper of the two encodings for one horizontal strip of an image. Compression is decided
-    /// per strip and per file, never per format: a reader takes whichever it is given.</summary>
-    public static PixelsBlock ForStrip(ReadOnlySpan<byte> strip)
-    {
-        byte[] coded = CpuImageRle.Encode(strip);
-        return coded.Length < strip.Length
-            ? new PixelsRleBlock { Data = coded }
-            : new PixelsRawBlock { Data = strip.ToArray() };
-    }
+    /// <summary>Pixels in one tile: 256.</summary>
+    public const int PixelCount = Size * Size;
+
+    /// <summary>A decoded tile, always RGBA8888 whatever the encoding: 1024 bytes.</summary>
+    public const int DecodedLength = PixelCount * 4;
+
+    /// <summary>The payload exactly as it sits on disk. What it means is the subclass's business.</summary>
+    public byte[] Data = [];
 
     protected override void ReadPayload(BitPackage payload, int length) =>
         Data = length == 0 ? [] : payload.Read(length);
 
     protected override void WritePayload(BitPackage payload) => payload.Write(Data);
-}
 
-/// <summary>Pixel bytes, verbatim.</summary>
-[ImageBlock(0x02)]
-public sealed class PixelsRawBlock : PixelsBlock
-{
-    public override void Apply(CpuImageBuilder image) => image.AppendPixels(Data);
-}
+    public override void Apply(CpuImageBuilder image)
+    {
+        Span<byte> tile = stackalloc byte[DecodedLength];
+        Decode(Data, image.AlphaEnabled, tile);
+        image.AppendTile(tile);
+    }
 
-/// <summary>Pixel bytes, run-length coded — see <see cref="CpuImageRle"/>.</summary>
-[ImageBlock(0x03)]
-public sealed class PixelsRleBlock : PixelsBlock
-{
-    public override void Apply(CpuImageBuilder image) => image.AppendCodedPixels(Data);
+    /// <summary>
+    /// Paints this tile into <paramref name="rgba"/> — <see cref="DecodedLength"/> bytes, row-major, RGBA8888.
+    /// <paramref name="alphaEnabled"/> comes from the file's manifest, not from the tile: it is a property of
+    /// the image, and a tile that disagrees with it is a corrupt tile.
+    /// </summary>
+    protected abstract void Decode(ReadOnlySpan<byte> payload, bool alphaEnabled, Span<byte> rgba);
 }
 
 /// <summary>
-/// The run-length coding a <see cref="PixelsRleBlock"/> carries. Runs are counted in whole 4-byte pixels, never
-/// in bytes, so a run can never split a pixel — which is what makes a flat-colour bullet sprite (long stretches
-/// of one RGBA value, and long stretches of transparent black) cheap without any per-channel bookkeeping.
+/// The first and simplest tile encoding: the colours themselves, one pixel after another, uncompressed. 256
+/// pixels in row-major order, each 8 bits per channel — R G B A when the manifest enables alpha, R G B when it
+/// does not, in which case every pixel decodes fully opaque. So a payload is exactly 1024 or 768 bytes and
+/// nothing else, which is the check <see cref="Decode"/> makes before it reads a thing.
 ///
-/// Control byte: high bit clear is a literal run of <c>(c &amp; 0x7F) + 1</c> pixels that follow uncoded, high
-/// bit set is <c>(c &amp; 0x7F) + 2</c> copies of the single pixel that follows. See <c>Rendering/CpuImage.sp</c>.
+/// This is the floor every other encoding is measured against: any tile can be written this way, so a writer
+/// that cannot do better always has this, and a reader that supports only this can still read any file whose
+/// writer had nothing better to offer.
 /// </summary>
-public static class CpuImageRle
+[ImageBlock(0x10)]
+public sealed class RawColorTileBlock : TileBlock
 {
-    public const int MaxLiteral = 128;
-    public const int MaxRepeat = 129;
+    /// <summary>How many bytes one pixel takes on disk: 4 with alpha, 3 without.</summary>
+    public static int BytesPerPixel(bool alphaEnabled) => alphaEnabled ? 4 : 3;
 
-    /// <summary>Codes a whole number of pixels. <see cref="PixelsBlock.ForStrip"/> compares the result's length
-    /// against the raw input's, so this is free to come out longer than what it was given — it does, on noisy
-    /// data, by one control byte per 128 pixels.</summary>
-    public static byte[] Encode(ReadOnlySpan<byte> pixels)
-    {
-        int count = pixels.Length / 4;
-        List<byte> output = new(pixels.Length / 2 + 8);
-        int i = 0;
-        while (i < count)
-        {
-            int repeat = 1;
-            while (repeat < MaxRepeat && i + repeat < count && SamePixel(pixels, i, i + repeat))
-                repeat++;
-            if (repeat >= 2)
-            {
-                output.Add((byte)(0x80 | (repeat - 2)));
-                AppendPixels(output, pixels, i, 1);
-                i += repeat;
-                continue;
-            }
-            // Not a run, so gather literals until one starts. The first pixel always goes in (we only got here
-            // because it differs from its neighbour), so a literal run is never empty and the count never
-            // underflows its control byte.
-            int start = i;
-            int literal = 0;
-            while (i < count && literal < MaxLiteral && !(i + 1 < count && SamePixel(pixels, i, i + 1)))
-            {
-                i++;
-                literal++;
-            }
-            output.Add((byte)(literal - 1));
-            AppendPixels(output, pixels, start, literal);
-        }
-        return output.ToArray();
-    }
+    /// <summary>The only payload length this block may have, given the manifest.</summary>
+    public static int PayloadLength(bool alphaEnabled) => PixelCount * BytesPerPixel(alphaEnabled);
 
-    /// <summary>Decodes into <paramref name="destination"/> and returns how many bytes it wrote. Every read and
-    /// every write is bounds-checked against the payload and the destination respectively: this runs on file
-    /// bytes, which may be corrupt, and a truncated run must throw rather than walk off either end.</summary>
-    public static int Decode(ReadOnlySpan<byte> payload, Span<byte> destination)
+    /// <summary>
+    /// Cuts the tile at (<paramref name="tileX"/>, <paramref name="tileY"/>) — tile coordinates, so pixel
+    /// (tileX*16, tileY*16) — out of <paramref name="image"/>. Pixels past the right or bottom edge are written
+    /// as zero: they are outside the image, a reader throws them away, and zero keeps the bytes deterministic
+    /// so the same image always encodes to the same file.
+    /// </summary>
+    public static RawColorTileBlock ForTile(CpuImage image, int tileX, int tileY, bool alphaEnabled)
     {
-        int read = 0, written = 0;
-        while (read < payload.Length)
+        int bytesPerPixel = BytesPerPixel(alphaEnabled);
+        byte[] data = new byte[PayloadLength(alphaEnabled)];
+        for (int row = 0; row < Size; row++)
         {
-            byte control = payload[read++];
-            if ((control & 0x80) == 0)
+            int y = tileY * Size + row;
+            if (y >= image.Height)
+                break;
+            for (int column = 0; column < Size; column++)
             {
-                int bytes = ((control & 0x7F) + 1) * 4;
-                if (read + bytes > payload.Length)
-                    throw new InvalidDataException("Truncated RLE literal run");
-                if (written + bytes > destination.Length)
-                    throw new InvalidDataException("An RLE block decodes to more pixels than the image holds");
-                payload.Slice(read, bytes).CopyTo(destination.Slice(written));
-                read += bytes;
-                written += bytes;
-            }
-            else
-            {
-                int repeat = (control & 0x7F) + 2;
-                if (read + 4 > payload.Length)
-                    throw new InvalidDataException("Truncated RLE repeat run");
-                if (written + repeat * 4 > destination.Length)
-                    throw new InvalidDataException("An RLE block decodes to more pixels than the image holds");
-                ReadOnlySpan<byte> pixel = payload.Slice(read, 4);
-                for (int k = 0; k < repeat; k++)
-                    pixel.CopyTo(destination.Slice(written + k * 4));
-                read += 4;
-                written += repeat * 4;
+                int x = tileX * Size + column;
+                if (x >= image.Width)
+                    break;
+                int source = (y * image.Width + x) * 4;
+                int destination = (row * Size + column) * bytesPerPixel;
+                data[destination] = image.Pixels[source];
+                data[destination + 1] = image.Pixels[source + 1];
+                data[destination + 2] = image.Pixels[source + 2];
+                if (alphaEnabled)
+                    data[destination + 3] = image.Pixels[source + 3];
             }
         }
-        return written;
+        return new RawColorTileBlock { Data = data };
     }
 
-    private static bool SamePixel(ReadOnlySpan<byte> pixels, int a, int b) =>
-        pixels.Slice(a * 4, 4).SequenceEqual(pixels.Slice(b * 4, 4));
-
-    private static void AppendPixels(List<byte> output, ReadOnlySpan<byte> pixels, int pixelIndex, int count)
+    protected override void Decode(ReadOnlySpan<byte> payload, bool alphaEnabled, Span<byte> rgba)
     {
-        int from = pixelIndex * 4, to = from + count * 4;
-        for (int i = from; i < to; i++)
-            output.Add(pixels[i]);
+        int bytesPerPixel = BytesPerPixel(alphaEnabled);
+        if (payload.Length != PixelCount * bytesPerPixel)
+            throw new InvalidDataException(
+                $"A raw-colour tile is {PixelCount * bytesPerPixel} bytes with alpha " +
+                $"{(alphaEnabled ? "enabled" : "disabled")}, this one is {payload.Length}");
+        for (int pixel = 0; pixel < PixelCount; pixel++)
+        {
+            int source = pixel * bytesPerPixel, destination = pixel * 4;
+            rgba[destination] = payload[source];
+            rgba[destination + 1] = payload[source + 1];
+            rgba[destination + 2] = payload[source + 2];
+            rgba[destination + 3] = alphaEnabled ? payload[source + 3] : (byte)0xFF;
+        }
     }
 }

@@ -7,7 +7,7 @@ namespace DmitryAndDemid.Rendering;
 /// </summary>
 public sealed class NullAudio : IAudio
 {
-    private int NextId = 1;
+    int NextId = 1;
 
     // Reports success: "no audio device" is a normal, non-fatal state on Android (the game otherwise stops on
     // its "cannot initialise audio" screen and never reaches the menu). Playback is simply a no-op.

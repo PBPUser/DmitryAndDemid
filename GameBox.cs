@@ -1170,7 +1170,6 @@ public class GameBox : IDisposable
                 {
                     var time = GetTime();
                     Helper.PlaySound(Runtime.CurrentRuntime.Sounds["finalDefeat"]);
-                    // TODO: Play boss death
                     obj.Header[0] |= RuntimeObject.FlagIsDied;
                     Player.GameBox.AddScreenEffect(new ShakeScreenEffect(Player.GameBox, 0.1f,  20, 100, 
                         time, time+.5f));
@@ -1184,7 +1183,7 @@ public class GameBox : IDisposable
                 }
                 else
                 {
-                    Helper.PlaySound(Runtime.CurrentRuntime.Sounds["defeat" + new Random(bm).Next(0, 1)]);
+                    Helper.PlaySound(Runtime.CurrentRuntime.Sounds["defeat0"]);
                     SpawnDrop(obj.Position, IsFailed && (obj.Header[0] & RuntimeObject.FlagUseBadDropScenario) == RuntimeObject.FlagUseBadDropScenario ? obj.BadDrop : obj.GoodDrop);
                     obj.UpdateAction = null;
                 }
@@ -1195,6 +1194,7 @@ public class GameBox : IDisposable
                 {
                     SpawnDrop(obj.Position, IsFailed && (obj.Header[0] & RuntimeObject.FlagUseBadDropScenario) == RuntimeObject.FlagUseBadDropScenario ? obj.BadDrop : obj.GoodDrop);
                 }
+                Helper.PlaySound(Runtime.CurrentRuntime.Sounds["defeat1"]);
                 RemoveObject(obj);
             }
 

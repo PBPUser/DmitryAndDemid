@@ -33,7 +33,7 @@ public sealed class ImageBlockAttribute(byte id) : Attribute
 
 /// <summary>
 /// One block of a <c>.negr</c> image file — <c>[Type:1][Length:varint][Payload:Length]</c> — and all the framing
-/// logic <see cref="CpuImage.Load"/> and <see cref="CpuImage.Save"/> need. <c>Rendering/CpuImage.sp</c> is the
+/// logic <see cref="CpuImage.Load"/> and <see cref="CpuImage.Save"/> need. <c>Data/Archive/CpuImage.sp</c> is the
 /// format's specification; the concrete blocks live in <c>Rendering/ImageBlocks.cs</c>.
 ///
 /// Everything a block has to do is one of four things, and the base class owns the parts that are the same for
@@ -54,7 +54,7 @@ public abstract class ImageBlock
 
     /// <summary>A ceiling on one block's payload, checked before the read allocates it. A corrupt or hostile file
     /// can claim any length it likes in a varint; without this, one bad byte becomes a multi-gigabyte
-    /// allocation. Far above any strip <see cref="CpuImage.Save"/> produces.</summary>
+    /// allocation. Far above the fixed 768/1024 bytes a tile costs.</summary>
     public const int MaxPayloadLength = 256 * 1024 * 1024;
 
     private static readonly FrozenDictionary<byte, Type> ByTypeByte;
@@ -106,15 +106,15 @@ public abstract class ImageBlock
 
     /// <summary>Decodes this block's payload. <paramref name="payload"/> reads only this block's bytes, so a
     /// block cannot run off into the next one; <paramref name="length"/> is how many there are, which the blocks
-    /// with a variable-length tail (the pixel ones) need and the rest ignore.</summary>
+    /// with a bulk tail (the tiles) need and the rest ignore.</summary>
     protected abstract void ReadPayload(BitPackage payload, int length);
 
     /// <summary>Encodes this block's payload. The length is the caller's problem, not the block's.</summary>
     protected abstract void WritePayload(BitPackage payload);
 
     /// <summary>Folds this block into the image being decoded. This is where a block's meaning lives, as opposed
-    /// to its encoding: RESOLUTION sizes the pixel buffer, a PIXELS block appends to it, METADATA adds a
-    /// pair.</summary>
+    /// to its encoding: RESOLUTION sizes the pixel buffer, MANIFEST says how tiles are laid out, a tile block
+    /// paints its 16x16 patch of it, METADATA adds a pair.</summary>
     public abstract void Apply(CpuImageBuilder image);
 
     /// <summary>
@@ -200,16 +200,30 @@ public sealed class CpuImageBuilder(string path)
     public int Width { get; private set; }
     public int Height { get; private set; }
 
-    /// <summary>Null until the RESOLUTION block sizes it; full once <see cref="Filled"/> reaches its length.</summary>
+    /// <summary>Null until the RESOLUTION block sizes it; complete once <see cref="TilesSeen"/> reaches
+    /// <see cref="TileCount"/>.</summary>
     public byte[]? Pixels { get; private set; }
 
-    /// <summary>How many pixel bytes the PIXELS blocks so far have contributed.</summary>
-    public int Filled { get; private set; }
+    /// <summary>From the MANIFEST block: whether tiles carry an alpha byte per pixel. Decides how long a tile
+    /// payload is, which is why a tile before the manifest cannot be read at all.</summary>
+    public bool AlphaEnabled { get; private set; }
+
+    private bool ManifestSeen;
+
+    /// <summary>How many <see cref="TileBlock"/>s have been placed. Also *which* tile comes next: tiles carry no
+    /// coordinates, their position in the file is their position in the grid.</summary>
+    public int TilesSeen { get; private set; }
 
     public Dictionary<string, string> Metadata { get; } = new();
 
+    /// <summary>Tiles across and down. The grid covers the image and overhangs it: a 20-pixel width is 2 tiles,
+    /// the second of which is half outside.</summary>
+    public int TileColumns => (Width + TileBlock.Size - 1) / TileBlock.Size;
+    public int TileRows => (Height + TileBlock.Size - 1) / TileBlock.Size;
+    public int TileCount => TileColumns * TileRows;
+
     /// <summary>Sizes the image. Called by <see cref="ResolutionBlock"/>, which the format requires to come
-    /// before any pixels.</summary>
+    /// before any tile.</summary>
     public void Allocate(int width, int height)
     {
         if (Pixels != null)
@@ -222,26 +236,51 @@ public sealed class CpuImageBuilder(string path)
         Pixels = new byte[size];
     }
 
-    public void AppendPixels(ReadOnlySpan<byte> pixels)
+    /// <summary>Takes the image-wide flags. Called by <see cref="ManifestBlock"/>.</summary>
+    public void SetManifest(int flags)
     {
-        RequireResolution();
-        if (Filled + pixels.Length > Pixels.Length)
-            throw new InvalidDataException($"{path} holds more pixel bytes than its {Width}x{Height} image needs");
-        pixels.CopyTo(Pixels.AsSpan(Filled));
-        Filled += pixels.Length;
+        if (ManifestSeen)
+            throw new InvalidDataException($"{path} has more than one MANIFEST block");
+        ManifestSeen = true;
+        AlphaEnabled = (flags & ManifestBlock.FlagAlphaEnabled) != 0;
     }
 
-    public void AppendCodedPixels(ReadOnlySpan<byte> coded)
+    /// <summary>
+    /// Places one decoded 16x16 tile — <see cref="TileBlock.DecodedLength"/> bytes of RGBA8888 — at the next
+    /// cell of the grid, clipped to the image. The clipping is the whole reason a tile may overhang: an edge
+    /// tile brings 16 columns and the image takes however many of them are actually inside it.
+    /// </summary>
+    public void AppendTile(ReadOnlySpan<byte> rgba)
     {
-        RequireResolution();
-        Filled += CpuImageRle.Decode(coded, Pixels.AsSpan(Filled));
+        RequireResolutionAndManifest();
+        if (rgba.Length != TileBlock.DecodedLength)
+            throw new InvalidDataException(
+                $"{path}: a decoded tile is {TileBlock.DecodedLength} bytes, got {rgba.Length}");
+        if (TilesSeen >= TileCount)
+            throw new InvalidDataException(
+                $"{path} holds more than the {TileCount} tiles its {Width}x{Height} image is made of");
+
+        int left = TilesSeen % TileColumns * TileBlock.Size;
+        int top = TilesSeen / TileColumns * TileBlock.Size;
+        int columns = Math.Min(TileBlock.Size, Width - left);
+        for (int row = 0; row < TileBlock.Size; row++)
+        {
+            int y = top + row;
+            if (y >= Height)
+                break;
+            rgba.Slice(row * TileBlock.Size * 4, columns * 4)
+                .CopyTo(Pixels.AsSpan((y * Width + left) * 4));
+        }
+        TilesSeen++;
     }
 
     [MemberNotNull(nameof(Pixels))]
-    private void RequireResolution()
+    private void RequireResolutionAndManifest()
     {
         if (Pixels == null)
-            throw new InvalidDataException($"{path} has a PIXELS block before its RESOLUTION block");
+            throw new InvalidDataException($"{path} has a tile block before its RESOLUTION block");
+        if (!ManifestSeen)
+            throw new InvalidDataException($"{path} has a tile block before its MANIFEST block");
     }
 
     /// <summary>The finished image, or the reason the blocks did not make one.</summary>
@@ -249,9 +288,12 @@ public sealed class CpuImageBuilder(string path)
     {
         if (Pixels == null)
             throw new InvalidDataException($"{path} has no RESOLUTION block");
-        if (Filled != Pixels.Length)
+        if (!ManifestSeen)
+            throw new InvalidDataException($"{path} has no MANIFEST block");
+        if (TilesSeen != TileCount)
             throw new InvalidDataException(
-                $"{path} decodes to {Filled} pixel bytes, a {Width}x{Height} image needs {Pixels.Length}");
+                $"{path} holds {TilesSeen} tiles, a {Width}x{Height} image is {TileColumns}x{TileRows} = " +
+                $"{TileCount} of them");
         CpuImage image = CpuImage.FromPixels(Width, Height, Pixels);
         foreach ((string key, string value) in Metadata)
             image.Metadata[key] = value;

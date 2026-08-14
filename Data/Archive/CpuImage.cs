@@ -70,13 +70,13 @@ public class CpuImage
     }
 
     /// <summary>ASCII, 5 bytes, at offset 0 — the only bytes in a <c>.negr</c> file outside a block. Present so a
-    /// wrong file type is rejected on its first 4 bytes instead of being decoded as a nonsense block.</summary>
+    /// wrong file type is rejected on its first bytes instead of being decoded as a nonsense block.</summary>
     public const string Signature = "NEGR1";
 
     public const string Extension = ".negr";
 
     /// <summary>Reads the project's own <c>.negr</c> block format, the counterpart to <see cref="Save"/> and the
-    /// one image format here that does not go through StbImageSharp. <c>Rendering/CpuImage.sp</c> is the
+    /// one image format here that does not go through StbImageSharp. <c>Data/Archive/CpuImage.sp</c> is the
     /// specification.
     /// 
     /// The loop is the whole decoder: past the signature a file is nothing but blocks, so this reads one, hands
@@ -117,40 +117,49 @@ public class CpuImage
     /// PNG output would mean taking on an encoder dependency, whereas the block format is a few dozen lines over
     /// the <see cref="BitPackage"/> varints the rest of the game's binary files already use.
     ///
-    /// The pixels go out in horizontal strips of about <see cref="TargetStripBytes"/>, each strip written as
-    /// whichever of PIXELS_RAW / PIXELS_RLE is smaller. Per-strip rather than whole-image so a sprite sheet that
-    /// is flat colour at the top and noisy at the bottom pays for compression only where it wins — and so a
-    /// reader never has to hold a whole compressed image alongside the decoded one. Strip size is a choice made
-    /// here, not part of the format: <see cref="Load"/> just concatenates whatever it is given.</summary>
+    /// The pixels go out as 16x16 tiles, row-major, one block each — see <see cref="TileBlock"/>. Every tile
+    /// uses the one encoding that exists so far, <see cref="RawColorTileBlock"/>: the colours themselves,
+    /// uncompressed. Alpha is written only if the image actually uses it (<see cref="UsesAlpha"/>) — that is the
+    /// manifest bit a reader needs before it can size a single tile payload, and an opaque image comes out a
+    /// quarter smaller for it.</summary>
     public void Save(string path)
     {
         if(File.Exists(path))
             throw new IOException($"File {path} already exists");
         using BitPackage bitPackage = BitPackage.OpenStreamWritePackage(path);
 
+        bool alphaEnabled = UsesAlpha();
+
         bitPackage.WriteFixedString(Signature);
 
         new ResolutionBlock(Width, Height).Write(bitPackage);
+        new ManifestBlock(alphaEnabled).Write(bitPackage);
 
         foreach ((string key, string value) in Metadata)
             new MetadataBlock(key, value).Write(bitPackage);
 
-        int stride = Width * 4;
-        if (stride > 0)
-        {
-            int rowsPerStrip = Math.Max(1, TargetStripBytes / stride);
-            for (int y = 0; y < Height; y += rowsPerStrip)
-            {
-                int rows = Math.Min(rowsPerStrip, Height - y);
-                PixelsBlock.ForStrip(Pixels.AsSpan(y * stride, rows * stride)).Write(bitPackage);
-            }
-        }
+        int columns = (Width + TileBlock.Size - 1) / TileBlock.Size;
+        int rows = (Height + TileBlock.Size - 1) / TileBlock.Size;
+        for (int tileY = 0; tileY < rows; tileY++)
+            for (int tileX = 0; tileX < columns; tileX++)
+                RawColorTileBlock.ForTile(this, tileX, tileY, alphaEnabled).Write(bitPackage);
 
         new EndBlock().Write(bitPackage);
     }
 
-    /// <summary>How much of the image one PIXELS block covers, before coding. Rounded down to whole rows.</summary>
-    private const int TargetStripBytes = 64 * 1024;
+    /// <summary>
+    /// Whether any pixel is less than fully opaque — i.e. whether the alpha channel carries information, and so
+    /// whether tiles need to spend a fourth byte on it. Asks the pixels rather than trusting where they came
+    /// from: StbImageSharp decodes to RGBA whatever the source had, so a 24-bit PNG arrives with an all-255
+    /// alpha channel and is written without one.
+    /// </summary>
+    public bool UsesAlpha()
+    {
+        for (int i = 3; i < Pixels.Length; i += 4)
+            if (Pixels[i] != 0xFF)
+                return true;
+        return false;
+    }
 
     /// <summary>Uploads <see cref="Pixels"/> to the GPU and hands back a <see cref="TextureHandle"/>, so a
     /// CPU-side edited/generated image can be drawn like any other texture.

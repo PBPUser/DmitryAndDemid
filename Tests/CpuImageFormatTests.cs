@@ -7,14 +7,15 @@ namespace DmitryAndDemid.Tests;
 
 /// <summary>
 /// The <c>.negr</c> block format — <see cref="CpuImage.Save"/> / <see cref="CpuImage.Load"/>, specified in
-/// <c>Rendering/CpuImage.sp</c>. Pure byte work, no GPU and no repo assets: images are built in memory and
+/// <c>Data/Archive/CpuImage.sp</c>. Pure byte work, no GPU and no repo assets: images are built in memory and
 /// written to temp files.
 ///
-/// Two things here are worth more than the round-trips. One is <see cref="Spec_ExampleFile_MatchesByteForByte"/>,
-/// which pins the exact bytes of the example in the spec — that is what stops the spec and the encoder from
-/// drifting apart silently. The other is the pair of unknown-block tests: skipping an optional block by its
-/// declared length and refusing a required one is the entire reason the block header carries a type byte and a
-/// length, so if those two stop holding the format has lost its point even though every round-trip still passes.
+/// Three things here are worth more than the round-trips. <see cref="Spec_ExampleFile_MatchesByteForByte"/>
+/// pins the exact bytes of the example in the spec, which is what stops the spec and the encoder from drifting
+/// apart silently. The unknown-block pair — skipping an optional block by its declared length and refusing a
+/// required one — is the entire reason the block header carries a type byte and a length. And the ordering
+/// tests (tile before RESOLUTION, tile before MANIFEST) pin the one real constraint the tile grid imposes:
+/// neither the number of tiles nor the size of one can be known without both header blocks first.
 /// </summary>
 public class CpuImageFormatTests
 {
@@ -25,7 +26,7 @@ public class CpuImageFormatTests
         public readonly string Path;
 
         public TempPath() =>
-            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"cim-{Guid.NewGuid():N}.negr");
+            Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"negr-{Guid.NewGuid():N}.negr");
 
         public void Dispose()
         {
@@ -34,16 +35,17 @@ public class CpuImageFormatTests
         }
     }
 
-    /// <summary>Deterministic noise — pixel-wise incompressible, so every strip goes out as PIXELS_RAW.</summary>
+    /// <summary>Deterministic noise: every pixel different from its neighbours, and opaque, so it exercises the
+    /// no-alpha path on content that no future tile encoding will ever compress.</summary>
     private static CpuImage Noise(int width, int height)
     {
         byte[] pixels = new byte[width * height * 4];
         for (int i = 0; i < pixels.Length; i++)
-            pixels[i] = (byte)(i * 31 + i / 7);
+            pixels[i] = i % 4 == 3 ? (byte)0xFF : (byte)(i * 31 + i / 7);
         return CpuImage.FromPixels(width, height, pixels);
     }
 
-    /// <summary>One flat colour — every strip goes out as PIXELS_RLE.</summary>
+    /// <summary>One flat colour everywhere.</summary>
     private static CpuImage Flat(int width, int height, Rgba color)
     {
         byte[] pixels = new byte[width * height * 4];
@@ -76,9 +78,10 @@ public class CpuImageFormatTests
     [InlineData(1, 37)]
     [InlineData(37, 1)]
     [InlineData(0, 0)]
+    [InlineData(16, 16)]    // exactly one tile
+    [InlineData(17, 17)]    // one tile plus a sliver, i.e. 2x2 tiles mostly outside the image
     [InlineData(64, 64)]
-    // 384x8: the playfield's width, and wide enough that a strip boundary lands inside the image.
-    [InlineData(384, 8)]
+    [InlineData(384, 8)]    // the playfield's width; 24 tiles across, half a tile tall
     public void RoundTrip_Noise_IsExact(int width, int height)
     {
         CpuImage source = Noise(width, height);
@@ -88,26 +91,48 @@ public class CpuImageFormatTests
     [Theory]
     [InlineData(1, 1)]
     [InlineData(64, 64)]
-    [InlineData(384, 448)]
+    [InlineData(384, 448)]   // the playfield: 24x28 tiles, no overhang at all
     public void RoundTrip_FlatColour_IsExact(int width, int height)
     {
         CpuImage source = Flat(width, height, new Rgba(12, 34, 56, 200));
         AssertSameImage(source, SaveAndLoad(source));
     }
 
-    /// <summary>Half flat, half noise, so one file contains both PIXELS_RLE and PIXELS_RAW blocks and the
-    /// reader has to concatenate across the two types.</summary>
+    /// <summary>A size that is not a multiple of 16 in either direction, so the right and bottom tiles hang off
+    /// the image and the reader has to clip them. 37x21 is 3x2 tiles covering 48x32 — over a third of that area
+    /// is padding, and none of it may come back as image.</summary>
     [Fact]
-    public void RoundTrip_MixedStrips_IsExact()
+    public void RoundTrip_OverhangingEdgeTiles_IsExact()
     {
-        // 32 rows of 512px = 64 KiB, i.e. exactly one strip's worth per half.
-        const int width = 512, height = 64;
-        byte[] pixels = new byte[width * height * 4];
-        int half = pixels.Length / 2;
-        for (int i = half; i < pixels.Length; i++)
-            pixels[i] = (byte)(i * 31 + i / 7);
-        CpuImage source = CpuImage.FromPixels(width, height, pixels);
+        CpuImage source = Noise(37, 21);
         AssertSameImage(source, SaveAndLoad(source));
+    }
+
+    /// <summary>
+    /// Every pixel distinct across a multi-tile image, so a tile written or placed in the wrong order shows up
+    /// as scrambled output rather than as an exception. Row-major tile order is not otherwise observable — the
+    /// tiles carry no coordinates, so getting it wrong is silent.
+    /// </summary>
+    [Fact]
+    public void TilesArePlacedInRowMajorOrder()
+    {
+        const int width = 48, height = 32;   // 3x2 tiles
+        byte[] pixels = new byte[width * height * 4];
+        for (int y = 0; y < height; y++)
+            for (int x = 0; x < width; x++)
+            {
+                int i = (y * width + x) * 4;
+                pixels[i] = (byte)x;
+                pixels[i + 1] = (byte)y;
+                pixels[i + 2] = (byte)(x * 7 + y * 13);
+                pixels[i + 3] = 0xFF;
+            }
+        CpuImage source = CpuImage.FromPixels(width, height, pixels);
+        CpuImage loaded = SaveAndLoad(source);
+        AssertSameImage(source, loaded);
+        // Spot-check a pixel from the last tile specifically: if tiles were placed column-major this would be
+        // the one that moved.
+        Assert.Equal(new Rgba(47, 31, 47 * 7 + 31 * 13 & 0xFF, 0xFF), loaded.GetPixel(47, 31));
     }
 
     [Fact]
@@ -122,30 +147,73 @@ public class CpuImageFormatTests
         Assert.Equal("юникод and spaces", loaded.Metadata["note"]);
     }
 
+    /// <summary>
+    /// The manifest's alpha bit is decided from the pixels, not declared by the caller: an image that is opaque
+    /// everywhere is written 3 bytes per pixel, one that is not is written 4. Both round-trip, and the opaque
+    /// one is measurably smaller — which is the entire point of the bit.
+    /// </summary>
     [Fact]
-    public void FlatColour_CompressesWellBelowRaw()
+    public void AlphaIsWrittenOnlyWhenTheImageUsesIt()
     {
-        using TempPath temp = new();
-        CpuImage source = Flat(256, 256, Rgba.White);
-        source.Save(temp.Path);
-        // 256 KiB of one repeated pixel: 5 bytes per 129-pixel run, so well under a tenth of raw.
-        Assert.True(new FileInfo(temp.Path).Length < source.Pixels.Length / 10,
-            $"flat image took {new FileInfo(temp.Path).Length} bytes, raw is {source.Pixels.Length}");
+        CpuImage opaque = Flat(64, 64, Rgba.White);
+        CpuImage translucent = Flat(64, 64, Rgba.White with { A = 128 });
+        Assert.False(opaque.UsesAlpha());
+        Assert.True(translucent.UsesAlpha());
+
+        using TempPath opaquePath = new();
+        using TempPath translucentPath = new();
+        opaque.Save(opaquePath.Path);
+        translucent.Save(translucentPath.Path);
+
+        long withoutAlpha = new FileInfo(opaquePath.Path).Length;
+        long withAlpha = new FileInfo(translucentPath.Path).Length;
+        // 16 tiles either way: 16*768 payload bytes against 16*1024, so exactly 4096 apart.
+        Assert.Equal(4096, withAlpha - withoutAlpha);
+
+        AssertSameImage(opaque, CpuImage.Load(opaquePath.Path));
+        AssertSameImage(translucent, CpuImage.Load(translucentPath.Path));
     }
 
-    /// <summary>The worked example at the bottom of <c>Rendering/CpuImage.sp</c>, byte for byte.</summary>
+    /// <summary>One not-quite-opaque pixel anywhere turns the whole image's alpha on — there is one bit for the
+    /// image and no way to say "alpha in this corner only".</summary>
+    [Fact]
+    public void OneTranslucentPixelEnablesAlphaForTheWholeImage()
+    {
+        CpuImage image = Flat(40, 40, Rgba.White);
+        image.Pixels[(39 * 40 + 39) * 4 + 3] = 0xFE;   // the very last pixel, one step off opaque
+        Assert.True(image.UsesAlpha());
+        AssertSameImage(image, SaveAndLoad(image));
+    }
+
+    /// <summary>An image written without alpha decodes fully opaque, never with a zero alpha byte.</summary>
+    [Fact]
+    public void PixelsDecodeOpaqueWhenAlphaIsDisabled()
+    {
+        CpuImage loaded = SaveAndLoad(Flat(20, 20, new Rgba(1, 2, 3)));
+        for (int i = 3; i < loaded.Pixels.Length; i += 4)
+            Assert.Equal(0xFF, loaded.Pixels[i]);
+    }
+
+    /// <summary>The worked example at the bottom of <c>Data/Archive/CpuImage.sp</c>, byte for byte. A 1x1 image
+    /// still costs a whole tile — the smallest thing the format can say is 16x16.</summary>
     [Fact]
     public void Spec_ExampleFile_MatchesByteForByte()
     {
         using TempPath temp = new();
         CpuImage.FromPixels(1, 1, [0xFF, 0x00, 0x00, 0xFF]).Save(temp.Path);
-        Assert.Equal(new byte[]
-        {
-            0x43, 0x49, 0x4D, 0x31,             // "CIM1"
-            0x81, 0x02, 0x01, 0x01,             // RESOLUTION: 1x1
-            0x82, 0x04, 0xFF, 0x00, 0x00, 0xFF, // PIXELS_RAW: one red pixel
-            0x80, 0x00,                         // END
-        }, File.ReadAllBytes(temp.Path));
+        byte[] actual = File.ReadAllBytes(temp.Path);
+
+        byte[] expected = new byte[785];
+        int at = 0;
+        foreach (byte b in "NEGR1"u8) expected[at++] = b;
+        expected[at++] = 0x81; expected[at++] = 0x02; expected[at++] = 0x01; expected[at++] = 0x01; // RESOLUTION 1x1
+        expected[at++] = 0x82; expected[at++] = 0x01; expected[at++] = 0x00;                        // MANIFEST, no alpha
+        expected[at++] = 0x90; expected[at++] = 0x86; expected[at++] = 0x00;                        // TILE_RAW8, 768 bytes
+        expected[at++] = 0xFF; expected[at++] = 0x00; expected[at++] = 0x00;                        // the one red pixel
+        at += 765;                                                                                  // 255 zero pixels
+        expected[at++] = 0x80; expected[at++] = 0x00;                                               // END
+        Assert.Equal(expected.Length, at);
+        Assert.Equal(expected, actual);
     }
 
     /// <summary>The registry is built by reflection over the assembly, so a block class that is added wrong —
@@ -169,6 +237,22 @@ public class CpuImageFormatTests
         Assert.Equal(typeBytes.Count, typeBytes.Distinct().Count());
     }
 
+    /// <summary>Every tile encoding takes an id of 0x10 or above, which is what keeps the file's own structural
+    /// blocks and the interchangeable ways of spelling a patch in separate ranges.</summary>
+    [Fact]
+    public void TileEncodingsTakeIdsFrom0x10Up()
+    {
+        Type[] tileClasses = typeof(ImageBlock).Assembly.GetTypes()
+            .Where(t => !t.IsAbstract && t.IsSubclassOf(typeof(TileBlock)))
+            .ToArray();
+        Assert.NotEmpty(tileClasses);
+        foreach (Type tileClass in tileClasses)
+        {
+            ImageBlockAttribute descriptor = ((ImageBlock)Activator.CreateInstance(tileClass)!).Descriptor;
+            Assert.True(descriptor.Id >= 0x10, $"{tileClass.Name} is a tile encoding but claims id 0x{descriptor.Id:X2}");
+        }
+    }
+
     /// <summary>The base class's framing on its own, without a file around it: what one block writes is what the
     /// next read gives back, as the right subclass, positioned on the block after it.</summary>
     [Fact]
@@ -177,7 +261,8 @@ public class CpuImageFormatTests
         BitPackage written = new();
         new MetadataBlock("author", "нет").Write(written);
         new ResolutionBlock(3, 5).Write(written);
-        new PixelsRawBlock { Data = [1, 2, 3, 4] }.Write(written);
+        new ManifestBlock(alphaEnabled: true).Write(written);
+        new RawColorTileBlock { Data = new byte[RawColorTileBlock.PayloadLength(true)] }.Write(written);
         new EndBlock().Write(written);
 
         using BitPackage read = BitPackage.OpenReadMemoryPackage(written.Export());
@@ -187,7 +272,8 @@ public class CpuImageFormatTests
         ResolutionBlock resolution = Assert.IsType<ResolutionBlock>(ImageBlock.Read(read));
         Assert.Equal(3, resolution.Width);
         Assert.Equal(5, resolution.Height);
-        Assert.Equal<byte[]>([1, 2, 3, 4], Assert.IsType<PixelsRawBlock>(ImageBlock.Read(read)).Data);
+        Assert.True(Assert.IsType<ManifestBlock>(ImageBlock.Read(read)).AlphaEnabled);
+        Assert.Equal(1024, Assert.IsType<RawColorTileBlock>(ImageBlock.Read(read)).Data.Length);
         Assert.IsType<EndBlock>(ImageBlock.Read(read));
     }
 
@@ -209,18 +295,19 @@ public class CpuImageFormatTests
     private static byte TypeByteOf<T>() where T : ImageBlock, new() => new T().Descriptor.TypeByte;
 
     private static readonly byte ResolutionType = TypeByteOf<ResolutionBlock>();
-    private static readonly byte PixelsRawType = TypeByteOf<PixelsRawBlock>();
+    private static readonly byte ManifestType = TypeByteOf<ManifestBlock>();
+    private static readonly byte TileType = TypeByteOf<RawColorTileBlock>();
     private static readonly byte EndType = TypeByteOf<EndBlock>();
 
     /// <summary>Pins the id table in the <see cref="ImageBlockAttribute"/>s against the one in
-    /// <c>Rendering/CpuImage.sp</c>, including the required bit each type byte carries. Every other test here
+    /// <c>Data/Archive/CpuImage.sp</c>, including the required bit each type byte carries. Every other test here
     /// asks the attributes what the type bytes are, so this is the one that says what they must be.</summary>
     [Theory]
     [InlineData(typeof(EndBlock), 0x80, true)]
     [InlineData(typeof(ResolutionBlock), 0x81, true)]
-    [InlineData(typeof(PixelsRawBlock), 0x82, true)]
-    [InlineData(typeof(PixelsRleBlock), 0x83, true)]
+    [InlineData(typeof(ManifestBlock), 0x82, true)]
     [InlineData(typeof(MetadataBlock), 0x04, false)]
+    [InlineData(typeof(RawColorTileBlock), 0x90, true)]   // id 0x10 — tile encodings start there
     public void BlockTypeBytes_MatchTheSpec(Type blockClass, byte typeByte, bool required)
     {
         ImageBlockAttribute descriptor = ((ImageBlock)Activator.CreateInstance(blockClass)!).Descriptor;
@@ -237,6 +324,26 @@ public class CpuImageFormatTests
         return resolution.Export();
     }
 
+    private static byte[] ManifestPayload(bool alphaEnabled)
+    {
+        BitPackage manifest = new();
+        manifest.WriteVarULong(alphaEnabled ? ManifestBlock.FlagAlphaEnabled : 0u);
+        return manifest.Export();
+    }
+
+    /// <summary>A whole TILE_RAW8 payload whose first pixel is the given colour and whose other 255 are zero —
+    /// the shape of every tile in a small hand-built image.</summary>
+    private static byte[] TilePayload(bool alphaEnabled, byte r, byte g, byte b, byte a = 0xFF)
+    {
+        byte[] data = new byte[RawColorTileBlock.PayloadLength(alphaEnabled)];
+        data[0] = r;
+        data[1] = g;
+        data[2] = b;
+        if (alphaEnabled)
+            data[3] = a;
+        return data;
+    }
+
     private static CpuImage LoadBytes(byte[] bytes)
     {
         using TempPath temp = new();
@@ -244,20 +351,27 @@ public class CpuImageFormatTests
         return CpuImage.Load(temp.Path);
     }
 
+    /// <summary>The smallest legal file: both header blocks, one tile, END.</summary>
+    private static byte[] OnePixelFile() => BuildFile(
+        (ResolutionType, ResolutionPayload(1, 1)),
+        (ManifestType, ManifestPayload(false)),
+        (TileType, TilePayload(false, 0x10, 0x20, 0x30)),
+        (EndType, []));
+
     /// <summary>An optional block this build has never heard of is stepped over using its declared length, and
     /// the image behind it still loads. This is the forward-compatibility promise the format makes.</summary>
     [Fact]
     public void UnknownOptionalBlock_IsSkipped()
     {
-        byte[] pixel = [0x10, 0x20, 0x30, 0x40];
         CpuImage image = LoadBytes(BuildFile(
             (ResolutionType, ResolutionPayload(1, 1)),
             (0x2A, [1, 2, 3, 4, 5, 6, 7]),   // id 42, required bit clear
-            (PixelsRawType, pixel),
+            (ManifestType, ManifestPayload(false)),
+            (TileType, TilePayload(false, 0x10, 0x20, 0x30)),
             (0x7F, []),                      // id 127, required bit clear, empty
             (EndType, [])));
         Assert.Equal(1, image.Width);
-        Assert.Equal(pixel, image.Pixels);
+        Assert.Equal<byte[]>([0x10, 0x20, 0x30, 0xFF], image.Pixels);
     }
 
     /// <summary>The other half of that promise: a block the file says is load-bearing and this build cannot
@@ -267,21 +381,34 @@ public class CpuImageFormatTests
     {
         byte[] file = BuildFile(
             (ResolutionType, ResolutionPayload(1, 1)),
+            (ManifestType, ManifestPayload(false)),
             (0xAA, [1, 2, 3]),               // id 42, required bit SET
-            (PixelsRawType, [0x10, 0x20, 0x30, 0x40]),
+            (TileType, TilePayload(false, 0x10, 0x20, 0x30)),
             (EndType, []));
         InvalidDataException ex = Assert.Throws<InvalidDataException>(() => LoadBytes(file));
         Assert.Contains("0xAA", ex.Message);
     }
 
+    /// <summary>An unknown MANIFEST flag is deliberately NOT an error — a flag cannot change how anything
+    /// already understood is read, so a reader that ignores one still decodes the file exactly right.</summary>
+    [Fact]
+    public void UnknownManifestFlag_IsIgnored()
+    {
+        BitPackage manifest = new();
+        manifest.WriteVarULong(0x4000 | ManifestBlock.FlagAlphaEnabled);
+        CpuImage image = LoadBytes(BuildFile(
+            (ResolutionType, ResolutionPayload(1, 1)),
+            (ManifestType, manifest.Export()),
+            (TileType, TilePayload(true, 0x10, 0x20, 0x30, 0x44)),
+            (EndType, [])));
+        Assert.Equal<byte[]>([0x10, 0x20, 0x30, 0x44], image.Pixels);
+    }
+
     [Fact]
     public void WrongSignature_Throws()
     {
-        byte[] file = BuildFile(
-            (ResolutionType, ResolutionPayload(1, 1)),
-            (PixelsRawType, [0x10, 0x20, 0x30, 0x40]),
-            (EndType, []));
-        file[3] = (byte)'2';
+        byte[] file = OnePixelFile();
+        file[3] = (byte)'X';
         Assert.Throws<InvalidDataException>(() => LoadBytes(file));
     }
 
@@ -290,60 +417,107 @@ public class CpuImageFormatTests
     {
         byte[] file = BuildFile(
             (ResolutionType, ResolutionPayload(1, 1)),
-            (PixelsRawType, [0x10, 0x20, 0x30, 0x40]));
+            (ManifestType, ManifestPayload(false)),
+            (TileType, TilePayload(false, 0x10, 0x20, 0x30)));
         Assert.Throws<InvalidDataException>(() => LoadBytes(file));
     }
 
     [Fact]
-    public void TruncatedPayload_Throws()
-    {
-        byte[] file = BuildFile(
-            (ResolutionType, ResolutionPayload(4, 4)),
-            (PixelsRawType, new byte[64]),
-            (EndType, []));
-        Assert.Throws<InvalidDataException>(() => LoadBytes(file[..^20]));
-    }
+    public void TruncatedPayload_Throws() =>
+        Assert.Throws<InvalidDataException>(() => LoadBytes(OnePixelFile()[..^20]));
 
-    [Fact]
-    public void TooFewPixelBytes_Throws()
+    /// <summary>
+    /// A tile payload of the wrong length for the manifest's alpha bit. Both directions are corrupt: a tile is a
+    /// fixed 768 or 1024 bytes and there is no third option, which is exactly what lets the length be checked
+    /// against the manifest alone rather than against the tile's position in the grid.
+    /// </summary>
+    [Theory]
+    [InlineData(false, 1024)]   // alpha off, but 4 bytes per pixel written
+    [InlineData(true, 768)]     // alpha on, but only 3
+    [InlineData(false, 767)]
+    [InlineData(true, 0)]
+    public void TileOfTheWrongLength_Throws(bool alphaEnabled, int payloadLength)
     {
         byte[] file = BuildFile(
-            (ResolutionType, ResolutionPayload(4, 4)),
-            (PixelsRawType, new byte[32]),   // half a 4x4 image
-            (EndType, []));
-        Assert.Throws<InvalidDataException>(() => LoadBytes(file));
-    }
-
-    [Fact]
-    public void TooManyPixelBytes_Throws()
-    {
-        byte[] file = BuildFile(
-            (ResolutionType, ResolutionPayload(4, 4)),
-            (PixelsRawType, new byte[128]),  // twice a 4x4 image
+            (ResolutionType, ResolutionPayload(1, 1)),
+            (ManifestType, ManifestPayload(alphaEnabled)),
+            (TileType, new byte[payloadLength]),
             (EndType, []));
         Assert.Throws<InvalidDataException>(() => LoadBytes(file));
     }
 
-    /// <summary>RESOLUTION is what sizes the buffer pixels go into, so pixels ahead of it cannot be placed and
-    /// the file has to be refused rather than guessed at.</summary>
+    /// <summary>A tile grid that does not cover the image, and one that overflows it. 40x40 is 3x3 = 9 tiles.</summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(8)]
+    [InlineData(10)]
+    public void WrongNumberOfTiles_Throws(int tileCount)
+    {
+        var blocks = new List<(byte, byte[])>
+        {
+            (ResolutionType, ResolutionPayload(40, 40)),
+            (ManifestType, ManifestPayload(false)),
+        };
+        for (int i = 0; i < tileCount; i++)
+            blocks.Add((TileType, TilePayload(false, 0x10, 0x20, 0x30)));
+        blocks.Add((EndType, []));
+        Assert.Throws<InvalidDataException>(() => LoadBytes(BuildFile(blocks.ToArray())));
+    }
+
+    /// <summary>RESOLUTION is what says how many tiles there should be, so a tile ahead of it cannot be placed
+    /// and the file has to be refused rather than guessed at.</summary>
     [Fact]
-    public void PixelsBeforeResolution_Throws()
+    public void TileBeforeResolution_Throws()
     {
         byte[] file = BuildFile(
-            (PixelsRawType, [0x10, 0x20, 0x30, 0x40]),
+            (ManifestType, ManifestPayload(false)),
+            (TileType, TilePayload(false, 0x10, 0x20, 0x30)),
             (ResolutionType, ResolutionPayload(1, 1)),
             (EndType, []));
         Assert.Throws<InvalidDataException>(() => LoadBytes(file));
     }
 
+    /// <summary>And MANIFEST is what says how long a tile is, so a tile ahead of THAT cannot even be measured.</summary>
     [Fact]
-    public void TwoResolutionBlocks_Throw()
+    public void TileBeforeManifest_Throws()
     {
         byte[] file = BuildFile(
             (ResolutionType, ResolutionPayload(1, 1)),
-            (ResolutionType, ResolutionPayload(1, 1)),
-            (PixelsRawType, [0x10, 0x20, 0x30, 0x40]),
+            (TileType, TilePayload(false, 0x10, 0x20, 0x30)),
+            (ManifestType, ManifestPayload(false)),
             (EndType, []));
+        Assert.Throws<InvalidDataException>(() => LoadBytes(file));
+    }
+
+    /// <summary>A zero-sized image has no tiles at all, so this file is complete except for the manifest —
+    /// which is still required, because "no flags" and "no manifest" must not be the same thing.</summary>
+    [Fact]
+    public void NoManifestBlock_Throws()
+    {
+        byte[] file = BuildFile(
+            (ResolutionType, ResolutionPayload(0, 0)),
+            (EndType, []));
+        Assert.Throws<InvalidDataException>(() => LoadBytes(file));
+    }
+
+    [Theory]
+    [InlineData(true)]    // two RESOLUTION blocks
+    [InlineData(false)]   // two MANIFEST blocks
+    public void DuplicateHeaderBlocks_Throw(bool duplicateResolution)
+    {
+        byte[] file = duplicateResolution
+            ? BuildFile(
+                (ResolutionType, ResolutionPayload(1, 1)),
+                (ResolutionType, ResolutionPayload(1, 1)),
+                (ManifestType, ManifestPayload(false)),
+                (TileType, TilePayload(false, 0x10, 0x20, 0x30)),
+                (EndType, []))
+            : BuildFile(
+                (ResolutionType, ResolutionPayload(1, 1)),
+                (ManifestType, ManifestPayload(false)),
+                (ManifestType, ManifestPayload(false)),
+                (TileType, TilePayload(false, 0x10, 0x20, 0x30)),
+                (EndType, []));
         Assert.Throws<InvalidDataException>(() => LoadBytes(file));
     }
 
@@ -410,49 +584,9 @@ public class CpuImageFormatTests
     {
         BitPackage package = new();
         package.WriteFixedString(CpuImage.Signature);
-        package.WriteByte(PixelsRawType);
+        package.WriteByte(TileType);
         package.WriteVarULong(int.MaxValue);
         Assert.Throws<InvalidDataException>(() => LoadBytes(package.Export()));
-    }
-
-    /// <summary>Run lengths around the control byte's limits: 128/129 pixels are the largest literal and repeat
-    /// runs, so 129/130 are where a run has to split into two.</summary>
-    [Theory]
-    [InlineData(1)]
-    [InlineData(2)]
-    [InlineData(127)]
-    [InlineData(128)]
-    [InlineData(129)]
-    [InlineData(130)]
-    [InlineData(400)]
-    public void Rle_RunLengthBoundaries_RoundTrip(int pixelCount)
-    {
-        // A repeat run of `pixelCount`, then a literal run of `pixelCount`, in one buffer.
-        byte[] pixels = new byte[pixelCount * 2 * 4];
-        for (int p = 0; p < pixelCount; p++)
-            pixels[p * 4] = 0x77;
-        for (int p = pixelCount; p < pixelCount * 2; p++)
-            for (int c = 0; c < 4; c++)
-                pixels[p * 4 + c] = (byte)(p * 4 + c);
-
-        byte[] coded = CpuImageRle.Encode(pixels);
-        byte[] decoded = new byte[pixels.Length];
-        Assert.Equal(pixels.Length, CpuImageRle.Decode(coded, decoded));
-        Assert.Equal(pixels, decoded);
-    }
-
-    [Fact]
-    public void Rle_DecodeIntoTooSmallBuffer_Throws()
-    {
-        byte[] coded = CpuImageRle.Encode(new byte[64]);
-        Assert.Throws<InvalidDataException>(() => CpuImageRle.Decode(coded, new byte[32]));
-    }
-
-    [Fact]
-    public void Rle_TruncatedRun_Throws()
-    {
-        byte[] coded = CpuImageRle.Encode(new byte[64]);
-        Assert.Throws<InvalidDataException>(() => CpuImageRle.Decode(coded[..^2], new byte[64]));
     }
 
     [Fact]
