@@ -58,26 +58,25 @@ public sealed class RaylibAudio : IAudio
     /// LoadSoundFromWave (converting to the device format), so the pin only has to survive that call and the
     /// Wave is unloaded immediately after.
     /// </summary>
-    public unsafe SoundHandle LoadSoundFromPcm(short[] samples, int sampleRate, int channels)
+    public unsafe SoundHandle LoadSoundFromPcm(short[] s, int sRate, int chn)
     {
-        if (!IsAvailable || samples.Length == 0 || channels < 1)
+        if (!IsAvailable || s.Length == 0 || chn < 1)
             return SoundHandle.None;
 
-        fixed (short* p = samples)
+        fixed (short* p = s)
         {
             Wave wave = new()
             {
                 // Raylib-cs still calls this SampleCount, but it sits over native raylib's `frameCount`, so
                 // it counts FRAMES, not interleaved samples. Passing samples.Length here plays a stereo clip
                 // at half speed for twice as long.
-                SampleCount = (uint)(samples.Length / channels),
-                SampleRate = (uint)sampleRate,
+                SampleCount = (uint)(s.Length / chn),
+                SampleRate = (uint)sRate,
                 SampleSize = 16,
-                Channels = (uint)channels,
+                Channels = (uint)chn,
                 Data = p,
             };
             Sound sound = Raylib.LoadSoundFromWave(wave);
-            // Not UnloadWave: that would free Data, which is this managed array, not raylib's to release.
             if (!Raylib.IsSoundValid(sound))
                 return SoundHandle.None;
             int id = NextId++;
