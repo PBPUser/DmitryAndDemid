@@ -70,8 +70,8 @@ public sealed class RaylibAudio : IAudio
                 // Raylib-cs still calls this SampleCount, but it sits over native raylib's `frameCount`, so
                 // it counts FRAMES, not interleaved samples. Passing samples.Length here plays a stereo clip
                 // at half speed for twice as long.
-                SampleCount = (uint)(s.Length / chn),
                 SampleRate = (uint)sRate,
+                SampleCount = (uint)(s.Length / chn),
                 SampleSize = 16,
                 Channels = (uint)chn,
                 Data = p,
