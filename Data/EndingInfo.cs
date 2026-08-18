@@ -6,7 +6,7 @@ namespace DmitryAndDemid.Data;
 
 public class EndingInfo
 {
-    [JsonInclude] public string ID;
+    [JsonInclude] public string Id = "";
     [JsonInclude] public bool IsBad = false;
     [JsonInclude] public List<AddTextEndingElement> AddTexts = new();
     [JsonInclude] public List<ClearTextEndingElement> ClearTexts = new();
