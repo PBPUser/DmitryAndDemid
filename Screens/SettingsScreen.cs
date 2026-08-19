@@ -14,7 +14,7 @@ public class SettingsScreen : MenuScreen
 
     /// <summary>4:3 internal resolutions offered in-game. The configurator offers the same set.</summary>
     private static readonly string[] Resolutions =
-        ["640x480", "800x600", "960x720", "1280x960", "1600x1200", "1920x1440"];
+        ["640x480", "800x600", "960x720", "1280x960", "1600x1200", "1920x1440", "2560x1920"];
 
     /// <summary>
     /// The resolutions actually offered on this device. On Switch the chosen value is the internal 4:3 backbuffer
