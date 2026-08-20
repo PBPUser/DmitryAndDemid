@@ -28,6 +28,7 @@ public sealed class LauncherWindow
     private readonly List<(string Key, RadioButton Button)> RendererButtons = [];
     private readonly Scale SensitivityScale;
     private readonly CheckButton VSyncCheck;
+    private readonly CheckButton LagCheck;
     private readonly CheckButton AskCheck;
     private readonly CheckButton TouchCheck;
     private readonly CheckButton VerticalCheck;
@@ -53,7 +54,7 @@ public sealed class LauncherWindow
     private static readonly Dictionary<string, string> RendererNotes = new()
     {
         ["raylib"] =
-            "The original renderer.\n\n"
+            "DBU)I(EHUE OPUruHaJlHoCTu.\n\n"
             + "The most tested path, and the only one that can show the\n"
             + "in-game debug and editor windows.",
         ["silk"] =
@@ -86,6 +87,7 @@ public sealed class LauncherWindow
             Window.SetIconFromFile(iconPath);
 
         VSyncCheck = new CheckButton("Vertical sync") { Active = Configuration.Config.UseVSYNC };
+        LagCheck = new CheckButton("Enable lag when main menu being active every time") { Active = Configuration.Config.IsMenuLagEnabled };
         AskCheck = new CheckButton("Show this window on every start") { Active = Configuration.Config.AlwaysAsk };
         TouchCheck = new CheckButton("Touch controls (drag the playfield to move, on-screen BOMB / FOCUS)")
         {
@@ -99,6 +101,7 @@ public sealed class LauncherWindow
 
         // Top: the loose checkboxes, as in the reference dialog.
         root.Add(VSyncCheck);
+        root.Add(LagCheck);
         root.Add(TouchCheck);
         root.Add(VerticalCheck);
         root.Add(AskCheck);

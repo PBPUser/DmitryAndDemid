@@ -121,6 +121,11 @@ public class Configuration
 
     /// <summary>Trigger resistance: weight on L2 while focused, a shot's give on R2.</summary>
     [JsonInclude] public bool DualSenseTriggers = true;
+    
+    /// <summary>
+    /// Adds lag when user activates main menu
+    /// </summary>
+    [JsonInclude] public  bool IsMenuLagEnabled = true;
 
     /// <summary>
     /// The button layout for a DualSense: shoot on Cross, bomb on Square, focus on the R1 shoulder (where a

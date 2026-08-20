@@ -197,6 +197,7 @@ public class SettingsScreen : MenuScreen
             itemLineItem.Replace = $"{Configuration.Config.ShowItemLineHint}";
         };
         MenuItems.Add(itemLineItem);
+        MenuItems.Add(new MenuItem("settings.menulag", $"{Configuration.Config.IsMenuLagEnabled}", a => { Configuration.Config.IsMenuLagEnabled = !Configuration.Config.IsMenuLagEnabled; }));
         MenuItems.Add(new MenuItem("settings.benchmark", "", a => Runtime.CurrentRuntime.AddScreen(new BenchmarkScreen())));
         MenuItems.Add(new MenuItem("settings.default", "", a => {}));
         MenuItems.Add(new MenuItem("ingame.exit", "", a => Exit()));

@@ -170,10 +170,12 @@ public class MainScreen : MenuScreen
 
     public override void Activated()
     {
+        if (Configuration.Config.IsMenuLagEnabled)
+            Runtime.CurrentRuntime.ContinueWorkIn = GetTime() + 0.25;
         TimeAppearMenu = Math.Max(5.5, GetTime() - AppearTime);
         TimeDisappearMenu = 99999999999;
         IsOnTop = true;
-        LastActivityTime = GetTime();   // start counting idle time fresh whenever the title regains focus
+        LastActivityTime = GetTime() + .5;   // start counting idle time fresh whenever the title regains focus
     }
 
     public override void Deactivated()

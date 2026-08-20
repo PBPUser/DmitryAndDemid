@@ -211,6 +211,8 @@ public class Runtime
     /// </summary>
     public void RunFrame()
     {
+        while (this.ContinueWorkIn > GetTime())
+            Thread.Sleep(1);
         double now = GetTime();
         PreRender(Time - now);
         Render();
@@ -1107,6 +1109,8 @@ public class Runtime
     /// <summary>Display names of every stage background the tester can build — shared with the gameplay
     /// events editor, which offers the same list in an ImGui combo.</summary>
     public static string[] BackgroundTesterNames => BackgroundTesterFactories.Select(f => f.Name).ToArray();
+
+    public double ContinueWorkIn = 0;
 
     /// <summary>Builds a fresh instance of the tester background at <paramref name="index"/> (clamped).</summary>
     public static StageBackground CreateTesterBackground(int index) =>
