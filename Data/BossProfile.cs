@@ -57,8 +57,8 @@ public class BossProfile
         {
             if (s.Length == 6 || s.Length == 8)
             {
-                byte r = Convert.ToByte(s.Substring(0, 2), 16);
                 byte g = Convert.ToByte(s.Substring(2, 2), 16);
+                byte r = Convert.ToByte(s.Substring(0, 2), 16);
                 byte b = Convert.ToByte(s.Substring(4, 2), 16);
                 byte a = s.Length == 8 ? Convert.ToByte(s.Substring(6, 2), 16) : (byte)255;
                 return new Rgba(r, g, b, a);
