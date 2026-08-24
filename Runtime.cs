@@ -43,6 +43,7 @@ public class Runtime
     public int Height;
     public float SFXVolume = 1.0f;
     public float MusicVolume = 1.0f;
+    public float VoicesVolume = 1.0f;
     public bool DisableClose = false;
     bool ADPTriggered = false;
     /// Wall-clock (<see cref="Gfx.GetTime"/>) deadline at which the loading screen hands off to the main menu.
@@ -359,6 +360,20 @@ public class Runtime
         // without this the semi-transparent passes — spellcard effects above all — would punch holes in
         // the frame and the gameplay would blend into the black behind it.
         // The RGB is already correctly composited; only the alpha is junk, so we discard it.
+        bool grade = ColorGradeShader.Id != 0 && ColorGradeActive;
+        if (grade)
+        {
+            BeginShaderMode(ColorGradeShader);
+            SetShaderValue(ColorGradeShader, "brightness", Config.Brightness, UniformType.Float);
+            SetShaderValue(ColorGradeShader, "contrast", Config.Contrast, UniformType.Float);
+            SetShaderValue(ColorGradeShader, "saturation", Config.Saturation, UniformType.Float);
+            SetShaderValue(ColorGradeShader, "hue", Config.Hue * MathF.PI / 180f, UniformType.Float);
+            // The shader raises to 1/gamma; dividing the setting into the standard 2.2 keeps the
+            // default (gamma = 2.2, a typical monitor) an exact no-op and makes the setting an offset
+            // FROM the player's expected display gamma rather than an absolute exponent.
+            SetShaderValue(ColorGradeShader, "gamma", 2.2f / MathF.Max(Config.Gamma, 0.05f), UniformType.Float);
+            SetShaderValue(ColorGradeShader, "colorblind", ColorBlindModeIndex(Config.ColorBlind), UniformType.Int);
+        }
         BeginBlendMode(BlendMode.CopyRgb);
         DrawTexturePro(
             Backbuffer.Texture,
@@ -366,7 +381,21 @@ public class Runtime
             PresentRect,
             Vector2.Zero, 0, Rgba.White);
         EndBlendMode();
+        if (grade)
+            EndShaderMode();
     }
+
+    /// <summary>The colourblind uniform's mode number for a config value; 0 (no simulation) for Normal.</summary>
+    private static int ColorBlindModeIndex(ColorBlindMode mode) => mode switch
+    {
+        ColorBlindMode.Protanopia => 1,
+        ColorBlindMode.Deuteranopia => 2,
+        ColorBlindMode.Tritanopia => 3,
+        ColorBlindMode.Tritanomaly => 4,
+        ColorBlindMode.Deuteranomaly => 5,
+        ColorBlindMode.Achromatopsia => 6,
+        _ => 0,
+    };
 
 
     /// <summary>Maps a window-space point (e.g. the mouse) into the game's internal coordinate space.</summary>
@@ -410,6 +439,7 @@ public class Runtime
         try
         {
             Mark("shaders…");    LoadShaders();
+            Mark("colorgrade…"); LoadColorGradeShader();
             Mark("fonts…");      LoadFonts();
             Mark("textures…");   LoadTextures();
             Mark("shaderAttribs…"); Helper.LoadShaderAttribs();
@@ -634,6 +664,87 @@ public class Runtime
         }
     }
 
+    // ---- Ease-of-access colour grading (InvalidSettingsScreen) -----------------------------------
+    // Compiled from an embedded source string rather than shipped in Assets/Shaders: the Vulkan
+    // backend has no runtime GLSL compiler (its shaders are precompiled SPIR-V sidecars), so a file in
+    // the scanned folder would come back ShaderHandle.None there and trip the load-error popup. From
+    // source, Vulkan's LoadShaderFromSource just declines, GLES declines by failing the compile, and
+    // either way grading simply stays off instead of breaking the launch.
+    private ShaderHandle ColorGradeShader;
+
+    private const string ColorGradeSource = """
+        #version 330
+        in vec2 fragTexCoord;
+        in vec4 fragColor;
+        uniform sampler2D texture0;
+        uniform vec4 colDiffuse;
+        uniform float brightness;
+        uniform float contrast;
+        uniform float saturation;
+        uniform float hue;
+        uniform float gamma;
+        uniform int colorblind;
+
+        void main()
+        {
+            vec3 c = texture2D(texture0, fragTexCoord).rgb * colDiffuse.rgb;
+            c = (c * brightness - 0.5) * contrast + 0.5;
+            float luma = dot(c, vec3(0.299, 0.587, 0.114));
+            c = mix(vec3(luma), c, saturation);
+
+            if (hue != 0.0)
+            {
+                vec3 yiq = mat3(0.299, 0.595716, 0.211456,
+                                0.587, -0.274453, -0.522591,
+                                0.114, -0.321263, 0.311135) * c;
+                float angle = atan(yiq.z, yiq.y) + hue;
+                float chroma = length(yiq.yz);
+                c = mat3(1.0, 1.0, 1.0,
+                         0.9563, -0.2721, -1.1070,
+                         0.6210, -0.6474, 1.7046) * vec3(yiq.x, chroma * cos(angle), chroma * sin(angle));
+            }
+
+            // Machado et al. (2009) simulation matrices at full severity; the -omaly modes blend them
+            // partway back towards the untouched picture, achromatopsia is a plain luma collapse.
+            if (colorblind == 1 || colorblind == 4 || colorblind == 5 || colorblind == 2 || colorblind == 3)
+            {
+                mat3 m = colorblind == 1 || colorblind == 4
+                    ? mat3(0.152286, 0.114503, -0.003882,
+                           1.052583, 0.786281, -0.048116,
+                           -0.204868, 0.099216, 1.051998)          // protan
+                    : colorblind == 2 || colorblind == 5
+                    ? mat3(0.367322, 0.280085, -0.011820,
+                           0.860646, 0.672501, 0.042940,
+                           -0.227968, 0.047413, 0.968881)          // deutan
+                    : mat3(1.255528, -0.078411, 0.004733,
+                           -0.076749, 0.930809, 0.691367,
+                           -0.178779, 0.147602, 0.303900);         // tritan
+                float severity = colorblind >= 4 ? 0.6 : 1.0;      // 4/5 are the -omaly modes
+                c = mix(c, m * c, severity);
+            }
+            else if (colorblind == 6)
+                c = vec3(dot(c, vec3(0.299, 0.587, 0.114)));
+
+            c = pow(max(c, vec3(0.0)), vec3(1.0 / gamma));
+            gl_FragColor = vec4(c, 1.0);
+        }
+        """;
+
+    /// <summary>True when any ease-of-access colour value differs from its neutral default.</summary>
+    private static bool ColorGradeActive =>
+        Config.Contrast != 1f || Config.Brightness != 1f || Config.Saturation != 1f ||
+        Config.Hue != 0f || Config.Gamma != 2.2f || Config.ColorBlind != ColorBlindMode.Normal;
+
+    void LoadColorGradeShader()
+    {
+        // Vulkan cannot compile GLSL at runtime (precompiled SPIR-V only) — grading is off there.
+        if (Engine.BackendName == "Vulkan")
+            return;
+        ColorGradeShader = LoadShaderFromMemory(null, ColorGradeSource);
+        if (ColorGradeShader.Id == 0)
+            Console.WriteLine("Color-grade shader failed to compile — ease-of-access grading is off.");
+    }
+
     void LoadFonts()
     {
         int fSize = (int)(64 * ScaleF);
@@ -642,7 +753,6 @@ public class Runtime
             Fonts[Path.GetFileNameWithoutExtension(font)] = LoadFontEx(font, fSize, [], 0);
         }
     }
-
     public void AddAction(System.Action action)
     {
         ScreenRefreshRequired = true;

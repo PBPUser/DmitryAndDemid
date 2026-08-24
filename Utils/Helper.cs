@@ -1116,12 +1116,13 @@ public static class Helper
     private static int LocationLiquidGlassRadius = -1;
     private static int LocationLiquidGlassTint = -1;
 
-    /// <summary>Draws a translucent, animated "liquid glass" rounded panel at <paramref name="rect"/>, refracting
-    /// <paramref name="capturedBackground"/> — a full-screen capture of whatever is drawn behind the panel this
-    /// frame (see <see cref="Screens.ListSelectScreen"/> for how that capture is produced) — through a
-    /// drifting-noise warp + frosted blur, with liquid caustic bands, a specular sweep and a brightened rim on
-    /// top. Draws a full-screen quad; the shader itself masks to the rounded rect and discards elsewhere, so it
-    /// is safe to call with the real backbuffer still bound.</summary>
+    /// <summary>Draws an Apple-style "liquid glass" rounded panel at <paramref name="rect"/>: a clear pane
+    /// over <paramref name="capturedBackground"/> — a full-screen capture of whatever is drawn behind the
+    /// panel this frame (see <see cref="Screens.ListSelectScreen"/> for how that capture is produced) — with
+    /// a lens-refracted rim (chromatic dispersion included), a top-left specular streak, a hairline border,
+    /// an inner shadow and a soft drop shadow. Draws a full-screen quad; the shader itself masks to the
+    /// rounded rect (plus shadow) and discards elsewhere, so it is safe to call with the real backbuffer
+    /// still bound.</summary>
     public static void DrawLiquidGlassPanel(TargetHandle capturedBackground, Rect rect, float cornerRadius, Rgba tint)
     {
         var shader = Runtime.CurrentRuntime.Shaders["liquid_glass"];

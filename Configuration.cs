@@ -21,6 +21,7 @@ public class Configuration
     [JsonInclude] public bool AlwaysAsk = true;
     [JsonInclude] public float SFXVolume = 0.9f;
     [JsonInclude] public float MusicVolume = 1.0f;
+    [JsonInclude] public float VoicesVolume = 1.0f;
     [JsonInclude] public bool FastLoading = false;
     // Headless sim-throughput benchmark. Set true (or pass --bench) to run RunBench instead of the menu loop
     // and print ticks/sec. Used to measure whether an interpreter (mono-nx / Switch) can hold 60 TPS under load.
@@ -127,6 +128,33 @@ public class Configuration
     /// </summary>
     [JsonInclude] public  bool IsMenuLagEnabled = true;
 
+    // ---- Ease-of-access colour grading (InvalidSettingsScreen) ---------------------------------
+    // Applied as a full-screen pass when the backbuffer is presented (Runtime.Present). All-neutral
+    // values skip the pass entirely, so the defaults cost nothing.
+
+    /// <summary>Gain around mid-grey, 0..2; 1 is the picture as authored.</summary>
+    [JsonInclude] public float Contrast = 1.0f;
+
+    /// <summary>Multiplies every channel, 0..2; 1 is the picture as authored.</summary>
+    [JsonInclude] public float Brightness = 1.0f;
+
+    /// <summary>0 is greyscale, 1 is as authored, 2 is double the chroma.</summary>
+    [JsonInclude] public float Saturation = 1.0f;
+
+    /// <summary>Hue rotation in degrees, -180..180; 0 is as authored.</summary>
+    [JsonInclude] public float Hue = 0.0f;
+
+    /// <summary>Display gamma the frame is re-encoded against, 1.0..4.4; 2.2 (a standard monitor) is
+    /// neutral — the shader divides by it, so only a difference from 2.2 changes the picture.</summary>
+    [JsonInclude] public float Gamma = 2.2f;
+
+    /// <summary>
+    /// Colour-blindness simulation applied in the present pass. Every member doubles as the suffix of
+    /// its invalid.colorblind.* translation key (lowercased), which is what the picker lists.
+    /// </summary>
+    [JsonInclude, JsonConverter(typeof(JsonStringEnumConverter))]
+    public ColorBlindMode ColorBlind = ColorBlindMode.Normal;
+
     /// <summary>
     /// The button layout for a DualSense: shoot on Cross, bomb on Square, focus on the R1 shoulder (where a
     /// danmaku player expects to hold it) and pause on Options. Applied only over untouched defaults — see
@@ -156,4 +184,34 @@ public class Configuration
     {
         File.WriteAllText(Utils.Platform.DataPath("config.json"), JsonSerializer.Serialize(this));
     }
+
+    /// <summary>
+    /// Restores every setting to its shipped default and persists. Reflection over the public instance
+    /// fields, so a setting added later is reset too without this method changing. Callers must
+    /// re-apply anything a live system cached at startup (volumes, frame cap, vsync, window mode).
+    /// </summary>
+    public void ResetToDefaults()
+    {
+        var fresh = new Configuration();
+        foreach (var field in typeof(Configuration).GetFields(
+                     System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            field.SetValue(this, field.GetValue(fresh));
+        Save();
+    }
+}
+
+/// <summary>
+/// The colour-blindness simulations the ease-of-access settings offer. Member names lowercased are the
+/// suffixes of the invalid.colorblind.* keys in translation.json — the picker's labels come straight
+/// from there, so a mode without a translation entry would show up untranslated.
+/// </summary>
+public enum ColorBlindMode
+{
+    Normal,
+    Protanopia,
+    Deuteranopia,
+    Tritanopia,
+    Tritanomaly,
+    Deuteranomaly,
+    Achromatopsia,
 }

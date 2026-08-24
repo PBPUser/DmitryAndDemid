@@ -10,7 +10,7 @@ public class SettingsScreen : MenuScreen
 {
     // The adjustable rows, referenced directly so the left/right handler and the label updates do not depend
     // on positions that shift between platforms. Window/renderer are null on Android (those rows are absent).
-    private MenuItem? SfxItem, MusicItem, WindowItem, RendererItem, FramerateItem, ResolutionItem;
+    private MenuItem? SfxItem, MusicItem, VoicesItem, WindowItem, RendererItem, FramerateItem, ResolutionItem;
 
     /// <summary>4:3 internal resolutions offered in-game. The configurator offers the same set.</summary>
     private static readonly string[] Resolutions =
@@ -75,10 +75,14 @@ public class SettingsScreen : MenuScreen
             }))), windowed: true, headerKey: "settings.renderer.title"));
     }
 
-    public SettingsScreen()
+    public SettingsScreen(bool showRestartNotice = false)
     {
-
+        ShowRestartNotice = showRestartNotice;
     }
+
+    /// <summary>Set when the screen is opened right after a defaults reset, so the restart-only rows
+    /// (resolution, renderer, vertical) flash their notice immediately.</summary>
+    private readonly bool ShowRestartNotice;
 
     public override void Exiting()
     {
@@ -99,6 +103,8 @@ public class SettingsScreen : MenuScreen
         EnableScrolling = true;   // the settings list is longer than the screen — scroll to follow the cursor
         SetTitle(Runtime.CurrentRuntime.Textures["settings.png"]);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
+        if (ShowRestartNotice)
+            RestartNotice = (float)GetTime();
 
         // Items are matched by REFERENCE below, not by index — the rows present differ per platform (Android
         // has no window mode and no renderer switch), and hard indices silently broke when a row was dropped.
@@ -107,10 +113,12 @@ public class SettingsScreen : MenuScreen
 
         // ---- SOUND ----
         AddHeader("settings.cat.sound");
-        SfxItem = new MenuItem("settings.sfx", Bar(Configuration.Config.SFXVolume), a => {});
+        SfxItem = new MenuItem("settings.sfx", Bar(Configuration.Config.SFXVolume), a => { });
         MenuItems.Add(SfxItem);
         MusicItem = new MenuItem("settings.music", Bar(Configuration.Config.MusicVolume), a => {});
         MenuItems.Add(MusicItem);
+        VoicesItem = new MenuItem("settings.voice", Bar(Configuration.Config.VoicesVolume), a => { });
+        MenuItems.Add(VoicesItem);
 
         // ---- CONTROLS ----
         AddHeader("settings.cat.controls");
@@ -205,8 +213,10 @@ public class SettingsScreen : MenuScreen
         };
         MenuItems.Add(itemLineItem);
         MenuItems.Add(itemSetLag);
+        // Ease of access: difficulty shortcut + the colour-grading sliders, on their own screen.
+        MenuItems.Add(new MenuItem("settings.invalid", "", a => Runtime.CurrentRuntime.AddScreen(new InvalidSettingsScreen())));
         MenuItems.Add(new MenuItem("settings.benchmark", "", a => Runtime.CurrentRuntime.AddScreen(new BenchmarkScreen())));
-        MenuItems.Add(new MenuItem("settings.default", "", a => {}));
+        MenuItems.Add(new MenuItem("settings.default", "", a => ResetToDefaults()));
         MenuItems.Add(new MenuItem("ingame.exit", "", a => Exit()));
 
         // Start the cursor on the first real (enabled) row, not the Sound header.
@@ -278,6 +288,13 @@ public class SettingsScreen : MenuScreen
             MusicItem!.Replace = Bar(f);
             Configuration.Config.Save();
         });
+        yield return (VoicesItem, () => Configuration.Config.VoicesVolume, f =>
+        {
+            Runtime.CurrentRuntime.VoicesVolume = Configuration.Config.VoicesVolume = f;
+            VoicesItem!.Replace = Bar(f);
+            Configuration.Config.Save();
+        }
+        );
         yield return (FramerateItem, () =>
         {
             int i = Array.IndexOf(FrameCaps, Configuration.Config.FrameCap);
@@ -329,6 +346,28 @@ public class SettingsScreen : MenuScreen
         FullScreenType.BorderlessDotByDot,
         FullScreenType.Exclusive,
     ];
+
+    /// <summary>
+    /// Restores every setting to its shipped default, pushes the defaults into the systems that cached
+    /// theirs at startup (volumes, frame cap, vsync, window mode), then rebuilds this menu so every row
+    /// re-renders at its default value. The restart-only rows (resolution, renderer, vertical) get the
+    /// usual flashing notice on the new screen. The ease-of-access colour grading needs no push — the
+    /// present pass reads the config every frame.
+    /// </summary>
+    void ResetToDefaults()
+    {
+        Configuration.Config.ResetToDefaults();
+
+        Runtime.CurrentRuntime.SFXVolume = Configuration.Config.SFXVolume;
+        Runtime.CurrentRuntime.MusicVolume = Configuration.Config.MusicVolume;
+        SetTargetFPS(Configuration.Config.FrameCap);
+        Runtime.CurrentRuntime.IsFrameCap240 = Configuration.Config.FrameCap == 240;
+        Engine.Platform.SetVSync(Configuration.Config.UseVSYNC);
+        Runtime.CurrentRuntime.SetWindowMode(FullScreenType.Window);
+
+        Runtime.CurrentRuntime.RemoveScreen(this);
+        Runtime.CurrentRuntime.AddScreen(new SettingsScreen(showRestartNotice: true));
+    }
 
     /// <summary>Steps through the presentation modes and applies the new one immediately.</summary>
     void CycleWindowMode(int direction)

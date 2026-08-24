@@ -14,8 +14,8 @@ public class DifficultyScreen : MenuScreen
     
     public DifficultyScreen(GameType gameType) : base()
     {
-        SetTitle(Runtime.CurrentRuntime.Textures["rang_select.png"]);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
+        SetTitle(Runtime.CurrentRuntime.Textures["rang_select.png"]);
         LoopList = false;
         GameType = gameType;
         HorizontalDirectionNavigation = true;
