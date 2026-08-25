@@ -19,19 +19,20 @@ public class BenchmarkScreen : Screen
 
     public BenchmarkScreen() => font = Runtime.CurrentRuntime.Fonts["kodemono"];
 
+    string runningMessage = Helper.Translate("benchmark.running");
+    string cancelHint = Helper.Translate("benchmark.back");
+
     public override void Render()
     {
         ClearBackground(Rgba.Black);
-        string msg = Helper.Translate("benchmark.running");
         float size = 28 * Runtime.CurrentRuntime.ScaleF;
-        Vector2 m = MeasureTextEx(font, msg, size, 1);
-        DrawTextEx(font, msg,
+        Vector2 m = MeasureTextEx(font, runningMessage, size, 1);
+        DrawTextEx(font, runningMessage,
             new Vector2((GetScreenWidth() - m.X) / 2, (GetScreenHeight() - m.Y) / 2), size, 1, Rgba.White);
         // Cancel hint, bottom-centre.
-        string hint = Helper.Translate("benchmark.back");
         float hs = 16 * Runtime.CurrentRuntime.ScaleF;
-        Vector2 hm = MeasureTextEx(font, hint, hs, 1);
-        DrawTextEx(font, hint, new Vector2((GetScreenWidth() - hm.X) / 2, GetScreenHeight() - 40 * Runtime.CurrentRuntime.ScaleF),
+        Vector2 hm = MeasureTextEx(font, cancelHint, hs, 1);
+        DrawTextEx(font, cancelHint, new Vector2((GetScreenWidth() - hm.X) / 2, GetScreenHeight() - 40 * Runtime.CurrentRuntime.ScaleF),
             hs, 1, Rgba.Gray);
     }
 
