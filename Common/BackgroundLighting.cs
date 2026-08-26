@@ -101,8 +101,8 @@ public sealed class BackgroundLighting
 
     public readonly List<Light> Lights = new();
 
-    private readonly TargetHandle LightMap;
-    private readonly TargetHandle Dummy;   // 1x1 quad source; both light shaders are procedural
+    private readonly RenderedTexture LightMap;
+    private readonly RenderedTexture Dummy;   // 1x1 quad source; both light shaders are procedural
     private readonly ShaderHandle PointShader, CompositeShader;
     private readonly int LocationLightColor, LocationFalloff;
     private readonly int LocationAmbient, LocationResolution, LocationBloom, LocationThreshold, LocationLightMap;
@@ -172,7 +172,7 @@ public sealed class BackgroundLighting
     /// Draws <paramref name="scene"/> — the background's unlit render — lit by the map built in
     /// <see cref="Update"/>. Call from the background's Render, inside the destination's texture mode.
     /// </summary>
-    public void Draw(TargetHandle scene, Rect destination, Rgba? tint = null)
+    public void Draw(RenderedTexture scene, Rect destination, Rgba? tint = null)
     {
         float bloom = Configuration.Config.HighGraphics ? Bloom : 0f;
         SetShaderValue(CompositeShader, LocationAmbient,

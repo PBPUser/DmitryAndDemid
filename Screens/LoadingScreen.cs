@@ -48,7 +48,7 @@ public class LoadingScreen : Screen
     }
 
     private Vector2 FifoOrigin;
-    TextureHandle SugarTexture, ADPTexture, FifoLoading, RaylibTexture, RaylibBasicTexture, RaylibExtraTexture, RaylibCsTexture, HuffTexture;
+    BasicTexture SugarTexture, ADPTexture, FifoLoading, RaylibTexture, RaylibBasicTexture, RaylibExtraTexture, RaylibCsTexture, HuffTexture;
     Rect
         SugarTarget, SugarSource, ADPTarget, ADPTargetActive, ADPSource, FifoSource, FifoTarget;
 

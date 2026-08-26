@@ -25,10 +25,10 @@ public sealed class RaylibBackend : IBackend
     private readonly Dictionary<int, RenderTexture2D> Targets = new();
     private readonly Dictionary<int, ShaderRecord> Shaders = new();
     private readonly Dictionary<int, Font> Fonts = new();
-    private readonly Dictionary<int, TextureHandle> TargetTextures = new();
+    private readonly Dictionary<int, BasicTexture> TargetTextures = new();
     private readonly Dictionary<(int Shader, string Name), int> UniformLocations = new();
 
-    private readonly Stack<TargetHandle> TargetStack = new();
+    private readonly Stack<RenderedTexture> TargetStack = new();
     private int NextId = 1;
     private int GamepadCountCache;
     private FontHandle DefaultFont;
@@ -37,14 +37,14 @@ public sealed class RaylibBackend : IBackend
 
     // ---- textures -------------------------------------------------------------------------
 
-    public TextureHandle LoadTexture(string path)
+    public BasicTexture LoadTexture(string path)
     {
         Texture2D texture = Raylib.LoadTexture(path);
         if (!Raylib.IsTextureValid(texture))
-            return TextureHandle.None;
+            return BasicTexture.None;
         int id = NextId++;
         Textures[id] = texture;
-        return new TextureHandle(id);
+        return new BasicTexture(id);
     }
 
     /// <summary>
@@ -52,10 +52,10 @@ public sealed class RaylibBackend : IBackend
     /// them. LoadTextureFromImage copies to the GPU during the call and keeps nothing, so the pin only has to
     /// outlive that call — and there is no Image to UnloadImage afterwards, since raylib never owned the data.
     /// </summary>
-    public unsafe TextureHandle LoadTextureFromPixels(byte[] rgba, int width, int height)
+    public unsafe BasicTexture LoadTextureFromPixels(byte[] rgba, int width, int height)
     {
         if (!IRenderer.AreLoadablePixels(rgba, width, height))
-            return TextureHandle.None;
+            return BasicTexture.None;
 
         Texture2D texture;
         fixed (byte* pixels = rgba)
@@ -72,46 +72,46 @@ public sealed class RaylibBackend : IBackend
         }
 
         if (!Raylib.IsTextureValid(texture))
-            return TextureHandle.None;
+            return BasicTexture.None;
         int id = NextId++;
         Textures[id] = texture;
-        return new TextureHandle(id);
+        return new BasicTexture(id);
     }
 
-    public void UnloadTexture(TextureHandle texture)
+    public void UnloadTexture(BasicTexture texture)
     {
         if (Textures.Remove(texture.Id, out Texture2D native))
             Raylib.UnloadTexture(native);
     }
 
-    public bool IsValid(TextureHandle texture) =>
+    public bool IsValid(BasicTexture texture) =>
         Textures.TryGetValue(texture.Id, out Texture2D native) && Raylib.IsTextureValid(native);
 
-    public Vector2 GetTextureSize(TextureHandle texture) =>
+    public Vector2 GetTextureSize(BasicTexture texture) =>
         Textures.TryGetValue(texture.Id, out Texture2D native)
             ? new Vector2(native.Width, native.Height)
             : Vector2.Zero;
 
-    public void SetTextureFilter(TextureHandle texture, FilterMode filter)
+    public void SetTextureFilter(BasicTexture texture, FilterMode filter)
     {
         if (Textures.TryGetValue(texture.Id, out Texture2D native))
             Raylib.SetTextureFilter(native, (TextureFilter)filter);
     }
 
     /// <summary>Migration escape hatch: adopt a texture created outside the backend (e.g. by rlImGui).</summary>
-    public TextureHandle Adopt(Texture2D texture)
+    public BasicTexture Adopt(Texture2D texture)
     {
         int id = NextId++;
         Textures[id] = texture;
-        return new TextureHandle(id);
+        return new BasicTexture(id);
     }
 
     /// <summary>Migration escape hatch: the native texture behind a handle (rlImGui needs it).</summary>
-    public Texture2D Native(TextureHandle texture) => Textures[texture.Id];
+    public Texture2D Native(BasicTexture texture) => Textures[texture.Id];
 
     // ---- render targets -------------------------------------------------------------------
 
-    public TargetHandle CreateTarget(int width, int height)
+    public RenderedTexture CreateTarget(int width, int height)
     {
         // The game measures text and creates a target that size; empty text measures 0x0. Raylib tolerated
         // a degenerate 0x0 render texture (binding it was a harmless no-op), so clamp rather than fail.
@@ -119,35 +119,35 @@ public sealed class RaylibBackend : IBackend
         height = Math.Max(1, height);
         RenderTexture2D target = Raylib.LoadRenderTexture(width, height);
         if (!Raylib.IsRenderTextureValid(target))
-            return TargetHandle.None;
+            return RenderedTexture.None;
         int id = NextId++;
         Targets[id] = target;
 
         int textureId = NextId++;
         Textures[textureId] = target.Texture;
-        TargetTextures[id] = new TextureHandle(textureId);
-        return new TargetHandle(id);
+        TargetTextures[id] = new BasicTexture(textureId);
+        return new RenderedTexture(id);
     }
 
-    public void DestroyTarget(TargetHandle target)
+    public void DestroyTarget(RenderedTexture target)
     {
         if (!Targets.Remove(target.Id, out RenderTexture2D native))
             return;
         // The colour attachment dies with the target; drop the alias without a second UnloadTexture.
-        if (TargetTextures.Remove(target.Id, out TextureHandle texture))
+        if (TargetTextures.Remove(target.Id, out BasicTexture texture))
             Textures.Remove(texture.Id);
         Raylib.UnloadRenderTexture(native);
     }
 
-    public bool IsValid(TargetHandle target) =>
+    public bool IsValid(RenderedTexture target) =>
         Targets.TryGetValue(target.Id, out RenderTexture2D native) && Raylib.IsRenderTextureValid(native);
 
-    public TextureHandle GetTargetTexture(TargetHandle target) =>
-        TargetTextures.GetValueOrDefault(target.Id, TextureHandle.None);
+    public BasicTexture GetTargetTexture(RenderedTexture target) =>
+        TargetTextures.GetValueOrDefault(target.Id, BasicTexture.None);
 
     public int TargetFloor { get; set; }
 
-    public void BeginTarget(TargetHandle target)
+    public void BeginTarget(RenderedTexture target)
     {
         // Push even for an unknown handle: the caller will still call EndTarget, and the stack has to stay
         // balanced or the pop would unbind the PARENT target instead.
@@ -169,7 +169,7 @@ public sealed class RaylibBackend : IBackend
         }
 
         TargetStack.Pop();
-        if (TargetStack.TryPeek(out TargetHandle parent) && Targets.TryGetValue(parent.Id, out RenderTexture2D native))
+        if (TargetStack.TryPeek(out RenderedTexture parent) && Targets.TryGetValue(parent.Id, out RenderTexture2D native))
             Raylib.BeginTextureMode(native); // re-bind the parent, do not fall to the window
         else
             Raylib.EndTextureMode();
@@ -264,7 +264,7 @@ public sealed class RaylibBackend : IBackend
         Raylib.SetShaderValueV(record.Shader, location, values, (ShaderUniformDataType)type, 1);
     }
 
-    public void SetUniformTexture(ShaderHandle shader, int location, TextureHandle texture)
+    public void SetUniformTexture(ShaderHandle shader, int location, BasicTexture texture)
     {
         if (location < 0 || !Shaders.TryGetValue(shader.Id, out ShaderRecord? record))
             return;
@@ -321,26 +321,26 @@ public sealed class RaylibBackend : IBackend
 
     public void Clear(Rgba color) => Raylib.ClearBackground(ToColor(color));
 
-    public void DrawTexture(TextureHandle texture, Vector2 position, Rgba tint)
+    public void DrawTexture(BasicTexture texture, Vector2 position, Rgba tint)
     {
         if (Textures.TryGetValue(texture.Id, out Texture2D native))
             Raylib.DrawTextureEx(native, position, 0, 1, ToColor(tint));
     }
 
-    public void DrawTexture(TextureHandle texture, Vector2 position, float rotation, float scale, Rgba tint)
+    public void DrawTexture(BasicTexture texture, Vector2 position, float rotation, float scale, Rgba tint)
     {
         if (Textures.TryGetValue(texture.Id, out Texture2D native))
             Raylib.DrawTextureEx(native, position, rotation, scale, ToColor(tint));
     }
 
-    public void DrawTexture(TextureHandle texture, Rect source, Rect destination, Vector2 origin, float rotation,
+    public void DrawTexture(BasicTexture texture, Rect source, Rect destination, Vector2 origin, float rotation,
         Rgba tint)
     {
         if (Textures.TryGetValue(texture.Id, out Texture2D native))
             Raylib.DrawTexturePro(native, ToRect(source), ToRect(destination), origin, rotation, ToColor(tint));
     }
 
-    public void DrawNinePatch(TextureHandle texture, NinePatch patch, Rect destination, Vector2 origin,
+    public void DrawNinePatch(BasicTexture texture, NinePatch patch, Rect destination, Vector2 origin,
         float rotation, Rgba tint)
     {
         if (Textures.TryGetValue(texture.Id, out Texture2D native))
@@ -551,13 +551,13 @@ public sealed class RaylibBackend : IBackend
 
     public void EndDebugUi() => rlImGui.End();
 
-    public void DebugUiImage(TextureHandle texture)
+    public void DebugUiImage(BasicTexture texture)
     {
         if (Textures.TryGetValue(texture.Id, out Texture2D native))
             rlImGui.Image(native);
     }
 
-    public void DebugUiImage(TargetHandle target)
+    public void DebugUiImage(RenderedTexture target)
     {
         if (Targets.TryGetValue(target.Id, out RenderTexture2D native))
             rlImGui.ImageRenderTexture(native);

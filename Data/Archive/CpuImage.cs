@@ -9,7 +9,7 @@ namespace DmitryAndDemid.Data.Archive;
 /// 
 /// A decoded image's raw pixel data, kept on the CPU instead of uploaded to the GPU — for code that needs to
 /// read pixels (sampling a color, inspecting a sprite sheet, etc.) rather than draw them. This is deliberately
-/// separate from <see cref="TextureHandle"/>: a texture is a backend-owned GPU resource that must be freed
+/// separate from <see cref="BasicTexture"/>: a texture is a backend-owned GPU resource that must be freed
 /// through <see cref="Gfx.UnloadTexture"/>, while a <see cref="CpuImage"/> is plain managed memory (a
 /// <c>byte[]</c>) the GC already handles — there is no Unload here and none is needed.
 ///
@@ -161,12 +161,12 @@ public class CpuImage
         return false;
     }
 
-    /// <summary>Uploads <see cref="Pixels"/> to the GPU and hands back a <see cref="TextureHandle"/>, so a
+    /// <summary>Uploads <see cref="Pixels"/> to the GPU and hands back a <see cref="BasicTexture"/>, so a
     /// CPU-side edited/generated image can be drawn like any other texture.
     ///
     /// The handle is backend-owned exactly like a <see cref="Gfx.LoadTexture"/> one — free it with
     /// <see cref="Gfx.UnloadTexture"/>. It is a snapshot, not a view: later writes to <see cref="Pixels"/> do
-    /// not reach the GPU, call this again for those. Returns <see cref="TextureHandle.None"/> on a backend with
+    /// not reach the GPU, call this again for those. Returns <see cref="BasicTexture.None"/> on a backend with
     /// no upload path (the Switch deko3d one, which cannot load textures at all yet).</summary>
-    public TextureHandle ToTexture() => Gfx.LoadTextureFromPixels(Pixels, Width, Height);
+    public BasicTexture ToTexture() => Gfx.LoadTextureFromPixels(Pixels, Width, Height);
 }

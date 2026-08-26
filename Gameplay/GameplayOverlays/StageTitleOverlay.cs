@@ -8,7 +8,7 @@ namespace DmitryAndDemid.Gameplay.GameplayOverlays;
 
 public class StageTitleOverlay(GameBox box, int index) : GameplayOverlay(box, 0.5f, 5)
 {
-    TextureHandle Texture = Runtime.CurrentRuntime.Textures["stages.png"];
+    BasicTexture Texture = Runtime.CurrentRuntime.Textures["stages.png"];
     private Rect Source1 = new Rect(0, index * 512, 1536, 96);
     private Rect Source2 = new Rect(0, index * 512 + 96, 1536, 320);
     private Rect Source3 = new Rect(0, index * 512 + 416, 1536, 96);

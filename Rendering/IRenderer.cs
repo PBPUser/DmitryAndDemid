@@ -18,7 +18,7 @@ public interface IRenderer : IDisposable
 {
     // ---- textures -------------------------------------------------------------------------
 
-    TextureHandle LoadTexture(string path);
+    BasicTexture LoadTexture(string path);
 
     /// <summary>
     /// Uploads raw pixels to a GPU texture — the entry point for images the game builds or edits on the CPU
@@ -27,34 +27,34 @@ public interface IRenderer : IDisposable
     /// during the call, so the caller may mutate or drop the array afterwards.
     ///
     /// The result is backend-owned exactly like a <see cref="LoadTexture"/> one — free it with
-    /// <see cref="UnloadTexture"/>. Returns <see cref="TextureHandle.None"/> on degenerate arguments, or on a
+    /// <see cref="UnloadTexture"/>. Returns <see cref="BasicTexture.None"/> on degenerate arguments, or on a
     /// backend with no upload path (the Switch deko3d backend, whose LoadTexture is a stub too).
     /// </summary>
-    TextureHandle LoadTextureFromPixels(byte[] rgba, int width, int height);
+    BasicTexture LoadTextureFromPixels(byte[] rgba, int width, int height);
 
     /// <summary>The shared precondition for <see cref="LoadTextureFromPixels"/>, so every backend rejects the
     /// same inputs rather than each inventing its own guard (and reading past the array on a short one).</summary>
     static bool AreLoadablePixels(byte[] rgba, int width, int height) =>
         width > 0 && height > 0 && (long)width * height * 4 <= rgba.Length;
 
-    void UnloadTexture(TextureHandle texture);
-    bool IsValid(TextureHandle texture);
-    Vector2 GetTextureSize(TextureHandle texture);
-    void SetTextureFilter(TextureHandle texture, FilterMode filter);
+    void UnloadTexture(BasicTexture texture);
+    bool IsValid(BasicTexture texture);
+    Vector2 GetTextureSize(BasicTexture texture);
+    void SetTextureFilter(BasicTexture texture, FilterMode filter);
 
     // ---- render targets -------------------------------------------------------------------
 
-    TargetHandle CreateTarget(int width, int height);
-    void DestroyTarget(TargetHandle target);
-    bool IsValid(TargetHandle target);
-    TextureHandle GetTargetTexture(TargetHandle target);
+    RenderedTexture CreateTarget(int width, int height);
+    void DestroyTarget(RenderedTexture target);
+    bool IsValid(RenderedTexture target);
+    BasicTexture GetTargetTexture(RenderedTexture target);
 
     /// <summary>
     /// Targets NEST: EndTarget re-binds the enclosing target rather than the window. Neither Raylib nor raw
     /// GL does this natively (both just unbind to framebuffer 0), but the frame itself is composited into a
     /// target, so an inner EndTarget must not drop the frame's own target.
     /// </summary>
-    void BeginTarget(TargetHandle target);
+    void BeginTarget(RenderedTexture target);
 
     void EndTarget();
 
@@ -87,7 +87,7 @@ public interface IRenderer : IDisposable
     int GetUniformLocation(ShaderHandle shader, string name);
 
     void SetUniform<T>(ShaderHandle shader, int location, T value, UniformType type) where T : unmanaged;
-    void SetUniformTexture(ShaderHandle shader, int location, TextureHandle texture);
+    void SetUniformTexture(ShaderHandle shader, int location, BasicTexture texture);
 
     /// <summary>Array uniform (e.g. a float[2] passed for a vec2).</summary>
     void SetUniformArray(ShaderHandle shader, int location, float[] values, UniformType type);
@@ -112,10 +112,10 @@ public interface IRenderer : IDisposable
     // ---- drawing --------------------------------------------------------------------------
 
     void Clear(Rgba color);
-    void DrawTexture(TextureHandle texture, Vector2 position, Rgba tint);
-    void DrawTexture(TextureHandle texture, Vector2 position, float rotation, float scale, Rgba tint);
-    void DrawTexture(TextureHandle texture, Rect source, Rect destination, Vector2 origin, float rotation, Rgba tint);
-    void DrawNinePatch(TextureHandle texture, NinePatch patch, Rect destination, Vector2 origin, float rotation, Rgba tint);
+    void DrawTexture(BasicTexture texture, Vector2 position, Rgba tint);
+    void DrawTexture(BasicTexture texture, Vector2 position, float rotation, float scale, Rgba tint);
+    void DrawTexture(BasicTexture texture, Rect source, Rect destination, Vector2 origin, float rotation, Rgba tint);
+    void DrawNinePatch(BasicTexture texture, NinePatch patch, Rect destination, Vector2 origin, float rotation, Rgba tint);
     void DrawRect(Rect rect, Rgba color);
     void DrawRect(Rect rect, Vector2 origin, float rotation, Rgba color);
     void DrawLine(Vector2 from, Vector2 to, Rgba color);
@@ -145,14 +145,14 @@ public interface IRenderer : IDisposable
 /// </summary>
 public static class RendererScopes
 {
-    public static TargetScope Target(this IRenderer renderer, TargetHandle target) => new(renderer, target);
+    public static TargetScope Target(this IRenderer renderer, RenderedTexture target) => new(renderer, target);
     public static ShaderScope Shader(this IRenderer renderer, ShaderHandle shader) => new(renderer, shader);
     public static BlendScope Blend(this IRenderer renderer, BlendMode mode) => new(renderer, mode);
 
     public readonly struct TargetScope : IDisposable
     {
         private readonly IRenderer Renderer;
-        public TargetScope(IRenderer renderer, TargetHandle target)
+        public TargetScope(IRenderer renderer, RenderedTexture target)
         {
             Renderer = renderer;
             renderer.BeginTarget(target);

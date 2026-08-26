@@ -190,7 +190,7 @@ public class RuntimeDialog
     /// 384x448 space). The window bounces in when the dialog opens and out when it ends, and its right side is
     /// dressed with randomly-placed, randomly-coloured forks.
     /// </summary>
-    public void Draw(TargetHandle target)
+    public void Draw(RenderedTexture target)
     {
         if (Finished || Lines.Length == 0)
             return;
@@ -234,7 +234,7 @@ public class RuntimeDialog
         DrawRectangleRec(win, new Rgba(12, 12, 22, (byte)(225 * Math.Min(1f, open))));
 
         // Randomly-placed, randomly-coloured forks dressing the right side of the window (generated once per line).
-        TextureHandle fork = Runtime.CurrentRuntime.Textures["vilkaCut.png"];
+        BasicTexture fork = Runtime.CurrentRuntime.Textures["vilkaCut.png"];
         Vector2 fsz = Helper.GetSize(fork);
         float aspect = fsz.X > 0 ? fsz.Y / fsz.X : 1f;
         foreach (ForkDeco d in Current.Forks)
@@ -263,7 +263,7 @@ public class RuntimeDialog
         }
 
         // The line's translated text, rendered once into a texture, blitted into the left portion of the window.
-        TextureHandle text = Current.TextTex.Texture;
+        BasicTexture text = Current.TextTex.Texture;
         if (text.Width > 0 && contentA > 0f)
         {
             float availW = win.Width * 0.66f - 12 * scale;
@@ -293,7 +293,7 @@ public class RuntimeDialog
     /// game's "press to continue". It is gated on the same conditions the input is, so an unskippable line (or a
     /// line still inside its advance cooldown) never shows a prompt that would do nothing if obeyed.
     /// </summary>
-    private void DrawContinueHint(Rect win, TextureHandle fork, Vector2 fsz, float aspect, float scale,
+    private void DrawContinueHint(Rect win, BasicTexture fork, Vector2 fsz, float aspect, float scale,
         float time, float contentA)
     {
         if (Current.Unskippable || CloseElapsed >= 0 || LineElapsed <= AdvanceCooldown || contentA <= 0f)
@@ -332,7 +332,7 @@ public class RuntimeDialog
         y += MathF.Cos(t * 1.1f) * 2f * scale;
 
         // Rotating tinted fork behind the profile.
-        TextureHandle fork = Runtime.CurrentRuntime.Textures["forkCut.png"];
+        BasicTexture fork = Runtime.CurrentRuntime.Textures["forkCut.png"];
         Vector2 fsz = Helper.GetSize(fork);
         float fh = art * 1.35f, fw = fsz.X > 0 ? fh * fsz.X / fsz.Y : fh;
         DrawTexturePro(fork, new Rect(0, 0, fsz.X, fsz.Y),
@@ -342,7 +342,7 @@ public class RuntimeDialog
         // Profile art, only if it exists.
         if (line.ProfileArt != null)
         {
-            TextureHandle pa = line.ProfileArt.Value;
+            BasicTexture pa = line.ProfileArt.Value;
             DrawTexturePro(pa, new Rect(0, 0, pa.Width, pa.Height),
                 new Rect(x, y, art, art), Vector2.Zero, 0, Rgba.White with { A = alpha });
         }
@@ -373,7 +373,7 @@ public class RuntimeDialog
     /// All the growth is anchored to the BOTTOM edge, so however much a character swells their feet stay planted
     /// on the floor of the playfield rather than sliding down it.
     /// </summary>
-    private static void DrawPortrait(TextureHandle? art, int frame, Rect destination, bool flip,
+    private static void DrawPortrait(BasicTexture? art, int frame, Rect destination, bool flip,
         float pose, float open, float time, float scale, float lineElapsed)
     {
         if (art == null || open <= 0.001f)
@@ -428,10 +428,10 @@ public class RuntimeDialog
         public readonly bool IsPlayer;
         /// <summary>The line refuses press-to-advance and hold-to-skip (see the file format's 0x10 bit).</summary>
         public readonly bool Unskippable;
-        public readonly TargetHandle TextTex;
+        public readonly RenderedTexture TextTex;
         public readonly ForkDeco[] Forks;
-        public readonly TextureHandle? PlayerArt;
-        public readonly TextureHandle? BossArt;
+        public readonly BasicTexture? PlayerArt;
+        public readonly BasicTexture? BossArt;
         public readonly int PlayerFrame;
         public readonly int BossFrame;
 
@@ -439,7 +439,7 @@ public class RuntimeDialog
         /// rotating tinted fork) is shown for this line. All parts are opt-in by file existence.</summary>
         public readonly bool ShowBossName;
         public readonly BossProfile? Profile;
-        public readonly TextureHandle? ProfileArt;
+        public readonly BasicTexture? ProfileArt;
 
         public Line(FileDialogInfo info, ProtogonistData protogonist)
         {
@@ -454,7 +454,7 @@ public class RuntimeDialog
             {
                 string key = BossProfile.KeyFromCharacterTexture(info.CharacterTexture);
                 Profile = BossProfile.Get(key);
-                ProfileArt = Runtime.CurrentRuntime.Textures.TryGetValue($"profile-{key}.png", out TextureHandle pt)
+                ProfileArt = Runtime.CurrentRuntime.Textures.TryGetValue($"profile-{key}.png", out BasicTexture pt)
                     ? pt
                     : null;
             }
@@ -494,8 +494,8 @@ public class RuntimeDialog
             // data and ignored at runtime.
         }
 
-        static TextureHandle? Lookup(string name) =>
-            !string.IsNullOrEmpty(name) && Runtime.CurrentRuntime.Textures.TryGetValue(name, out TextureHandle t)
+        static BasicTexture? Lookup(string name) =>
+            !string.IsNullOrEmpty(name) && Runtime.CurrentRuntime.Textures.TryGetValue(name, out BasicTexture t)
                 ? t
                 : null;
 

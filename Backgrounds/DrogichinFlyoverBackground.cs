@@ -15,7 +15,7 @@ namespace DmitryAndDemid.Backgrounds;
 /// </summary>
 public class DrogichinFlyoverBackground : StageBackground
 {
-    private readonly TargetHandle Temp;
+    private readonly RenderedTexture Temp;
     private readonly ShaderHandle Shader;
     private readonly int LocationTime;
 
@@ -26,7 +26,7 @@ public class DrogichinFlyoverBackground : StageBackground
         LocationTime = GetShaderLocation(Shader, "time");
     }
 
-    protected override void Render(TargetHandle texture, int tick, float delta)
+    protected override void Render(RenderedTexture texture, int tick, float delta)
     {
         SetShaderValue(Shader, LocationTime, tick / 60f + delta, UniformType.Float);
         BeginShaderMode(Shader);

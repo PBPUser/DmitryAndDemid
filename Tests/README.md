@@ -38,6 +38,10 @@ and the backend picks, then exit before opening a window.
 |---|---|
 | `TextureRegistryTests.cs` | The texture count is deterministic across reloads, has no duplicate keys, equals `scanned + procedural`, and no file name collides with a procedural key. This is the headless form of "restart the game, compare the total texture count." |
 | `AssetSeamTests.cs` | Core startup assets (`translation.json`, `base.vs`, …) resolve through the seam; file enumeration is stable and ordinally sorted (the property that makes the counts reproducible). |
+| `BitPackageTests.cs` | The varint/string/float/position writers and readers round-trip, the signed-varint and base-128 wire layouts are pinned byte for byte, and reads survive a stream that only ever returns one byte at a time (the Android asset-stream regression). |
+| `ReplayFormatTests.cs` | `.rpy` export/load round-trips header and payload, and the `[dataLength][jsonLength][json][data]` field order is pinned (the layout a swapped-fields reader once broke). |
+| `DropTests.cs` | The item-drop bit mask round-trips and matches `Data/Drop.sp` bit for bit. |
+| `HelperMathTests.cs` | `Utils/HelperPure.cs` — the pure half of `Helper` (resolution parsing, `Mix`, the object-time envelopes, colour packing, `FormatScore`, `IsCollied`, transliteration). `Helper` itself is untestable headless: its static constructor allocates a render texture, so the pure members live in `HelperPure` and `Helper` forwards to them. |
 
 ## Keeping the texture guard honest
 

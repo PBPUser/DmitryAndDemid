@@ -8,7 +8,7 @@ namespace DmitryAndDemid.Gameplay.GameplayOverlays;
 
 public class ItemGetBorderLineOverlay(GameBox box) : GameplayOverlay(box, 0.5f, 5)
 {
-    TextureHandle Texture = Runtime.CurrentRuntime.Textures["item-get-border-line.png"];
+    BasicTexture Texture = Runtime.CurrentRuntime.Textures["item-get-border-line.png"];
     private Rect Source = new Rect(0, 0, 1536, 512);
     private Rect Destination = new Rect(0, 0, new Vector2(384, 128)*Runtime.CurrentRuntime.ScaleF);
     

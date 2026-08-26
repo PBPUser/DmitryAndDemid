@@ -12,9 +12,9 @@ namespace DmitryAndDemid.Rendering;
 /// The convenience members below (Width, Height, Texture) forward to the active renderer. They exist so the
 /// migration off Raylib does not have to rewrite every `texture.Width` / `renderTexture.Texture` expression.
 /// </summary>
-public readonly record struct TextureHandle(int Id)
+public readonly record struct BasicTexture(int Id)
 {
-    public static readonly TextureHandle None = default;
+    public static readonly BasicTexture None = default;
     public bool IsValid => Id != 0;
 
     public Vector2 Size => Engine.Renderer.GetTextureSize(this);
@@ -22,13 +22,13 @@ public readonly record struct TextureHandle(int Id)
     public int Height => (int)Engine.Renderer.GetTextureSize(this).Y;
 }
 
-public readonly record struct TargetHandle(int Id)
+public readonly record struct RenderedTexture(int Id)
 {
-    public static readonly TargetHandle None = default;
+    public static readonly RenderedTexture None = default;
     public bool IsValid => Id != 0;
 
     /// <summary>The target's colour attachment, so it can be drawn like any other texture.</summary>
-    public TextureHandle Texture => Engine.Renderer.GetTargetTexture(this);
+    public BasicTexture Texture => Engine.Renderer.GetTargetTexture(this);
 }
 
 public readonly record struct ShaderHandle(int Id)

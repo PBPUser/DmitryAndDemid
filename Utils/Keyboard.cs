@@ -7,7 +7,7 @@ namespace DmitryAndDemid.Utils;
 public static class Keyboard
 {
     private const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ.,:;/@abcdefghijklmnopqrstuvwxyz+-/*=%0123456789()()[]<>#!?'\"$";
-    private static TargetHandle Texture;
+    private static RenderedTexture Texture;
     private static bool IsOnNazad = false;
     private static int X = 0, Y = 0;
     private static Action<char?>? Callback = null;
@@ -23,7 +23,7 @@ public static class Keyboard
     private static int LetterWidth;
     private static int Spacing;
     private static Rgba Selection = Rgba.Purple with { A = 128 };
-    private static TextureHandle Cursosor;
+    private static BasicTexture Cursosor;
     private static Rect CursosorSource;
     private static Rect CursosorTarget;
     
@@ -39,7 +39,7 @@ public static class Keyboard
     {
         Cursosor = Runtime.CurrentRuntime.Textures["cursosor.png"];
         CursosorSource = Helper.GetFullSource(Cursosor);
-        CursosorTarget = new Rect(CursosorSource.Size / 20 * Runtime.CurrentRuntime.ScaleF, CursosorSource.Size / 20 * Runtime.CurrentRuntime.ScaleF);
+        CursosorTarget = new Rect(CursosorSource.Size, CursosorSource.Size);
         var font = Runtime.CurrentRuntime.Fonts["kodemono"];
         int fontSize = (int)(24 * Runtime.CurrentRuntime.ScaleF);
         int spacing = (int)(8 * Runtime.CurrentRuntime.ScaleF);

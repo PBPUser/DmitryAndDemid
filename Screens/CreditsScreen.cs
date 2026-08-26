@@ -101,7 +101,7 @@ public class CreditsScreen : Screen
     private const int
         BPM = 120, BeatAnimateRate = 8;
     
-    private TargetHandle 
+    private RenderedTexture 
         NikitosJumpingTexture, DmitryEatingTexture;
 
     private Rect

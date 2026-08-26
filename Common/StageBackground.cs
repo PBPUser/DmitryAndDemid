@@ -10,7 +10,7 @@ public abstract class StageBackground
         
     }
 
-    protected virtual void Render(TargetHandle texture, int tick, float delta)
+    protected virtual void Render(RenderedTexture texture, int tick, float delta)
     {
         
     }
@@ -36,7 +36,7 @@ public abstract class StageBackground
         
     }
     
-    public void Draw(TargetHandle texture, int tick, float delta)
+    public void Draw(RenderedTexture texture, int tick, float delta)
     {
         Update(tick, delta);
         BeginTextureMode(texture);

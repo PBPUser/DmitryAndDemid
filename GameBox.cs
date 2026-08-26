@@ -845,9 +845,9 @@ public class GameBox : IDisposable
     // emit_circle shader. Drawn (tinted) at a laser/ray emitter so its start point reads as a bright gradient
     // (white -> beam colour -> transparent) instead of the old star sprite. Baked outside any render target
     // (from the constructor), since BeginTextureMode can't nest inside the box's own render pass.
-    private static TargetHandle LaserGlowTarget;
+    private static RenderedTexture LaserGlowTarget;
     private static bool LaserGlowBaked;
-    private static TextureHandle LaserGlow => LaserGlowTarget.Texture;
+    private static BasicTexture LaserGlow => LaserGlowTarget.Texture;
 
     static void EnsureLaserGlow()
     {
@@ -856,7 +856,7 @@ public class GameBox : IDisposable
         const int size = 64;
         LaserGlowTarget = LoadRenderTexture(size, size);
         ShaderHandle shader = Runtime.CurrentRuntime.Shaders["emit_circle"];
-        TextureHandle any = Runtime.CurrentRuntime.Textures["star.png"];   // content ignored; emit_circle uses only UVs
+        BasicTexture any = Runtime.CurrentRuntime.Textures["star.png"];   // content ignored; emit_circle uses only UVs
         BeginTextureMode(LaserGlowTarget);
         ClearBackground(new Rgba(0, 0, 0, 0));
         SetShaderValue(shader, GetShaderLocation(shader, "color"), new Vector3(1f, 1f, 1f), UniformType.Vec3);
@@ -917,7 +917,7 @@ public class GameBox : IDisposable
         // Emitter start point: a bright radial gradient — a beam-coloured halo with a hot white core, fading to
         // transparent — instead of the old spinning star. Two additive passes of the baked glow (white centre,
         // transparent edge): the larger tinted the beam colour, the smaller white.
-        TextureHandle glow = LaserGlow;
+        BasicTexture glow = LaserGlow;
         var glowSrc = new Rect(0, 0, glow.Width, glow.Height);
         float pulse = 0.85f + 0.15f * MathF.Sin(age * 0.5f);
         float outer = (width * 3.0f + 12f) * pulse;
@@ -1459,7 +1459,7 @@ public class GameBox : IDisposable
     public void FireBackgroundEvent(string name, float value = 0f) => StageBackgroundObject.OnEvent(name, value);
     private static Rgba Transparent = Rgba.Black with { A = 0 };
     public List<GameplayScreenEffect> ScreenEffects = new();
-    public TargetHandle Background, Box, UIAboveGameplay, UILeft;
+    public RenderedTexture Background, Box, UIAboveGameplay, UILeft;
     // Android/Switch bring-up: bracket the first few real RenderBox passes (the heavy render-target + shader
     // gameplay draw, which the loading screen delays past the frame-count brackets in GameplayScreen). A native
     // GL fault here leaves no managed stack, so the last line logged is the offending section. No-op elsewhere.
@@ -1614,7 +1614,7 @@ public class GameBox : IDisposable
             int stars = UnlockedRemainingSpells();
             if (stars > 0)
             {
-                TextureHandle star = Runtime.CurrentRuntime.Textures["star.png"];
+                BasicTexture star = Runtime.CurrentRuntime.Textures["star.png"];
                 float starSize = 13 * sf, starGap = 0.5f * sf;
                 float starX0 = sf * 4;
                 float starY = sf * 4 + bossTex.Height + 2 * sf;
@@ -1714,10 +1714,10 @@ public class GameBox : IDisposable
     public int MaxScoreContinue = 0;
     public int MaxScore = 100000;
     public bool IsUIUpdateRequired = false;
-    TargetHandle HiScoreTexture = Helper.CreateScoreText("1.000.000", 16);
-    TargetHandle ScoreTexture = Helper.CreateScoreText("1.000.000", 16);
+    RenderedTexture HiScoreTexture = Helper.CreateScoreText("1.000.000", 16);
+    RenderedTexture ScoreTexture = Helper.CreateScoreText("1.000.000", 16);
     Rect HeartBombDest = new(0, 0, new Vector2(12 * Runtime.CurrentRuntime.ScaleF));
-    TextureHandle StaffTexture = Runtime.CurrentRuntime.Textures["ingame-stuff.png"];
+    BasicTexture StaffTexture = Runtime.CurrentRuntime.Textures["ingame-stuff.png"];
     float BombsY = 135 * Runtime.CurrentRuntime.ScaleF;
     float SizeOfRes = 12 * Runtime.CurrentRuntime.ScaleF;
     float ResX = 206 * Runtime.CurrentRuntime.ScaleF;

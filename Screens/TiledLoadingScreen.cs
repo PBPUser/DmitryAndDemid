@@ -13,24 +13,24 @@ public class TiledLoadingScreen : Screen
     public Action? Event; 
     private bool EventExecuted = false;
     bool FadeOut = false;
-    private TextureHandle FifoLoading;
+    private BasicTexture FifoLoading;
     private Rect FifoSource, FifoTarget, LoadingSource, LoadingTarget, LoadingBufferSource;
     Vector2 FifoOrigin;
     private double FifoLoadingShowDelay;
     private const double FifoLoadingAppearing = 0.25;
-    private TextureHandle
+    private BasicTexture
         LoadingTexture = Runtime.CurrentRuntime.Textures["loading.png"];
-    private TargetHandle LoadingBuffer;
+    private RenderedTexture LoadingBuffer;
     public ShaderHandle LoadingShaderSwap;
     public ShaderHandle LoadingShaderTiles;
 
     /// <summary>A snapshot of the screen the loader was opened from, used to wipe IN over it (see CaptureFrom).</summary>
-    private TargetHandle SwapFrom;
+    private RenderedTexture SwapFrom;
     private Rect SwapFromSource;
     private bool HasSwapFrom;
     private Screen? CaptureScreen;
     private bool CaptureDone;
-    static TextureHandle ForkTexture = Runtime.CurrentRuntime.Textures["vilkaCut.png"];
+    static BasicTexture ForkTexture = Runtime.CurrentRuntime.Textures["vilkaCut.png"];
     static Vector2 ForkSize;
 
     static TiledLoadingScreen()

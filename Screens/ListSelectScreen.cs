@@ -17,13 +17,13 @@ namespace DmitryAndDemid.Screens;
 /// </summary>
 public class ListSelectScreen : MenuScreen
 {
-    private readonly TextureHandle TitleTexture;
+    private readonly BasicTexture TitleTexture;
     private readonly (string Label, System.Action OnSelect)[] Options;
     private readonly bool Windowed;
     private readonly string? HeaderKey;
-    private TargetHandle? BackgroundCapture;
+    private RenderedTexture? BackgroundCapture;
 
-    public ListSelectScreen(TextureHandle title, IEnumerable<(string Label, System.Action OnSelect)> options, bool windowed = false, string? headerKey = null)
+    public ListSelectScreen(BasicTexture title, IEnumerable<(string Label, System.Action OnSelect)> options, bool windowed = false, string? headerKey = null)
     {
         TitleTexture = title;
         Options = options.ToArray();

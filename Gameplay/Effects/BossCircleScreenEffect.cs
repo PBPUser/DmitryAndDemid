@@ -19,7 +19,7 @@ public class BossCircleScreenEffect : GameplayScreenEffect
 
     private RuntimeObject Boss;
     private int LocationTexture;
-    TextureHandle CursorTexture;
+    BasicTexture CursorTexture;
     
     
     public override void ApplyShading(float gameTime)

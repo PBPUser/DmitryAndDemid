@@ -597,8 +597,8 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
 
     public int VisualIndex = -1;
 
-    private TargetHandle? BossTexturePreview = null;
-    private TargetHandle? ChapterTexturePreview = null;
+    private RenderedTexture? BossTexturePreview = null;
+    private RenderedTexture? ChapterTexturePreview = null;
     
     private void RerenderBossIdentifierTexture()
     {

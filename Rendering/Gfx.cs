@@ -19,42 +19,42 @@ public static class Gfx
 
     // ---- textures -------------------------------------------------------------------------
 
-    public static TextureHandle LoadTexture(string path) => R.LoadTexture(path);
+    public static BasicTexture LoadTexture(string path) => R.LoadTexture(path);
 
     /// <summary>Uploads tightly packed RGBA pixels (top row first) as a texture — see
     /// <see cref="IRenderer.LoadTextureFromPixels"/>. <see cref="CpuImage.ToTexture"/> is the usual caller.</summary>
-    public static TextureHandle LoadTextureFromPixels(byte[] rgba, int width, int height) =>
+    public static BasicTexture LoadTextureFromPixels(byte[] rgba, int width, int height) =>
         R.LoadTextureFromPixels(rgba, width, height);
 
-    public static void UnloadTexture(TextureHandle texture) => R.UnloadTexture(texture);
-    public static bool IsTextureValid(TextureHandle texture) => R.IsValid(texture);
-    public static void SetTextureFilter(TextureHandle texture, FilterMode filter) => R.SetTextureFilter(texture, filter);
+    public static void UnloadTexture(BasicTexture texture) => R.UnloadTexture(texture);
+    public static bool IsTextureValid(BasicTexture texture) => R.IsValid(texture);
+    public static void SetTextureFilter(BasicTexture texture, FilterMode filter) => R.SetTextureFilter(texture, filter);
 
-    public static void DrawTexture(TextureHandle texture, int x, int y, Rgba tint) =>
+    public static void DrawTexture(BasicTexture texture, int x, int y, Rgba tint) =>
         R.DrawTexture(texture, new Vector2(x, y), tint);
 
-    public static void DrawTextureV(TextureHandle texture, Vector2 position, Rgba tint) =>
+    public static void DrawTextureV(BasicTexture texture, Vector2 position, Rgba tint) =>
         R.DrawTexture(texture, position, tint);
 
-    public static void DrawTextureEx(TextureHandle texture, Vector2 position, float rotation, float scale, Rgba tint) =>
+    public static void DrawTextureEx(BasicTexture texture, Vector2 position, float rotation, float scale, Rgba tint) =>
         R.DrawTexture(texture, position, rotation, scale, tint);
 
-    public static void DrawTexturePro(TextureHandle texture, Rect source, Rect dest, Vector2 origin,
+    public static void DrawTexturePro(BasicTexture texture, Rect source, Rect dest, Vector2 origin,
         float rotation, Rgba tint) =>
         R.DrawTexture(texture, source, dest, origin, rotation, tint);
 
-    public static void DrawTextureNPatch(TextureHandle texture, NinePatch patch, Rect dest, Vector2 origin,
+    public static void DrawTextureNPatch(BasicTexture texture, NinePatch patch, Rect dest, Vector2 origin,
         float rotation, Rgba tint) =>
         R.DrawNinePatch(texture, patch, dest, origin, rotation, tint);
 
     // ---- render targets -------------------------------------------------------------------
 
-    public static TargetHandle LoadRenderTexture(int width, int height) => R.CreateTarget(width, height);
-    public static void UnloadRenderTexture(TargetHandle target) => R.DestroyTarget(target);
-    public static bool IsRenderTextureValid(TargetHandle target) => R.IsValid(target);
+    public static RenderedTexture LoadRenderTexture(int width, int height) => R.CreateTarget(width, height);
+    public static void UnloadRenderTexture(RenderedTexture target) => R.DestroyTarget(target);
+    public static bool IsRenderTextureValid(RenderedTexture target) => R.IsValid(target);
 
     /// <summary>Nesting-safe: EndTextureMode returns to the enclosing target, not to the window.</summary>
-    public static void BeginTextureMode(TargetHandle target) => R.BeginTarget(target);
+    public static void BeginTextureMode(RenderedTexture target) => R.BeginTarget(target);
 
     public static void EndTextureMode() => R.EndTarget();
 
@@ -78,7 +78,7 @@ public static class Gfx
     public static void SetShaderValue<T>(ShaderHandle shader, string name, T value, UniformType type)
         where T : unmanaged => R.SetUniform(shader, name, value, type);
 
-    public static void SetShaderValueTexture(ShaderHandle shader, int location, TextureHandle texture) =>
+    public static void SetShaderValueTexture(ShaderHandle shader, int location, BasicTexture texture) =>
         R.SetUniformTexture(shader, location, texture);
 
     /// <summary>Array form — the game passes float[] literals like [192f, 96f] for vec2 uniforms.</summary>

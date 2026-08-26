@@ -28,9 +28,9 @@ public class RuntimeChapter
     public readonly int TickStart;
     public readonly int LengthOffset = 0;
     public readonly int MaxScore = 0;
-    public readonly TargetHandle? BossTitleTexture;
-    public readonly TargetHandle? ChapterTitleTexture;
-    public readonly TextureHandle? SpellcardTexture;
+    public readonly RenderedTexture? BossTitleTexture;
+    public readonly RenderedTexture? ChapterTitleTexture;
+    public readonly BasicTexture? SpellcardTexture;
 
     /// <summary>The spell card's name — also the key under which PlayerData records tries/successes.</summary>
     public readonly string SpellcardTitle = "";

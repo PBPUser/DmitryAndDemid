@@ -15,14 +15,15 @@ public abstract class ScreenWithTitle : Screen
     
     protected float TimeDisappearTitle = float.MaxValue;
     protected float TimeAppearTitle = float.MinValue;
-    private TextureHandle MenuTitleTexture;
-    private static Rect MenuTextureSource = new Rect(0, 0, 1920, 270);
+    private BasicTexture MenuTitleTexture;
+    private static Rect MenuTextureSource;
     private static Rect MenuTextureTarget;
     protected float AppearingTime = .5f;
     protected float DisappearingTime = .5f;
-    protected void SetTitle(TextureHandle title)
+    protected void SetTitle(BasicTexture title)
     {
         MenuTitleTexture = title;
+        MenuTextureSource = Helper.GetFullSource(title);
     }
     
     

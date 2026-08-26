@@ -48,15 +48,15 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     private uint QuadVao, QuadVbo, QuadEbo;
     private uint DefaultProgram;
-    private TextureHandle WhitePixel;
+    private BasicTexture WhitePixel;
 
     private readonly Dictionary<int, GlTexture> Textures = new();
     private readonly Dictionary<int, GlTarget> Targets = new();
     private readonly Dictionary<int, GlShader> Shaders = new();
     private readonly Dictionary<int, GlFont> Fonts = new();
-    private readonly Dictionary<int, TextureHandle> TargetTextures = new();
+    private readonly Dictionary<int, BasicTexture> TargetTextures = new();
 
-    private readonly Stack<TargetHandle> TargetStack = new();
+    private readonly Stack<RenderedTexture> TargetStack = new();
     private ShaderHandle ActiveShader;
     private int NextId = 1;
 
@@ -90,7 +90,7 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     private sealed class GlFont
     {
-        public TextureHandle Atlas;
+        public BasicTexture Atlas;
         public float BaseSize;
         public readonly Dictionary<char, Glyph> Glyphs = new();
     }
@@ -288,10 +288,10 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     // ---- textures -------------------------------------------------------------------------
 
-    public TextureHandle LoadTexture(string path)
+    public BasicTexture LoadTexture(string path)
     {
         if (!Assets.Exists(path))
-            return TextureHandle.None;
+            return BasicTexture.None;
 
         using Stream stream = Assets.OpenRead(path);
         ImageResult image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
@@ -300,12 +300,12 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     /// <summary>Public face of <see cref="CreateTexture"/> — the same upload the file path already goes through,
     /// for pixels the game produced itself (see <see cref="CpuImage"/>).</summary>
-    public TextureHandle LoadTextureFromPixels(byte[] rgba, int width, int height) =>
+    public BasicTexture LoadTextureFromPixels(byte[] rgba, int width, int height) =>
         IRenderer.AreLoadablePixels(rgba, width, height)
             ? CreateTexture(rgba, width, height)
-            : TextureHandle.None;
+            : BasicTexture.None;
 
-    private TextureHandle CreateTexture(byte[] rgba, int width, int height)
+    private BasicTexture CreateTexture(byte[] rgba, int width, int height)
     {
         uint id = Gl.GenTexture();
         Gl.BindTexture(TextureTarget.Texture2D, id);
@@ -322,10 +322,10 @@ public sealed unsafe class SilkGLBackend : IBackend
 
         int handle = NextId++;
         Textures[handle] = new GlTexture { Id = id, Width = width, Height = height };
-        return new TextureHandle(handle);
+        return new BasicTexture(handle);
     }
 
-    private TextureHandle CreateSolidTexture(byte r, byte g, byte b, byte a) =>
+    private BasicTexture CreateSolidTexture(byte r, byte g, byte b, byte a) =>
         CreateTexture([r, g, b, a], 1, 1);
 
     /// <summary>
@@ -334,7 +334,7 @@ public sealed unsafe class SilkGLBackend : IBackend
     /// Switch/mono-nx interpreter, whose ~21 MB LOS can't hold a single 3840×2880 (44 MB) decode. Rows must be
     /// tightly packed (pitch == width*4, which SDL's RGBA32 surfaces are). Used by SdlGlBackend's LoadTexture.
     /// </summary>
-    public TextureHandle CreateTextureFromNativePixels(IntPtr rgba, int width, int height)
+    public BasicTexture CreateTextureFromNativePixels(IntPtr rgba, int width, int height)
     {
         uint id = Gl.GenTexture();
         Gl.BindTexture(TextureTarget.Texture2D, id);
@@ -348,10 +348,10 @@ public sealed unsafe class SilkGLBackend : IBackend
 
         int handle = NextId++;
         Textures[handle] = new GlTexture { Id = id, Width = width, Height = height };
-        return new TextureHandle(handle);
+        return new BasicTexture(handle);
     }
 
-    public void UnloadTexture(TextureHandle texture)
+    public void UnloadTexture(BasicTexture texture)
     {
         if (!Textures.Remove(texture.Id, out GlTexture? t))
             return;
@@ -359,12 +359,12 @@ public sealed unsafe class SilkGLBackend : IBackend
             Gl.DeleteTexture(t.Id);
     }
 
-    public bool IsValid(TextureHandle texture) => Textures.ContainsKey(texture.Id);
+    public bool IsValid(BasicTexture texture) => Textures.ContainsKey(texture.Id);
 
-    public Vector2 GetTextureSize(TextureHandle texture) =>
+    public Vector2 GetTextureSize(BasicTexture texture) =>
         Textures.TryGetValue(texture.Id, out GlTexture? t) ? new Vector2(t.Width, t.Height) : Vector2.Zero;
 
-    public void SetTextureFilter(TextureHandle texture, FilterMode filter)
+    public void SetTextureFilter(BasicTexture texture, FilterMode filter)
     {
         if (!Textures.TryGetValue(texture.Id, out GlTexture? t))
             return;
@@ -377,7 +377,7 @@ public sealed unsafe class SilkGLBackend : IBackend
 
     // ---- render targets -------------------------------------------------------------------
 
-    public TargetHandle CreateTarget(int width, int height)
+    public RenderedTexture CreateTarget(int width, int height)
     {
         // Empty text measures 0x0; Raylib tolerated a degenerate target, so clamp rather than fail.
         width = Math.Max(1, width);
@@ -416,28 +416,28 @@ public sealed unsafe class SilkGLBackend : IBackend
 
         int id = NextId++;
         Targets[id] = new GlTarget { Fbo = fbo, ColorTexture = color, Width = width, Height = height };
-        TargetTextures[id] = new TextureHandle(textureId);
-        return new TargetHandle(id);
+        TargetTextures[id] = new BasicTexture(textureId);
+        return new RenderedTexture(id);
     }
 
-    public void DestroyTarget(TargetHandle target)
+    public void DestroyTarget(RenderedTexture target)
     {
         if (!Targets.Remove(target.Id, out GlTarget? t))
             return;
-        if (TargetTextures.Remove(target.Id, out TextureHandle texture))
+        if (TargetTextures.Remove(target.Id, out BasicTexture texture))
             Textures.Remove(texture.Id);
         Gl.DeleteFramebuffer(t.Fbo);
         Gl.DeleteTexture(t.ColorTexture);
     }
 
-    public bool IsValid(TargetHandle target) => Targets.ContainsKey(target.Id);
+    public bool IsValid(RenderedTexture target) => Targets.ContainsKey(target.Id);
 
-    public TextureHandle GetTargetTexture(TargetHandle target) =>
-        TargetTextures.GetValueOrDefault(target.Id, TextureHandle.None);
+    public BasicTexture GetTargetTexture(RenderedTexture target) =>
+        TargetTextures.GetValueOrDefault(target.Id, BasicTexture.None);
 
     public int TargetFloor { get; set; }
 
-    public void BeginTarget(TargetHandle target)
+    public void BeginTarget(RenderedTexture target)
     {
         // Push even for an unknown handle so the matching EndTarget cannot pop the PARENT target.
         TargetStack.Push(target);
@@ -458,7 +458,7 @@ public sealed unsafe class SilkGLBackend : IBackend
         }
 
         TargetStack.Pop();
-        if (TargetStack.TryPeek(out TargetHandle parent) && Targets.TryGetValue(parent.Id, out GlTarget? p))
+        if (TargetStack.TryPeek(out RenderedTexture parent) && Targets.TryGetValue(parent.Id, out GlTarget? p))
             Bind(p);
         else
             BindWindow();
@@ -675,7 +675,7 @@ public sealed unsafe class SilkGLBackend : IBackend
         }
     }
 
-    public void SetUniformTexture(ShaderHandle shader, int location, TextureHandle texture)
+    public void SetUniformTexture(ShaderHandle shader, int location, BasicTexture texture)
     {
         if (location < 0 || !Shaders.TryGetValue(shader.Id, out GlShader? s))
             return;
@@ -697,10 +697,10 @@ public sealed unsafe class SilkGLBackend : IBackend
         Gl.Clear((uint)ClearBufferMask.ColorBufferBit);
     }
 
-    public void DrawTexture(TextureHandle texture, Vector2 position, Rgba tint) =>
+    public void DrawTexture(BasicTexture texture, Vector2 position, Rgba tint) =>
         DrawTexture(texture, position, 0, 1, tint);
 
-    public void DrawTexture(TextureHandle texture, Vector2 position, float rotation, float scale, Rgba tint)
+    public void DrawTexture(BasicTexture texture, Vector2 position, float rotation, float scale, Rgba tint)
     {
         Vector2 size = GetTextureSize(texture);
         DrawTexture(texture,
@@ -709,7 +709,7 @@ public sealed unsafe class SilkGLBackend : IBackend
             Vector2.Zero, rotation, tint);
     }
 
-    public void DrawTexture(TextureHandle texture, Rect source, Rect destination, Vector2 origin, float rotation,
+    public void DrawTexture(BasicTexture texture, Rect source, Rect destination, Vector2 origin, float rotation,
         Rgba tint)
     {
         if (!Textures.TryGetValue(texture.Id, out GlTexture? t))
@@ -717,7 +717,7 @@ public sealed unsafe class SilkGLBackend : IBackend
         DrawQuad(t, source, destination, origin, rotation, tint);
     }
 
-    public void DrawNinePatch(TextureHandle texture, NinePatch patch, Rect destination, Vector2 origin,
+    public void DrawNinePatch(BasicTexture texture, NinePatch patch, Rect destination, Vector2 origin,
         float rotation, Rgba tint)
     {
         // Straight stretch of the source rect. The game uses nine-patch for one UI frame; the corners are
@@ -1373,11 +1373,11 @@ public sealed unsafe class SilkGLBackend : IBackend
     {
     }
 
-    public void DebugUiImage(TextureHandle texture)
+    public void DebugUiImage(BasicTexture texture)
     {
     }
 
-    public void DebugUiImage(TargetHandle target)
+    public void DebugUiImage(RenderedTexture target)
     {
     }
 

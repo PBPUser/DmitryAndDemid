@@ -41,21 +41,21 @@ public class PersonSelectScreen : MenuScreen
     /// than the input cooldown so the flip reads as a rotation rather than a snap.</summary>
     private const double SwitchFlipDuration = 0.28;
 
-    private TextureHandle[] ArtTextures;
+    private BasicTexture[] ArtTextures;
     /// <summary>Each person's description as written text (from the JSON), and the render texture it is baked
     /// into on first use so the flip animation can squash it. Only the description rotates now; the art and the
     /// panel behind it keep their original slide.</summary>
     private string[] Descriptions;
-    private TargetHandle[] DescriptionTextTextures;
+    private RenderedTexture[] DescriptionTextTextures;
 
     string[] Files;
 
     public override void CreateMenu()
     {
         Files = Assets.Files("Assets/Data/PlayablePersons/", "*.json");
-        ArtTextures = new TextureHandle[Files.Length];
+        ArtTextures = new BasicTexture[Files.Length];
         Descriptions = new string[Files.Length];
-        DescriptionTextTextures = new TargetHandle[Files.Length];
+        DescriptionTextTextures = new RenderedTexture[Files.Length];
         int i = 0;
         foreach (var x in Files)
         {
@@ -123,7 +123,7 @@ public class PersonSelectScreen : MenuScreen
 
         if (DescriptionTextTextures[shown].Id == 0)
             DescriptionTextTextures[shown] = RenderDescription(Descriptions[shown]);
-        TargetHandle descTarget = DescriptionTextTextures[shown];
+        RenderedTexture descTarget = DescriptionTextTextures[shown];
         // Centre the description block within the description panel (both axes), so it reads as centred and the
         // width-flip pivots on the panel's middle.
         float descW = descTarget.Texture.Width, descH = descTarget.Texture.Height;
@@ -144,7 +144,7 @@ public class PersonSelectScreen : MenuScreen
     /// edge-on (an invisible vertical line). Can overshoot 1 (the elastic open bounce), which just makes the
     /// card briefly wider than its resting width.
     /// </summary>
-    private static void DrawXAxisFlip(TextureHandle texture, Rect source, Rect dest, float flip, Rgba tint)
+    private static void DrawXAxisFlip(BasicTexture texture, Rect source, Rect dest, float flip, Rgba tint)
     {
         if (flip <= 0f)
             return;
@@ -161,7 +161,7 @@ public class PersonSelectScreen : MenuScreen
     /// drawing does not wrap or honour '\n', so each line is measured and drawn on its own row — and CENTRED —
     /// exactly as the Music Room lays out its descriptions.
     /// </summary>
-    private TargetHandle RenderDescription(string key)
+    private RenderedTexture RenderDescription(string key)
     {
         FontHandle font = Runtime.CurrentRuntime.Fonts["newsreader"];
         float scale = Runtime.CurrentRuntime.ScaleF;
@@ -182,7 +182,7 @@ public class PersonSelectScreen : MenuScreen
 
         int texW = Math.Max(1, (int)MathF.Ceiling(width + pad * 2));
         int texH = Math.Max(1, (int)MathF.Ceiling(lines.Length * lineH + pad * 2));
-        TargetHandle tex = LoadRenderTexture(texW, texH);
+        RenderedTexture tex = LoadRenderTexture(texW, texH);
         BeginTextureMode(tex);
         ClearBackground(Rgba.Black with { A = 0 });
         float y = pad;
@@ -199,7 +199,7 @@ public class PersonSelectScreen : MenuScreen
     public override void Unload()
     {
         if (DescriptionTextTextures != null)
-            foreach (TargetHandle t in DescriptionTextTextures)
+            foreach (RenderedTexture t in DescriptionTextTextures)
                 if (t.Id != 0)
                     UnloadRenderTexture(t);
         base.Unload();

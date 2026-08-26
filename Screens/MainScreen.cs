@@ -16,7 +16,7 @@ public class MainScreen : MenuScreen
 
     int TitleIndex = 0;
     int selectedIndex = 0;
-    TextureHandle SelectedPerson;
+    BasicTexture SelectedPerson;
 
     Rect
         RCPersonSource,
@@ -143,24 +143,24 @@ public class MainScreen : MenuScreen
 
     // The title logo pre-rendered into a transparent, PADDED target so the neon_sign halo has room to bleed
     // instead of clipping at the sprite's rectangular edge. LogoPadScale is the padded size / art size.
-    TargetHandle LogoPadded;
+    RenderedTexture LogoPadded;
     float LogoPadScaleX = 1f, LogoPadScaleY = 1f;
 
     // The corner station logos, likewise padded (see PadForGlow), with the destination rects grown to match.
-    TargetHandle SideLogoLeft, SideLogoRight;
+    RenderedTexture SideLogoLeft, SideLogoRight;
     Rect SideLogoLeftTarget, SideLogoRightTarget;
 
     // neon_sign scratch buffers, one per lit sprite, sized to that sprite's own (small, fixed) padded resolution
     // rather than its on-screen destination. DrawNeonSign shades into these instead of straight onto the window,
     // so its ~80-tap kernel runs once per SOURCE pixel and never scales with the player's chosen resolution —
     // the same "render small, upscale for free" trick GameBox already uses for the playfield.
-    TargetHandle LogoGlowBuffer, SideLogoLeftGlowBuffer, SideLogoRightGlowBuffer;
+    RenderedTexture LogoGlowBuffer, SideLogoLeftGlowBuffer, SideLogoRightGlowBuffer;
 
     // The backdrop + wallpaper glow shaders likewise render into this fixed, native-resolution composite (sized
     // to rediska-na-fon.png itself) instead of directly at window size, then get upscaled with one cheap,
     // shader-free blit.
-    TextureHandle BackdropTexture;
-    TargetHandle BackdropComposite;
+    BasicTexture BackdropTexture;
+    RenderedTexture BackdropComposite;
 
     int Size;
     double AppearTime;
@@ -206,6 +206,11 @@ public class MainScreen : MenuScreen
         string[] replays = ReplayLauncher.FindReplays();
         if (replays.Length == 0)
             return;
+        BlackLoadingScreen? loader = null;
+        loader = new BlackLoadingScreen(1.2, 0.4, () => Runtime.CurrentRuntime.RemoveScreen(loader), true, 0);
+        Runtime.CurrentRuntime.AddScreen(loader);
+        Runtime.CurrentRuntime.UnloadTextures();
+        Runtime.CurrentRuntime.LoadTextures(["game"]);
         GameplayScreen? demo = ReplayLauncher.Build(replays[DemoIndex % replays.Length], demo: true);
         DemoIndex++;
         if (demo == null)
@@ -214,9 +219,6 @@ public class MainScreen : MenuScreen
         // Cover the demo's start-up with a plain black fade + rotating fifo (a subtler treatment than the tiled
         // loading animation used when entering a real game), then reveal the demo when it fades out.
         Helper.PlaySound(Runtime.CurrentRuntime.Sounds["swap"]);
-        BlackLoadingScreen? loader = null;
-        loader = new BlackLoadingScreen(1.2, 0.4, () => Runtime.CurrentRuntime.RemoveScreen(loader), true, 0);
-        Runtime.CurrentRuntime.AddScreen(loader);
     }
 
     private const int PizzaCount = 10;
@@ -243,10 +245,10 @@ public class MainScreen : MenuScreen
     /// sheet). Returns the target plus <paramref name="dest"/> grown by the same margin, which keeps the art
     /// itself at exactly the on-screen size and position it had before padding.
     /// </summary>
-    private static (TargetHandle Target, Rect Dest) PadForGlow(TextureHandle atlas, Rect source, Rect dest)
+    private static (RenderedTexture Target, Rect Dest) PadForGlow(BasicTexture atlas, Rect source, Rect dest)
     {
         const int pad = 20;   // comfortably over neon_sign's ~12-texel halo reach
-        TargetHandle target = LoadRenderTexture((int)source.Width + pad * 2, (int)source.Height + pad * 2);
+        RenderedTexture target = LoadRenderTexture((int)source.Width + pad * 2, (int)source.Height + pad * 2);
         BeginTextureMode(target);
         ClearBackground(new Rgba(0, 0, 0, 0));
         DrawTexturePro(atlas, source, new Rect(pad, pad, source.Width, source.Height), Vector2.Zero, 0f, Rgba.White);
@@ -267,7 +269,7 @@ public class MainScreen : MenuScreen
     /// shader-free blit, so the ~80-tap kernel runs at the sprite's own pixel count instead of scaling with
     /// however large <paramref name="dest"/> is on screen (up to most of the window, for the title logo).
     /// </summary>
-    private static void DrawNeonSign(TargetHandle target, TargetHandle glowBuffer, Rect dest, Vector2 origin, float rotation, Rgba tint)
+    private static void DrawNeonSign(RenderedTexture target, RenderedTexture glowBuffer, Rect dest, Vector2 origin, float rotation, Rgba tint)
     {
         var neon = Runtime.CurrentRuntime.Shaders["neon_sign"];
         SetShaderValue(neon, GetShaderLocation(neon, "time"), (float)GetTime(), UniformType.Float);
@@ -288,7 +290,7 @@ public class MainScreen : MenuScreen
     /// Draws the backdrop lit through the ink_glow shader: its paint spills coloured light onto the paper around
     /// it and the vivid blues bloom. It is an opaque image, so it cannot use the alpha-keyed neon_sign.
     /// </summary>
-    private static void DrawGlowingBackdrop(TextureHandle texture, Rect dest, Rgba tint)
+    private static void DrawGlowingBackdrop(BasicTexture texture, Rect dest, Rgba tint)
     {
         var shader = Runtime.CurrentRuntime.Shaders["ink_glow"];
         SetShaderValue(shader, GetShaderLocation(shader, "time"), (float)GetTime(), UniformType.Float);
@@ -306,7 +308,7 @@ public class MainScreen : MenuScreen
     /// where the backdrop behind it is dark. The backdrop is handed in as the shader's mask, so this has to be
     /// drawn over the same rect the backdrop occupies for the two to line up.
     /// </summary>
-    private static void DrawGlowingWallpaper(TextureHandle backdrop, Rect dest, Rgba tint)
+    private static void DrawGlowingWallpaper(BasicTexture backdrop, Rect dest, Rgba tint)
     {
         var wallpaper = Runtime.CurrentRuntime.Textures["soviet-wallpaper.png"];
         var shader = Runtime.CurrentRuntime.Shaders["soviet_wallpaper"];
@@ -340,7 +342,7 @@ public class MainScreen : MenuScreen
     /// </summary>
     private void DrawFloatingPizzas(float time, float appear, float burst)
     {
-        if (!Runtime.CurrentRuntime.Textures.TryGetValue("pizza.png", out TextureHandle pizza))
+        if (!Runtime.CurrentRuntime.Textures.TryGetValue("pizza.png", out BasicTexture pizza))
             return;
         float width = Runtime.CurrentRuntime.Width;
         float height = Runtime.CurrentRuntime.Height;
@@ -403,6 +405,16 @@ public class MainScreen : MenuScreen
 
     public override void Render()
     {
+        // The attract-mode demo swaps the whole texture set out from under this screen (LoadTextures on demo
+        // start AND on demo return), freeing the handles the constructor cached. Re-fetch them per frame —
+        // the same pattern the wallpaper/version/copyright draws below already use. TryGet because during the
+        // demo itself the "main"-tagged backdrop is not in the dictionary at all; the stale handle is kept
+        // for that stretch (we are covered then, and it is never drawn).
+        if (Runtime.CurrentRuntime.Textures.TryGetValue(PersonImageNames[TitleIndex], out BasicTexture person))
+            SelectedPerson = person;
+        if (Runtime.CurrentRuntime.Textures.TryGetValue("rediska-na-fon.png", out BasicTexture backdrop))
+            BackdropTexture = backdrop;
+
         var z = GetTime() - AppearTime;
         float
             appear1 = (float)Helper.ComputeObjectTimeStart(z, 5, 1),

@@ -68,26 +68,11 @@ public static class Helper
     private static int LocationGradientBorderWidth;
     private static int LocationGradientResoulution;
 
-    public static bool GetResolutionFromString(string str, out (int width, int height) res)
-    {
-        res = (0, 0);
-        var split = str.Split("x");
-        if (split.Length < 2)
-            return false;
-        if (!int.TryParse(split[0], out res.width))
-            return false;
-        return int.TryParse(split[1], out res.height);
-    }
+    public static bool GetResolutionFromString(string str, out (int width, int height) res) =>
+        HelperPure.GetResolutionFromString(str, out res);
 
-    public static bool GetMultiplyerFromRes(string str, out double multiplyer)
-    {
-        multiplyer = 0;
-        (int width, int height) res;
-        if (!GetResolutionFromString(str, out res))
-            return false;
-        multiplyer = ((double)res.width) / 640d;
-        return true;
-    }
+    public static bool GetMultiplyerFromRes(string str, out double multiplyer) =>
+        HelperPure.GetMultiplyerFromRes(str, out multiplyer);
 
     static int LocationCloudRadius;
     static int LocationCloudDimensions;
@@ -136,10 +121,10 @@ public static class Helper
             Runtime.CurrentRuntime.ScaleF);
     }
 
-    public static void DrawBossText(TargetHandle texture, string text)
+    public static void DrawBossText(RenderedTexture texture, string text)
     {
         string transliterate = Transliterate(text);
-        TargetHandle temp = LoadRenderTexture(texture.Texture.Width,  texture.Texture.Height);
+        RenderedTexture temp = LoadRenderTexture(texture.Texture.Width,  texture.Texture.Height);
         BeginTextureMode(temp);
         DrawTextEx(GetFontDefault(),
             transliterate,
@@ -160,10 +145,10 @@ public static class Helper
         UnloadRenderTexture(temp);
     }
 
-    public static void DrawChapterTitleText(TargetHandle texture, string text)
+    public static void DrawChapterTitleText(RenderedTexture texture, string text)
     {
         string transliterate = Transliterate(text);
-        TargetHandle temp = LoadRenderTexture(texture.Texture.Width,  texture.Texture.Height);
+        RenderedTexture temp = LoadRenderTexture(texture.Texture.Width,  texture.Texture.Height);
         BeginTextureMode(temp);
         var b = GetTitleTextSize(text);
         DrawTextEx(Runtime.CurrentRuntime.Fonts["kodemono"],
@@ -208,9 +193,9 @@ public static class Helper
             Runtime.CurrentRuntime.ScaleF) * 1.5f;
     }
     
-    public static TargetHandle RenderTextureInCloud(TextureHandle texture, float radius = 3f, float angle = -0.85f, float width = 0.35f, float size = 1.4f)
+    public static RenderedTexture RenderTextureInCloud(BasicTexture texture, float radius = 3f, float angle = -0.85f, float width = 0.35f, float size = 1.4f)
     {
-        TargetHandle cloud = LoadRenderTexture(texture.Width * 2, texture.Height * 2);
+        RenderedTexture cloud = LoadRenderTexture(texture.Width * 2, texture.Height * 2);
         var arr = new float[] { 1, 1 };
         SetShaderValue(Runtime.CurrentRuntime.Shaders["cloud"], LocationCloudRadius, radius, UniformType.Float);
         SetShaderValue(Runtime.CurrentRuntime.Shaders["cloud"], LocationCloudAngle, angle, UniformType.Float);
@@ -251,7 +236,7 @@ public static class Helper
     private static ShaderHandle AAShader;
     private static float TimerFontSize = 24;
     private static float TimerFontSpacing = 2;
-    private static TargetHandle TempTimerTexture, TempTimerTexture2;
+    private static RenderedTexture TempTimerTexture, TempTimerTexture2;
     private static Rect TimerRectangleSource, TimerRectangleTarget;
     // Resolved on use, not in a static field initializer: the fonts dictionary is filled during Load(), and
     // touching Helper before that (as Android's earlier, eager static-init timing does) would otherwise throw
@@ -311,14 +296,7 @@ public static class Helper
         }
     }
 
-    public static string FormatScore(int score, int c)
-    {
-        string str = string.Join("", $"{(score == 0 ? "" : score)}{c}".Reverse());
-        int spacing = ((str.Length + 2) / 3 * 3) - str.Length;
-        str = str.PadRight(spacing + str.Length, 'o');
-        return string.Join("",string.Join(".", Enumerable.Range(0, str.Length / 3).Select(x => str[(x*3)..(x*3+3)]))
-            .Reverse()).Substring(spacing);
-    }
+    public static string FormatScore(int score, int c) => HelperPure.FormatScore(score, c);
 
     public static Vector2 GetScoreTextureSize(string text, float fontSize)
     {
@@ -328,7 +306,7 @@ public static class Helper
             );
     }
 
-    public static TargetHandle CreateScoreText(string text, float fontSize)
+    public static RenderedTexture CreateScoreText(string text, float fontSize)
     {
         var vec2 = GetScoreTextureSize(text, fontSize);
         var texture = LoadRenderTexture((int)vec2.X, (int)vec2.Y);
@@ -338,9 +316,9 @@ public static class Helper
         return texture;
     }
 
-    private static TargetHandle BonusTexture;
-    private static TargetHandle SpellTexture;
-    private static TargetHandle SubtitleBufferTexture;
+    private static RenderedTexture BonusTexture;
+    private static RenderedTexture SpellTexture;
+    private static RenderedTexture SubtitleBufferTexture;
     private static float SpellFontSize;
 
     // Persistent scratch/output targets for the spell-card subtitle, reused across frames. Each frame a card
@@ -348,15 +326,15 @@ public static class Helper
     // for each of four text parts), churning GPU framebuffers for the whole duration of the card. Each of the
     // four parts keeps its own mask + output; both are (re)allocated only when that part's pixel size changes
     // (never per frame), so a part's mask never thrashes against a differently-sized neighbour.
-    private static readonly TargetHandle[] SubtitleMasks = new TargetHandle[4];
+    private static readonly RenderedTexture[] SubtitleMasks = new RenderedTexture[4];
     private static readonly Vector2[] SubtitleMaskSizes = { Vector2.Zero, Vector2.Zero, Vector2.Zero, Vector2.Zero };
-    private static readonly TargetHandle[] SubtitleParts = new TargetHandle[4];
+    private static readonly RenderedTexture[] SubtitleParts = new RenderedTexture[4];
     private static readonly Vector2[] SubtitlePartSizes = { Vector2.Zero, Vector2.Zero, Vector2.Zero, Vector2.Zero };
 
     /// <summary>Ensures <paramref name="handle"/> is a render texture of exactly <paramref name="size"/>,
     /// reallocating only when the size differs from <paramref name="currentSize"/>. A <paramref name="currentSize"/>
     /// of <see cref="Vector2.Zero"/> means "not yet allocated" (nothing to free).</summary>
-    static void EnsureRenderTexture(ref TargetHandle handle, ref Vector2 currentSize, Vector2 size)
+    static void EnsureRenderTexture(ref RenderedTexture handle, ref Vector2 currentSize, Vector2 size)
     {
         int w = Math.Max(1, (int)size.X);
         int h = Math.Max(1, (int)size.Y);
@@ -412,7 +390,7 @@ public static class Helper
     /// flicker.
     /// </param>
     /// <param name="rightX">RIGHT edge to align to — the name slides in from far left at up to 10x scale.</param>
-    public static int DrawSpellSubtitle(TargetHandle target, int score, int total, int success,
+    public static int DrawSpellSubtitle(RenderedTexture target, int score, int total, int success,
         int rightX = 0, int posY = 0, string failedText = "", float appear = 1f)
     {
         // appear (0..1) fades and slides this line in a beat after the card name, so it does not pop in with
@@ -457,7 +435,7 @@ public static class Helper
             new Rgba(255, 255, 255), new Rgba(205, 205, 205), Rgba.Black, border);
 
         float gap = 10 * Runtime.CurrentRuntime.ScaleF;
-        TargetHandle[] parts = SubtitleParts;
+        RenderedTexture[] parts = SubtitleParts;
         float lineWidth = parts.Sum(p => p.Texture.Width) + gap;   // one gap, between the two pairs
 
         float posX = rightX - lineWidth;
@@ -472,7 +450,7 @@ public static class Helper
         float x = posX;
         for (int i = 0; i < parts.Length; i++)
         {
-            TargetHandle part = parts[i];
+            RenderedTexture part = parts[i];
             DrawTexturePro(part.Texture, GetFullSourceRenderTexture(part),
                 new Rect(x, posY + slide, part.Texture.Width, part.Texture.Height), Vector2.Zero, 0, tint);
             x += part.Texture.Width;
@@ -496,7 +474,7 @@ public static class Helper
     /// render textures. Pass highlightStrength > 0 for the animated sweep (used to emphasise the score during a
     /// spell card); 0 gives a static gradient.
     /// </summary>
-    static void DrawTextFramedInto(ref TargetHandle mask, ref Vector2 maskSize, ref TargetHandle texture,
+    static void DrawTextFramedInto(ref RenderedTexture mask, ref Vector2 maskSize, ref RenderedTexture texture,
         ref Vector2 textureSize, FontHandle font, float fontSize, string text, Rgba colorTop, Rgba colorBottom,
         Rgba borderColor, float borderWidth, float highlightStrength = 0f)
     {
@@ -553,7 +531,7 @@ public static class Helper
     /// <param name="borderWidth">Outline thickness in screen px; negative (the default) keeps the historic
     /// fixed 4 * ScaleF. That width is absolute, not relative to <paramref name="fontSize"/>, so small text
     /// baked through here drowns in its own outline unless the caller scales it down to match.</param>
-    public static void DrawTextOutline(out TargetHandle texture, FontHandle font, float fontSize, string text, Rgba color, float padding, float borderWidth = -1)
+    public static void DrawTextOutline(out RenderedTexture texture, FontHandle font, float fontSize, string text, Rgba color, float padding, float borderWidth = -1)
     {
         DrawTextAliasedA(out var temp, font, fontSize, 0, text, color);
         texture = LoadRenderTexture((int)(temp.Texture.Width + padding * 2),
@@ -583,7 +561,7 @@ public static class Helper
         UnloadRenderTexture(temp2);
     }
     
-    public static void DrawTextOutlineRef(ref TargetHandle texture, FontHandle font, float fontSize, string text, Rgba color, float padding)
+    public static void DrawTextOutlineRef(ref RenderedTexture texture, FontHandle font, float fontSize, string text, Rgba color, float padding)
     {
         //DrawTextAliasedRef(out var temp, font, fontSize, 0, text, color);
         //var s = GetFullSource(texture.Texture);
@@ -610,7 +588,7 @@ public static class Helper
         //UnloadRenderTexture(temp2);
     }
 
-    public static void DrawTextGradient(out TargetHandle texture, FontHandle font, float fontSize, string text,
+    public static void DrawTextGradient(out RenderedTexture texture, FontHandle font, float fontSize, string text,
         Rgba color, float padding, float borderWidth = -1)
     {
         DrawTextOutline(out var temp, font, fontSize, text, color, padding, borderWidth);
@@ -626,9 +604,9 @@ public static class Helper
         UnloadRenderTexture(temp);
     }
 
-    public static void DrawTextAliased(out TargetHandle texture, 
+    public static void DrawTextAliased(out RenderedTexture texture, 
 #if DEBUG
-        out TargetHandle unscaled,
+        out RenderedTexture unscaled,
 #endif
         FontHandle font, float fontSize, float spacing, string text, Rgba color)
     {
@@ -652,9 +630,9 @@ public static class Helper
 #endif
     }
 
-    private static TargetHandle AlliasTextureTemp = LoadRenderTexture(8192, 8192);
+    private static RenderedTexture AlliasTextureTemp = LoadRenderTexture(8192, 8192);
     
-    public static void DrawTextAliasedRef(ref TargetHandle texture,
+    public static void DrawTextAliasedRef(ref RenderedTexture texture,
         FontHandle font, float fontSize, float spacing, string text, Rgba color)
     {
         var measure = MeasureTextEx(font, text, fontSize * 4, spacing);
@@ -671,12 +649,12 @@ public static class Helper
         EndTextureMode();
     }
 
-    public static void DrawTextAliasedA(out TargetHandle texture, FontHandle font, float fontSize, float spacing, string text, Rgba color)
+    public static void DrawTextAliasedA(out RenderedTexture texture, FontHandle font, float fontSize, float spacing, string text, Rgba color)
     {
         // DrawTextAliased only takes the `unscaled` output in DEBUG (the texture previewer wants it), so the
         // call has to match — passing it in Release did not compile, which is why no Release build worked.
 #if DEBUG
-        TargetHandle unscaled = new TargetHandle();
+        RenderedTexture unscaled = new RenderedTexture();
         DrawTextAliased(out texture, out unscaled, font, fontSize, spacing, text, color);
         UnloadRenderTexture(unscaled);
 #else
@@ -684,7 +662,7 @@ public static class Helper
 #endif
     }
     
-    public static void DrawTimerSplash(TargetHandle renderTexture, int ticks, double time)
+    public static void DrawTimerSplash(RenderedTexture renderTexture, int ticks, double time)
     {
         var secondsFontSize = (int)(SplashTimerSize * Runtime.CurrentRuntime.ScaleF);
         var millsFonsSize = (int)(SplashTimerMillsSize * Runtime.CurrentRuntime.ScaleF);
@@ -752,7 +730,7 @@ public static class Helper
         UnloadRenderTexture(realTextureApply);
     }
 
-    public static void DrawSpellScore(string scoreText, ref TargetHandle renderTexture2D, out float letterWidth, out float textWidth)
+    public static void DrawSpellScore(string scoreText, ref RenderedTexture renderTexture2D, out float letterWidth, out float textWidth)
     {
         var fontSize = (int)(SplashTimerSize * Runtime.CurrentRuntime.ScaleF);
         var measure = MeasureTextEx(TimerFont, scoreText, fontSize, 0);
@@ -809,7 +787,7 @@ public static class Helper
         DrawTexture(TempTimerTexture2.Texture, x,y,isTimingOut ? Rgba.Red : Rgba.White);
     }
 
-    public static TargetHandle DrawDialog(string text, float angle)
+    public static RenderedTexture DrawDialog(string text, float angle)
     {
         var tx = DrawText(text, 16, 4, 4, 2, GetFontDefault(), Rgba.Black, "shadow");
         var vx = RenderTextureInCloud(tx.Texture, 3f, angle);
@@ -819,129 +797,44 @@ public static class Helper
 
     static int LocationFlipScreenSize;
 
-    public static Vector4 ColorToVector(Rgba color)
-    {
-        return new Vector4(color.R / 255f, color.G / 255f, color.B / 255f, color.A / 255f);
-    }
+    public static Vector4 ColorToVector(Rgba color) => HelperPure.ColorToVector(color);
 
-    public static Rect Mix(Rect rc1, Rect rc2, float mix)
-    {
-        float imix = 1f - mix;
-        return new Rect(
-            rc1.X * imix + rc2.X * mix,
-            rc1.Y * imix + rc2.Y * mix,
-            rc1.Width * imix + rc2.Width * mix,
-            rc1.Height * imix + rc2.Height * mix
-        );
-    }
+    public static Rect Mix(Rect rc1, Rect rc2, float mix) => HelperPure.Mix(rc1, rc2, mix);
 
-    public static float Mix(float f1, float f2, float mix)
-    {
-        return f1 * (1 - mix) + f2 * mix;
-    }
+    public static float Mix(float f1, float f2, float mix) => HelperPure.Mix(f1, f2, mix);
 
-    public static Vector4 Mix(Vector4 color1, Vector4 color2, float mix)
-    {
-        float imix = 1f - mix;
-        return new Vector4(
-            color1[0] * imix + color2[0] * mix,
-            color1[1] * imix + color2[1] * mix,
-            color1[2] * imix + color2[2] * mix,
-            color1[3] * imix + color2[3] * mix
-        );
-    }
+    public static Vector4 Mix(Vector4 color1, Vector4 color2, float mix) => HelperPure.Mix(color1, color2, mix);
 
-    public static Rgba Mix(Rgba color1, Rgba color2, float mix)
-    {
-        float imix = 1f - mix;
-        return new Rgba(
-            (byte)(color1.R * imix + color2.R * mix),
-            (byte)(color1.G * imix + color2.G * mix),
-            (byte)(color1.B * imix + color2.B * mix),
-            (byte)(color1.A * imix + color2.A * mix)
-        );
-    }
+    public static Rgba Mix(Rgba color1, Rgba color2, float mix) => HelperPure.Mix(color1, color2, mix);
     ///<summary>
     /// Computes object time
     /// </summary>
-    public static double ComputeObjectTime(double time, double start, double appearLength, double end, double disappearLength)
-    {
-        double timeAppear = Math.Clamp((time - start) / appearLength, 0, 1);
-        double timeDisappear = Math.Clamp((end - time) / disappearLength, 0, 1);
-        return timeAppear * timeDisappear;
-    }
+    public static double ComputeObjectTime(double time, double start, double appearLength, double end, double disappearLength) =>
+        HelperPure.ComputeObjectTime(time, start, appearLength, end, disappearLength);
 
-    static float Clamp(float value, float min, float max)
-    {
-        return MathF.Max(MathF.Min(value, max), min);
-    }
+    public static float ComputeObjectTime(float time, float start, float appearLength, float end, float disappearLength) =>
+        HelperPure.ComputeObjectTime(time, start, appearLength, end, disappearLength);
 
-    public static float ComputeObjectTime(float time, float start, float appearLength, float end, float disappearLength)
-    {
-        float timeAppear = Clamp((time - start) / appearLength, 0, 1);
-        float timeDisappear = Clamp((end - time) / disappearLength, 0, 1);
-        return timeAppear * timeDisappear;
-    }
-
-    public static float ComputeObjectTime(int time, int start, int appearLength, int end, int disappearLength)
-    {
-        float timeAppear = Clamp((time - start) / (float)appearLength, 0, 1);
-        float timeDisappear = Clamp((end - time) / (float)disappearLength, 0, 1);
-        return timeAppear * timeDisappear;
-    }
+    public static float ComputeObjectTime(int time, int start, int appearLength, int end, int disappearLength) =>
+        HelperPure.ComputeObjectTime(time, start, appearLength, end, disappearLength);
 
     public static float ComputeObjectTime0To2(float time, float start, float appearLength, float end,
-        float disappearLength)
-    {
-        float timeAppear = Clamp((time - start) / appearLength, 0, 1);
-        float timeDisappear = Clamp((time - end) / disappearLength, 0, 1);
-        return timeAppear + timeDisappear;
-    }
+        float disappearLength) => HelperPure.ComputeObjectTime0To2(time, start, appearLength, end, disappearLength);
 
-    public static double ComputeObjectTimeStart(double time, double start, double appearLength)
-    {
-        return Math.Clamp((time - start) / appearLength, 0, 1);
-    }
+    public static double ComputeObjectTimeStart(double time, double start, double appearLength) =>
+        HelperPure.ComputeObjectTimeStart(time, start, appearLength);
 
-    public static byte TimeToTransparency(double time)
-    {
-        return (byte)(255 * time);
-    }
+    public static byte TimeToTransparency(double time) => HelperPure.TimeToTransparency(time);
 
-    public static float Pow2F(float x)
-    {
-        return x * x;
-    }
+    public static float Pow2F(float x) => HelperPure.Pow2F(x);
 
-    public static float EaseInOutElasticF(float x)
-    {
-        float c5 = (2f * MathF.PI) / 4.5f;
-        return x == 0
-        ? 0
-        : x == 1
-        ? 1
-        : x < 0.5
-        ? -(MathF.Pow(2, 20 * x - 10) * MathF.Sin((20 * x - 11.125f) * c5)) / 2
-        : (MathF.Pow(2, -20 * x + 10) * MathF.Sin((20 * x - 11.125f) * c5)) / 2 + 1;
-    }
+    public static float EaseInOutElasticF(float x) => HelperPure.EaseInOutElasticF(x);
+
+    public static int Vector3ColorToInt(Vector3 vector) => HelperPure.Vector3ColorToInt(vector);
+
+    public static Vector3 ColorIntToVector3(int color) => HelperPure.ColorIntToVector3(color);
     
-    public static int Vector3ColorToInt(Vector3 vector)
-    {
-        int r = (int)(0xFF * vector.X);
-        int g = (int)(0xFF * vector.Y);
-        int b = (int)(0xFF * vector.Z);
-        return r << 16 | g << 8 | b;
-    }
-
-    public static Vector3 ColorIntToVector3(int color)
-    {
-        float r = (color >> 16) & 0xFF;
-        float g = (color >> 8) & 0xFF;
-        float b = color & 0xFF;
-        return new Vector3(r / 0xFF, g / 0xFF, b / 0xFF);
-    }
-    
-    public static TargetHandle DrawTextScaled(string s, int fontSize, int hPadding, int vPadding, int spacing, FontHandle font, string shader = "shadow") => DrawText(s, 
+    public static RenderedTexture DrawTextScaled(string s, int fontSize, int hPadding, int vPadding, int spacing, FontHandle font, string shader = "shadow") => DrawText(s, 
         (int)(fontSize*Runtime.CurrentRuntime.Scale), 
         (int)(hPadding*Runtime.CurrentRuntime.Scale), 
         (int)(vPadding*Runtime.CurrentRuntime.Scale), 
@@ -950,10 +843,10 @@ public static class Helper
         Rgba.White,
         shader,
         Runtime.CurrentRuntime.ScaleF);
-    public static TargetHandle DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, FontHandle font, string shader = "shadow", float scale = 1f) => 
+    public static RenderedTexture DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, FontHandle font, string shader = "shadow", float scale = 1f) => 
         DrawText(s, fontSize, hPadding, vPadding, spacing, font, Rgba.White, shader, scale);
 
-    public static void DrawTextOnRenderTextureWithoutReinitialization(ref TargetHandle texture, 
+    public static void DrawTextOnRenderTextureWithoutReinitialization(ref RenderedTexture texture, 
         Vector2 pos,
         string s, int fontSize,
         int spacing, FontHandle font, Rgba color,
@@ -962,8 +855,8 @@ public static class Helper
         int sFontSize = (int)(fontSize * scale);
         int sSpacing = (int)(spacing * scale);
         var measure = MeasureTextEx(font, s, sFontSize, sSpacing);
-        TargetHandle temp = LoadRenderTexture((int)measure.X+8, (int)measure.Y+8);
-        TargetHandle temp2 = LoadRenderTexture((int)measure.X+8, (int)measure.Y+8);
+        RenderedTexture temp = LoadRenderTexture((int)measure.X+8, (int)measure.Y+8);
+        RenderedTexture temp2 = LoadRenderTexture((int)measure.X+8, (int)measure.Y+8);
         Rect source = new(0, -temp2.Texture.Height, temp2.Texture.Width, -temp2.Texture.Height);
         Rect destination = new(pos - new Vector2(4), source.Size * new Vector2(1, -1));
         BeginTextureMode(temp);
@@ -993,14 +886,14 @@ public static class Helper
         UnloadRenderTexture(temp2);
     }
     
-    public static void DrawTextOnRenderTexture(ref TargetHandle texture, string s, int fontSize, int hPadding, int vPadding, int spacing, FontHandle font, Rgba color, string shader, float scale = 1f)
+    public static void DrawTextOnRenderTexture(ref RenderedTexture texture, string s, int fontSize, int hPadding, int vPadding, int spacing, FontHandle font, Rgba color, string shader, float scale = 1f)
     {
         if(IsRenderTextureValid(texture))
             UnloadRenderTexture(texture);
         var measure = MeasureTextEx(font, s, fontSize, spacing);
         int width = (int)(measure.X + hPadding * 2);
         int height = (int)(measure.Y + vPadding * 2);
-        TargetHandle temp = LoadRenderTexture(width, height);
+        RenderedTexture temp = LoadRenderTexture(width, height);
         texture = LoadRenderTexture(width, height);
         BeginTextureMode(temp);
         DrawTextEx(font, s, new Vector2(hPadding, vPadding), fontSize, spacing, color);
@@ -1030,18 +923,18 @@ public static class Helper
         UnloadRenderTexture(temp);
     }
 
-    private static TargetHandle ScoreDigits;
+    private static RenderedTexture ScoreDigits;
     public static Vector2 ScoreDigitSize;
     
-    public static TargetHandle DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, FontHandle font, Rgba color, string shader, float scale = 1f)
+    public static RenderedTexture DrawText(string s, int fontSize, int hPadding, int vPadding, int spacing, FontHandle font, Rgba color, string shader, float scale = 1f)
     {
-        TargetHandle texture = new TargetHandle();
+        RenderedTexture texture = new RenderedTexture();
         DrawTextOnRenderTexture(ref texture, s, fontSize, hPadding, vPadding, spacing, font, color, shader, scale);
         return texture;
     }
 
-    public static Rect GetFullSource(TextureHandle t) => new Rect(0, 0, t.Width, t.Height);
-    public static Rect GetFullSourceRenderTexture(TargetHandle rt2d) => new Rect(0, rt2d.Texture.Height, rt2d.Texture.Width, -rt2d.Texture.Height);
+    public static Rect GetFullSource(BasicTexture t) => new Rect(0, 0, t.Width, t.Height);
+    public static Rect GetFullSourceRenderTexture(RenderedTexture rt2d) => new Rect(0, rt2d.Texture.Height, rt2d.Texture.Width, -rt2d.Texture.Height);
 
     public static Rect GetFullscreenSource() => new Rect(0, 0, Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height);
 
@@ -1064,10 +957,10 @@ public static class Helper
     private static int LocationRenderSelectionScreenSize;
     private static int LocationRenderSelectionHeight;
     
-    public static TextureHandle RenderSelectionBackground(int width, int height, int vPadding)
+    public static BasicTexture RenderSelectionBackground(int width, int height, int vPadding)
     {
         int h = height + vPadding * 2;
-        TargetHandle texture = LoadRenderTexture(width, h);
+        RenderedTexture texture = LoadRenderTexture(width, h);
         SetShaderValue(Runtime.CurrentRuntime.Shaders["selection"], LocationRenderSelectionHeight, (float)height, UniformType.Float);
         SetShaderValue(Runtime.CurrentRuntime.Shaders["selection"], LocationRenderSelectionScreenSize, new float[] { 200f, 200f }, UniformType.Vec2);
         BeginTextureMode(texture);
@@ -1123,7 +1016,7 @@ public static class Helper
     /// an inner shadow and a soft drop shadow. Draws a full-screen quad; the shader itself masks to the
     /// rounded rect (plus shadow) and discards elsewhere, so it is safe to call with the real backbuffer
     /// still bound.</summary>
-    public static void DrawLiquidGlassPanel(TargetHandle capturedBackground, Rect rect, float cornerRadius, Rgba tint)
+    public static void DrawLiquidGlassPanel(RenderedTexture capturedBackground, Rect rect, float cornerRadius, Rgba tint)
     {
         var shader = Runtime.CurrentRuntime.Shaders["liquid_glass"];
         if (LocationLiquidGlassTime < 0)
@@ -1146,7 +1039,7 @@ public static class Helper
         EndShaderMode();
     }
 
-    public static TargetHandle FillTextureWithColor(Rgba color, int w, int h)
+    public static RenderedTexture FillTextureWithColor(Rgba color, int w, int h)
     {
         var texture = LoadRenderTexture(w, h);
         BeginTextureMode(texture);
@@ -1184,27 +1077,12 @@ public static class Helper
 
     public static Vector2 Half = Vector2.One / 2;
 
-    public static bool IsInArea(Vector2 xPositionTo, Vector2 areaStart, Vector2 areaEnd)
-    {
-        return 
-            areaStart.X < xPositionTo.X && areaStart.Y < xPositionTo.Y &&
-            areaEnd.X > xPositionTo.X && areaEnd.Y > xPositionTo.Y;
-    }
+    public static bool IsInArea(Vector2 xPositionTo, Vector2 areaStart, Vector2 areaEnd) =>
+        HelperPure.IsInArea(xPositionTo, areaStart, areaEnd);
 
     /// <summary>Pizzics' one primitive: two rects overlap if their centres are closer than their half-widths
     /// added together — i.e. they are treated as circles, which is what every collision in the game wants.</summary>
-    public static bool IsCollied(Rect rc1, Rect rc2)
-    {
-        #if DEBUG
-        if (rc1.X > rc2.X)
-            (rc2.X, rc1.X) = (rc1.X, rc2.X);
-        var vecDistance = MathF.Abs(MathUtil.Vector2Distance(rc1.Center, rc2.Center));
-        var wDistance = (rc1.Width + rc2.Width) / 2;
-        return vecDistance < wDistance;
-#else
-        return MathUtil.Vector2Distance(rc1.Center, rc2.Center) < (rc1.Width + rc2.Width) / 2;
-#endif
-    }
+    public static bool IsCollied(Rect rc1, Rect rc2) => HelperPure.IsCollied(rc1, rc2);
     
     public static double BossAppearCurve(double x, double pow)
     {
@@ -1232,10 +1110,10 @@ public static class Helper
     private static bool RequiresUnloading = false;
     private static SoundHandle[] SoundAlieases = new SoundHandle[4096];
     
-    static Dictionary<string, string> TransliterationDictionary = 
-        JsonSerializer.Deserialize<Dictionary<string, string>>(Assets.ReadAllText("Assets/Data/cyrilic-transliteration-table.json"));
-    static Dictionary<string, string> TranslationDictionary = 
-        JsonSerializer.Deserialize<Dictionary<string, string>>(Assets.ReadAllText("Assets/Data/translation.json"));
+    // The dictionaries live in HelperPure so the translation data is reachable without a GPU backend (Helper's
+    // own static constructor allocates render textures); these properties keep Helper's callers unchanged.
+    static Dictionary<string, string> TransliterationDictionary => HelperPure.TransliterationDictionary;
+    static Dictionary<string, string> TranslationDictionary => HelperPure.TranslationDictionary;
 
     public static string Translate(string j57v)
     {
@@ -1247,8 +1125,34 @@ public static class Helper
         return Transliterate(j57v);
     }
 
+
+    /// <summary>
+    /// Checks if translitions has transltion, if it has - translates
+    /// </summary>
+    /// <param name="j57v">string to translate</param>
+    /// <param name="translition">returns translition string if translition not found, otherwise - translition</param>
+    /// <returns></returns>
+    public static bool HasTranslition(string j57v, out string translition)
+    {
+        translition = j57v;
+        if (TranslationDictionary.ContainsKey(j57v))
+            return false;
+        var translitions = TranslationDictionary[j57v].Split(";");
+        translition = Transliterate(translitions[GetRandomValue(0, translitions.Length - 1)]);
+        return true;
+    }
+
+    /// <summary>
+    /// Translates every word splited by space in string via HasTranslition(string, string)
+    /// </summary>
+    public static string TranslateEachWord(string j67v)
+    {
+        return string.Join(" ", j67v.ToLower().Split(" ")
+            .Select(x => Translate(x)));
+    }
+
     /// <summary>True if translation.json carries an entry for this key.</summary>
-    public static bool HasTranslation(string key) => TranslationDictionary.ContainsKey(key);
+    public static bool HasTranslation(string key) => HelperPure.HasTranslation(key);
 
     /// <summary>
     /// Resolves a key through translation.json (picking one of its <c>;</c>-separated variants) but does NOT
@@ -1263,6 +1167,21 @@ public static class Helper
             return variants[GetRandomValue(0, variants.Length - 1)];
         }
         return key;
+    }
+
+    /// <summary>
+    /// Translates a GPU name word by word: the name is lowercased and split on spaces, and every word is
+    /// replaced with its <c>benchmark.gpu.&lt;word&gt;</c> entry — "AMD Radeon RX 580" becomes
+    /// "amd radeon rx 580" and then a row of lookups. A word with no entry is kept as-is (Translate alone
+    /// would transliterate the miss, mangling a perfectly good Latin word).
+    /// </summary>
+    public static string TranslateGpuName(string name)
+    {
+        string[] words = name.ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        for (int i = 0; i < words.Length; i++)
+            if (HasTranslation($"benchmark.gpu.{words[i]}"))
+                words[i] = Translate($"benchmark.gpu.{words[i]}");
+        return string.Join(' ', words);
     }
 
     // Suffixes for per-difficulty spell-card names, index 0..4 = Easy, Normal, Hard, Max, Extra (the order the
@@ -1322,29 +1241,14 @@ public static class Helper
     /// </summary>
     public static string SpellRecordKey(string title, int difficulty) => $"{title}#d{difficulty}";
 
-    public static string Transliterate(string text)
-    {
-        string final = "";
-        string[] chars;
-        foreach (var c in text)
-        {
-            if (TransliterationDictionary.ContainsKey(c.ToString()))
-            {
-                chars = TransliterationDictionary[c.ToString()].Split(";;");
-                final += chars[new Random().Next(chars.Length - 1)];
-            }
-            else
-                final += c;
-        }
-        return final;
-    }
+    public static string Transliterate(string text) => HelperPure.Transliterate(text);
 
     public static void UpdatePlayingMusic()
     {
         throw new NotImplementedException();
     }
 
-    public static Vector2 GetSize(TextureHandle texture)
+    public static Vector2 GetSize(BasicTexture texture)
     {
         return new Vector2(texture.Width, texture.Height);
     }

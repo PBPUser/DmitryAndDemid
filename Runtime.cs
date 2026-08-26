@@ -13,6 +13,9 @@ using DmitryAndDemid.Rendering;
 using DmitryAndDemid.Screens;
 using DmitryAndDemid.Utils;
 using DmitryAndDemid.Utils.DualSense;
+using System.Text.Json.Serialization;
+
+
 #if DEBUG
 using ImGuiNET;
 #endif
@@ -57,9 +60,10 @@ public class Runtime
     public double Scale = 1;
     public float ScaleF = 1;
     public Dictionary<string, ShaderHandle> Shaders = new();
-    public Dictionary<string, TextureHandle> Textures = new();
+    public Dictionary<string, BasicTexture> Textures = new();
     public Dictionary<string, SoundHandle> Sounds = new();
     public Dictionary<string, FontHandle> Fonts = new();
+    public string[] CurrentlyLoadedTags = [];
     public Dictionary<string, BulletRenderingInfo> BulletVisualPresets = new();
     public int GamepadCount = 0;
 
@@ -68,7 +72,7 @@ public class Runtime
     /// blitted into the real window by <see cref="Present"/>. Without this indirection the fixed
     /// Scale = Width/640 layout would run off the bottom of any non-4:3 monitor in fullscreen.
     /// </summary>
-    TargetHandle Backbuffer;
+    RenderedTexture Backbuffer;
 
     /// <summary>Where the backbuffer lands inside the window: the whole window, or a letterboxed sub-rect.</summary>
     public Rect PresentRect { get; private set; }
@@ -441,7 +445,7 @@ public class Runtime
             Mark("shaders…");    LoadShaders();
             Mark("colorgrade…"); LoadColorGradeShader();
             Mark("fonts…");      LoadFonts();
-            Mark("textures…");   LoadTextures();
+            Mark("textures…"); LoadTextures(["main"]);
             Mark("shaderAttribs…"); Helper.LoadShaderAttribs();
             Mark("bullets…");    LoadBullets();
             Mark("audio…");      LoadAudio();
@@ -544,42 +548,100 @@ public class Runtime
         }
     }
     
-    void LoadTextures()
+    public void UnloadTextures()
     {
+        foreach (var x in RenderedTextureLoadedIntoMainList)
+            Gfx.UnloadRenderTexture(x);
+        RenderedTextureLoadedIntoMainList.Clear();
+        foreach (var x in Textures)
+            Gfx.UnloadTexture(x.Value);
+        Textures.Clear();
+    }
+
+
+    List<RenderedTexture> RenderedTextureLoadedIntoMainList = new();
+
+    public void LoadRenderTextureIntoList(string key, RenderedTexture rTexture)
+    {
+        RenderedTextureLoadedIntoMainList.Add(rTexture);
+        Textures[key] = rTexture.Texture;
+    }
+
+    public void LoadTextureWithConfig(string key, TextureLoadingProperties conf, BasicTexture texture)
+    {
+        int w = texture.Width, h = texture.Height;
+        if (conf.MatchGameResolutionScaling)
+        {
+            if(conf.FullResolutionScaling > ScaleF)
+            {
+                float s = conf.FullResolutionScaling / ScaleF;
+                w = (int)(w / s);
+                h = (int)(h / s);
+            }
+        }
+        if(Configuration.Config.TextureQuality == 1)
+        {
+            w /= conf.MidQualityDivider;
+            h /= conf.MidQualityDivider;
+        }
+        else if(Configuration.Config.TextureQuality == 0)
+        {
+            w /= conf.LowQualityDivider;
+            h /= conf.LowQualityDivider;
+        }
+        if (w != texture.Width)
+        {
+            var scaledTexture = LoadRenderTexture(w, h);
+            BeginTextureMode(scaledTexture);
+            DrawTexturePro(texture,
+                new Rect(0, 0, texture.Width, -texture.Height),
+                new Rect(0, 0, w, h),
+                Vector2.Zero, 0, Rgba.White);
+            EndTextureMode();
+            LoadRenderTextureIntoList(key, scaledTexture);
+            Gfx.UnloadTexture(texture);
+        }
+        else
+        {
+            Textures[key] = texture;
+        }
+    }
+
+    public void LoadTextures(string[] tags)
+    {
+        TextureLoadingProperties? props;
+        string textureConfName = "", key = "";
         foreach (var x in Assets.Files("Assets/Textures", "*.png"))
         {
-#if SWITCH
-            Console.WriteLine($"[tex] load {Path.GetFileName(x)}");
-#endif
-            Textures[Path.GetFileName(x)] = LoadTexture(x);
+            key = Path.GetFileName(x);
+            textureConfName = Path.ChangeExtension(x, ".json");
+            if (File.Exists(textureConfName))
+            {
+                props = JsonSerializer.Deserialize<TextureLoadingProperties>(File.ReadAllText(textureConfName));
+                if (props != null)
+                {
+                    if (props.TextureLoadGroup == "" || tags.Contains(props.TextureLoadGroup))
+                        LoadTextureWithConfig(key, props, LoadTexture(x));
+                    else
+                        Console.WriteLine($"Key [{key}] will not loaded because of their key is not match to currently loading textures.");
+                }
+                else
+                    Textures[key] = LoadTexture(x);
+            }
+            else
+            {
+                Textures[key] = LoadTexture(x);
+            }
         }
-        void M(string s) {
-#if SWITCH
-            Console.WriteLine($"[tex] {s}");
-#endif
-        }
-        M("selBg");     Textures["MenuItemSelectionGradient1"] = Helper.RenderSelectionBackground(200, 200, 0);
-        M("menuBg");    Textures["MenuBackground"] = Helper.FillTextureWithColor(Rgba.Black with { A = 128 }, Width, Height).Texture;
-        M("copyright"); Textures["Copyright"] = Helper.DrawTextScaled(")(U,2026 Konu9lnpaBa Caxap Ko.", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
-        M("version");   Textures["Version"] = Helper.DrawTextScaled($"Beer {VersionString} (npo6Ha9l Bepcu9I)", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
-        M("384x448");   Textures["384x448"] = Helper.FillTextureWithColor(Rgba.White, 384, 448).Texture;
-        M("scoreTex");  PrepareScoreTexture();
-        M("tex done");
+        Textures["MenuItemSelectionGradient1"] = Helper.RenderSelectionBackground(200, 200, 0);
+        Textures["MenuBackground"] = Helper.FillTextureWithColor(Rgba.Black with { A = 128 }, Width, Height).Texture;
+        Textures["Copyright"] = Helper.DrawTextScaled(")(U,2026 Konu9lnpaBa Caxap Ko.", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
+        Textures["Version"] = Helper.DrawTextScaled($"Beer {VersionString} (npo6Ha9l Bepcu9I)", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
+        Textures["384x448"] = Helper.FillTextureWithColor(Rgba.White, 384, 448).Texture;
+        PrepareScoreTexture();
+        
         Textures = Textures.OrderBy(x => x.Key).ToDictionary();
-
-#if DEBUG
-        // Keep TextureManifest (the GPU-free accounting the texture-count unit test runs against) honest: the
-        // live registry must match it exactly, or the test would be verifying a stale list. A mismatch here
-        // means a procedural texture was added/removed on one side only, or a filename collided with a
-        // procedural key (which silently drops an entry) — fail loudly on boot rather than ship the drift.
-        var expectedKeys = TextureManifest.RegisteredKeys().OrderBy(k => k, StringComparer.Ordinal).ToArray();
-        var actualKeys = Textures.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray();
-        if (!expectedKeys.SequenceEqual(actualKeys))
-            throw new InvalidOperationException(
-                "TextureManifest is out of sync with LoadTextures.\n" +
-                $"  manifest ({expectedKeys.Length}): {string.Join(", ", expectedKeys.Except(actualKeys))} only\n" +
-                $"  loaded   ({actualKeys.Length}): {string.Join(", ", actualKeys.Except(expectedKeys))} only");
-#endif
+        CurrentlyLoadedTags = tags;
     }
 
     public float ScoreSpacing = 0;
@@ -592,7 +654,7 @@ public class Runtime
         float spacing = ScaleF * 4, fontSize = ScaleF * 64; 
         Vector2 measure = MeasureTextEx(Fonts["kodemono"], text, fontSize, spacing);
         float letterWidth = measure.X / text.Length;
-        TargetHandle
+        RenderedTexture
             temp1 = LoadRenderTexture((int)measure.X, (int)measure.Y),
             final = LoadRenderTexture((int)(measure.X + spacing * 2), (int)(measure.Y + spacing * 2));
         BeginTextureMode(temp1);
@@ -972,7 +1034,7 @@ public class Runtime
     private long EstimateTextureVramBytes()
     {
         long total = 0;
-        foreach (TextureHandle t in Textures.Values)
+        foreach (BasicTexture t in Textures.Values)
             total += (long)t.Width * t.Height * 4;
         return total;
     }
@@ -1105,7 +1167,7 @@ public class Runtime
             return;
         Engine.Backend.BeginDebugUi();
         var key = Textures.ElementAt(TextureId).Key;
-        TextureHandle texture = Textures.ElementAt(TextureId).Value;
+        BasicTexture texture = Textures.ElementAt(TextureId).Value;
         ImGui.Begin("Texture Viewer: ");
         ImGui.Text("press Ctrl+A to switch background");
         ImGui.Text($"size: {texture.Width}x{texture.Height}");
@@ -1230,7 +1292,7 @@ public class Runtime
     private int BackgroundTesterId = 0;
     private int BackgroundTesterBuiltId = -1;
     private StageBackground? BackgroundTesterInstance;
-    private TargetHandle BackgroundTesterTarget;
+    private RenderedTexture BackgroundTesterTarget;
     private bool BackgroundTesterTargetReady = false;
     private double BackgroundTesterLastKey = 0;
 
@@ -1308,7 +1370,7 @@ public class Runtime
     }
 #endif
 
-    private UniformType UniformType = UniformType.Float;
+    private UniformType UniformTypeRuntime = UniformType.Float;
     private string FieldText = "";
     private string ValueText = "";
     private bool SetValueMode = false;

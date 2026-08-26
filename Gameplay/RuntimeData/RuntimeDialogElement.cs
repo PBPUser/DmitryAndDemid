@@ -7,9 +7,9 @@ namespace DmitryAndDemid.Gameplay;
 
 public class RuntimeDialogElement
 {
-    public TargetHandle DialogTexture;
+    public RenderedTexture DialogTexture;
     public bool Skipable;
-    public TextureHandle Art;
+    public BasicTexture Art;
     public bool AntogonistSpeak;
     public int ArtIndex = 0;
     public string ID;

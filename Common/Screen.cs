@@ -79,11 +79,11 @@ public abstract class Screen : IDisposable
     public float TimeAppear = 0f;
     public float TimeDisappear = 99999999f;
 
-    TextureHandle Background;
+    BasicTexture Background;
     Rect BGRectSource;
     Rect BGRectDest;
 
-    public void SetBackground(TextureHandle bg)
+    public void SetBackground(BasicTexture bg)
     {
         BGRectSource = Helper.GetFullSource(bg);
         BGRectDest = Helper.GetFullscreenSource();
@@ -138,7 +138,7 @@ public abstract class Screen : IDisposable
     /// </summary>
     private void DrawFallingForks(float appear)
     {
-        if (!Runtime.CurrentRuntime.Textures.TryGetValue("forkCut.png", out TextureHandle fork))
+        if (!Runtime.CurrentRuntime.Textures.TryGetValue("forkCut.png", out BasicTexture fork))
             return;
 
         float time = (float)GetTime();

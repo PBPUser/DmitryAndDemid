@@ -19,19 +19,19 @@ public class BossSplashOverlay : GameplayOverlay
 {
     private const float Pw = 384f, Ph = 448f;   // playfield design size
 
-    private readonly TextureHandle Art;          // generic art, or dmitry TOP
-    private readonly TextureHandle Bottom;       // dmitry BOTTOM (unused when !DmitryStyle)
+    private readonly BasicTexture Art;          // generic art, or dmitry TOP
+    private readonly BasicTexture Bottom;       // dmitry BOTTOM (unused when !DmitryStyle)
     private readonly bool DmitryStyle;
 
     /// <summary>Generic single-art splash sweeping top-to-bottom.</summary>
-    public BossSplashOverlay(GameBox box, TextureHandle art, float length) : base(box, 0.5f, length)
+    public BossSplashOverlay(GameBox box, BasicTexture art, float length) : base(box, 0.5f, length)
     {
         Art = art;
         DmitryStyle = false;
     }
 
     /// <summary>Dmitry's two-part splash (top + bottom halves).</summary>
-    public BossSplashOverlay(GameBox box, TextureHandle top, TextureHandle bottom, float length)
+    public BossSplashOverlay(GameBox box, BasicTexture top, BasicTexture bottom, float length)
         : base(box, 0.5f, length)
     {
         Art = top;

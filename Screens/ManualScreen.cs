@@ -30,10 +30,18 @@ public class ManualScreen : MenuScreen
     private int CurrentPage;
     private int BaseX;
 
+    // Motion blur smeared on the page while its switch pop is animating.
+    private const float MaxPageBlur = 0.045f;          // blur radius at the pop's peak, in page UV units
+    private ShaderHandle MotionBlur;
+    private int LocBlurDirection = -1, LocBlurStrength = -1;
+
     public override void CreateMenu()
     {
         SetTitle(Runtime.CurrentRuntime.Textures["manual-title.png"]);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
+        MotionBlur = Runtime.CurrentRuntime.Shaders["motion_blur"];
+        LocBlurDirection = GetShaderLocation(MotionBlur, "direction");
+        LocBlurStrength = GetShaderLocation(MotionBlur, "strength");
         for (int i = 0; i < PageCount; i++)
             MenuItems.Add(new MenuItem($"manual.page{i + 1}", "", a => { }));
         // The selected page title enlarges and jitters (the base menu machinery, just turned up here).
@@ -225,12 +233,6 @@ public class ManualScreen : MenuScreen
         DrawMenu();
         DrawTitle();
 
-        // Fade the whole manual up from black on open and down to black on close. Drawn over everything (title
-        // included) so the fade reads as one piece.
-        byte veil = (byte)((1f - shown) * 255);
-        if (veil > 0)
-            DrawRectangle(0, 0, Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height, new Rgba(0, 0, 0, veil));
-
         if (progress <= 0.001f)
             return;
 
@@ -239,7 +241,7 @@ public class ManualScreen : MenuScreen
         float pop = (float)Math.Clamp((GetTime() - PagePopTime) / PagePopDuration, 0, 1);
         scale *= 0.9f + 0.1f * EaseOutBack(pop);
 
-        TextureHandle page = Runtime.CurrentRuntime.Textures[$"manual-{CurrentPage + 1}.png"];
+        BasicTexture page = Runtime.CurrentRuntime.Textures[$"manual-{CurrentPage + 1}.png"];
         float screenW = Runtime.CurrentRuntime.Width, screenH = Runtime.CurrentRuntime.Height;
 
         // Fit the page (4:3) into most of the screen, preserving aspect, then apply the animation scale.
@@ -256,8 +258,20 @@ public class ManualScreen : MenuScreen
         // A slight up-and-down nudge each time the user switches pages, decaying as the pop settles.
         float switchNudge = -MathF.Sin(pop * MathF.PI) * 12f * Runtime.CurrentRuntime.ScaleF;
         float cx = screenW / 2f, cy = screenH / 2f + bob + switchNudge;
+        // Motion blur tracking the switch nudge: it peaks mid-pop (when the page is moving fastest) and is
+        // gone once the page settles. Vertical, because the nudge is.
+        float blur = MathF.Sin(pop * MathF.PI) * MaxPageBlur;
+        bool blurring = blur > 0.0005f;
+        if (blurring)
+        {
+            SetShaderValue(MotionBlur, LocBlurDirection, new Vector2(0, 1), UniformType.Vec2);
+            SetShaderValue(MotionBlur, LocBlurStrength, blur, UniformType.Float);
+            BeginShaderMode(MotionBlur);
+        }
         DrawTexturePro(page, new Rect(0, 0, page.Width, page.Height),
             new Rect(cx - w / 2f, cy - h / 2f, w, h), Vector2.Zero, 0, Rgba.White);
+        if (blurring)
+            EndShaderMode();
 
         // Page counter, only once the page is essentially settled.
         if (progress > 0.85f)

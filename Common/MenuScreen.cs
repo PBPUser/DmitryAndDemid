@@ -74,7 +74,7 @@ public abstract class MenuScreen : ScreenWithTitle
         CreateMenu();
     }
 
-    static TargetHandle DrawMenuItem(string text)
+    static RenderedTexture DrawMenuItem(string text)
     {
         return Helper.DrawTextScaled(Helper.Translate(text), 16, 8, 4, 2, Runtime.CurrentRuntime.Fonts["newsreader"], "outline");
     }
@@ -753,8 +753,8 @@ public abstract class MenuScreen : ScreenWithTitle
         private string replace = "";
         private string hint = "";
         public Action<int>? Action;
-        public TextureHandle Texture =>  texture.Texture;
-        private TargetHandle texture = new TargetHandle();
+        public BasicTexture Texture =>  texture.Texture;
+        private RenderedTexture texture = new RenderedTexture();
         public bool Enabled = true;
 
         /// <summary>Per-item colour modulation, multiplied into whatever DrawMenu would otherwise draw the row
@@ -823,12 +823,12 @@ public abstract class MenuScreen : ScreenWithTitle
             // With a hint set, bake a second, smaller, dimmer line below the label into the same texture — so
             // DrawMenu's row-height math (which reads Texture.Height per item) sees the hint as part of the row
             // with no changes needed there.
-            Helper.DrawTextGradient(out TargetHandle labelTexture, CurrentRuntime.Fonts[fontKey],
+            Helper.DrawTextGradient(out RenderedTexture labelTexture, CurrentRuntime.Fonts[fontKey],
                 fontSize * CurrentRuntime.ScaleF, label, Rgba.White, padding * CurrentRuntime.ScaleF);
             // The outline width is absolute, so it has to be scaled down with the font: at the label's default
             // 4 * ScaleF the hint's thin light glyphs were swallowed by their own border, which is most of why
             // the line read as a grey smudge rather than as text.
-            Helper.DrawTextGradient(out TargetHandle hintTexture, CurrentRuntime.Fonts[HintFontKey],
+            Helper.DrawTextGradient(out RenderedTexture hintTexture, CurrentRuntime.Fonts[HintFontKey],
                 fontSize * HintFontScale * CurrentRuntime.ScaleF, Helper.Translate(hint), Rgba.White,
                 padding * CurrentRuntime.ScaleF * 0.25f, 4 * HintFontScale * CurrentRuntime.ScaleF);
 

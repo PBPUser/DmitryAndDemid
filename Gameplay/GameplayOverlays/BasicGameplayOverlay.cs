@@ -15,7 +15,7 @@ public class BasicGameplayOverlay : GameplayOverlay
         DestinationRectangle = new Rect(0, 128 * Runtime.CurrentRuntime.ScaleF, SourceRectangle.Size / 4  * Runtime.CurrentRuntime.ScaleF);
     }
 
-    private TextureHandle Texture;
+    private BasicTexture Texture;
     private Rect SourceRectangle;
     Rect DestinationRectangle;
 

@@ -208,7 +208,7 @@ public static class TouchControls
     {
         if (pressed)
             DrawRectangleRec(dest, new Rgba(255, 255, 255, 40));
-        TextureHandle atlas = Runtime.CurrentRuntime.Textures["controlls.png"];
+        BasicTexture atlas = Runtime.CurrentRuntime.Textures["controlls.png"];
         DrawTexturePro(atlas, SourceOf(control), dest, Vector2.Zero, 0, Rgba.White with { A = alpha });
     }
 

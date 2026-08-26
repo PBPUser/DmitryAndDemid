@@ -40,12 +40,12 @@ public class GameplayEditorScreen : Screen
     }
 
     private Vector2 ForkSize;
-    private TextureHandle ForkTexture = Runtime.CurrentRuntime.Textures["vilkaCut.png"];
+    private BasicTexture ForkTexture = Runtime.CurrentRuntime.Textures["vilkaCut.png"];
     private bool UseEffect = false;
     private int Item = 0;
     private double TimeFrom = 0;
 
-    private TargetHandle BackgroundTestTexture =
+    private RenderedTexture BackgroundTestTexture =
         LoadRenderTexture(384, 448);
 
     private bool BackgroundTesterEnabled = false;
@@ -57,14 +57,14 @@ public class GameplayEditorScreen : Screen
     private StageBackground? StageBgInstance;
     private int StageBgIndex = -1;
     private int StageBgBuiltIndex = -1;
-    private TargetHandle StageBgTarget = LoadRenderTexture(384, 448);
+    private RenderedTexture StageBgTarget = LoadRenderTexture(384, 448);
     private double StageBgTimeFrom;
 
     // Spellcard background tester: a spell's background texture drawn through its shader exactly as GameBox does
     // in-game (pos = (192,96), an advancing time/8), so authored spell backgrounds can be previewed animated.
     private int SpellBgTextureIndex = -1;
     private int SpellBgShaderIndex = -1;
-    private TargetHandle SpellBgTarget = LoadRenderTexture(384, 448);
+    private RenderedTexture SpellBgTarget = LoadRenderTexture(384, 448);
     private double SpellBgTimeFrom;
 
     private int BGTesterX = 192;
@@ -75,7 +75,7 @@ public class GameplayEditorScreen : Screen
     private float Time = 0;
     private Vector3 PickerColor = Vector3.One;
     private Vector2 Position = Vector2.One;
-    private TargetHandle TexturePreview, TexturePreview2, GameplayPreview, LoadingPreview, LoadingBuffer;
+    private RenderedTexture TexturePreview, TexturePreview2, GameplayPreview, LoadingPreview, LoadingBuffer;
     private bool ShowFull = false;
     private bool HighlightCurrent = false;
     public int EffectIndex = 0;
@@ -97,7 +97,7 @@ public class GameplayEditorScreen : Screen
     private string LoadingSwapShaderText = Assets.ReadAllText("Assets/Shaders/loading_swap.fs");
     private bool LoadingShaderOverriden = false;
     private bool LoadingSwapShaderOverriden = false;
-    private TextureHandle LoadingTexture = Runtime.CurrentRuntime.Textures["loading.png"];
+    private BasicTexture LoadingTexture = Runtime.CurrentRuntime.Textures["loading.png"];
     private string[] Endings = Assets.Files("Assets/Data/Endings")
         .Select(x => File.ReadAllText(x)).ToArray();
     private string[] EndingNames = Assets.Files("Assets/Data/Endings")
@@ -113,11 +113,11 @@ public class GameplayEditorScreen : Screen
     private bool ApplyBulletEffect = false;
     private int TickStart = 0;
     private int CurrentTick = 0;
-    private TargetHandle? TextureEffectTest;
+    private RenderedTexture? TextureEffectTest;
 
     private int TickTest = 0;
     private float TimeTest = 0;
-    private TargetHandle? SplashTimeTexture;
+    private RenderedTexture? SplashTimeTexture;
     
     
     private ShaderHandle
@@ -587,7 +587,7 @@ public class GameplayEditorScreen : Screen
                             SpellBgTimeFrom = Gfx.GetTime();
                         // Draw the spell background the way GameBox.RenderBox does: the shader fed pos=(192,96)
                         // and time/8, then the texture through it.
-                        TextureHandle tex = Runtime.CurrentRuntime.Textures[texKeys[SpellBgTextureIndex]];
+                        BasicTexture tex = Runtime.CurrentRuntime.Textures[texKeys[SpellBgTextureIndex]];
                         float bgTime = (float)(Gfx.GetTime() - SpellBgTimeFrom);
                         bool useShader = SpellBgShaderIndex >= 0 && SpellBgShaderIndex < Shaders.Length;
                         BeginTextureMode(SpellBgTarget);
@@ -743,10 +743,10 @@ public class GameplayEditorScreen : Screen
     }
 
     private string FontTextTest = "";
-    private TargetHandle? TextTestTexture = null;
-    private TargetHandle SpellTestTexture = new TargetHandle();
-    private TargetHandle FontTestTexture = new TargetHandle();
-    private TargetHandle FontTestTexture2 = new TargetHandle();
+    private RenderedTexture? TextTestTexture = null;
+    private RenderedTexture SpellTestTexture = new RenderedTexture();
+    private RenderedTexture FontTestTexture = new RenderedTexture();
+    private RenderedTexture FontTestTexture2 = new RenderedTexture();
     private float FontSize1 = 10;
     private float FontSize = 14;
     private float Spacing = 2;
@@ -762,7 +762,7 @@ public class GameplayEditorScreen : Screen
     private float VPadding = 0;
     private string ShaderText = "";
     private string ShaderTestingText = "";
-    private TargetHandle? TextureTestScore = null;
+    private RenderedTexture? TextureTestScore = null;
     private float LetterWidthScore = 0;
     private float PaddingScore = 0;
     private string ScoreText = "";
@@ -776,7 +776,7 @@ public class GameplayEditorScreen : Screen
         Helper.DrawSpellScore(ScoreText, ref SpellTestTexture, out LetterWidthScore, out PaddingScore);
     }
 
-    private TargetHandle TextureTestSpellSubtitle = LoadRenderTexture(8192,8192);
+    private RenderedTexture TextureTestSpellSubtitle = LoadRenderTexture(8192,8192);
     private int Score = -1;
     private int TotalAttempts = 0;
     private int SuccessAttempts = 0;

@@ -127,6 +127,12 @@ public class GameplayScreen : Screen
     /// <summary>Title-screen attract mode: plays a replay, and bails back to the title on any input.</summary>
     public bool IsDemo;
 
+    /// <summary>Set by the demo-close branch in TopUpdate. That branch reloads the texture set to ["main"]
+    /// synchronously, but the screen's removal is queued and only applies next frame — so this screen still
+    /// receives one Render() with the "game"-tagged textures (gameplay_background.png et al.) already gone
+    /// from the dictionary. Render skips that frame; the black fade covers it.</summary>
+    private bool DemoClosing;
+
     public GameplayScreen CreateCopy() => new(Data, Difficulty, Stages, Chapter, Practice, mode: Mode);
     public int LetterWidth = 0;
     public PauseMenu PauseMenu;
@@ -151,7 +157,7 @@ public class GameplayScreen : Screen
 
     public GameplayScreenEffect PauseEffect;
     
-    TargetHandle[] GameEffectsTextures = new TargetHandle[4];
+    RenderedTexture[] GameEffectsTextures = new RenderedTexture[4];
     private int GameEffectTextureIndex = 1;
     
     public GameBox GameBox;
@@ -243,12 +249,15 @@ public class GameplayScreen : Screen
         {
             if (AttractInput.AnyInput() || GameBox.IsGameOver || GameBox.ClearSequenceDone)
             {
+                DemoClosing = true;
                 Runtime.CurrentRuntime.RemoveScreen(this);
                 // Cover the hand-off back to the title with a plain black fade + rotating fifo, matching the
                 // BlackLoadingScreen shown when the demo loaded.
                 BlackLoadingScreen? loader = null;
                 loader = new BlackLoadingScreen(0.9, 0.4, () => Runtime.CurrentRuntime.RemoveScreen(loader), true, 0);
                 Runtime.CurrentRuntime.AddScreen(loader);
+                Runtime.CurrentRuntime.UnloadTextures();
+                Runtime.CurrentRuntime.LoadTextures(["main"]);
             }
             return;
         }
@@ -382,6 +391,8 @@ public class GameplayScreen : Screen
 
     public override void Render()
     {
+        if (DemoClosing)
+            return;
         float time = GameBox.GetTime();
         if (time < -.5)
             return;
@@ -489,7 +500,7 @@ public class GameplayScreen : Screen
         // own fade-in is driven by StageBannerAlpha, independent of the screen's fade-to-black.
         if (GameBox.ShowStageBanner)
         {
-            TextureHandle done = Runtime.CurrentRuntime.Textures["stage_complete.png"];
+            BasicTexture done = Runtime.CurrentRuntime.Textures["stage_complete.png"];
             float a = GameBox.StageBannerAlpha;
             // Centre the banner INSIDE the gamebox (the playfield Dest rect), not across the whole window, so it
             // reads as part of the play area rather than a full-screen overlay.

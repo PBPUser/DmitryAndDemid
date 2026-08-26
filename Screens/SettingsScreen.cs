@@ -172,6 +172,22 @@ public class SettingsScreen : MenuScreen
             graphicsItem.Replace = GraphicsQualityLabel();
         };
         MenuItems.Add(graphicsItem);
+        // Texture quality: Full keeps textures as shipped, Middle/Low downscale them at load
+        // (Runtime.LoadTextureWithConfig). Enter cycles the value and reloads the texture set live, so the
+        // change is visible immediately; the reload frees this screen's own title/background handles, so
+        // they are re-fetched from the rebuilt dictionary right after.
+        MenuItem texturesQuality = new("settings.texture.quality", TextureQualityLabel(), null);
+        texturesQuality.Action = a =>
+        {
+            Configuration.Config.TextureQuality = (Configuration.Config.TextureQuality + 1) % 3;
+            Configuration.Config.Save();
+            texturesQuality.Replace = TextureQualityLabel();
+            Runtime.CurrentRuntime.UnloadTextures();
+            Runtime.CurrentRuntime.LoadTextures(Runtime.CurrentRuntime.CurrentlyLoadedTags);
+            SetTitle(Runtime.CurrentRuntime.Textures["settings.png"]);
+            SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
+        };
+        MenuItems.Add(texturesQuality);
         // Portrait/vertical presentation. Changing it re-sizes the backbuffer and re-lays every screen, so it
         // applies on restart.
         MenuItem verticalItem = new("settings.vertical", $"{Configuration.Config.Vertical}", null);
@@ -232,7 +248,15 @@ public class SettingsScreen : MenuScreen
     private static string GraphicsQualityLabel() =>
         Helper.Translate(Configuration.Config.HighGraphics ? "graphics.high" : "graphics.low");
 
-    private TargetHandle RestartNoticeTexture;
+    /// <summary>The texture-quality row's value: the translated LOW / MIDDLE / HIGH label.</summary>
+    private static string TextureQualityLabel() => Helper.Translate(Configuration.Config.TextureQuality switch
+    {
+        0 => "graphics.low",
+        1 => "graphics.middle",
+        _ => "graphics.high",
+    });
+
+    private RenderedTexture RestartNoticeTexture;
 
     public override void Render()
     {

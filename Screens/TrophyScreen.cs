@@ -18,8 +18,8 @@ public class TrophyScreen : ScreenWithTitle
         Load();
     }
 
-    private TargetHandle[] Menu;
-    private TargetHandle[] Description;
+    private RenderedTexture[] Menu;
+    private RenderedTexture[] Description;
     private float ItemSwitchTime = 0;
     private float ItemTriggerTime = 0;
     public bool IsItemTriggered = false;
@@ -33,8 +33,8 @@ public class TrophyScreen : ScreenWithTitle
     void Load()
     {
         string[] files = Assets.Files("Assets/Data/Trophy", "*.json");
-        Menu = new TargetHandle[files.Length];
-        Description = new TargetHandle[files.Length];
+        Menu = new RenderedTexture[files.Length];
+        Description = new RenderedTexture[files.Length];
         Infos = new TrophyInfo[files.Length];
         for (int i = 0; i < files.Length; i++)
         {

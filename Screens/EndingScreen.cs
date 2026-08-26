@@ -58,8 +58,7 @@ public class EndingScreen : Screen
             1)
         );
         DrawRectangle(0,0,Runtime.CurrentRuntime.Width,Runtime.CurrentRuntime.Height, Rgba.Black);
-        DrawTextureEx(Runtime.CurrentRuntime.Textures["ending_background.png"], Vector2.Zero, 0,
-            Runtime.CurrentRuntime.ScaleF / 4, Rgba.White);
+        DrawTexture(Runtime.CurrentRuntime.Textures["ending_background.png"], 0, 0, Rgba.White);
         // Crossfade between slides: the two Background slots alternate as pictures switch, so the one set more
         // recently is the incoming image. The slides are illustrations with large transparent areas, so the
         // outgoing one has to fade *out* over the same window the incoming one fades in — leaving it at full
@@ -87,7 +86,7 @@ public class EndingScreen : Screen
         base.Render();
     }
 
-    public void SwitchPicture(TextureHandle image)
+    public void SwitchPicture(BasicTexture image)
     {
         // The slot we are about to overwrite is the one that has already settled; the *other* slot holds the
         // picture currently on screen and becomes the outgoing one. Snapshot how far its own fade-in got, so a
@@ -151,7 +150,7 @@ public class EndingScreen : Screen
     private double[] PreviousSwitchBackground = new double[2];
     private int BackgroundIndex = 0;
     private float OutgoingAlpha = 1;     // opacity the outgoing slide had when it started fading out
-    private TextureHandle[] Backgrounds = new TextureHandle[2];
+    private BasicTexture[] Backgrounds = new BasicTexture[2];
     RuntimeEndingText?[] RuntimeTexts = new RuntimeEndingText[4];
     private int LastTextIndex = 0;
     
@@ -208,7 +207,7 @@ public class EndingScreen : Screen
         public int X, Y;
         private double TimeAppear;
         private double TimeDisappear;
-        private TargetHandle RenderTexture;
+        private RenderedTexture RenderTexture;
         
         public RuntimeEndingText(string text, double time, int y)
         {
@@ -227,7 +226,7 @@ public class EndingScreen : Screen
             TimeDisappear = Gfx.GetTime() + 0.5; 
         }
 
-        public TextureHandle Texture => RenderTexture.Texture;
+        public BasicTexture Texture => RenderTexture.Texture;
         public Rect Source;
         public Rect Destination => new Rect(X, Y, Source.Width, (float)(Source.Height * Helper.ComputeObjectTime(Gfx.GetTime(), TimeAppear, 0.5, TimeDisappear + 0.5, 0.5)));
         

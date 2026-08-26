@@ -128,7 +128,7 @@ public interface IBackend : IRenderer, IPlatform, IInput, IAudio
     void EndDebugUi();
 
     /// <summary>Draws a texture inside the current ImGui window (used by the stage/gameplay editors).</summary>
-    void DebugUiImage(TextureHandle texture);
+    void DebugUiImage(BasicTexture texture);
 
-    void DebugUiImage(TargetHandle target);
+    void DebugUiImage(RenderedTexture target);
 }

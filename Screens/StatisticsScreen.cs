@@ -1,6 +1,7 @@
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Rendering;
 using DmitryAndDemid.Utils;
+using Silk.NET.Core.Attributes;
 using Silk.NET.Vulkan;
 using System.Numerics;
 using static DmitryAndDemid.Rendering.Gfx;
@@ -47,9 +48,21 @@ public class StatisticsScreen : Screen
     string extHintFormat = Helper.Translate("benchmark.extensions.format");
     string clockHintFormat = Helper.Translate("benchmark.clock.format");
     string softwareNpuHint = Helper.Translate("benchmark.npu.software");
+    string coreTopologyFormatThreadsOnly = Helper.Translate("benchmark.cores.threads_only");
+    string coreTopologyFormatClassic = Helper.Translate("benchmark.cores.classic");
+    string coreTopologyFormatHybrid = Helper.Translate("benchmark.cores.hybrid");
+    string coreTopologyFormatHybridCluster = Helper.Translate("benchmark.cores.hybrid.cluster");
+
 
     float XMultiplier = 0;
     int Page = 0;
+
+    // The screen renders its content into its own target (in PreRender — Render() is already nested inside
+    // the shared Backbuffer target, and BeginTextureMode can't open there) so the page-switch swipe can be
+    // composited through the motion-blur shader.
+    private const float MaxBlur = 0.035f;              // blur radius at the swipe's midpoint, in screen UV units
+    private RenderedTexture? ContentTarget;
+    private ShaderHandle MotionBlur => Runtime.CurrentRuntime.Shaders["motion_blur"];
 
 
     public StatisticsScreen(BenchmarkResult result)
@@ -80,10 +93,55 @@ public class StatisticsScreen : Screen
 
     }
 
+    public override void PreRender(double delta)
+    {
+        base.PreRender(delta);
+        if (ContentTarget == null || ContentTarget.Value.Texture.Width != Runtime.CurrentRuntime.Width ||
+            ContentTarget.Value.Texture.Height != Runtime.CurrentRuntime.Height)
+        {
+            if (ContentTarget != null)
+                UnloadRenderTexture(ContentTarget.Value);
+            ContentTarget = LoadRenderTexture(Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height);
+        }
+        BeginTextureMode(ContentTarget.Value);
+        ClearBackground(new Rgba(12, 12, 18));
+        DrawContent();
+        EndTextureMode();
+    }
+
     public override void Render()
     {
         ClearBackground(new Rgba(12, 12, 18));
-        float scale = Runtime.CurrentRuntime.ScaleF;
+        if (ContentTarget == null)
+            return;
+        // Horizontal motion blur tracking the swipe: |2x-1| is 1 when a page is settled and 0 exactly
+        // mid-swap, so the blur peaks when the columns move fastest and is gone once they land.
+        float blur = (1 - MathF.Abs(XMultiplier * 2 - 1)) * MaxBlur;
+        bool blurring = blur > 0.0005f;
+        if (blurring)
+        {
+            ShaderHandle shader = MotionBlur;
+            SetShaderValue(shader, GetShaderLocation(shader, "direction"), new Vector2(1, 0), UniformType.Vec2);
+            SetShaderValue(shader, GetShaderLocation(shader, "strength"), blur, UniformType.Float);
+            BeginShaderMode(shader);
+        }
+        DrawTexturePro(ContentTarget.Value.Texture, Helper.GetFullSourceRenderTexture(ContentTarget.Value),
+            Helper.GetFullscreenSource(), Vector2.Zero, 0, Rgba.White);
+        if (blurring)
+            EndShaderMode();
+    }
+
+    public override void Unload()
+    {
+        if (ContentTarget != null)
+            UnloadRenderTexture(ContentTarget.Value);
+        base.Unload();
+    }
+
+    void DrawContent()
+    {
+        float pre = MathF.Abs(XMultiplier * 2 - 1);
+        float scale = Runtime.CurrentRuntime.ScaleF - ((1 -  pre) * 0.2f);
 
 
         // Host machine info sits in its own right-hand column, so it shows whether or not the run itself failed.
@@ -116,7 +174,7 @@ public class StatisticsScreen : Screen
         }
 
         Row(backendTitle, result.Backend, Rgba.White, x, ref y, body, line);
-        Row(loadTitle, $"{result.TargetLoad} bullets", Rgba.White, x, ref y, body, line);
+        Row(loadTitle, loadFormat.Replace("%s", $"{result.TargetLoad}"), Rgba.White, x, ref y, body, line);
         Row(peakTitle, $"{result.PeakObjects}", Rgba.White, x, ref y, body, line);
         y += line * 0.5f;
 
@@ -146,7 +204,7 @@ public class StatisticsScreen : Screen
         SystemInfo s = result.System;
         float x = 40 * scale + offsetX;
         float y = 32 * scale;
-        float title = 32 * scale, body = 20 * scale, line = 20 * scale;
+        float title = 30 * scale, body = 20 * scale, line = 28 * scale;
 
         DrawTextEx(font, systemHint, new Vector2(x, y), title, 1, Rgba.Yellow);
         y += line * 2;
@@ -168,11 +226,12 @@ public class StatisticsScreen : Screen
         if (s.RamClock != null) ram += $"  @ {s.RamClock}";
         Row(ramHint, ram, Rgba.White, x, ref y, body, line);
 
-        Row(gpuHint, string.IsNullOrEmpty(s.Gpu) ? "—" : s.Gpu!, Rgba.White, x, ref y, body, line);
+        Row(gpuHint, string.IsNullOrEmpty(s.Gpu) ? "—" : Helper.TranslateGpuName(s.Gpu!), Rgba.White, x, ref y, body, line);
         if (!string.IsNullOrEmpty(s.GpuApi))
             Row(apiHint, s.GpuApi!, Rgba.White, x, ref y, body, line);
         string vram = s.VramBytes > 0 ? Benchmark.FormatBytes(s.VramBytes) : "—";
-        if (s.VramClock != null) vram += $"  @ {s.VramClock}";
+        if (s.VramClock != null) 
+            vram += $"  @ {s.VramClock}";
         Row(vramHint, vram, Rgba.White, x, ref y, body, line);
         if (s.GpuExtensions.Count > 0)
             Row(extHint, extHintFormat.Replace("%s", $"{s.GpuExtensions.Count:2b}"), Rgba.White, x, ref y, body, line);

@@ -31,7 +31,7 @@ public class ScoreScreen : ScreenWithTitle
 
     private ShaderHandle TriangleShader;
     private int LocTriTime, LocTriDir;
-    private TextureHandle QuadTexture;      // any texture; the shader ignores its colour and draws the triangle
+    private BasicTexture QuadTexture;      // any texture; the shader ignores its colour and draws the triangle
     private Rect QuadSource;
     private FontHandle Font, NameFont;
 

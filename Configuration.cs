@@ -156,6 +156,11 @@ public class Configuration
     public ColorBlindMode ColorBlind = ColorBlindMode.Normal;
 
     /// <summary>
+    /// Texture quality, 0 means low, 1 stands for middle and 2 stands for full.
+    /// </summary>
+    [JsonInclude] public int TextureQuality = 2;
+
+    /// <summary>
     /// The button layout for a DualSense: shoot on Cross, bomb on Square, focus on the R1 shoulder (where a
     /// danmaku player expects to hold it) and pause on Options. Applied only over untouched defaults — see
     /// <see cref="IsUsingDefaultBindings"/> — so it can never overwrite bindings the player chose.

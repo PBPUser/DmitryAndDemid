@@ -23,7 +23,7 @@ public class SillyBackground : StageBackground
         base.Update(tick, delta);
     }
 
-    protected override void Render(TargetHandle texture, int tick, float delta)
+    protected override void Render(RenderedTexture texture, int tick, float delta)
     {
         base.Render(texture, tick, delta);
     }

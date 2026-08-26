@@ -27,7 +27,7 @@ public class SpellPracticeDifficultyScreen : MenuScreen
     private readonly bool[] Available = new bool[TierCount];
     /// <summary>Baked one-line record texture (number + hi-score + attempts) per available tier, light-blue with a
     /// subtle vertical gradient. Baked once in <see cref="CreateMenu"/> since records don't change while viewing.</summary>
-    private readonly TargetHandle[] InfoText = new TargetHandle[TierCount];
+    private readonly RenderedTexture[] InfoText = new RenderedTexture[TierCount];
 
     /// <summary>How many numbers each spell card reserves in the global per-tier numbering (see CreateMenu).</summary>
     private const int NumbersPerCard = 6;
@@ -140,7 +140,7 @@ public class SpellPracticeDifficultyScreen : MenuScreen
             Rect b = ItemBounds(d);   // menu item d maps 1:1 to tier d
             if (b.Width <= 0)
                 continue;
-            TextureHandle t = InfoText[d].Texture;
+            BasicTexture t = InfoText[d].Texture;
             DrawTexture(t, (int)(b.X), (int)(b.Y + b.Height - t.Height - 2 * sf), Rgba.White);
         }
 

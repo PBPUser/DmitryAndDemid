@@ -10,7 +10,7 @@ namespace DmitryAndDemid.Data;
 public class BulletRenderingInfo
 {
     static Rect FRC384448 = new Rect(0, 0, 384, 448); 
-    static TextureHandle T384448 = Runtime.CurrentRuntime.Textures["384x448"];
+    static BasicTexture T384448 = Runtime.CurrentRuntime.Textures["384x448"];
     
     [JsonInclude] public BulletVisualRenderType RenderType = BulletVisualRenderType.FromSprite;
     [JsonInclude] public Vector2 SourceSize = Vector2.Zero;
@@ -52,8 +52,8 @@ public class BulletRenderingInfo
     [JsonIgnore] public int LocFXPosition;
     [JsonIgnore] public int LocFXOpacity;
     [JsonIgnore] public int LocTXColor;
-    [JsonIgnore] public TargetHandle? RuntimeTexture;
-    [JsonIgnore] public TargetHandle? TempTexture;
+    [JsonIgnore] public RenderedTexture? RuntimeTexture;
+    [JsonIgnore] public RenderedTexture? TempTexture;
     [JsonIgnore] public bool IsInitialized = false;
     [JsonIgnore] private int CurrentX = 0, CurrentY = 0;
     [JsonIgnore] private Dictionary<int, Vector2> Positions = new();
@@ -72,7 +72,7 @@ public class BulletRenderingInfo
         IsInitialized = true;
     }
 
-    public TextureHandle GetTexture(int color)
+    public BasicTexture GetTexture(int color)
     {
         if (RenderType == BulletVisualRenderType.FromSprite)
             return Runtime.CurrentRuntime.Textures[Texture];

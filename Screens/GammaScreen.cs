@@ -14,9 +14,9 @@ namespace DmitryAndDemid.Screens;
 /// </summary>
 internal class GammaScreen : Screen
 {
-    private TextureHandle DmitryTexture, DemidTexture;
-    private TargetHandle AttentionTexture;
-    private TargetHandle ValueTexture;
+    private BasicTexture DmitryTexture, DemidTexture;
+    private RenderedTexture AttentionTexture;
+    private RenderedTexture ValueTexture;
     private float RenderedGamma = float.MinValue;
 
     protected override void Created()

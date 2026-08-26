@@ -8,7 +8,7 @@ namespace DmitryAndDemid.Backgrounds;
 public class SwapStageBackground(StageBackground top, StageBackground bottom) : StageBackground
 {
     public byte OpacityTop = 255;
-    private TargetHandle TextureTemporary = LoadRenderTexture(384, 448);
+    private RenderedTexture TextureTemporary = LoadRenderTexture(384, 448);
 
     // Crossfade state, driven by the "swap" event (an example of a background reacting to gameplay events).
     private const int SwapTicks = 60;
@@ -36,7 +36,7 @@ public class SwapStageBackground(StageBackground top, StageBackground bottom) : 
         SwapStartTick = Tick;
     }
 
-    protected override void Render(TargetHandle texture, int tick, float delta)
+    protected override void Render(RenderedTexture texture, int tick, float delta)
     {
         top.Draw(TextureTemporary, tick, delta);
         bottom.Draw(texture, tick, delta);

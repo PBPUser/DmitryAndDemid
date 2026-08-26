@@ -53,7 +53,7 @@ public class DrogichinBackground : StageBackground
         return DrogichinPoint.GetPointBetween(p1, p2, tick%LastTick, delta);
     }
 
-    private TargetHandle Temp;
+    private RenderedTexture Temp;
     
     protected override void Update(int tick, float delta)
     {
@@ -68,7 +68,7 @@ public class DrogichinBackground : StageBackground
 
     private float Rotation;
 
-    protected override void Render(TargetHandle texture, int tick, float delta)
+    protected override void Render(RenderedTexture texture, int tick, float delta)
     {
         SetShaderValue(DrogichinCloudsShader, LocationDrogichinCloudsRotation, Rotation, UniformType.Float);
         SetShaderValue(DrogichinCloudsShader, LocationDrogichinCloudsTime, tick / 60f + delta, UniformType.Float);

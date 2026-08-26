@@ -1,5 +1,6 @@
-using System.Runtime.InteropServices;
 using DmitryAndDemid.Rendering;
+using Microsoft.Win32;
+using System.Runtime.InteropServices;
 
 namespace DmitryAndDemid.Utils;
 
@@ -64,10 +65,11 @@ public readonly struct SystemInfo
         }
         else if (windows)
         {
-            cpuName = WindowsCpuName();
+            cpuName = WindowsGetCPUName();
         }
         if (string.IsNullOrWhiteSpace(cpuName))
-            cpuName = "Unknown CPU";
+            cpuName = Helper.Translate("benchmark.cpu.undefined");
+        cpuName = Helper.TranslateEachWord(cpuName);
 
         // ---- RAM ---------------------------------------------------------------------------
         long ram = linux ? LinuxTotalRam() : windows ? WindowsTotalRam() : 0;
@@ -76,15 +78,24 @@ public readonly struct SystemInfo
         GpuInfo? gpu = null;
         try { gpu = renderer?.QueryGpuInfo(); } catch { gpu = null; }
 
+
+        string gpuName = gpu?.Name ?? Helper.Translate("benchmark.gpu.undefined");
+        gpuName = Helper.TranslateEachWord(gpuName);
+        
+
+
         long vram = gpu?.VramBytes ?? 0;
         if (vram == 0 && linux)
             vram = LinuxVramBytes();
+        else if (vram == 0 && windows)
+            vram = WindowsVramBytes();
+
 
         IReadOnlyList<string> exts = gpu?.Extensions ?? Array.Empty<string>();
 
         return new SystemInfo
         {
-            Os = RuntimeInformation.OSDescription.Trim(),
+            Os = Helper.TranslateEachWord(RuntimeInformation.OSDescription.Trim()),
             OsArchitecture = RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant(),
             ProcessArchitecture = RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant(),
 
@@ -97,7 +108,7 @@ public readonly struct SystemInfo
             TotalRamBytes = ram,
             RamClock = null,   // SMBIOS/DMI — needs root; not read here
 
-            Gpu = gpu?.Name,
+            Gpu = gpuName,
             GpuApi = gpu?.Api,
             VramBytes = vram,
             VramClock = null,  // nvidia-smi / rocm — not shelled out to here
@@ -105,6 +116,18 @@ public readonly struct SystemInfo
 
             Npu = linux ? LinuxNpu() : null,
         };
+    }
+
+    /// <summary>
+    /// Returns value from "HKLM/HARDWARE/DESCRIPTION/System/CentralProcessor/0/ProcessorNameString"
+    /// </summary>
+    /// <returns></returns>
+    private static string WindowsGetCPUName()
+    {
+        const string keyPath = @"HARDWARE\DESCRIPTION\System\CentralProcessor\0";
+        const string valueName = "ProcessorNameString";
+        using (RegistryKey key = Registry.LocalMachine.OpenSubKey(keyPath, writable: false))
+            return key?.GetValue(valueName)?.ToString() ?? string.Empty;
     }
 
     // ====================================================================================================
@@ -218,6 +241,11 @@ public readonly struct SystemInfo
         return 0;
     }
 
+    static long WindowsVramBytes()
+    {
+        return GpuDataHelper.GetTotalVRAMBytes();
+    }
+
     /// <summary>AMD exposes total VRAM in sysfs; NVIDIA/others do not, so this is a best-effort AMD-only path.</summary>
     private static long LinuxVramBytes()
     {
@@ -292,13 +320,6 @@ public readonly struct SystemInfo
     // Windows probes.
     // ====================================================================================================
 
-    private static string WindowsCpuName()
-    {
-        // PROCESSOR_IDENTIFIER is always set and needs no registry/WMI dependency (e.g.
-        // "Intel64 Family 6 Model 151 Stepping 2, GenuineIntel"). Good enough for a diagnostics line.
-        string id = Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") ?? "";
-        return id.Trim();
-    }
 
     [StructLayout(LayoutKind.Sequential)]
     private struct MemoryStatusEx

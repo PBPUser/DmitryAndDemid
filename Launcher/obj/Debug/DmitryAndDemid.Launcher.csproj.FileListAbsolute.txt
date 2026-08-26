@@ -32,3 +32,8 @@ G:\Profile\Documents\DmitryAndDemid\Launcher\obj\Debug\refint\custom.dll
 G:\Profile\Documents\DmitryAndDemid\Launcher\obj\Debug\custom.pdb
 G:\Profile\Documents\DmitryAndDemid\Launcher\obj\Debug\DmitryAndDemid.Launcher.genruntimeconfig.cache
 G:\Profile\Documents\DmitryAndDemid\Launcher\obj\Debug\ref\custom.dll
+D:\TEMP\opencode\buildcheck\custom.exe
+D:\TEMP\opencode\buildcheck\custom.deps.json
+D:\TEMP\opencode\buildcheck\custom.runtimeconfig.json
+D:\TEMP\opencode\buildcheck\custom.dll
+D:\TEMP\opencode\buildcheck\custom.pdb

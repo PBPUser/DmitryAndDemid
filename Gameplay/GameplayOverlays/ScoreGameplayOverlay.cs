@@ -39,9 +39,9 @@ public class ScoreGameplayOverlay : GameplayOverlay
     static int LocationJumpingTextWidth  = GetShaderLocation(JumpingShader, "textWidth");
     private float TextWidth;
     private float LetterWidth;
-    private TargetHandle TimersTexture;
-    private TargetHandle ScoreTexture;
-    private TextureHandle Texture;
+    private RenderedTexture TimersTexture;
+    private RenderedTexture ScoreTexture;
+    private BasicTexture Texture;
     private Rect SourceRectangle;
     private Rect DestinationRectangle;
     private Rect SourceRectangle2;

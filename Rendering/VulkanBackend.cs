@@ -101,13 +101,13 @@ public sealed unsafe class VulkanBackend : IBackend
     private readonly Dictionary<int, VkTarget> Targets = new();
     private readonly Dictionary<int, VkShader> Shaders = new();
     private readonly Dictionary<int, VkFont> Fonts = new();
-    private readonly Dictionary<int, TextureHandle> TargetTextures = new();
+    private readonly Dictionary<int, BasicTexture> TargetTextures = new();
     private readonly Dictionary<(int Shader, int Pass, BlendMode Blend), Pipeline> Pipelines = new();
 
-    private readonly Stack<TargetHandle> TargetStack = new();
+    private readonly Stack<RenderedTexture> TargetStack = new();
     private ShaderHandle ActiveShader;
     private ShaderHandle DefaultShader;
-    private TextureHandle WhitePixel;
+    private BasicTexture WhitePixel;
     private FontHandle DefaultFontHandle;
     private int NextId = 1;
 
@@ -130,7 +130,7 @@ public sealed unsafe class VulkanBackend : IBackend
 
     private sealed class VkTarget
     {
-        public TextureHandle Colour;
+        public BasicTexture Colour;
         public Framebuffer Framebuffer;
         public int Width, Height;
     }
@@ -166,14 +166,14 @@ public sealed unsafe class VulkanBackend : IBackend
         public byte[] VertexBlock = [];
         public byte[] FragmentBlock = [];
         /// <summary>Extra samplers the game binds by hand (SetShaderValueTexture), by binding number.</summary>
-        public readonly Dictionary<int, TextureHandle> BoundTextures = new();
+        public readonly Dictionary<int, BasicTexture> BoundTextures = new();
         public string[] UniformNames = [];
         public int ColDiffuseOffset = -1;
     }
 
     private sealed class VkFont
     {
-        public TextureHandle Atlas;
+        public BasicTexture Atlas;
         public float BaseSize;
         public readonly Dictionary<char, Glyph> Glyphs = new();
     }
@@ -842,17 +842,17 @@ public sealed unsafe class VulkanBackend : IBackend
     //  render targets
     // ======================================================================================
 
-    public TargetHandle CreateTarget(int width, int height)
+    public RenderedTexture CreateTarget(int width, int height)
     {
         if (!Ready)
-            return TargetHandle.None;
+            return RenderedTexture.None;
 
         width = Math.Max(1, width);
         height = Math.Max(1, height);
 
         // clear: true — a target is drawn into incrementally and is never fully overwritten up front, so it
         // must start zeroed (see CreateImage).
-        TextureHandle colour = CreateImage(width, height, OffscreenFormat,
+        BasicTexture colour = CreateImage(width, height, OffscreenFormat,
             ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.SampledBit | ImageUsageFlags.TransferDstBit,
             clear: true);
         Textures[colour.Id].OwnedByTarget = true;
@@ -868,10 +868,10 @@ public sealed unsafe class VulkanBackend : IBackend
             Height = height,
         };
         TargetTextures[id] = colour;
-        return new TargetHandle(id);
+        return new RenderedTexture(id);
     }
 
-    public void DestroyTarget(TargetHandle target)
+    public void DestroyTarget(RenderedTexture target)
     {
         if (!Targets.Remove(target.Id, out VkTarget? t))
             return;
@@ -881,14 +881,14 @@ public sealed unsafe class VulkanBackend : IBackend
         DestroyTextureInternal(t.Colour);
     }
 
-    public bool IsValid(TargetHandle target) => Targets.ContainsKey(target.Id);
+    public bool IsValid(RenderedTexture target) => Targets.ContainsKey(target.Id);
 
-    public TextureHandle GetTargetTexture(TargetHandle target) =>
-        TargetTextures.GetValueOrDefault(target.Id, TextureHandle.None);
+    public BasicTexture GetTargetTexture(RenderedTexture target) =>
+        TargetTextures.GetValueOrDefault(target.Id, BasicTexture.None);
 
     public int TargetFloor { get; set; }
 
-    public void BeginTarget(TargetHandle target)
+    public void BeginTarget(RenderedTexture target)
     {
         if (!Ready)
             return;
@@ -920,7 +920,7 @@ public sealed unsafe class VulkanBackend : IBackend
         TargetStack.Pop();
         EndPass();
 
-        if (TargetStack.TryPeek(out TargetHandle parent) && Targets.TryGetValue(parent.Id, out VkTarget? p))
+        if (TargetStack.TryPeek(out RenderedTexture parent) && Targets.TryGetValue(parent.Id, out VkTarget? p))
         {
             BeginPass(OffscreenPass, p.Framebuffer, p.Width, p.Height);
         }
@@ -956,7 +956,7 @@ public sealed unsafe class VulkanBackend : IBackend
     /// a clear and an upload are BOTH transfer writes, and two transfer writes to the same memory are not
     /// ordered against each other without a barrier (see Upload).
     /// </param>
-    private TextureHandle CreateImage(int width, int height, Format format, ImageUsageFlags usage, bool clear)
+    private BasicTexture CreateImage(int width, int height, Format format, ImageUsageFlags usage, bool clear)
     {
         ImageCreateInfo info = new()
         {
@@ -1012,22 +1012,22 @@ public sealed unsafe class VulkanBackend : IBackend
             Width = width,
             Height = height,
         };
-        return new TextureHandle(id);
+        return new BasicTexture(id);
     }
 
-    private TextureHandle CreateTexture(byte[] rgba, int width, int height)
+    private BasicTexture CreateTexture(byte[] rgba, int width, int height)
     {
         // clear: false — Upload immediately overwrites every texel. Clearing first would queue a SECOND
         // transfer write over the same memory, and the two are unordered: on AMD the clear can retire after
         // the copy and leave the texture blank. NVIDIA/Intel happen to retire transfers in submission order,
         // which is why that race was invisible everywhere except on GCN.
-        TextureHandle handle = CreateImage(width, height, Format.R8G8B8A8Unorm,
+        BasicTexture handle = CreateImage(width, height, Format.R8G8B8A8Unorm,
             ImageUsageFlags.SampledBit | ImageUsageFlags.TransferDstBit, clear: false);
         Upload(handle, rgba, width, height);
         return handle;
     }
 
-    private void Upload(TextureHandle handle, byte[] rgba, int width, int height)
+    private void Upload(BasicTexture handle, byte[] rgba, int width, int height)
     {
         VkTexture texture = Textures[handle.Id];
         ulong size = (ulong)(width * height * 4);
@@ -1137,10 +1137,10 @@ public sealed unsafe class VulkanBackend : IBackend
         Vk.FreeCommandBuffers(Device, CommandPool, 1, in cmd);
     }
 
-    public TextureHandle LoadTexture(string path)
+    public BasicTexture LoadTexture(string path)
     {
         if (!Ready || !Assets.Exists(path))
-            return TextureHandle.None;
+            return BasicTexture.None;
         using Stream stream = Assets.OpenRead(path);
         ImageResult image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
         return CreateTexture(image.Data, image.Width, image.Height);
@@ -1148,14 +1148,14 @@ public sealed unsafe class VulkanBackend : IBackend
 
     /// <summary>Same image-plus-staging-copy path as <see cref="LoadTexture"/>, minus the decode. Needs the
     /// device up (Ready), since the upload records into a command buffer.</summary>
-    public TextureHandle LoadTextureFromPixels(byte[] rgba, int width, int height) =>
+    public BasicTexture LoadTextureFromPixels(byte[] rgba, int width, int height) =>
         Ready && IRenderer.AreLoadablePixels(rgba, width, height)
             ? CreateTexture(rgba, width, height)
-            : TextureHandle.None;
+            : BasicTexture.None;
 
-    public void UnloadTexture(TextureHandle texture) => DestroyTextureInternal(texture);
+    public void UnloadTexture(BasicTexture texture) => DestroyTextureInternal(texture);
 
-    private void DestroyTextureInternal(TextureHandle texture)
+    private void DestroyTextureInternal(BasicTexture texture)
     {
         if (!Textures.Remove(texture.Id, out VkTexture? t))
             return;
@@ -1185,12 +1185,12 @@ public sealed unsafe class VulkanBackend : IBackend
         DeferredBuffers.Clear();
     }
 
-    public bool IsValid(TextureHandle texture) => Textures.ContainsKey(texture.Id);
+    public bool IsValid(BasicTexture texture) => Textures.ContainsKey(texture.Id);
 
-    public Vector2 GetTextureSize(TextureHandle texture) =>
+    public Vector2 GetTextureSize(BasicTexture texture) =>
         Textures.TryGetValue(texture.Id, out VkTexture? t) ? new Vector2(t.Width, t.Height) : Vector2.Zero;
 
-    public void SetTextureFilter(TextureHandle texture, FilterMode filter)
+    public void SetTextureFilter(BasicTexture texture, FilterMode filter)
     {
         if (Textures.TryGetValue(texture.Id, out VkTexture? t))
             t.Linear = filter != FilterMode.Point;
@@ -1421,7 +1421,7 @@ public sealed unsafe class VulkanBackend : IBackend
             System.Buffer.MemoryCopy(source, destination, size, size);
     }
 
-    public void SetUniformTexture(ShaderHandle shader, int location, TextureHandle texture)
+    public void SetUniformTexture(ShaderHandle shader, int location, BasicTexture texture)
     {
         if (!Shaders.TryGetValue(shader.Id, out VkShader? s) || location < 2000)
             return;
@@ -1642,17 +1642,17 @@ public sealed unsafe class VulkanBackend : IBackend
         Vk.CmdClearAttachments(Cmd, 1, in attachment, 1, in rect);
     }
 
-    public void DrawTexture(TextureHandle texture, Vector2 position, Rgba tint) =>
+    public void DrawTexture(BasicTexture texture, Vector2 position, Rgba tint) =>
         DrawTexture(texture, position, 0, 1, tint);
 
-    public void DrawTexture(TextureHandle texture, Vector2 position, float rotation, float scale, Rgba tint)
+    public void DrawTexture(BasicTexture texture, Vector2 position, float rotation, float scale, Rgba tint)
     {
         Vector2 size = GetTextureSize(texture);
         DrawTexture(texture, new Rect(0, 0, size.X, size.Y),
             new Rect(position.X, position.Y, size.X * scale, size.Y * scale), Vector2.Zero, rotation, tint);
     }
 
-    public void DrawTexture(TextureHandle texture, Rect source, Rect destination, Vector2 origin, float rotation,
+    public void DrawTexture(BasicTexture texture, Rect source, Rect destination, Vector2 origin, float rotation,
         Rgba tint)
     {
         if (!Ready || !InPass || !Textures.TryGetValue(texture.Id, out VkTexture? t))
@@ -1660,7 +1660,7 @@ public sealed unsafe class VulkanBackend : IBackend
         DrawQuad(texture, t, source, destination, origin, rotation, tint);
     }
 
-    public void DrawNinePatch(TextureHandle texture, NinePatch patch, Rect destination, Vector2 origin,
+    public void DrawNinePatch(BasicTexture texture, NinePatch patch, Rect destination, Vector2 origin,
         float rotation, Rgba tint) =>
         DrawTexture(texture, patch.Source, destination, origin, rotation, tint);
 
@@ -1683,7 +1683,7 @@ public sealed unsafe class VulkanBackend : IBackend
             MathF.Atan2(delta.Y, delta.X) * 180f / MathF.PI, color);
     }
 
-    private void DrawQuad(TextureHandle handle, VkTexture texture, Rect source, Rect dest, Vector2 origin,
+    private void DrawQuad(BasicTexture handle, VkTexture texture, Rect source, Rect dest, Vector2 origin,
         float rotation, Rgba tint)
     {
         ShaderHandle shaderHandle = ActiveShader.IsValid ? ActiveShader : DefaultShader;
@@ -1808,7 +1808,7 @@ public sealed unsafe class VulkanBackend : IBackend
         return Vk.AllocateDescriptorSets(Device, in info, out set) == Result.Success;
     }
 
-    private void WriteDescriptors(VkShader shader, DescriptorSet set, TextureHandle primary, VkTexture texture)
+    private void WriteDescriptors(VkShader shader, DescriptorSet set, BasicTexture primary, VkTexture texture)
     {
         List<WriteDescriptorSet> writes = [];
         List<nint> pinned = [];
@@ -1818,7 +1818,7 @@ public sealed unsafe class VulkanBackend : IBackend
             // binding 0 is texture0 (the quad's own texture); anything else was bound by the game.
             VkTexture bound = texture;
             if (sampler.binding != 0 &&
-                shader.BoundTextures.TryGetValue(sampler.binding, out TextureHandle extra) &&
+                shader.BoundTextures.TryGetValue(sampler.binding, out BasicTexture extra) &&
                 Textures.TryGetValue(extra.Id, out VkTexture? extraTexture))
                 bound = extraTexture;
 
@@ -2244,11 +2244,11 @@ public sealed unsafe class VulkanBackend : IBackend
     {
     }
 
-    public void DebugUiImage(TextureHandle texture)
+    public void DebugUiImage(BasicTexture texture)
     {
     }
 
-    public void DebugUiImage(TargetHandle target)
+    public void DebugUiImage(RenderedTexture target)
     {
     }
 

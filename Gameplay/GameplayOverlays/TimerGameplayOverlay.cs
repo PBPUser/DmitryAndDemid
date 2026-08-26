@@ -16,7 +16,7 @@ public class TimerGameplayOverlay : GameplayOverlay
         );
         Texture = Runtime.CurrentRuntime.Textures[image];
         SourceRectangle = Helper.GetFullSource(Texture);
-        DestinationRectangle = new Rect(0, 128 * Runtime.CurrentRuntime.ScaleF, SourceRectangle.Size / 4  * Runtime.CurrentRuntime.ScaleF);
+        DestinationRectangle = new Rect(0, 128 * Runtime.CurrentRuntime.ScaleF, SourceRectangle.Size);
         SourceRectangle2 = Helper.GetFullSourceRenderTexture(TimersTexture);
         DestinationRectangle2 =
             new Rect(
@@ -28,8 +28,8 @@ public class TimerGameplayOverlay : GameplayOverlay
         Helper.DrawTimerSplash(TimersTexture, ticks, time);
     }
 
-    private TargetHandle TimersTexture;
-    private TextureHandle Texture;
+    private RenderedTexture TimersTexture;
+    private BasicTexture Texture;
     private Rect SourceRectangle;
     private Rect DestinationRectangle;
     private Rect SourceRectangle2;

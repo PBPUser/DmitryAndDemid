@@ -15,7 +15,7 @@ public class ForkTilesOverlay(GameBox box, float length) : GameplayOverlay(box, 
 {
     private const float Pw = 384f, Ph = 448f;   // playfield design size
     private const int Cols = 3, Rows = 3;        // the tiled block, anchored bottom-right
-    private readonly TextureHandle Fork = Runtime.CurrentRuntime.Textures["forkCut.png"];
+    private readonly BasicTexture Fork = Runtime.CurrentRuntime.Textures["forkCut.png"];
 
     protected override void Draw()
     {

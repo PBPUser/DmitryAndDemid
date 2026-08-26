@@ -14,7 +14,7 @@ public class RuntimeStageInfo
     public int MusicID;
     Script<object>[] Scripts;
     string[] Groups;
-    public TextureHandle[] Backgrounds;
+    public BasicTexture[] Backgrounds;
     public FileEntityInfo[] Entities;
     public RuntimeChapter[] Chapters;
     

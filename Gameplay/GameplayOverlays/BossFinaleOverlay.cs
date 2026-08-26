@@ -69,13 +69,13 @@ public class BossFinaleOverlay : GameplayOverlay
     private readonly double StartedReal;
     private double LastBoxTime;
 
-    private readonly TextureHandle Texture;
+    private readonly BasicTexture Texture;
     private readonly Rect Source;
     private readonly Rect Dest;
     private readonly Vector2 Origin;
     private readonly float Rotation;
 
-    private readonly TextureHandle Star;
+    private readonly BasicTexture Star;
     private readonly Rect StarSource;
 
     /// <summary>How many motes the whole finale is allowed. Fixed, so a boss death costs the same on any machine.</summary>

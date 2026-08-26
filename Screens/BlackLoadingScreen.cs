@@ -13,12 +13,11 @@ public class BlackLoadingScreen : Screen
     public Action? Event;
     private bool EventExecuted = false;
     bool FadeOut = false;
-    TextureHandle FifoLoading;
-    private Rect FifoSource, FifoTarget;
+    private Rect FifoTarget;
     Vector2 FifoOrigin;
     private double FifoLoadingShowDelay;
     private const double FifoLoadingAppearing = 0.25;
-    
+
     public BlackLoadingScreen(double loadingTime, double fade, Action @event, bool fadeOut, double fifoLoadingShowDelay)
     {
         FifoLoadingShowDelay = fifoLoadingShowDelay;
@@ -26,10 +25,8 @@ public class BlackLoadingScreen : Screen
         Event = @event;
         Fade = fade;
         FadeOut = fadeOut;
-        FifoLoading = Runtime.CurrentRuntime.Textures["fifo_loading.png"];
         FifoTarget = Helper.Scale(new(64, 414,52, 97), Runtime.CurrentRuntime.ScaleF);
         FifoOrigin = FifoTarget.Size / 2;
-        FifoSource = Helper.GetFullSource(FifoLoading);
     }
 
     public override void TopUpdate()
@@ -56,9 +53,12 @@ public class BlackLoadingScreen : Screen
         );
         DrawRectangle(0,0,Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height,
             Rgba.Black with { A = transparency } );
-        DrawTexturePro(FifoLoading, FifoSource, FifoTarget, FifoOrigin,
+        // Fetched per frame, not cached in the constructor: the demo start/end paths unload and reload the
+        // whole texture set right after constructing this screen, which freed the cached handle mid-fade.
+        BasicTexture fifo = Runtime.CurrentRuntime.Textures["fifo_loading.png"];
+        DrawTexturePro(fifo, Helper.GetFullSource(fifo), FifoTarget, FifoOrigin,
             time * 1000f,
-            Rgba.White 
+            Rgba.White
                 with { A = transparency2 });
         base.Render();
     }

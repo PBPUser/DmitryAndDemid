@@ -83,7 +83,7 @@ internal class InvalidSettingsScreen : MenuScreen
 
     public override void CreateMenu()
     {
-        SetTitle(Runtime.CurrentRuntime.Textures["settings.png"]);
+        SetTitle(Runtime.CurrentRuntime.Textures["invalid_settings_title.png"]);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
 
         // Difficulty shortcut, same as the main menu's start entry.

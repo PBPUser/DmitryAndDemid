@@ -26,7 +26,7 @@ public class Player
     public const float DefocusedDifference = 32f;
     public const int FocusAnimationChangingLength = 15;
     public bool CollisionEnabled = true;
-    public TextureHandle SourceTexture;
+    public BasicTexture SourceTexture;
     public Rect SourceRect;
     public GameBox GameBox;
     

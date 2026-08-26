@@ -22,7 +22,7 @@ public class IngameSaveReplayScreen : Screen
     public IngameSaveReplayScreen(PlayerController playerController, GameplayScreen screen, Action? onFinished = null)
     {
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
-        MenuItems = new TargetHandle[20];
+        MenuItems = new RenderedTexture[20];
         FontSize = (int)(16 * Runtime.CurrentRuntime.ScaleF);
         Spacing = (int)(2 * Runtime.CurrentRuntime.ScaleF);
         X = (int)(32 * Runtime.CurrentRuntime.ScaleF);
@@ -40,7 +40,7 @@ public class IngameSaveReplayScreen : Screen
     private int LetterIndex = 0;
     private int LineHeight;
     private int X, Y;
-    public TargetHandle[] MenuItems;
+    public RenderedTexture[] MenuItems;
     private bool InKeyboardMode = false;
     private double LastInputTime = 0;
     private const double InputDelay = 0.25f;

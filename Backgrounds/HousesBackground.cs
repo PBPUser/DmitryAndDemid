@@ -20,8 +20,8 @@ public class HousesBackground : StageBackground
     private const int Width = 384, Height = 448;
     private const int LampCount = 3;
 
-    private readonly TargetHandle Temp;    // dummy quad source; the cityscape is procedural
-    private readonly TargetHandle Scene;   // the unlit city, before lighting
+    private readonly RenderedTexture Temp;    // dummy quad source; the cityscape is procedural
+    private readonly RenderedTexture Scene;   // the unlit city, before lighting
     private readonly ShaderHandle Shader;
     private readonly int LocationTime;
 
@@ -93,7 +93,7 @@ public class HousesBackground : StageBackground
         Lighting.Update(tick, delta);
     }
 
-    protected override void Render(TargetHandle texture, int tick, float delta)
+    protected override void Render(RenderedTexture texture, int tick, float delta)
     {
         // Low graphics: the houses field is a heavy per-pixel shader, so skip it and draw a plain fill instead.
         if (!Configuration.Config.HighGraphics)

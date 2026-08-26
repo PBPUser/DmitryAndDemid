@@ -64,7 +64,7 @@ public class SignalGameplayOverlay : GameplayOverlay
     // The mobile-services provider, drawn under the signal icon. Each protagonist has their own carrier, keyed
     // "celluar.<person id>" in translation.json. All three lines — no service, emergency only, the carrier —
     // are baked at load and indexed by ProviderState.
-    private readonly TargetHandle[] ProviderTextures = new TargetHandle[3];
+    private readonly RenderedTexture[] ProviderTextures = new RenderedTexture[3];
     private int ProviderState = 2;
     private double MarqueeStart;
 
@@ -100,7 +100,7 @@ public class SignalGameplayOverlay : GameplayOverlay
         {
             if (ProviderTextures[i].IsValid)
                 UnloadRenderTexture(ProviderTextures[i]);
-            ProviderTextures[i] = TargetHandle.None;
+            ProviderTextures[i] = RenderedTexture.None;
         }
         base.Unload();
     }
@@ -134,7 +134,7 @@ public class SignalGameplayOverlay : GameplayOverlay
     {
         if (!ProviderTextures[ProviderState].IsValid)
             return;
-        TextureHandle tex = ProviderTextures[ProviderState].Texture;
+        BasicTexture tex = ProviderTextures[ProviderState].Texture;
         float srcW = MathF.Min(tex.Width, BlockWidth);
         float overflow = tex.Width - srcW;
         float srcX = 0f;

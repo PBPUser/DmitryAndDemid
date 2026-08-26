@@ -101,7 +101,7 @@ public class RuntimeObject
 
     public int[] Header = new int[128];
     public float[] FloatingPoints = new float[128];
-    public TextureHandle Texture;
+    public BasicTexture Texture;
     public GameBox Box;
     public RuntimeObjectReferenceAction? CreateAction;
     public RuntimeObjectReferenceAction? UpdateAction;
