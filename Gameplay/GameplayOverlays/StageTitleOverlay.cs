@@ -6,13 +6,13 @@ using DmitryAndDemid.Utils;
 
 namespace DmitryAndDemid.Gameplay.GameplayOverlays;
 
-public class StageTitleOverlay(GameBox box, int index) : GameplayOverlay(box, 0.5f, 5)
+public class StageTitleOverlay : GameplayOverlay
 {
     BasicTexture Texture = Runtime.CurrentRuntime.Textures["stages.png"];
-    private Rect Source1 = new Rect(0, index * 512, 1536, 96);
-    private Rect Source2 = new Rect(0, index * 512 + 96, 1536, 320);
-    private Rect Source3 = new Rect(0, index * 512 + 416, 1536, 96);
-    private Rect Source4 = new Rect(1536, index * 640, 640, 640);
+    private Rect Source1;
+    private Rect Source2;
+    private Rect Source3;
+    private Rect Source4;
     private Rect Destination1 = new Rect(0, 112 * Runtime.CurrentRuntime.ScaleF, new Vector2(384, 24)*Runtime.CurrentRuntime.ScaleF);
     private Rect Destination2 = new Rect(0, 136 * Runtime.CurrentRuntime.ScaleF, new Vector2(384, 80)*Runtime.CurrentRuntime.ScaleF);
     private Rect Destination3 = new Rect(0, 216 * Runtime.CurrentRuntime.ScaleF, new Vector2(384, 24)*Runtime.CurrentRuntime.ScaleF);
@@ -24,6 +24,19 @@ public class StageTitleOverlay(GameBox box, int index) : GameplayOverlay(box, 0.
     private Rect Destination4 = new Rect(312 * Runtime.CurrentRuntime.ScaleF, 76 * Runtime.CurrentRuntime.ScaleF, new Vector2(EmblemSize)*Runtime.CurrentRuntime.ScaleF);
     private Vector2 Origin = new Vector2(EmblemSize / 2) * Runtime.CurrentRuntime.ScaleF;
     
+    public StageTitleOverlay(GameBox box, int index) : base(box, 0.5f, 5)
+    {
+        var a = Texture.Width * 1536 / 2176;
+        var b = Texture.Height * 640 / 2560;
+        var c = Texture.Height * 512 / 2560;
+        var d = Texture.Height * 96 / 2560;
+        var e = Texture.Height * 416 / 2560;
+        Source1 = new Rect(0, index * c, a, d);
+        Source2 = new Rect(0, index * c + d, a, b / 2);
+        Source3 = new Rect(0, index * c + e, a, d);
+        Source4 = new Rect(a, index * b, b, b);
+    }
+
     protected float StateX(float offset) => 
         MathUtil.Clamp((Box.GetTime() - TimeAppear + offset) / AnimationLength, 0, 1) * MathUtil.Clamp((TimeAppear + Length - Box.GetTime()) / AnimationLength, 0, 1);
 

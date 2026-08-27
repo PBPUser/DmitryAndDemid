@@ -12,6 +12,7 @@ using ImGuiNET;
 #endif
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Screen = DmitryAndDemid.Common.Screen;
+using static Silk.NET.Core.Native.WinString;
 
 namespace DmitryAndDemid.Screens;
 
@@ -20,12 +21,8 @@ public class GameplayScreen : Screen
     public GameplayScreen(ProtogonistData data, int difficulty, FileStageInfo[] stages, int chapter, bool practice,
         PlayerControllerBase? controller = null, GameType mode = GameType.Default, int startStage = 0)
     {
-        UIPracticeOverplaySource = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["spell_practice_overlay.png"]);
-        UIPracticeOverplayDestination = new Rect(432, 96, 192,64) * Runtime.CurrentRuntime.ScaleF;
-        
         Mode = mode;
         PlaybackController = controller;
-        SetBackground(Runtime.CurrentRuntime.Textures["gameplay_background.png"]);
         Data = data;
         Difficulty = difficulty;
         Stages = stages;
@@ -40,14 +37,31 @@ public class GameplayScreen : Screen
         DialogSource.Height *= -1;
         PauseMenu = new PauseMenu(this);
         SetShaderValue(
-            DieShader, 
+            DieShader,
             GetShaderLocation(DieShader, "scale"),
             Runtime.CurrentRuntime.ScaleF,
             UniformType.Float
             );
+
+        // Additive group loads, NOT UnloadTextures + LoadTextures: this constructor runs inside the menu's
+        // TopUpdate (character select), so the whole menu stack renders at least one more frame afterwards,
+        // and the loading screen's wipe-in then captures it. Unloading the "main" set here crashed those
+        // screens on their per-frame texture fetches (DifficultyScreen's difficulties.png). The groups stay
+        // resident for the run; swapping back to main-only is the menu-return path's business.
+        Runtime.CurrentRuntime.LoadTextureGroup("game");
+        Runtime.CurrentRuntime.LoadTextureGroup(data.ID);
+        Runtime.CurrentRuntime.LoadTextureGroup($"stage{startStage + 1}");   // stage files are 1-based (stage1.sid…)
+        BGSource = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["gameplay_background.png"]);
+        UIPracticeOverplaySource = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["spell_practice_overlay.png"]);
+        UIPracticeOverplayDestination = new Rect(432, 96, 192,64) * Runtime.CurrentRuntime.ScaleF;
+        SetBackground(Runtime.CurrentRuntime.Textures["gameplay_background.png"]);
+        
         LocationDiePosition = GetShaderLocation(DieShader, "pos");
         LocationDieTime = GetShaderLocation(DieShader, "time");
-        DifficultySource = new Rect(0, 160*difficulty, 1920, 160);
+        DifficultySource = new Rect(0, 
+            Runtime.CurrentRuntime.Textures["difficulties_ingame.png"].Height / 5 * difficulty,
+            Runtime.CurrentRuntime.Textures["difficulties_ingame.png"].Width,
+            Runtime.CurrentRuntime.Textures["difficulties_ingame.png"].Height / 5);
         DifficultyTargetStart = Helper.Scale(new Rect(152, 20, 144, 12), Runtime.CurrentRuntime.ScaleF);
         DifficultyTarget = Helper.Scale(new Rect(456, 24, 144, 12), Runtime.CurrentRuntime.ScaleF);
         LetterWidth = (int)(MeasureTextEx(Runtime.CurrentRuntime.Fonts["kodemono"],
@@ -76,6 +90,11 @@ public class GameplayScreen : Screen
 #if SWITCH
         Runtime.SwTrace("[gp] GameplayScreen ctor done");
 #endif
+    }
+
+    void TextureLoad()
+    {
+
     }
 
     /// <summary>
@@ -148,8 +167,11 @@ public class GameplayScreen : Screen
     private Rect UIPracticeOverplayDestination;
 
     private static Rect Fullscreen = Helper.GetFullscreenSource();
-    private static Rect BGSource = Helper.GetFullSource(Runtime.CurrentRuntime.Textures["gameplay_background.png"]);
-    private static Rect DestEffect = new Rect(0, 0, 384, 448); 
+    // Assigned in the constructor AFTER the texture groups are loaded. It used to be a static initializer,
+    // which runs on the first touch of the class — before any LoadTextureGroup had a chance to bring the
+    // "game"-tagged gameplay_background in — and died with a KeyNotFoundException inside the type initializer.
+    private static Rect BGSource;
+    private static Rect DestEffect = new Rect(0, 0, 384, 448);
 
     private Rect DifficultySource;
     private Rect DifficultyTargetStart;

@@ -2,6 +2,6 @@
 	"LowQualityDivider": 1,
 	"MidQualityDivider": 1,
 	"MatchGameResolutionScaling": true,
-	"FullResolutionScaling": 3.3333,
+	"FullResolutionScaling": 4,
 	"TextureLoadGroup":"main"
 }

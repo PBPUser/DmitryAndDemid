@@ -13,6 +13,9 @@ public class CreditsScreen : Screen
 
     public CreditsScreen(GameplayScreen? clearedRun = null)
     {
+        // Staff-roll art is its own texture group ("staff"); object.png below is read straight from the
+        // dictionary in this constructor, so the group has to be in before anything else runs.
+        Runtime.CurrentRuntime.LoadTextureGroup("staff");
         ClearedRun = clearedRun;
         PlayerData.Instance.SetMusicUnlocked(10, true);   // staff-roll theme unlocked in the music room
         BgTarget = Helper.GetFullscreenSource();

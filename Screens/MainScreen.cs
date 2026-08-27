@@ -170,6 +170,10 @@ public class MainScreen : MenuScreen
 
     public override void Activated()
     {
+        // Back at the title from wherever — run over, demo dismissed, ending/staff roll done. Any texture
+        // group pulled in along the way (game art, character art, ending/staff art) is unused from here on;
+        // free it. Selective rather than UnloadTextures: this screen itself holds cached main-set handles.
+        Runtime.CurrentRuntime.UnloadTextureGroupsExcept("main", "load");
         if (Configuration.Config.IsMenuLagEnabled)
             Runtime.CurrentRuntime.ContinueWorkIn = GetTime() + 0.25;
         TimeAppearMenu = Math.Max(5.5, GetTime() - AppearTime);
@@ -206,12 +210,13 @@ public class MainScreen : MenuScreen
         string[] replays = ReplayLauncher.FindReplays();
         if (replays.Length == 0)
             return;
+        var replay = replays[DemoIndex % replays.Length];
+        var header = Replay.ReadHeader(replay);
         BlackLoadingScreen? loader = null;
         loader = new BlackLoadingScreen(1.2, 0.4, () => Runtime.CurrentRuntime.RemoveScreen(loader), true, 0);
         Runtime.CurrentRuntime.AddScreen(loader);
-        Runtime.CurrentRuntime.UnloadTextures();
-        Runtime.CurrentRuntime.LoadTextures(["game"]);
-        GameplayScreen? demo = ReplayLauncher.Build(replays[DemoIndex % replays.Length], demo: true);
+        
+        GameplayScreen? demo = ReplayLauncher.Build(replay, demo: true);
         DemoIndex++;
         if (demo == null)
             return;

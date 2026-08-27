@@ -12,7 +12,7 @@ public class BasicGameplayOverlay : GameplayOverlay
     {
         Texture = Runtime.CurrentRuntime.Textures[image];
         SourceRectangle = Helper.GetFullSource(Texture);
-        DestinationRectangle = new Rect(0, 128 * Runtime.CurrentRuntime.ScaleF, SourceRectangle.Size / 4  * Runtime.CurrentRuntime.ScaleF);
+        DestinationRectangle = new Rect(0, 128 * Runtime.CurrentRuntime.ScaleF, SourceRectangle.Size);
     }
 
     private BasicTexture Texture;

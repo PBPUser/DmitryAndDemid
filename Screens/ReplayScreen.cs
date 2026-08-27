@@ -20,7 +20,7 @@ public class ReplayScreen : MenuScreen
 {
     private const int PerPage = 25;
     private const float ItemPadding = 1f;
-    private float ItemFontSize = 10f;   // sized in CreateMenu so all PerPage rows fit the page
+    private float ItemFontSize = 20f;   // sized in CreateMenu so all PerPage rows fit the page
     private string[] AllReplays = [];
     private int Page;
 

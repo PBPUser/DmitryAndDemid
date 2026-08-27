@@ -24,6 +24,9 @@ public class EndingScreen : Screen
 
     public EndingScreen(int difficulty, EndingInfo info, bool showStaffRoll, GameplayScreen? clearedRun = null)
     {
+        // Ending art is its own texture group ("ending"), not part of the main or game sets — bring it in
+        // before anything draws, whichever set the screen we arrived from had loaded.
+        Runtime.CurrentRuntime.LoadTextureGroup("ending");
         Difficulty = difficulty;
         ShowStaffRoll = showStaffRoll;
         ClearedRun = clearedRun;

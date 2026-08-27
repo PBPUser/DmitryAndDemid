@@ -445,7 +445,7 @@ public class Runtime
             Mark("shaders…");    LoadShaders();
             Mark("colorgrade…"); LoadColorGradeShader();
             Mark("fonts…");      LoadFonts();
-            Mark("textures…"); LoadTextures(["main"]);
+            Mark("textures…"); LoadTextures(["main", "load"]);
             Mark("shaderAttribs…"); Helper.LoadShaderAttribs();
             Mark("bullets…");    LoadBullets();
             Mark("audio…");      LoadAudio();
@@ -560,6 +560,7 @@ public class Runtime
 
 
     List<RenderedTexture> RenderedTextureLoadedIntoMainList = new();
+    
 
     public void LoadRenderTextureIntoList(string key, RenderedTexture rTexture)
     {
@@ -622,8 +623,6 @@ public class Runtime
                 {
                     if (props.TextureLoadGroup == "" || tags.Contains(props.TextureLoadGroup))
                         LoadTextureWithConfig(key, props, LoadTexture(x));
-                    else
-                        Console.WriteLine($"Key [{key}] will not loaded because of their key is not match to currently loading textures.");
                 }
                 else
                     Textures[key] = LoadTexture(x);
@@ -642,6 +641,68 @@ public class Runtime
         
         Textures = Textures.OrderBy(x => x.Key).ToDictionary();
         CurrentlyLoadedTags = tags;
+    }
+
+    public void LoadTextureGroup(string tag)
+    {
+        if(CurrentlyLoadedTags.Contains(tag)) return;
+        TextureLoadingProperties? props;
+        string textureConfName = "", key = "";
+        foreach (var x in Assets.Files("Assets/Textures", "*.png"))
+        {
+            key = Path.GetFileName(x);
+            textureConfName = Path.ChangeExtension(x, ".json");
+            if (File.Exists(textureConfName))
+            {
+                props = JsonSerializer.Deserialize<TextureLoadingProperties>(File.ReadAllText(textureConfName));
+                if (props != null)
+                    if (tag.Equals(props.TextureLoadGroup))
+                        LoadTextureWithConfig(key, props, LoadTexture(x));
+            }
+        }
+        CurrentlyLoadedTags = CurrentlyLoadedTags.Union([tag]).ToArray();
+    }
+
+    /// <summary>
+    /// Frees every texture whose .json group is NOT in <paramref name="keep"/> — the selective counterpart to
+    /// <see cref="UnloadTextures"/>, which empties the whole dictionary (shared and untagged art included) and
+    /// so can only run where no living screen still holds a cached handle. Untagged textures (no .json, or an
+    /// empty group) and the procedural entries are always kept: they belong to every set. Called when the
+    /// title screen regains focus, which is the one point every flow that loaded extra groups (a run, a demo,
+    /// an ending, the staff roll) is guaranteed to have left behind.
+    /// </summary>
+    public void UnloadTextureGroupsExcept(params string[] keep)
+    {
+        var keepSet = new HashSet<string>(keep);
+        var groupOf = new Dictionary<string, string>();
+        foreach (string file in Assets.Files("Assets/Textures", "*.png"))
+        {
+            string conf = Path.ChangeExtension(file, ".json");
+            if (!File.Exists(conf))
+                continue;
+            TextureLoadingProperties? props =
+                JsonSerializer.Deserialize<TextureLoadingProperties>(File.ReadAllText(conf));
+            if (!string.IsNullOrEmpty(props?.TextureLoadGroup))
+                groupOf[Path.GetFileName(file)] = props!.TextureLoadGroup;
+        }
+        foreach (string key in Textures.Keys.ToList())
+        {
+            if (!groupOf.TryGetValue(key, out string? group) || keepSet.Contains(group))
+                continue;
+            // A quality-scaled texture is the colour half of a render texture (see LoadTextureWithConfig);
+            // free the whole target, not just the attachment.
+            RenderedTexture scaled =
+                RenderedTextureLoadedIntoMainList.FirstOrDefault(r => r.Texture.Id == Textures[key].Id);
+            if (scaled.Id != 0)
+            {
+                Gfx.UnloadRenderTexture(scaled);
+                RenderedTextureLoadedIntoMainList.Remove(scaled);
+            }
+            else
+                Gfx.UnloadTexture(Textures[key]);
+            Textures.Remove(key);
+        }
+        CurrentlyLoadedTags = CurrentlyLoadedTags.Where(keepSet.Contains).ToArray();
     }
 
     public float ScoreSpacing = 0;
@@ -992,7 +1053,7 @@ public class Runtime
             // The Lihanov name here, the Nikitos one on the splash and the window title — both are the engine's,
             // and this overlay is where a developer is reading rather than a player, so it gets the one the
             // codebase's own comments tend to use.
-            string leftDebugInformation = $"Subhumanian Fartalism {VersionString} ({VersionString}/{BuildInfo.Number})\n{Engine.AlternateName} on {Engine.BackendName}\n{GetFPS()} fps T: {(Config.FrameCap == -1 ? "inf" : Config.FrameCap)}";
+            string leftDebugInformation = $"Subhumanian Fartalism {VersionString} ({VersionString}/{BuildInfo.Number})\n{Engine.AlternateName} on {Engine.BackendName}\n{GetFPS()} fps T: {(Config.FrameCap == -1 ? "inf" : Config.FrameCap)}\n \nLoaded Texture Groups: {string.Join(", ", CurrentlyLoadedTags)}";
             string rightDebugInformation = $"Runtime: {RuntimeInformation.FrameworkDescription} {RuntimeInformation.ProcessArchitecture}\nMem: {Benchmark.FormatBytes(DebugRamBytes)}\nVMem: {Benchmark.FormatBytes(DebugVramBytes)}\n \nCPU: {Environment.ProcessorCount}x ({SystemInfo.CoreTopology}) {SystemInfo.CpuName} @ {SystemInfo.MaxClockMHz} MHz\n \nDisplay: {GetScreenWidth()}x{GetScreenHeight()} ({SystemInfo.PhysicalCores})\n \n{Config.Renderer}";
             float leftX = WindowMode == FullScreenType.Window ? 0 : PresentRect.X;
             float rightX = WindowMode == FullScreenType.Window ? Width : PresentRect.X + PresentRect.Width;

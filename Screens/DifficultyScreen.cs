@@ -14,6 +14,7 @@ public class DifficultyScreen : MenuScreen
     
     public DifficultyScreen(GameType gameType) : base()
     {
+        RectangleSourceDifficulty = new Rect(0, 0, 240 * Runtime.CurrentRuntime.ScaleF, 120 * Runtime.CurrentRuntime.ScaleF);
         SetBackground(Runtime.CurrentRuntime.Textures["MenuBackground"]);
         SetTitle(Runtime.CurrentRuntime.Textures["rang_select.png"]);
         LoopList = false;
@@ -31,7 +32,7 @@ public class DifficultyScreen : MenuScreen
     private static Rect RectangleSelectionSource = new Rect(0, 0, 200, 200);
     private Rect RectangleSelectionTarget;
 
-    private static Rect RectangleSourceDifficulty = new Rect(0, 0, 960, 480);
+    Rect RectangleSourceDifficulty;
     private Rect RectangleDestinationDifficultySelect;
     private Rect RectangleDestinationDifficultySelected;
     private Vector2 RectangleShift;
@@ -114,7 +115,7 @@ public class DifficultyScreen : MenuScreen
                 Helper.BeginContrastShader(1.0f, appearState);
                 DrawTexturePro(
                     Runtime.CurrentRuntime.Textures["difficulties.png"],
-                    RectangleSourceDifficulty with { Y = 480 * sourceIndex },
+                    RectangleSourceDifficulty with { Y = 120 * Runtime.CurrentRuntime.ScaleF * sourceIndex },
                     RectangleDestinationDifficultySelect with
                     {
                         Position = RectangleDestinationDifficultySelect.Position - (RectangleShift * (index-x) * elasticAppear) 
@@ -137,7 +138,7 @@ public class DifficultyScreen : MenuScreen
         Helper.BeginContrastShader(MathF.Abs(SelectedIndex-index), appearSelected);
         DrawTexturePro(
             Runtime.CurrentRuntime.Textures["difficulties.png"],
-            RectangleSourceDifficulty with { Y = GameType == GameType.Extra ? 1920 : 480 * SelectedIndex },
+            RectangleSourceDifficulty with { Y = GameType == GameType.Extra ? 480 * Runtime.CurrentRuntime.ScaleF : 120 * Runtime.CurrentRuntime.ScaleF * SelectedIndex },
             rectangleSelected, 
             Vector2.Zero, 0f, 
             Rgba.White);

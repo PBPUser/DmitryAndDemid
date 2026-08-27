@@ -79,7 +79,14 @@ public class GameBox : IDisposable
     float ReplaySpeedMultiplier => IsReplay && IsKeyDown(KeyCode.LeftControl) ? 4f : 1f;
 
     int ComputeCurrentTickFromStartingTime => (int)(GetTime() * TargetTPS * ReplaySpeedMultiplier);
-    
+    static float HeartSize = 24 * Runtime.CurrentRuntime.ScaleF;
+
+    static GameBox()
+    {
+        
+        HeartBombSource = new Rect(0, 0, new Vector2(HeartSize));
+    }
+
     public GameBox(GameplayScreen screen, ProtogonistData data, FileStageInfo[] stages, int chapter, int difficulty, bool isPractice,
         PlayerControllerBase? controller = null, GameType mode = GameType.Default, int startStage = 0)
     {
@@ -272,6 +279,7 @@ public class GameBox : IDisposable
         // LoadStage's NextChapter doesn't re-record its spell attempt or unload it a second time.
         ChapterInfo = null;
         StageIndex++;
+        Runtime.CurrentRuntime.LoadTextureGroup($"stage{StageIndex + 1}");   // stage groups are 1-based (stage1.sid…)
         CurrentTick = 0;
         TickOffset = 0;
         // Clear any pending death-respawn: RestoreTick is an absolute tick from the PREVIOUS stage (set to
@@ -1689,7 +1697,7 @@ public class GameBox : IDisposable
     }
     #endregion
     #region UI
-    static Rect HeartBombSource = new Rect(0, 0, 96, 96);
+    static Rect HeartBombSource = new Rect(0, 0, 24, 96);
     public Rect ScoreSrc, ScoreDest, HiScoreSrc, HiScoreDest;
     public float ChapterTitleAppear = 0;
     public float ChapterTitleDisappear = float.MaxValue;
@@ -1990,7 +1998,7 @@ public class GameBox : IDisposable
     {
         BeginTextureMode(UILeft);
         ClearBackground(Transparent);
-        DrawTextureEx(Runtime.CurrentRuntime.Textures["rightside_info.png"], Vector2.Zero, 0, Runtime.CurrentRuntime.ScaleF/4,Rgba.White);
+        DrawTextureEx(Runtime.CurrentRuntime.Textures["rightside_info.png"], Vector2.Zero, 0, Math.Max(Runtime.CurrentRuntime.ScaleF / 4, 1),Rgba.White);
         DrawText(GetTime()+"", 16, 16, 24, Rgba.Red);
         const float fontSizeBig = 22;
         const float fontSizeSmall = 12;

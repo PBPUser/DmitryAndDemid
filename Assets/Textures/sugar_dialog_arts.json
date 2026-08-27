@@ -3,5 +3,5 @@
 	"MidQualityDivider": 1,
 	"MatchGameResolutionScaling": true,
 	"FullResolutionScaling": 4,
-	"TextureLoadGroup":"game"
+	"TextureLoadGroup":"sugar"
 }

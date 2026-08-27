@@ -1,11 +1,12 @@
-using DmitryAndDemid.Rendering;
-using System.Numerics;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
 using DmitryAndDemid.Data.Archive;
+using DmitryAndDemid.Rendering;
 using DmitryAndDemid.Utils;
+using GLib;
+using System.Numerics;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using static DmitryAndDemid.Rendering.Gfx;
 
 namespace DmitryAndDemid.Screens;
@@ -17,6 +18,7 @@ public class PersonSelectScreen : MenuScreen
 
     public PersonSelectScreen(GameType gameType, int difficulty) : base()
     {
+        ArtSource = new Rect(0, 0, 200 * Runtime.CurrentRuntime.ScaleF, 400 * Runtime.CurrentRuntime.ScaleF);
         Difficulty = difficulty;
         HorizontalDirectionNavigation = true;
         VerticalDirectionNavigation = false;
@@ -31,7 +33,7 @@ public class PersonSelectScreen : MenuScreen
     }
 
     private static Rect RectangleSelectionSource = new Rect(0, 0, 200, 200);
-    private static Rect ArtSource = new Rect(0, 0, 800, 1600);
+    Rect ArtSource;
     Rect ArtDestination;
     Rect DescriptionDestination;
     private float ArtShift;

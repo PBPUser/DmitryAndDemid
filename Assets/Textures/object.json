@@ -1,0 +1,7 @@
+{
+	"LowQualityDivider": 16,
+	"MidQualityDivider": 2,
+	"MatchGameResolutionScaling": true,
+	"FullResolutionScaling": 2,
+	"TextureLoadGroup": "staff"
+}
