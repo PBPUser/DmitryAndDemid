@@ -1697,7 +1697,7 @@ public class GameBox : IDisposable
     }
     #endregion
     #region UI
-    static Rect HeartBombSource = new Rect(0, 0, 24, 96);
+    static Rect HeartBombSource = new Rect(0, 0, 24, 24);
     public Rect ScoreSrc, ScoreDest, HiScoreSrc, HiScoreDest;
     public float ChapterTitleAppear = 0;
     public float ChapterTitleDisappear = float.MaxValue;
