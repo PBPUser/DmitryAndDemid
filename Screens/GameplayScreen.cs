@@ -233,21 +233,10 @@ public class GameplayScreen : Screen
     public override void PreRender(double f)
     {
         _gpFrame++;
-        GpTrace("PreRender enter");
-        // Start rendering at this screen: the gameplay background is opaque and fully covers the menu beneath
-        // it, so drawing the main menu every frame under it is wasted work — and its animated waves/character
-        // would bleed through the semi-transparent pause overlay. The pause menu sits ABOVE this screen in the
-        // stack, so it still renders (last) on top of the frozen gameplay.
-        // Set from here (not Created()) because the screen is not in the Screens list yet when Created runs.
         int index = Runtime.CurrentRuntime.GetScreenIndex(this);
         if (index > 0)
             Runtime.CurrentRuntime.SetScreenRenderingFrom(index);
-
-        GpTrace("PreRender before box.Update");
         GameBox.Update();
-        GpTrace("PreRender after box.Update");
-        // Feed the run's state to the DualSense (lightbar colour, lives on the player LEDs, trigger resistance).
-        // From PreRender rather than TopUpdate so it keeps running while the pause menu sits on top of us.
         Gameplay.DualSenseFeedback.UpdateGameplay(GameBox);
     }
 
