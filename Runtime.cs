@@ -40,7 +40,7 @@ public class Runtime
 
     public static Rgba TransparentWhite = Rgba.White with { A = 0 };
     public static Rgba TransparentBlack = Rgba.Black with { A = 0 };
-    public string VersionString = "0.04a";
+    public string VersionString = "0.05a";
     public double Time;
     public int Width;
     public int Height;

@@ -21,8 +21,8 @@ public class GameBox : IDisposable
     public const float TargetTPS = 60;
     public List<RuntimeObject>  BoxObjects = new();
     public List<GameplayOverlay> GameplayOverlays = new();
-    public RuntimeStageInfo? StageInfo;
     public RuntimeChapter? ChapterInfo;
+    public RuntimeStageInfo? StageInfo;
     public Player Player;
     public string ProtogonistId;
     public int Difficulty;
