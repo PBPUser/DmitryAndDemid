@@ -55,8 +55,6 @@ public class Runtime
     /// continuation never fires, so the game sat on the loading screen forever while the 60 fps loop ran.
     double LoadingSwitchAt = double.PositiveInfinity;
     public Rect FullScreenRect;
-    private Rect CurrentScoreSource;
-    Rect CurrentScoreTarget;
     public double Scale = 1;
     public float ScaleF = 1;
     public Dictionary<string, ShaderHandle> Shaders = new();
@@ -92,7 +90,7 @@ public class Runtime
             rendererName = "silk";
         }
         Engine.Use(Engine.Create(rendererName));
-        Console.WriteLine($"Renderer: {Engine.BackendName}");
+        Console.WriteLine($"Running w: {Engine.BackendName}");
         var strs = Config.Resolution.Split("x");
         bool isErrored = false;
         string error = "";
