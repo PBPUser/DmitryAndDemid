@@ -1375,16 +1375,16 @@ public class Runtime
             BackgroundTesterLastKey = GetTime();
             return;
         }
+        if (IsKeyDown(KeyCode.Escape))
+        {
+            BackgroundTesterOpen = false;
+            BackgroundTesterLastKey = GetTime();
+        }
         if (IsKeyDown(KeyCode.Left))
         {
             BackgroundTesterId = (BackgroundTesterId + BackgroundTesterFactories.Length - 1) % BackgroundTesterFactories.Length;
             BackgroundTesterLastKey = GetTime();
             return;
-        }
-        if (IsKeyDown(KeyCode.Escape))
-        {
-            BackgroundTesterOpen = false;
-            BackgroundTesterLastKey = GetTime();
         }
     }
 
