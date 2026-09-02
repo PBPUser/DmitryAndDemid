@@ -1,3 +1,4 @@
+using DmitryAndDemid.Rendering.Upscaling;
 using DmitryAndDemid.Rendering;
 using static DmitryAndDemid.Rendering.Gfx;
 using DmitryAndDemid.Common;
@@ -73,6 +74,55 @@ public class SettingsScreen : MenuScreen
                     RendererItem.Replace = RendererLabel();
                 RestartNotice = (float)GetTime();
             }))), windowed: true, headerKey: "settings.renderer.title"));
+    }
+
+    private MenuItem? UpscalerItem;
+
+    private static string UpscalerLabel() =>
+        Helper.Translate(Upscalers.DisplayOf(Upscalers.Parse(Configuration.Config.Upscaler)));
+
+    private static string UpscalerQualityLabel() =>
+        Helper.Translate(Upscalers.Qualities[Upscalers.ClampQuality(Configuration.Config.UpscalerQuality)].Display);
+
+    private static string SharpnessLabel() => $"{(int)MathF.Round(Configuration.Config.Sharpness * 100)}%";
+
+    private static string FrameGenLabel() =>
+        Configuration.Config.FrameGeneration <= 1 ? Helper.Translate("settings.framegen.off") : $"x{Configuration.Config.FrameGeneration}";
+
+    private static string ReflexLabel()
+    {
+        if (!Engine.Renderer.SupportsReflex)
+            return Helper.Translate("settings.reflex.vulkan_only");
+        return Helper.Translate(Configuration.Config.Reflex switch { 1 => "settings.reflex.on", 2 => "settings.reflex.boost", _ => "settings.reflex.off" });
+    }
+
+    /// <summary>
+    /// Opens the upscaler list. Every mode is listed; one the machine cannot provide (the OS, or a vendor
+    /// runtime that is not installed — the DLSS 5 Neural Rendering files, the Streamline runtime, XeSS) is
+    /// greyed out with the reason after its name, so what is missing is visible rather than the entry.
+    /// Applies on restart: the mode sets the internal resolution.
+    /// </summary>
+    private void OpenUpscalerList()
+    {
+        var probe = Upscalers.Probe();
+        var options = Upscalers.All.Select(u =>
+        {
+            string? why = Upscalers.Unavailable(u.Kind, probe.IsWindows, probe.Streamline, probe.Neural, probe.Xess);
+            string label = Helper.Translate(u.Display) + (why == null ? "" : $" ({Helper.Translate(why)})");
+            System.Action? pick = why != null ? null : () =>
+            {
+                if (u.Key == Configuration.Config.Upscaler)
+                    return;
+                Configuration.Config.Upscaler = u.Key;
+                Configuration.Config.Save();
+                if (UpscalerItem != null)
+                    UpscalerItem.Replace = UpscalerLabel();
+                RestartNotice = (float)GetTime();
+            };
+            return (label, pick);
+        });
+        Runtime.CurrentRuntime.AddScreen(new ListSelectScreen(
+            Runtime.CurrentRuntime.Textures["settings.png"], options!, windowed: true, headerKey: "settings.upscaler.title"));
     }
 
     public SettingsScreen(bool showRestartNotice = false)
@@ -163,6 +213,49 @@ public class SettingsScreen : MenuScreen
             vsyncItem.Replace = $"{Configuration.Config.UseVSYNC}";
         };
         MenuItems.Add(vsyncItem);
+        // ---- Upscaling / frame generation / Reflex ----------------------------------------------------
+        // The upscaler and its quality change the internal resolution, so both apply on restart; the
+        // sharpness and frame generation are live. Modes the machine cannot provide are greyed in the list.
+        UpscalerItem = new MenuItem("settings.upscaler", UpscalerLabel(), a => OpenUpscalerList());
+        MenuItems.Add(UpscalerItem);
+        MenuItem qualityItem = new("settings.upscaler.quality", UpscalerQualityLabel(), null);
+        qualityItem.Action = a =>
+        {
+            Configuration.Config.UpscalerQuality = (Configuration.Config.UpscalerQuality + 1) % Upscalers.Qualities.Length;
+            Configuration.Config.Save();
+            qualityItem.Replace = UpscalerQualityLabel();
+            RestartNotice = (float)GetTime();
+        };
+        MenuItems.Add(qualityItem);
+        MenuItem sharpnessItem = new("settings.sharpness", SharpnessLabel(), null);
+        sharpnessItem.Action = a =>
+        {
+            float s = Configuration.Config.Sharpness + 0.1f;
+            Configuration.Config.Sharpness = s > 1.001f ? 0f : MathF.Round(s, 1);
+            Configuration.Config.Save();
+            sharpnessItem.Replace = SharpnessLabel();
+        };
+        MenuItems.Add(sharpnessItem);
+        MenuItem frameGenItem = new("settings.framegen", FrameGenLabel(), null);
+        frameGenItem.Action = a =>
+        {
+            Configuration.Config.FrameGeneration = Configuration.Config.FrameGeneration >= 4 ? 1 : Configuration.Config.FrameGeneration + 1;
+            Configuration.Config.Save();
+            frameGenItem.Replace = FrameGenLabel();
+            SetTargetFPS(Runtime.EffectiveFrameCap);
+        };
+        MenuItems.Add(frameGenItem);
+        MenuItem reflexItem = new("settings.reflex", ReflexLabel(), null);
+        bool reflexPossible = Engine.Renderer.SupportsReflex;
+        reflexItem.Enabled = reflexPossible;
+        reflexItem.Action = a =>
+        {
+            Configuration.Config.Reflex = (Configuration.Config.Reflex + 1) % 3;
+            Configuration.Config.Save();
+            Engine.Renderer.SetReflex(Configuration.Config.Reflex);
+            reflexItem.Replace = ReflexLabel();
+        };
+        MenuItems.Add(reflexItem);
         // Graphics quality: High draws every shader, Low turns off the spell-card + background shaders. Live.
         MenuItem graphicsItem = new("settings.graphics_quality", GraphicsQualityLabel(), null);
         graphicsItem.Action = a =>
@@ -327,7 +420,7 @@ public class SettingsScreen : MenuScreen
         {
             int i = (int)MathF.Round(f * (FrameCaps.Length - 1));
             Configuration.Config.FrameCap = FrameCaps[Math.Clamp(i, 0, FrameCaps.Length - 1)];
-            SetTargetFPS(Configuration.Config.FrameCap);
+            SetTargetFPS(Runtime.EffectiveFrameCap);
             FramerateItem!.Replace = FramerateBar();
             Runtime.CurrentRuntime.IsFrameCap240 = Configuration.Config.FrameCap == 240;
             Configuration.Config.Save();
@@ -384,7 +477,7 @@ public class SettingsScreen : MenuScreen
 
         Runtime.CurrentRuntime.SFXVolume = Configuration.Config.SFXVolume;
         Runtime.CurrentRuntime.MusicVolume = Configuration.Config.MusicVolume;
-        SetTargetFPS(Configuration.Config.FrameCap);
+        SetTargetFPS(Runtime.EffectiveFrameCap);
         Runtime.CurrentRuntime.IsFrameCap240 = Configuration.Config.FrameCap == 240;
         Engine.Platform.SetVSync(Configuration.Config.UseVSYNC);
         Runtime.CurrentRuntime.SetWindowMode(FullScreenType.Window);
@@ -513,7 +606,7 @@ public class SettingsScreen : MenuScreen
                     i = 2;
                 i = Math.Clamp(i + (delta > 0 ? 1 : -1), 0, FrameCaps.Length - 1);
                 Configuration.Config.FrameCap = FrameCaps[i];
-                SetTargetFPS(Configuration.Config.FrameCap);
+                SetTargetFPS(Runtime.EffectiveFrameCap);
                 FramerateItem!.Replace = FramerateBar();
                 Runtime.CurrentRuntime.IsFrameCap240 = Configuration.Config.FrameCap == 240;
                 Configuration.Config.Save();

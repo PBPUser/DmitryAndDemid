@@ -91,6 +91,9 @@ public static class Gfx
         R.LoadFont(path, fontSize);
 
     public static void UnloadFont(FontHandle font) => R.UnloadFont(font);
+
+    /// <summary>Framebuffer to file; false on a backend without readback. See <see cref="IRenderer.TakeScreenshot"/>.</summary>
+    public static bool TakeScreenshot(string path) => R.TakeScreenshot(path);
     public static FontHandle GetFontDefault() => R.GetDefaultFont();
 
     public static Vector2 MeasureTextEx(FontHandle font, string text, float fontSize, float spacing) =>

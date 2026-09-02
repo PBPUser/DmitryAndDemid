@@ -1,0 +1,9 @@
+{
+  "Texture": "GrievanceBox",
+  "RenderSize": { "X": 160, "Y": 80 },
+  "SourcePosition": { "X": 0, "Y": 0 },
+  "Collision": 80,
+  "DeathCircleColor": 11674146,
+  "DeathParticleGlowColor": 16746564,
+  "FrameCount": 1
+}

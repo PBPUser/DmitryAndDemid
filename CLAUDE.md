@@ -44,6 +44,19 @@ There are no tests, no linter, and no CI. Verification is running the game.
 
 Native prerequisites: GTK 3 (used for the pre-launch config dialog and error popups) and an OpenGL-capable display.
 
+Debug builds also take `--shot <stage> <seconds> <file.png>`: boot, start a campaign run at that stage with the
+first character, save the screen after that many seconds, exit. It is how a backend's picture (the stage
+backgrounds above all) gets checked without anyone at the keyboard — only backends with framebuffer readback
+(Raylib) save anything; Vulkan reports that it cannot. Never drive the game with synthetic keystrokes instead:
+they land in whatever window has focus, and an editor with a repo file open will happily save the stray key.
+
+Window upscaling lives in `Rendering/Upscaling/`: `Upscalers` is the catalogue (keys, quality presets, and the
+pure availability rules the settings list greys entries with), `FsrPass` the AMD FSR 1 EASU+RCAS pass that
+shades every mode's pixels from the internal-resolution backbuffer, `NeuralRenderingBridge` the Windows-only
+D3D12 + Streamline probe behind the DLSS 5 option. `Runtime.Width/Height` is the internal resolution,
+`WindowWidth/WindowHeight` the window. NVIDIA Reflex is the Vulkan backend's `VK_NV_low_latency2` path,
+reached through `IRenderer.SupportsReflex/SetReflex`.
+
 `bin/` and `obj/` are **committed to git** — there is no `.gitignore`. Build artifacts show up as modified files in every `git status`; that is expected, not something to fix unless asked.
 
 ## Startup and the Runtime singleton

@@ -16,7 +16,10 @@ public class TimerGameplayOverlay : GameplayOverlay
         );
         Texture = Runtime.CurrentRuntime.Textures[image];
         SourceRectangle = Helper.GetFullSource(Texture);
-        DestinationRectangle = new Rect(0, 128 * Runtime.CurrentRuntime.ScaleF, SourceRectangle.Size);
+        // Full playfield width at any resolution: the sheet is authored 1536x512 for a 384x128 sign, and its
+        // loaded size follows the window, so it is sized from the intent rather than the texture.
+        DestinationRectangle = new Rect(0, 128 * Runtime.CurrentRuntime.ScaleF,
+            new Vector2(384, 128) * Runtime.CurrentRuntime.ScaleF);
         SourceRectangle2 = Helper.GetFullSourceRenderTexture(TimersTexture);
         DestinationRectangle2 =
             new Rect(

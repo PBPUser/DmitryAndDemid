@@ -664,13 +664,24 @@ public class GameBox : IDisposable
                     // player shots pass through it so it cannot be chipped or killed before the fight begins.
                     if ((obj2.Header[0] & RuntimeObject.FlagInvincible) == RuntimeObject.FlagInvincible)
                         continue;
-                    if (MathUtil.Vector2Distance(obj.Position, obj2.Position) <
-                        (obj.CollisionScale * obj.FloatingPoints[0x13] +
-                         obj2.CollisionScale * obj2.FloatingPoints[0x13]) / 2)
+                    // An entity that declares a hit-box (RuntimeObject.sp, floats 0x33/0x34) is a rectangle to
+                    // player fire instead of a circle — the complaints box is 160x80, and no circle covers that
+                    // honestly. Everything else stays the radius sum it always was.
+                    Vector2 hitBox = obj2.HitBoxSize;
+                    bool hit = hitBox.X > 0 && hitBox.Y > 0
+                        ? HelperPure.CircleTouchesBox(obj.Position,
+                            obj.CollisionScale * obj.FloatingPoints[0x13] / 2, obj2.Position, hitBox)
+                        : MathUtil.Vector2Distance(obj.Position, obj2.Position) <
+                          (obj.CollisionScale * obj.FloatingPoints[0x13] +
+                           obj2.CollisionScale * obj2.FloatingPoints[0x13]) / 2;
+                    if (hit)
                     {
                         obj.Header[0] |= RuntimeObject.FlagIsDied;
                         obj.Header[0xa] = CurrentTick;
                         obj2.FloatingPoints[0] -= obj.FloatingPoints[0x9];
+                        // Counted as well as damaged: a script that cares how MANY shots landed (the complaints
+                        // box grows a grievance per shot, whatever the weapon's damage) reads and clears this.
+                        obj2.PlayerShotHits++;
                         Helper.PlaySound(Runtime.CurrentRuntime.Sounds["damage"]);
                         Player.Weapon.AddShootTargetScore();
                         Player.Weapon.SpawnDistortionEffect((int)obj.X, (int)obj.Y);
@@ -1220,6 +1231,9 @@ public class GameBox : IDisposable
             UnlockMusicByListIndex(stage.Header[8]);
         }
         StageInfo = RuntimeStageInfo.LoadFromFile(stage, difficulty, this);
+        // Each stage brings its own scenery; the previous stage's goes with its render targets.
+        StageBackgroundObject?.Dispose();
+        StageBackgroundObject = StageBackgrounds.ForStage(stage, Mode);
         AddOverlay(new StageTitleOverlay(this, stage.Header[1]) { TimeAppear = GetTime() + 5f });
         // ...and name the BGM along the bottom of the playfield while the title is up. Header[2] is the stage's
         // music-list index, the same one unlocked above. Header[8] (boss music) gets no card: nothing in the
@@ -1433,6 +1447,7 @@ public class GameBox : IDisposable
         UnloadRenderTexture(UILeft);
         foreach (var overlay in GameplayOverlays)
             overlay.Dispose();
+        StageBackgroundObject?.Dispose();
         ChapterInfo?.Unload();
     }
     
@@ -1457,7 +1472,9 @@ public class GameBox : IDisposable
     }
     #endregion
     #region Render
-    private static StageBackground StageBackgroundObject = new HousesBackground();
+    /// <summary>The scenery behind the current stage, picked by <see cref="StageBackgrounds.ForStage"/> in
+    /// <see cref="LoadStage"/> and replaced (the old one unloaded) on every stage swap.</summary>
+    private StageBackground StageBackgroundObject = null!;
 
     /// <summary>
     /// Raises a named event at the current stage background. Backgrounds ignore events by default; one that
@@ -1790,7 +1807,7 @@ public class GameBox : IDisposable
             return;
 
         Dialog?.Unload();
-        Dialog = new RuntimeDialog(ChapterInfo.Dialogs, Player.ProtogonistData, this);
+        Dialog = new RuntimeDialog(ChapterInfo, Player.ProtogonistData, this);
         if (Dialog.Finished)
         {
             Dialog = null;
@@ -2086,6 +2103,12 @@ public class GameBox : IDisposable
                 PauseTimestamp = GetTime();
             else
                 CountTimeFrom = Gfx.GetTime() - PauseTimestamp;
+            // The spell's real-time figure (the splash's second clock) is a wall-clock stopwatch: hold it with
+            // the game, or a trip to the pause menu ends up counted as time spent on the card.
+            if (value)
+                SpellcardStopwatch?.Stop();
+            else
+                SpellcardStopwatch?.Start();
             isPaused = value;
             DualSenseFeedback.OnPauseToggled(value);
             GameplayScreen.Paused = value;

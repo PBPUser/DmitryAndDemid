@@ -27,6 +27,32 @@ public class Configuration
     // and print ticks/sec. Used to measure whether an interpreter (mono-nx / Switch) can hold 60 TPS under load.
     [JsonInclude] public bool Bench = false;
     [JsonInclude] public bool UseVSYNC = true;
+    /// <summary>
+    /// The window upscaler, by key (see Rendering/Upscaling/Upscalers): "off", "fsr" (AMD FSR 1 — the pass
+    /// that exists in the engine), "dlaa" (native + RCAS), "xess", "dlss", "dlssnr" (DLSS 5 Neural Rendering,
+    /// Windows only). Modes whose runtime is not installed are greyed out in the settings and fall back to
+    /// "off" at launch. Changing it changes the internal resolution, so it applies on restart.
+    /// </summary>
+    [JsonInclude] public string Upscaler = "off";
+    /// <summary>Quality preset for a mode that upscales: 0 Ultra Quality (0.77x), 1 Quality (0.67x),
+    /// 2 Balanced (0.59x), 3 Performance (0.5x) — the internal render scale per axis.</summary>
+    [JsonInclude] public int UpscalerQuality = 1;
+    /// <summary>RCAS sharpening strength 0..1 for every mode that goes through the FSR pass.</summary>
+    [JsonInclude] public float Sharpness = 0.5f;
+    /// <summary>
+    /// Frame generation, as a multiplier on the presented frame rate: 1 off, 2..4 for x2..x4 ("multi-frame").
+    /// The engine already renders every presented frame from the 60 TPS simulation with sub-tick
+    /// interpolation, so a generated frame is a real interpolated render, not a guess; this only raises
+    /// how many are presented per capped frame (it multiplies <see cref="FrameCap"/>). No effect uncapped.
+    /// </summary>
+    [JsonInclude] public int FrameGeneration = 1;
+    /// <summary>DLSS 5 Neural Rendering preset, kept for the runtime bridge (see NeuralRenderingBridge).</summary>
+    [JsonInclude] public int DLSSNRPreset = 0;
+    /// <summary>
+    /// NVIDIA Reflex on the Vulkan backend (VK_NV_low_latency2): 0 off, 1 on, 2 on + boost. Ignored by the
+    /// other backends and by a Vulkan driver without the extension.
+    /// </summary>
+    [JsonInclude] public int Reflex = 0;
     [JsonInclude] public int FrameCap = -1;
 
     /// <summary>"raylib" (default), "silk" or "vulkan". Override at launch with --renderer=&lt;name&gt;.</summary>

@@ -16,7 +16,11 @@ public class ScoreGameplayOverlay : GameplayOverlay
         );
         Texture = Runtime.CurrentRuntime.Textures["get-spell-card.png"];
         SourceRectangle = Helper.GetFullSource(Texture);
-        DestinationRectangle = new Rect(0, 64 * Runtime.CurrentRuntime.ScaleF, SourceRectangle.Size / 4  * Runtime.CurrentRuntime.ScaleF);
+        // Full playfield width at any resolution. The sheet is authored 1536x512 (four times the 384x128 it is
+        // meant to cover) but loaded scaled with the window, so sizing it off the loaded texture made the
+        // sign shrink with the resolution — a quarter of the width at 640x480.
+        DestinationRectangle = new Rect(0, 64 * Runtime.CurrentRuntime.ScaleF,
+            new Vector2(384, 128) * Runtime.CurrentRuntime.ScaleF);
         SourceRectangle2 = Helper.GetFullSourceRenderTexture(TimersTexture);
         DestinationRectangle2 =
             new Rect(

@@ -22,6 +22,13 @@ public class FileDialogInfo
     public bool Unskippable = false;
 
     /// <summary>
+    /// The line's emotion: one symbol (as text, e.g. "☠") from Noto Sans Symbols 2, baked into a dressed-up
+    /// glyph when the chapter loads (<see cref="DmitryAndDemid.Utils.EmotionGlyph"/>) and shown on the speaker's
+    /// side of the dialog window. Empty shows nothing. Written after the character texture in the packed form.
+    /// </summary>
+    public string Emotion = "";
+
+    /// <summary>
     /// Packs the boolean flags into <see cref="Header"/>[0], the inverse of the bit-unpacking in
     /// <see cref="Load"/>. Called at the top of <see cref="Save"/> and by the JSON importer so a hand-authored
     /// dialog line (which sets the friendly bools) produces the same <see cref="Header"/> a binary load would.
@@ -42,6 +49,7 @@ public class FileDialogInfo
             package.WriteVarLong(Header[i]);
         package.WriteString(Text);
         package.WriteString(CharacterTexture);
+        package.WriteString(Emotion);
     }
 
     public static FileDialogInfo Load(ref BitPackage package)
@@ -51,6 +59,7 @@ public class FileDialogInfo
             dialogInfo.Header[i] = (int)package.ReadVarLong();
         dialogInfo.Text = package.ReadString();
         dialogInfo.CharacterTexture = package.ReadString();
+        dialogInfo.Emotion = package.ReadString();
         dialogInfo.IsPlayerDialog = (dialogInfo.Header[0] & 0x1) == 0x1;
         dialogInfo.SwitchReaction = (dialogInfo.Header[0] & 0x2) == 0x2;
         dialogInfo.SwitchMusic = (dialogInfo.Header[0] & 0x4) == 0x4;

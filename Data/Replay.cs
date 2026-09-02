@@ -74,5 +74,14 @@ public class Replay
         [JsonInclude] public DateTime Timestamp = new DateTime();
         [JsonInclude] public string Slowdown = "0.0";
         [JsonInclude] public ReplayStageInfo[] ReplayStageInfo = new ReplayStageInfo[0];
+        /// <summary>
+        /// Which run this is a recording of, as a <see cref="GameType"/> value: Default (the campaign) or Extra.
+        /// Playback loads that mode's stage list, so an Extra replay plays on the Extra stage and not, as it
+        /// used to, over stage 1 of the campaign. Absent from replays saved before the field existed, which
+        /// were all campaign runs: the default covers them.
+        /// </summary>
+        [JsonInclude] public int Mode = (int)GameType.Default;
+
+        [JsonIgnore] public bool IsExtra => Mode == (int)GameType.Extra;
     }
 }

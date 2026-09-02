@@ -7,6 +7,7 @@ using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.KHR;
+using Silk.NET.Vulkan.Extensions.NV;
 using Silk.NET.Windowing;
 using StbImageSharp;
 using StbTrueTypeSharp;
@@ -65,6 +66,21 @@ public sealed unsafe class VulkanBackend : IBackend
     private Format SwapchainFormat;
     private Extent2D SwapchainExtent;
     private uint CurrentImage;
+
+    // ---- NVIDIA Reflex (VK_NV_low_latency2) ----------------------------------------------------------
+    // Present only on an NVIDIA driver that exposes the extension (plus VK_KHR_present_id, which the
+    // markers key on). When the player turns it on, every frame sleeps in vkLatencySleepNV before its input
+    // is sampled, so the CPU starts the frame as late as it can and the queue never runs ahead of the display;
+    // the simulation/submit/present markers tell the driver where the frame's phases fall. Off, or on any other
+    // driver, none of this runs and the frame loop is exactly what it was.
+    private NVLowLatency2? NvLowLatency;
+    /// <summary>Structure-only extension (no entry points, so no Silk class): the present ids the markers key on.</summary>
+    private const string PresentIdExtension = "VK_KHR_present_id";
+    private bool ReflexSupported;
+    private int ReflexMode;                    // 0 off, 1 on, 2 on + boost (Configuration.Reflex)
+    private Semaphore LatencySemaphore;        // timeline; vkLatencySleepNV signals it when the frame may start
+    private ulong LatencySignalValue;
+    private ulong PresentId;                   // one per presented frame, shared by markers, submit and present
 
     private RenderPass SwapchainPass;                  // format = swapchain's
     private RenderPass OffscreenPass;                  // format = R8G8B8A8_UNORM
@@ -317,15 +333,29 @@ public sealed unsafe class VulkanBackend : IBackend
             PQueuePriorities = &priority,
         };
 
-        byte** extensions = (byte**)SilkMarshal.StringArrayToPtr([KhrSwapchain.ExtensionName]);
+        // Reflex needs VK_NV_low_latency2 and VK_KHR_present_id; ask for them only where the driver has them.
+        var available = DeviceExtensionNames();
+        bool reflex = available.Contains(NVLowLatency2.ExtensionName) && available.Contains(PresentIdExtension);
+        string[] wanted = reflex
+            ? [KhrSwapchain.ExtensionName, NVLowLatency2.ExtensionName, PresentIdExtension]
+            : [KhrSwapchain.ExtensionName];
+        byte** extensions = (byte**)SilkMarshal.StringArrayToPtr(wanted);
         PhysicalDeviceFeatures features = new();
+        // The latency sleep signals a timeline semaphore: core in 1.2, but the feature still has to be asked for.
+        PhysicalDeviceVulkan12Features features12 = new()
+        {
+            SType = StructureType.PhysicalDeviceVulkan12Features,
+            TimelineSemaphore = reflex,
+        };
+        PhysicalDeviceVulkan12Features* pFeatures12 = &features12;
 
         DeviceCreateInfo info = new()
         {
             SType = StructureType.DeviceCreateInfo,
+            PNext = reflex ? pFeatures12 : null,
             QueueCreateInfoCount = 1,
             PQueueCreateInfos = &queueInfo,
-            EnabledExtensionCount = 1,
+            EnabledExtensionCount = (uint)wanted.Length,
             PpEnabledExtensionNames = extensions,
             PEnabledFeatures = &features,
         };
@@ -338,6 +368,37 @@ public sealed unsafe class VulkanBackend : IBackend
 
         if (!Vk.TryGetDeviceExtension(Instance, Device, out KhrSwapchain))
             throw new Exception("Vulkan: VK_KHR_swapchain missing");
+        if (reflex)
+        {
+            if (Vk.TryGetDeviceExtension(Instance, Device, out NVLowLatency2 nv))
+            {
+                NvLowLatency = nv;
+                ReflexSupported = true;
+                Console.WriteLine("Vulkan: NVIDIA Reflex available (VK_NV_low_latency2)");
+            }
+        }
+    }
+
+    /// <summary>The device extensions the physical device offers, by name.</summary>
+    private HashSet<string> DeviceExtensionNames()
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        uint count = 0;
+        Vk.EnumerateDeviceExtensionProperties(PhysicalDevice, (byte*)null, ref count, null);
+        if (count == 0)
+            return names;
+        ExtensionProperties[] props = new ExtensionProperties[count];
+        fixed (ExtensionProperties* p = props)
+        {
+            Vk.EnumerateDeviceExtensionProperties(PhysicalDevice, (byte*)null, ref count, p);
+            for (int i = 0; i < count; i++)
+            {
+                string? name = Marshal.PtrToStringAnsi((nint)p[i].ExtensionName);
+                if (name != null)
+                    names.Add(name);
+            }
+        }
+        return names;
     }
 
     private void CreateSwapchain(int width, int height)
@@ -377,8 +438,20 @@ public sealed unsafe class VulkanBackend : IBackend
             Clipped = true,
         };
 
+        // A swapchain has to be created latency-aware for Reflex to attach to it at all; asking costs nothing.
+        SwapchainLatencyCreateInfoNV latency = new()
+        {
+            SType = StructureType.SwapchainLatencyCreateInfoNV,
+            LatencyModeEnable = true,
+        };
+        if (ReflexSupported)
+            info.PNext = &latency;
+
         if (KhrSwapchain.CreateSwapchain(Device, in info, null, out Swapchain) != Result.Success)
             throw new Exception("Vulkan: failed to create swapchain");
+        // The sleep mode is per swapchain: put the chosen mode back on a rebuilt one (a resize, a mode switch).
+        if (ReflexSupported && ReflexMode > 0)
+            ApplyReflexMode();
 
         uint count = 0;
         KhrSwapchain.GetSwapchainImages(Device, Swapchain, ref count, null);
@@ -494,6 +567,18 @@ public sealed unsafe class VulkanBackend : IBackend
 
         SemaphoreCreateInfo semaphoreInfo = new() { SType = StructureType.SemaphoreCreateInfo };
         Vk.CreateSemaphore(Device, in semaphoreInfo, null, out ImageAvailable);
+        if (ReflexSupported && LatencySemaphore.Handle == 0)
+        {
+            // The timeline semaphore vkLatencySleepNV signals when the frame may begin.
+            SemaphoreTypeCreateInfo timeline = new()
+            {
+                SType = StructureType.SemaphoreTypeCreateInfo,
+                SemaphoreType = SemaphoreType.Timeline,
+                InitialValue = 0,
+            };
+            SemaphoreCreateInfo latencyInfo = new() { SType = StructureType.SemaphoreCreateInfo, PNext = &timeline };
+            Vk.CreateSemaphore(Device, in latencyInfo, null, out LatencySemaphore);
+        }
 
         RenderFinished = new Semaphore[SwapchainImages.Length];
         for (int i = 0; i < RenderFinished.Length; i++)
@@ -646,7 +731,12 @@ public sealed unsafe class VulkanBackend : IBackend
         FrameNo++;
 
         FlushScratch();
+        // Reflex: hold the CPU here, before this frame's input is read, until the driver says the frame can
+        // start and still make the display in time — that wait is the whole latency saving.
+        ReflexSleep();
         Window.DoEvents();
+        ReflexMarker(LatencyMarkerNV.InputSampleNV);
+        ReflexMarker(LatencyMarkerNV.SimulationStartNV);
 
         Vk.WaitForFences(Device, 1, in InFlight, true, ulong.MaxValue);
         Vk.ResetFences(Device, 1, in InFlight);
@@ -684,9 +774,21 @@ public sealed unsafe class VulkanBackend : IBackend
         PipelineStageFlags waitStage = PipelineStageFlags.ColorAttachmentOutputBit;
         CommandBuffer cmd = Cmd;
 
+        // Reflex: the present id ties this frame's markers, its submission and its present together.
+        bool reflex = ReflexSupported && ReflexMode > 0;
+        ulong presentId = reflex ? ++PresentId : 0;
+        LatencySubmissionPresentIdNV submissionId = new()
+        {
+            SType = StructureType.LatencySubmissionPresentIDNV,
+            PresentID = presentId,
+        };
+        ReflexMarker(LatencyMarkerNV.SimulationEndNV);
+        ReflexMarker(LatencyMarkerNV.RendersubmitStartNV);
+
         SubmitInfo submit = new()
         {
             SType = StructureType.SubmitInfo,
+            PNext = reflex ? &submissionId : null,
             WaitSemaphoreCount = 1,
             PWaitSemaphores = &waitSemaphore,
             PWaitDstStageMask = &waitStage,
@@ -696,19 +798,29 @@ public sealed unsafe class VulkanBackend : IBackend
             PSignalSemaphores = &signalSemaphore,
         };
         Vk.QueueSubmit(GraphicsQueue, 1, in submit, InFlight);
+        ReflexMarker(LatencyMarkerNV.RendersubmitEndNV);
 
         SwapchainKHR swapchain = Swapchain;
         uint imageIndex = CurrentImage;
+        PresentIdKHR presentIdInfo = new()
+        {
+            SType = StructureType.PresentIDKhr,
+            SwapchainCount = 1,
+            PPresentIds = &presentId,
+        };
         PresentInfoKHR present = new()
         {
             SType = StructureType.PresentInfoKhr,
+            PNext = reflex ? &presentIdInfo : null,
             WaitSemaphoreCount = 1,
             PWaitSemaphores = &signalSemaphore,
             SwapchainCount = 1,
             PSwapchains = &swapchain,
             PImageIndices = &imageIndex,
         };
+        ReflexMarker(LatencyMarkerNV.PresentStartNV);
         KhrSwapchain.QueuePresent(GraphicsQueue, in present);
+        ReflexMarker(LatencyMarkerNV.PresentEndNV);
         InFrame = false;
 
         FrameCounter++;
@@ -1892,6 +2004,76 @@ public sealed unsafe class VulkanBackend : IBackend
     //  text (same stb_truetype atlas as the GL backend)
     // ======================================================================================
 
+    // ---- NVIDIA Reflex -------------------------------------------------------------------------------
+    public bool SupportsReflex => ReflexSupported;
+
+    /// <summary>0 off, 1 on, 2 on + boost. Takes effect on the next frame; kept across swapchain rebuilds.</summary>
+    public void SetReflex(int mode)
+    {
+        ReflexMode = Math.Clamp(mode, 0, 2);
+        if (ReflexSupported && Swapchain.Handle != 0)
+            ApplyReflexMode();
+    }
+
+    private void ApplyReflexMode()
+    {
+        if (NvLowLatency == null)
+            return;
+        LatencySleepModeInfoNV info = new()
+        {
+            SType = StructureType.LatencySleepModeInfoNV,
+            LowLatencyMode = ReflexMode > 0,
+            LowLatencyBoost = ReflexMode > 1,
+            MinimumIntervalUs = 0,
+        };
+        Result r = NvLowLatency.SetLatencySleepMode(Device, Swapchain, in info);
+        if (r != Result.Success)
+            Console.WriteLine($"Vulkan: vkSetLatencySleepModeNV failed ({r}); Reflex stays off");
+    }
+
+    /// <summary>Waits in vkLatencySleepNV until the driver clears the frame to start (Reflex on only).</summary>
+    private void ReflexSleep()
+    {
+        if (NvLowLatency == null || ReflexMode == 0 || LatencySemaphore.Handle == 0)
+            return;
+        ulong value = ++LatencySignalValue;
+        LatencySleepInfoNV sleep = new()
+        {
+            SType = StructureType.LatencySleepInfoNV,
+            SignalSemaphore = LatencySemaphore,
+            Value = value,
+        };
+        if (NvLowLatency.LatencySleep(Device, Swapchain, in sleep) != Result.Success)
+            return;
+        Semaphore semaphore = LatencySemaphore;
+        SemaphoreWaitInfo wait = new()
+        {
+            SType = StructureType.SemaphoreWaitInfo,
+            SemaphoreCount = 1,
+            PSemaphores = &semaphore,
+            PValues = &value,
+        };
+        Vk.WaitSemaphores(Device, in wait, 100_000_000UL);   // 100 ms cap: never wedge the loop on a driver hiccup
+    }
+
+    /// <summary>Stamps one phase of the current frame for the driver (Reflex on only).</summary>
+    private void ReflexMarker(LatencyMarkerNV marker)
+    {
+        if (NvLowLatency == null || ReflexMode == 0)
+            return;
+        // Markers before the submit refer to the frame about to be presented: one past the last present id.
+        ulong id = marker is LatencyMarkerNV.SimulationEndNV or LatencyMarkerNV.RendersubmitStartNV
+            or LatencyMarkerNV.RendersubmitEndNV or LatencyMarkerNV.PresentStartNV or LatencyMarkerNV.PresentEndNV
+            ? PresentId : PresentId + 1;
+        SetLatencyMarkerInfoNV info = new()
+        {
+            SType = StructureType.SetLatencyMarkerInfoNV,
+            PresentID = id,
+            Marker = marker,
+        };
+        NvLowLatency.SetLatencyMarker(Device, Swapchain, in info);
+    }
+
     public FontHandle LoadFont(string path, int size)
     {
         if (!Ready)
@@ -2288,6 +2470,8 @@ public sealed unsafe class VulkanBackend : IBackend
 
         Vk.DestroyFence(Device, InFlight, null);
         Vk.DestroySemaphore(Device, ImageAvailable, null);
+        if (LatencySemaphore.Handle != 0)
+            Vk.DestroySemaphore(Device, LatencySemaphore, null);
         foreach (Semaphore semaphore in RenderFinished)
             Vk.DestroySemaphore(Device, semaphore, null);
         Vk.DestroyCommandPool(Device, CommandPool, null);

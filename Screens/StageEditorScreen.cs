@@ -462,6 +462,9 @@ public class StageEditorScreen(FileStageInfo info, string fileName) : Screen
                                 Checkbox("Player speaks", ref dialog.IsPlayerDialog);
                                 Checkbox("Show boss name", ref dialog.ShowBossName);
                                 Checkbox("Unskippable", ref dialog.Unskippable);
+                                // One symbol from Noto Sans Symbols 2 (see FileDialogInfo.sp); the editor's
+                                // font cannot show it, so it is entered and read back as text.
+                                InputText("Emotion symbol", ref dialog.Emotion, 16);
 
                                 int artIndex = Math.Max(0, Array.IndexOf(DialogArts, dialog.CharacterTexture));
                                 if (Combo("Character art", ref artIndex, DialogArts, DialogArts.Length))

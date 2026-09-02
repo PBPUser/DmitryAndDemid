@@ -19,6 +19,20 @@ public class RuntimeChapter
 
     /// <summary>The chapter's authored dialog lines. Loaded from the .sid all along; nothing played them.</summary>
     public readonly FileDialogInfo[] Dialogs = [];
+
+    /// <summary>
+    /// One baked emotion per dialog line (null where the line has none, or its symbol is not in the font),
+    /// with the tilt each is drawn at. Made here, when the stage loads, from the on-demand symbol font
+    /// (<see cref="EmotionGlyph"/>), and freed in <see cref="Unload"/> with the chapter's other textures — so
+    /// they exist only while the chapter that can show them does.
+    /// </summary>
+    public readonly BasicTexture?[] DialogEmotions = [];
+    public readonly float[] DialogEmotionTilts = [];
+
+    /// <summary>Height of a baked emotion glyph in the 384x448 space; scaled up by the UI scale when baked.</summary>
+    private const float EmotionHeight1x = 44f;
+
+    private bool Unloaded;
     public readonly bool UseUpdateScript;
     public readonly bool UseCreateScript;
     public readonly ChapterType Type;
@@ -46,6 +60,25 @@ public class RuntimeChapter
         BossInvincible = chapterInfo.BossInvincible;
         HasDialogs = chapterInfo.HasDialogs;
         Dialogs = chapterInfo.Dialogs;
+        if (HasDialogs && Dialogs.Length > 0)
+        {
+            // The symbol font is read for this bake only and let go with the method — it is not one of the
+            // fonts the runtime keeps. A missing file or glyph leaves that line's slot null, never throws.
+            DialogEmotions = new BasicTexture?[Dialogs.Length];
+            DialogEmotionTilts = new float[Dialogs.Length];
+            byte[]? ttf = EmotionGlyph.ReadFont();
+            var rng = new Random();
+            int pixelHeight = (int)(EmotionHeight1x * Runtime.CurrentRuntime.ScaleF);
+            for (int i = 0; i < Dialogs.Length; i++)
+            {
+                DialogEmotionTilts[i] = ((float)rng.NextDouble() * 2f - 1f) * EmotionGlyph.MaxTiltDegrees;
+                if (ttf == null)
+                    continue;
+                CpuImage? image = EmotionGlyph.Render(ttf, Dialogs[i].Emotion, pixelHeight, rng);
+                if (image != null)
+                    DialogEmotions[i] = image.ToTexture();
+            }
+        }
         UseUpdateScript = chapterInfo.UseUpdateScript;
         UseCreateScript = chapterInfo.UseCreateScript;
         Type = (ChapterType)chapterInfo.Header[0];
@@ -86,11 +119,22 @@ public class RuntimeChapter
         }
     }
 
+    /// <summary>Frees the chapter's textures. Safe to call twice: the box unloads a chapter when it ends and
+    /// again on dispose, and a texture handed back to the backend twice is not a thing to do.</summary>
     public void Unload()
     {
+        if (Unloaded)
+            return;
+        Unloaded = true;
         if(BossTitleTexture != null)
             UnloadRenderTexture(BossTitleTexture.Value);
         if(ChapterTitleTexture != null)
             UnloadRenderTexture(ChapterTitleTexture.Value);
+        for (int i = 0; i < DialogEmotions.Length; i++)
+        {
+            if (DialogEmotions[i] is { } emotion)
+                UnloadTexture(emotion);
+            DialogEmotions[i] = null;
+        }
     }
 }

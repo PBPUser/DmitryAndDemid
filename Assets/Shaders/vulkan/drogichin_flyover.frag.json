@@ -1,6 +1,6 @@
 {
  "blockSize": 20,
- "blockBinding": 0,
+ "blockBinding": 1,
  "uniforms": [
   {
    "name": "time",
@@ -8,5 +8,10 @@
    "type": "float"
   }
  ],
- "samplers": []
+ "samplers": [
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
 }

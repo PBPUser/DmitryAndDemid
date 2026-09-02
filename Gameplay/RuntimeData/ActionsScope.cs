@@ -1330,6 +1330,8 @@ public static class ActionsScope
     private const int DmitryStage3BossIndex = 23;  // Dmitry (Visual "dmitry", BossId 3)
     private const int Stage3LargeIndex = 24;       // large round bullet (colourable) — the gas clouds
     private const int Stage3LightIndex = 25;       // light bullet (colourable) — the curving streams
+    private const int Stage3GrievanceBoxIndex = 26; // the complaints box (Visual "grievance_box") — card 4
+    private const int Stage3MoonIndex = 27;        // the moon (Visual "moon", colourable) — card 4
     private const int DmitryStage3BossId = 3;
 
     /// <summary>
@@ -1469,40 +1471,207 @@ public static class ActionsScope
         obj.Position += Helper.GetDirection(obj.FacingRotation) * obj.Speed;
     };
 
-    /// <summary>How fast the fourth card's two beams sweep, in radians per tick (they turn opposite ways).</summary>
-    private const float DmitryStage3LaserSweep = 0.0085f;
+    // ---- Card 4: the complaints box and the moon ---------------------------------------------------------
+    // A 160x80 "книга жалоб" box sits in the middle of the playfield. Every player shot that lands on it is a
+    // grievance (+1, capped at 20), grievances cool off by 0.01 a tick, and while it holds any it vents a bullet
+    // in a random direction every 20/level ticks — so firing straight up through it at Dmitry feeds the thing
+    // that is shooting at you. It also launches a moon that rebounds off the screen edges a set number of times
+    // (3 / 5 / 6 / 7 by difficulty), each rebound shaking the screen with Akob's spell sting, then sails off, and
+    // the box launches the next one. The slots below are documented in RuntimeObject.sp under "script scratch".
+    private const int GrievanceLevelIndex = 0x35;   // float: the box's grievance level
+    private const int GrievanceVentIndex = 0x36;    // float: venting accumulator, whole units are bullets
+    private const int MoonBouncesIndex = 0x31;      // header: rebounds the moon has left
+    private const int ChapterStampIndex = 0x32;     // header: TickStart of the chapter that spawned it
+    private const int MoonCooldownIndex = 0x33;     // header: ticks until the box launches the next moon
+
+    private const float GrievanceMax = 20f;
+    private const float GrievancePerShot = 1f;
+    private const float GrievanceDecayPerTick = 0.01f;
+    /// <summary>"A bullet every 20 / level ticks" is level / 20 of a bullet per tick; the accumulator in
+    /// <see cref="GrievanceVentIndex"/> carries the fraction so a level of 0.7 still vents, just slowly.</summary>
+    private const float GrievanceVentPerLevelPerTick = 1f / 20f;
+    /// <summary>The box cannot be worn down — shots feed it — so its health is pinned here every tick.</summary>
+    private const float GrievanceBoxHealth = 1e9f;
+    /// <summary>The box hangs along the top of the field and sweeps side to side across it — this far either
+    /// way from the centre, at this rate (radians per tick, ~5 s per pass), staying inside the edges.</summary>
+    private static readonly Vector2 GrievanceBoxPost = new(192, 40);
+    private const float GrievanceBoxSweep = 108f, GrievanceBoxSweepRate = 0.02f;
+    private static readonly Vector2 GrievanceBoxSize = new(160, 80);
+    /// <summary>The slot on the box's face, where the vented bullets come out (the sprite's slot is 24px above
+    /// its centre).</summary>
+    private static readonly Vector2 GrievanceSlotOffset = new(0, -24);
+    private const int MoonFirstLaunchDelay = 60, MoonRelaunchDelay = 90;
+    /// <summary>The moon is object.png (the staff-roll sprite) scaled so it is about this wide on the field,
+    /// whatever size the texture was loaded at — the padding around a sprite bullet is included in the draw.</summary>
+    private const float MoonSpriteWidth = 108f;
+    /// <summary>The moon's visible radius, where it rebounds from an edge: just under half of
+    /// <see cref="MoonSpriteWidth"/>, the sprite's art not quite filling its frame.</summary>
+    private const float MoonRadius = 47f;
+
+    /// <summary>How many screen edges the moon rebounds from before it sails off: 3 on Easy, 5 on Normal, 6 on
+    /// Hard, 7 on Max (and on Extra / any higher practice tier).</summary>
+    public static int MoonBounceLimit(int difficulty) => Math.Clamp(difficulty, 0, 4) switch
+    {
+        0 => 3,
+        1 => 5,
+        2 => 6,
+        _ => 7,
+    };
 
     /// <summary>
-    /// Dmitry's fourth card, "the beacon": two beams sweeping out of him in opposite directions — they cross
-    /// twice a turn, which is the moment the safe wedge shuts — while gas bubbles keep rising off the floor so
-    /// the bottom of the playfield is no longer the place to wait the sweep out.
+    /// Dmitry on his fourth card, "the complaints box": he fires nothing himself. He paces the full width of
+    /// the field so the columns either side of the box — the only lines of fire that do not feed it — keep
+    /// opening and closing; the pressure comes from the box and the moon.
     /// </summary>
     private static readonly RuntimeObjectReferenceAction DmitryStage3Card4 = c =>
     {
         int t = BossCardTick(c);
         if (t < 0)
             return;
-        int diff = CardDiff(c.Box);
-        if (t % Math.Max(12, 26 - diff * 4) == 0)
-        {
-            var b = c.Box.SpawnObject(Stage3BubbleIndex, 0x9ACD32);
-            b.X = 16f + TickHash(t * 13) % 352;
-            b.Y = 470f;
-            b.FacingRotation = b.RenderRotation = -MathF.PI / 2f;   // straight up, off the floor
-            b.Speed = 1.3f + diff * 0.2f;
-        }
+        c.X = DmitryStage3Post.X + MathF.Sin(t * 0.009f) * 120f;
     };
 
-    /// <summary>One of the fourth card's beams: turns at its stored rate (sign = which way it sweeps) and takes
-    /// itself off the board when its life runs out, the way the stage-3 pizza laser does.</summary>
-    private static readonly RuntimeObjectReferenceAction DmitryStage3SweepLaser = laser =>
+    /// <summary>
+    /// The complaints box: counts the player shots the Pizzics sweep landed on it since last tick, grows and
+    /// cools its grievance level, vents bullets by that level, and keeps one moon in the air. A plain entity is
+    /// not cleared between chapters, so it retires itself the moment the chapter it was spawned for is gone.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction GrievanceBoxTick = box =>
     {
-        laser.RenderRotation += laser.FloatingPoints[ScriptTurnRateIndex];
-        if (laser.RenderRotation > MathF.PI / 2)
+        GameBox gb = box.Box;
+        if (gb.ChapterInfo == null || gb.ChapterInfo.TickStart != box.Header[ChapterStampIndex])
         {
+            gb.RemoveObject(box);
+            return;
         }
-        if (laser.Box.CurrentTick - laser.CreatedAt >= laser.LaserLifetime)
-            laser.Box.RemoveObject(laser);
+        box.Health = GrievanceBoxHealth;
+        int hits = box.PlayerShotHits;
+        box.PlayerShotHits = 0;
+        float level = box.FloatingPoints[GrievanceLevelIndex];
+        level = MathF.Min(GrievanceMax, level + hits * GrievancePerShot);
+        level = MathF.Max(0f, level - GrievanceDecayPerTick);
+        box.FloatingPoints[GrievanceLevelIndex] = level;
+
+        // The level is legible from the sprite: it swells with it, twitches faster the fuller it gets, and
+        // jolts on the tick a shot lands.
+        float fill = level / GrievanceMax;
+        int t = gb.ChapterTick;
+        box.X = GrievanceBoxPost.X + MathF.Sin(t * GrievanceBoxSweepRate) * GrievanceBoxSweep;
+        box.EntranceScale = 1f + fill * 0.10f + (hits > 0 ? 0.05f : 0f);
+        box.RenderRotation = fill > 0f ? MathF.Sin(t * (0.25f + fill * 0.6f)) * fill * 0.07f : 0f;
+
+        // Once the card is over (the boss is down: the chapter clock jumps to its end) it goes quiet.
+        if (gb.InChapterDelay || gb.ChapterTick >= gb.ChapterInfo.Length)
+            return;
+
+        if (level > 0f)
+        {
+            float vent = box.FloatingPoints[GrievanceVentIndex] + level * GrievanceVentPerLevelPerTick;
+            int diff = CardDiff(gb);
+            for (int k = 0; vent >= 1f; k++, vent -= 1f)
+            {
+                var b = gb.SpawnObject(Stage3CircleIndex, 0xFF6A3D);
+                b.Position = box.Position + GrievanceSlotOffset;
+                float angle = TickHash(gb.CurrentTick * 7919 + k * 131) % 6283 / 1000f;
+                b.FacingRotation = b.RenderRotation = angle;
+                b.Speed = 2.0f + diff * 0.2f;
+            }
+            box.FloatingPoints[GrievanceVentIndex] = vent;
+        }
+
+        bool moonOut = false;
+        foreach (var other in gb.BoxObjects)
+            if (other.UpdateAction == MoonTick)
+            {
+                moonOut = true;
+                break;
+            }
+        if (moonOut)
+            box.Header[MoonCooldownIndex] = MoonRelaunchDelay;
+        else if (--box.Header[MoonCooldownIndex] <= 0)
+            LaunchMoon(gb, box);
+    };
+
+    /// <summary>Sends a moon out of the box on a diagonal-ish heading (never along an axis, which would just
+    /// ping-pong between two edges) with the difficulty's stock of rebounds.</summary>
+    private static void LaunchMoon(GameBox gb, RuntimeObject box)
+    {
+        var moon = gb.SpawnObject(Stage3MoonIndex);
+        moon.Position = box.Position;
+        int quadrant = TickHash(gb.CurrentTick * 31 + 7) % 4;
+        float within = TickHash(gb.CurrentTick * 17 + 3) % 1000 / 1000f;
+        moon.FacingRotation = quadrant * (MathF.PI / 2f) + MathF.PI / 6f + within * (MathF.PI / 6f);
+        // The visual is the whole of object.png; scale it down to size on the field (the texture's pixel size
+        // follows the resolution / quality settings, so this is worked out from what was actually loaded),
+        // and start it upright — the draw turns every bullet a quarter turn, which a round moon never showed.
+        moon.EntranceScale = MoonSpriteWidth / MathF.Max(1f, moon.TotalTextureSize.X);
+        moon.RenderRotation = -MathF.PI / 2f;
+        moon.Speed = 2.3f + CardDiff(gb) * 0.25f;
+        moon.Header[MoonBouncesIndex] = MoonBounceLimit(gb.Difficulty);
+        moon.Header[ChapterStampIndex] = box.Header[ChapterStampIndex];
+        moon.PersistOffscreen = true;   // it is bigger than the cull margin; it leaves on its own terms below
+        moon.UpdateAction = MoonTick;
+    }
+
+    /// <summary>
+    /// The moon: flies straight, rebounds off whichever playfield edge it reaches while it has rebounds left
+    /// (each one shakes the screen and plays Akob's spell sting), and once it is out of them keeps going off
+    /// the field and removes itself. Rebounding stops the moment the card is over, so it clears out with it.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction MoonTick = moon =>
+    {
+        GameBox gb = moon.Box;
+        if (gb.ChapterInfo == null || gb.ChapterInfo.TickStart != moon.Header[ChapterStampIndex])
+        {
+            gb.RemoveObject(moon);
+            return;
+        }
+        Vector2 d = Helper.GetDirection(moon.FacingRotation);
+        moon.X += d.X * moon.Speed;
+        moon.Y += d.Y * moon.Speed;
+        moon.RenderRotation += d.X >= 0 ? 0.012f : -0.012f;   // rolls the way it travels
+        if (gb.ChapterTick >= gb.ChapterInfo.Length)
+            moon.Header[MoonBouncesIndex] = 0;
+        if (moon.Header[MoonBouncesIndex] > 0)
+        {
+            bool bounced = false;
+            if (moon.X < MoonRadius && d.X < 0)
+            {
+                moon.X = MoonRadius;
+                d.X = -d.X;
+                bounced = true;
+            }
+            else if (moon.X > 384 - MoonRadius && d.X > 0)
+            {
+                moon.X = 384 - MoonRadius;
+                d.X = -d.X;
+                bounced = true;
+            }
+            if (moon.Y < MoonRadius && d.Y < 0)
+            {
+                moon.Y = MoonRadius;
+                d.Y = -d.Y;
+                bounced = true;
+            }
+            else if (moon.Y > 448 - MoonRadius && d.Y > 0)
+            {
+                moon.Y = 448 - MoonRadius;
+                d.Y = -d.Y;
+                bounced = true;
+            }
+            if (bounced)
+            {
+                moon.FacingRotation = MathF.Atan2(d.Y, d.X);
+                moon.Header[MoonBouncesIndex]--;
+                float time = gb.GetTime();
+                gb.AddScreenEffect(new ShakeScreenEffect(gb, 0.1f, 20, 100, time, time + 0.3f));
+                PlaySound(Runtime.CurrentRuntime.Sounds["akob-bomb"]);
+            }
+            return;
+        }
+        if (moon.X < -MoonRadius - 8 || moon.X > 384 + MoonRadius + 8 ||
+            moon.Y < -MoonRadius - 8 || moon.Y > 448 + MoonRadius + 8)
+            gb.RemoveObject(moon);
     };
 
     /// <summary>
@@ -1875,18 +2044,21 @@ public static class ActionsScope
             SpawnCardBoss(c.GameBox, DmitryStage3BossIndex, DmitryStage3Card2, DmitryStage3Post);
         dictionary["dmitry#stage3#card3#create"] = c =>
             SpawnCardBoss(c.GameBox, DmitryStage3BossIndex, DmitryStage3Card3, DmitryStage3Post);
-        // The two beams of the beacon card are fired once here and sweep for the rest of it (their own update
-        // turns them); the boss stays put, so the beams keep coming out of him.
+        // The complaints box is put down once here and runs the card from its own update (grievances, venting,
+        // the moon); it is stamped with the chapter so it can take itself off when the card is over.
         dictionary["dmitry#stage3#card4#create"] = c =>
         {
-            var boss = SpawnCardBoss(c.GameBox, DmitryStage3BossIndex, DmitryStage3Card4, DmitryStage3Post);
-            for (int side = 0; side < 2; side++)
-            {
-                var laser = c.GameBox.SpawnLaser(boss.Position, side * MathF.PI, 520f, 14f, 45, 1800, 20);
-                laser.FloatingPoints[ScriptTurnRateIndex] = side == 0
-                    ? DmitryStage3LaserSweep : -DmitryStage3LaserSweep;
-                laser.UpdateAction = DmitryStage3SweepLaser;
-            }
+            // The moon is drawn from object.png, which belongs to the staff-roll texture group and is not
+            // loaded for a run; bring the group in now (a no-op once it is there — it stays until the title
+            // screen unloads the extras) so the first launch does not look up a texture that is not in.
+            Runtime.CurrentRuntime.LoadTextureGroup("staff");
+            SpawnCardBoss(c.GameBox, DmitryStage3BossIndex, DmitryStage3Card4, DmitryStage3Post);
+            var box = c.GameBox.SpawnObject(Stage3GrievanceBoxIndex);
+            box.Position = GrievanceBoxPost;
+            box.HitBoxSize = GrievanceBoxSize;
+            box.Header[ChapterStampIndex] = c.TickStart;
+            box.Header[MoonCooldownIndex] = MoonFirstLaunchDelay;
+            box.UpdateAction = GrievanceBoxTick;
         };
         // The last card of the campaign: he has to die for real at the end of it, which is what the final-boss
         // flag says (it is a Header[0] bit, and SpawnObject's reuse path does not carry it over from a template).
@@ -2432,6 +2604,9 @@ public static class ActionsScope
         // and are named here so the entity templates in extra1.json have a valid script to load with.
         dictionary["dmitry#idle"] = DmitryIdle;
         dictionary["demid#idle"] = DemidIdle;
+        // Stage 3, card 4: the complaints box and its moon (templates 26 / 27 in stage3.json).
+        dictionary["dmitry#stage3#grievance"] = GrievanceBoxTick;
+        dictionary["dmitry#stage3#moon"] = MoonTick;
         dictionary["dmitry#puff#move"] = DmitryPuffMove;
         dictionary["dmitry#exhaust#move"] = DmitryExhaustMove;
         dictionary["demid#leak#move"] = DemidLeakMove;

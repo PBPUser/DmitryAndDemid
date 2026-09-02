@@ -6,7 +6,7 @@ out vec4 _fragColorOut;
 
 // Infinite low-house cityscape seen from a low-flying camera (~9 m above ground).
 // Likhanov32D rasterises in 2D/orthographic only, so the whole perspective ground plane is raymarched
-// here in the fragment shader. Driven by a single `time` uniform (seconds); the camera
+// here in the fragment shader — the 3D half of that name is this, not a geometry pipeline. Driven by a single `time` uniform (seconds); the camera
 // flies forward forever over a domain-repeated grid of small houses.
 
 in vec2 fragTexCoord;
@@ -77,10 +77,12 @@ vec3 skyColor(vec3 rd) {
 
 void main() {
     _fragColorOut = vec4(0.0);
-    // screen ray, portrait aspect. y flipped so top of screen looks toward the horizon.
-    // Negating the screen offset rotates the whole rendered scene 180 degrees about the centre
-    // (sky drops to the bottom, houses hang from the top).
-    vec2 p = 0.5 - fragTexCoord;
+    // Screen ray, portrait aspect. fragTexCoord runs 0 at the top of the picture to 1 at the bottom (the quad
+    // comes from StageBackground.DrawProceduralQuad, the same on every backend), and the ray below flips the
+    // sign of y so the top of the screen looks toward the horizon. This used to negate BOTH axes, a 180-degree
+    // turn that compensated for the out-of-range coordinates the old render-target quad handed the shader on
+    // one backend and put the sky at the bottom on the others.
+    vec2 p = fragTexCoord - 0.5;
     p.x *= res.x / res.y;
 
     vec3 ro  = vec3(2.0, CAM_HEIGHT, time * SPEED);

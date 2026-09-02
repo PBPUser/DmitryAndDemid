@@ -150,12 +150,17 @@ public class IngameSaveReplayScreen : Screen
             LetterIndex = 0;
             Current = "";
             var time = DateTime.Now;
-            CurrentFormat = $"No. {Index:00} %s {time.Year%100:00}/{time.Month:00}/{time.Day:00} {time.Hour:00}:{time.Minute:00} {GameplayScreen.GameBox.ProtogonistId,7} {Helper.DifficultyIds[GameplayScreen.GameBox.Difficulty]} All 0.0%";
+            bool extra = GameplayScreen.GameBox.Mode == GameType.Extra;
+            string stageLabel = extra ? "Ex" : "All";
+            CurrentFormat = $"No. {Index:00} %s {time.Year%100:00}/{time.Month:00}/{time.Day:00} {time.Hour:00}:{time.Minute:00} {GameplayScreen.GameBox.ProtogonistId,7} {Helper.DifficultyIds[GameplayScreen.GameBox.Difficulty]} {stageLabel} 0.0%";
             var rJson = new Replay.ReplayJson();
             rJson.Timestamp = time;
             rJson.Person = GameplayScreen.GameBox.ProtogonistId;
             rJson.Difficulty = GameplayScreen.GameBox.Difficulty;
-            rJson.Stage = "All";
+            rJson.Stage = stageLabel;
+            // The run's mode, so playback loads the stage list this was recorded on (an Extra replay used to
+            // come back as a campaign run and play over stage 1).
+            rJson.Mode = (int)GameplayScreen.GameBox.Mode;
             rJson.Slowdown = "0.0";
             LastInputTime = GetTime();
             Keyboard.Reset();

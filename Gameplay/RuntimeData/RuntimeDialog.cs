@@ -41,7 +41,9 @@ public class RuntimeDialog
     /// <summary>&gt;= 0 once the last line has been dismissed: counts up the bounce-out before <see cref="Finished"/>.</summary>
     private double CloseElapsed = -1;
 
-    /// <summary>The dialog art sheets are a horizontal strip of 768x1024 reaction frames.</summary>
+    /// <summary>The dialog art sheets are authored as a horizontal strip of 768x1024 reaction frames. Only the
+    /// ASPECT is used at draw time: the sheets arrive scaled to the window, so the frame's pixel size comes from
+    /// the loaded texture (see <see cref="DrawPortrait"/>).</summary>
     private const int FrameWidth = 768;
     private const int FrameHeight = 1024;
 
@@ -88,10 +90,32 @@ public class RuntimeDialog
     /// <summary>The line on screen right now.</summary>
     private Line Current => Lines[Index];
 
-    public RuntimeDialog(FileDialogInfo[] dialogs, ProtogonistData protogonist, GameBox box)
+    /// <summary>Plays <paramref name="chapter"/>'s lines; their emotions were baked when the chapter loaded.</summary>
+    public RuntimeDialog(RuntimeChapter chapter, ProtogonistData protogonist, GameBox box)
     {
         Box = box;
-        Lines = dialogs.Select(d => new Line(d, protogonist)).ToArray();
+        FileDialogInfo[] dialogs = chapter.Dialogs;
+        // The boss stands there for the whole conversation, listening while the player talks. A player line
+        // names no character art, so each line takes the boss art of the nearest boss line — the last one
+        // before it, or the first one after it when the player opens — instead of dropping the boss off
+        // screen for the length of every player line.
+        string[] bossArt = new string[dialogs.Length];
+        string carried = "";
+        for (int i = 0; i < dialogs.Length; i++)
+        {
+            if (!dialogs[i].IsPlayerDialog && !string.IsNullOrEmpty(dialogs[i].CharacterTexture))
+                carried = dialogs[i].CharacterTexture;
+            bossArt[i] = carried;
+        }
+        string first = Array.Find(bossArt, a => !string.IsNullOrEmpty(a)) ?? "";
+        for (int i = 0; i < dialogs.Length; i++)
+            if (string.IsNullOrEmpty(bossArt[i]))
+                bossArt[i] = first;
+        Lines = new Line[dialogs.Length];
+        for (int i = 0; i < dialogs.Length; i++)
+            Lines[i] = new Line(dialogs[i], protogonist, bossArt[i],
+                i < chapter.DialogEmotions.Length ? chapter.DialogEmotions[i] : null,
+                i < chapter.DialogEmotionTilts.Length ? chapter.DialogEmotionTilts[i] : 0f);
         Finished = Lines.Length == 0;
         LastUpdate = Gfx.GetTime();
         if (Lines.Length > 0)
@@ -284,8 +308,33 @@ public class RuntimeDialog
                 Vector2.Zero, 0, Rgba.White with { A = (byte)(contentA * 255) });
         }
 
+        DrawEmotion(win, scale, time, contentA);
         DrawContinueHint(win, fork, fsz, aspect, scale, time, contentA);
         DrawBossNameCard(width, scale, contentA, time);
+    }
+
+    /// <summary>How tall a line's emotion is drawn, in the 384x448 space (the bake is this size times the UI
+    /// scale, so it is never upscaled).</summary>
+    private const float EmotionHeight1x = 44f;
+
+    /// <summary>
+    /// The line's emotion: its baked glyph perched on the window's top edge on the speaker's side — left for
+    /// the player, right for the boss — popping in with the line, tilted the way it was rolled and swaying a
+    /// few degrees either way of that, bobbing along with the rest of the dressing.
+    /// </summary>
+    private void DrawEmotion(Rect win, float scale, float time, float contentA)
+    {
+        if (Current.Emotion is not { } glyph || contentA <= 0f || glyph.Height <= 0)
+            return;
+        float pop = EaseOutBack(LineEnter);
+        float eh = EmotionHeight1x * scale * pop;
+        float ew = eh * glyph.Width / glyph.Height;
+        float ex = Current.IsPlayer ? win.X + 30f * scale : win.X + win.Width - 30f * scale;
+        float ey = win.Y + 2f * scale + MathF.Sin(time * 1.9f) * 2.5f * scale;
+        float tilt = Current.EmotionTilt + MathF.Sin(time * 1.3f + 1f) * 3f;
+        DrawTexturePro(glyph, new Rect(0, 0, glyph.Width, glyph.Height),
+            new Rect(ex, ey, ew, eh), new Vector2(ew / 2f, eh / 2f), tilt,
+            Rgba.White with { A = (byte)(contentA * 255) });
     }
 
     /// <summary>
@@ -379,9 +428,16 @@ public class RuntimeDialog
         if (art == null || open <= 0.001f)
             return;
 
-        int frames = Math.Max(1, art.Value.Width / FrameWidth);
-        Rect source = new(Math.Clamp(frame, 0, frames - 1) * FrameWidth, 0,
-            flip ? -FrameWidth : FrameWidth, FrameHeight);
+        // The sheets are loaded scaled to the window (their .json has MatchGameResolutionScaling), so the
+        // frame is measured off the texture that actually arrived: a frame is as tall as the sheet and 3:4
+        // wide, and the frame count is what fits — never the authored 768x1024, which at most resolutions
+        // would slice a frame and a half out of a sheet a third shorter than assumed.
+        float frameH = art.Value.Height;
+        float frameW = frameH * FrameWidth / FrameHeight;
+        int frames = Math.Max(1, (int)MathF.Round(art.Value.Width / frameW));
+        frameW = art.Value.Width / (float)frames;
+        Rect source = new(Math.Clamp(frame, 0, frames - 1) * frameW, 0,
+            flip ? -frameW : frameW, frameH);
 
         // Outward is +x for the character on the right, -x for the one on the left.
         float outward = flip ? 1f : -1f;
@@ -441,10 +497,20 @@ public class RuntimeDialog
         public readonly BossProfile? Profile;
         public readonly BasicTexture? ProfileArt;
 
-        public Line(FileDialogInfo info, ProtogonistData protogonist)
+        /// <summary>The line's baked emotion glyph (owned by the chapter, not this line) and its tilt in
+        /// degrees; null when the line has none.</summary>
+        public readonly BasicTexture? Emotion;
+        public readonly float EmotionTilt;
+
+        /// <param name="bossArt">The boss's art sheet for this line — resolved by the dialog across the whole
+        /// conversation, so a player line (which names none) still keeps the boss on screen.</param>
+        public Line(FileDialogInfo info, ProtogonistData protogonist, string bossArt, BasicTexture? emotion,
+            float emotionTilt)
         {
             IsPlayer = info.IsPlayerDialog;
             Unskippable = info.Unskippable;
+            Emotion = emotion;
+            EmotionTilt = emotionTilt;
 
             // Boss-name tag: resolve the boss key from the character art (e.g. "nikitab_dialog_art.png" ->
             // "nikitab"), then look up its profile json (for the name + accent colour) and the optional
@@ -482,7 +548,7 @@ public class RuntimeDialog
                 };
 
             PlayerArt = Lookup(protogonist.DialogArtName);
-            BossArt = Lookup(info.CharacterTexture);
+            BossArt = Lookup(bossArt);
 
             // Header[2] is the reaction frame, and it only applies to whoever is speaking.
             int reaction = info.SwitchReaction ? info.Header[2] : 0;

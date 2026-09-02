@@ -1,0 +1,8 @@
+{
+  "Texture": "object.png",
+  "RenderType": 1,
+  "SpritePosition": { "X": 0, "Y": 0 },
+  "SourceSize": { "X": 0, "Y": 0 },
+  "Collision": 80,
+  "Effect": "white_key"
+}

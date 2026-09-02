@@ -13,3 +13,7 @@ Structure:
 HEADER
 TEXT
 CHARACTER_TEXTURE
+EMOTION           — one symbol (UTF-8 string) from Noto Sans Symbols 2, e.g. "☠"; empty = no emotion. Baked by
+                    Utils/EmotionGlyph when the chapter loads and drawn on the speaker's side of the window.
+                    Added after the three fields above: every .sid must be recompiled from its JSON
+                    (--compile-stages), an older .sid has no string here and will not load.

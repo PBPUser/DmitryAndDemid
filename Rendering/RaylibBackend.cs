@@ -275,6 +275,16 @@ public sealed class RaylibBackend : IBackend
 
     // ---- fonts and text -------------------------------------------------------------------
 
+    /// <summary>Reads the framebuffer back and writes it where asked. Not Raylib's own TakeScreenshot, which
+    /// prefixes its storage base path and so cannot take an absolute destination.</summary>
+    public bool TakeScreenshot(string path)
+    {
+        Image image = Raylib.LoadImageFromScreen();
+        bool ok = Raylib.ExportImage(image, path);
+        Raylib.UnloadImage(image);
+        return ok;
+    }
+
     public FontHandle LoadFont(string path, int size)
     {
         Font font = Raylib.LoadFontEx(path, size, [], 0);

@@ -971,6 +971,42 @@ public static class Helper
         return texture.Texture;
     }
 
+    /// <summary>
+    /// Bakes the complaints box of Dmitry's fourth stage-3 card — the "GrievanceBox" texture that
+    /// EntityVisuals/grievance_box.json draws. The panel itself is the grievance_box shader; the label
+    /// (ЖАЛОБЫ, typed with the Latin lookalikes the game's font wants) is text laid over it. Two passes like
+    /// DrawText and the bullet atlas: content into a scratch target, then that target copied into the one that
+    /// is kept, so a positive source rect reads it upright.
+    /// </summary>
+    public static BasicTexture RenderGrievanceBox(int width, int height)
+    {
+        var shader = Runtime.CurrentRuntime.Shaders["grievance_box"];
+        SetShaderValue(shader, GetShaderLocation(shader, "resolution"), new Vector2(width, height), UniformType.Vec2);
+        RenderedTexture label = DrawText(")|(AJlo6bI", 20, 2, 2, 1, Runtime.CurrentRuntime.Fonts["kodemono"],
+            new Rgba(236, 206, 120, 255), "shadow");
+        RenderedTexture scratch = LoadRenderTexture(width, height);
+        BeginTextureMode(scratch);
+        ClearBackground(Rgba.Black with { A = 0 });
+        BeginShaderMode(shader);
+        DrawRectanglePro(new Rect(0, 0, width, height), Vector2.Zero, 0, Rgba.White);
+        EndShaderMode();
+        // Centred on the plate, below the slot (which sits 24px above the middle).
+        float labelX = (width - label.Texture.Width) / 2f;
+        float labelY = height * 0.5f - 6f;
+        DrawTexturePro(label.Texture, new Rect(0, 0, label.Texture.Width, label.Texture.Height),
+            new Rect(labelX, labelY, label.Texture.Width, label.Texture.Height), Vector2.Zero, 0, Rgba.White);
+        EndTextureMode();
+        RenderedTexture texture = LoadRenderTexture(width, height);
+        BeginTextureMode(texture);
+        ClearBackground(Rgba.Black with { A = 0 });
+        DrawTexture(scratch.Texture, 0, 0, Rgba.White);
+        EndTextureMode();
+        SetTextureFilter(texture.Texture, FilterMode.Bilinear);
+        UnloadRenderTexture(scratch);
+        UnloadRenderTexture(label);
+        return texture.Texture;
+    }
+
     public static void OpenWebPage(string url)
     {
 #if ANDROID

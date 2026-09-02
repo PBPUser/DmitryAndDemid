@@ -42,12 +42,25 @@ public class Runtime
     public static Rgba TransparentBlack = Rgba.Black with { A = 0 };
     public string VersionString = "0.05a";
     public double Time;
+    /// <summary>The internal resolution: the backbuffer, and the space every screen lays itself out in.
+    /// Equal to the window unless an upscaler renders smaller (see the upscaler block in Start).</summary>
     public int Width;
     public int Height;
+    /// <summary>The configured window size, which the window keeps whatever the internal resolution is.</summary>
+    public int WindowWidth;
+    public int WindowHeight;
     public float SFXVolume = 1.0f;
     public float MusicVolume = 1.0f;
     public float VoicesVolume = 1.0f;
     public bool DisableClose = false;
+
+    /// <summary>Set by a DEBUG mode that has seen what it came for: ends the main loop on the next frame.</summary>
+    public bool QuitRequested = false;
+
+    /// <summary>The DEBUG <c>--shot</c> request (Program.cs): campaign stage (1-based), seconds to wait once the
+    /// run is up, and the file to save the screen to. Null in every normal launch.</summary>
+    public static (int Stage, double Seconds, string Path)? AutoShot;
+    private double AutoShotStart = -1;
     bool ADPTriggered = false;
     /// Wall-clock (<see cref="Gfx.GetTime"/>) deadline at which the loading screen hands off to the main menu.
     /// Set at the end of <see cref="Load"/> and polled every frame in <see cref="PreRender"/>. This deliberately
@@ -71,6 +84,16 @@ public class Runtime
     /// Scale = Width/640 layout would run off the bottom of any non-4:3 monitor in fullscreen.
     /// </summary>
     RenderedTexture Backbuffer;
+
+    /// <summary>The upscaler in force this launch (validated against what the machine has at start-up) and
+    /// the FSR pass that shades its pixels; null when the mode is Off or its shaders failed to load.</summary>
+    public Rendering.Upscaling.UpscalerKind ActiveUpscaler { get; private set; } = Rendering.Upscaling.UpscalerKind.Off;
+    private Rendering.Upscaling.FsrPass? Fsr;
+
+    /// <summary>The frame cap actually asked of the backend: the configured cap times the frame-generation
+    /// multiplier (every presented frame is an interpolated render, see Configuration.FrameGeneration).</summary>
+    public static int EffectiveFrameCap =>
+        Config.FrameCap <= 0 ? Config.FrameCap : Config.FrameCap * Math.Clamp(Config.FrameGeneration, 1, 4);
 
     /// <summary>Where the backbuffer lands inside the window: the whole window, or a letterboxed sub-rect.</summary>
     public Rect PresentRect { get; private set; }
@@ -120,8 +143,21 @@ public class Runtime
         // swap flips the whole game to portrait.
         if (Config.Vertical && width > height)
             (width, height) = (height, width);
-        Width = width;
-        Height = height;
+        // The upscaler: a mode the machine cannot provide (no runtime, wrong OS) drops back to Off, so a
+        // config carried over from another machine never leaves the window blank. A mode that upscales renders
+        // the whole game at its preset's scale — Width/Height (and so every layout) shrink, the window keeps
+        // the configured size, and Present() scales the frame up through the FSR pass.
+        ActiveUpscaler = Rendering.Upscaling.Upscalers.Parse(Config.Upscaler);
+        if (Rendering.Upscaling.Upscalers.Unavailable(ActiveUpscaler) is { } why)
+        {
+            Console.WriteLine($"upscaler '{Config.Upscaler}' is not available here ({why}); running without");
+            ActiveUpscaler = Rendering.Upscaling.UpscalerKind.Off;
+        }
+        WindowWidth = width;
+        WindowHeight = height;
+        float renderScale = Rendering.Upscaling.Upscalers.RenderScale(ActiveUpscaler, Config.UpscalerQuality);
+        Width = Math.Max(320, (int)MathF.Round(width * renderScale));
+        Height = Math.Max(240, (int)MathF.Round(height * renderScale));
         SFXVolume = Config.SFXVolume;
         MusicVolume = Config.MusicVolume;
         FullScreenRect = new(0, 0, Width, Height);
@@ -134,6 +170,7 @@ public class Runtime
             $"AAG2 ~ Subhumanian Fartalism [{Engine.Name} / {Engine.BackendName}]");
         Engine.Platform.SetWindowIcon("Assets/Textures/icon.png");
         SetWindowMode(Config.FullScreenType);
+        Engine.Renderer.SetReflex(Config.Reflex);   // a no-op everywhere but Vulkan on an NVIDIA driver
         Backbuffer = LoadRenderTexture(Width, Height);
         var sugarTexture = LoadTexture(Assets.Resolve("Assets/Textures/sugar_logo.png"));
         if (Engine.Backend.SupportsDebugUi)
@@ -180,7 +217,7 @@ public class Runtime
             PresentSplash();
         }
         UnloadTexture(sugarTexture);
-        SetTargetFPS(Config.FrameCap);
+        SetTargetFPS(EffectiveFrameCap);
         if (Config.UseVSYNC)
             Engine.Platform.SetVSync(true);
         Engine.Platform.DisableExitKey();
@@ -200,7 +237,7 @@ public class Runtime
             Engine.Platform.CloseWindow();
             return;
         }
-        while (!WindowShouldClose() || DisableClose)
+        while ((!WindowShouldClose() || DisableClose) && !QuitRequested)
             RunFrame();
         // Hand the pad back before the window goes: otherwise the lightbar stays on the last frame's colour and
         // the adaptive triggers stay stiff for whatever the player opens next.
@@ -220,6 +257,16 @@ public class Runtime
         PreRender(Time - now);
         Render();
         Time = now;
+#if DEBUG
+        if (AutoShot is { } shot && AutoShotStart >= 0 && now - AutoShotStart >= shot.Seconds)
+        {
+            Console.WriteLine(Gfx.TakeScreenshot(shot.Path)
+                ? $"--shot: saved {shot.Path}"
+                : $"--shot: {Engine.BackendName} cannot read its framebuffer back, nothing saved");
+            AutoShotStart = -1;
+            QuitRequested = true;
+        }
+#endif
     }
 
     /// <summary>Set by <c>--bench</c> / config <c>Bench</c>: run <see cref="RunBench"/> instead of the menu loop.</summary>
@@ -286,6 +333,8 @@ public class Runtime
         ScaleF = (float)Scale;
 
         WindowMode = FullScreenType.Borderless;   // the Activity surface is always fullscreen
+        WindowWidth = Width;                      // no upscaler on this path: the surface is the frame
+        WindowHeight = Height;
         Backbuffer = LoadRenderTexture(Width, Height);
         Time = GetTime();
         ScreenLoading = new LoadingScreen();
@@ -301,7 +350,9 @@ public class Runtime
     public void SetWindowMode(FullScreenType mode)
     {
         WindowMode = mode;
-        Engine.Platform.ApplyWindowMode(ToEngineMode(mode), Width, Height);
+        // The window keeps the configured size; Width/Height may be smaller under an upscaler.
+        Engine.Platform.ApplyWindowMode(ToEngineMode(mode), WindowWidth > 0 ? WindowWidth : Width,
+            WindowHeight > 0 ? WindowHeight : Height);
         if (Config.FullScreenType != mode)
         {
             Config.FullScreenType = mode;
@@ -375,6 +426,22 @@ public class Runtime
             // FROM the player's expected display gamma rather than an absolute exponent.
             SetShaderValue(ColorGradeShader, "gamma", 2.2f / MathF.Max(Config.Gamma, 0.05f), UniformType.Float);
             SetShaderValue(ColorGradeShader, "colorblind", ColorBlindModeIndex(Config.ColorBlind), UniformType.Int);
+        }
+        // The upscaler, once its shaders are in (Present also runs under the loading screen, before they are).
+        // Colour grading is folded into the same pass only when there is no upscaler; with one, the graded
+        // frame would need a target of its own, so the grade is applied by the plain path and the upscaled path
+        // skips it — a documented limit of the FSR path rather than a silent third pass.
+        if (ActiveUpscaler != Rendering.Upscaling.UpscalerKind.Off && Fsr == null && Shaders.ContainsKey("fsr_easu"))
+        {
+            Fsr = new Rendering.Upscaling.FsrPass();
+            if (ActiveUpscaler == Rendering.Upscaling.UpscalerKind.DlssNeural && OperatingSystem.IsWindows())
+                Rendering.Upscaling.NeuralRenderingBridge.Start(Rendering.Upscaling.Upscalers.NeuralRenderingDirectory);
+        }
+        if (Fsr is { Ready: true } && !grade)
+        {
+            Fsr.Present(Backbuffer.Texture, Width, Height, PresentRect, Config.Sharpness,
+                sharpenOnly: ActiveUpscaler == Rendering.Upscaling.UpscalerKind.Dlaa);
+            return;
         }
         BeginBlendMode(BlendMode.CopyRgb);
         DrawTexturePro(
@@ -506,6 +573,24 @@ public class Runtime
         // Default game with the first character/stage — the same path PersonSelectScreen.OpenNext takes — so the
         // gameplay-entry crash reproduces deterministically without fighting flaky injected menu input. Toggle
         // with `adb shell run-as co.sugar.aag2 touch files/autostart.txt`. Remove once the crash is fixed.
+#if DEBUG
+        // --shot: straight into a campaign run at the asked stage, first character, Easy; RunFrame saves the
+        // screen once the wait is up and ends the loop.
+        if (AutoShot is { } shot)
+        {
+            string personFile = Utils.Assets.Files("Assets/Data/PlayablePersons/", "*.json")[0];
+            var person = System.Text.Json.JsonSerializer.Deserialize<Data.ProtogonistData>(
+                System.IO.File.ReadAllText(personFile))!;
+            var stages = Data.Archive.FileStageInfo.CampaignStagePaths()
+                .Select(Data.Archive.FileStageInfo.LoadFromFile).ToArray();
+            int startStage = Math.Clamp(shot.Stage - 1, 0, stages.Length - 1);
+            LoadTextureGroup("game");
+            LoadTextureGroup(person.ID);
+            LoadTextureGroup($"stage{startStage + 1}");
+            AddScreen(new Screens.GameplayScreen(person, 0, stages, 0, false, startStage: startStage));
+            AutoShotStart = GetTime();
+        }
+#endif
         try
         {
             if (System.IO.File.Exists(Utils.Platform.DataPath("autostart.txt")))
@@ -635,6 +720,9 @@ public class Runtime
         Textures["Copyright"] = Helper.DrawTextScaled(")(U,2026 Konu9lnpaBa Caxap Ko.", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
         Textures["Version"] = Helper.DrawTextScaled($"Beer {VersionString} (npo6Ha9l Bepcu9I)", 12, 2, 2, 1, Fonts["kodemono"], "gradient").Texture;
         Textures["384x448"] = Helper.FillTextureWithColor(Rgba.White, 384, 448).Texture;
+        // The complaints box of Dmitry's fourth stage-3 card (EntityVisuals/grievance_box.json): a shader plus
+        // a label, baked here because there is no sprite for it. Listed in TextureManifest.ProceduralKeys.
+        Textures["GrievanceBox"] = Helper.RenderGrievanceBox(160, 80);
         PrepareScoreTexture();
         
         Textures = Textures.OrderBy(x => x.Key).ToDictionary();
@@ -1333,8 +1421,9 @@ public class Runtime
     {
         ("HousesBackground", () => new HousesBackground()),
         ("DrogichinBackground", () => new DrogichinBackground()),
-        ("DrogichinFlyoverBackground (road -> clouds -> town)", () => new DrogichinFlyoverBackground()),
-        ("SillyBackground (empty)", () => new SillyBackground()),
+        ("DrogichinFlyoverBackground (square -> clouds -> real town)", () => new DrogichinFlyoverBackground()),
+        ("SillyBackground (empty fill)", () => new SillyBackground()),
+        ("CityFlyoverBackground (Extra: night flight between towers)", () => new CityFlyoverBackground()),
         ("Swap: Houses <-> Drogichin", () => new SwapStageBackground(new HousesBackground(), new DrogichinBackground())),
     };
     /// <summary>Display names of every stage background the tester can build — shared with the gameplay

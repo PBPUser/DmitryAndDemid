@@ -133,6 +133,20 @@ public interface IRenderer : IDisposable
     /// </summary>
     GpuInfo? QueryGpuInfo() => null;
 
+    /// <summary>
+    /// Saves what is on screen right now to <paramref name="path"/> (the extension picks the format). Optional:
+    /// a backend that cannot read its framebuffer back returns false and the caller carries on. Used by the
+    /// DEBUG <c>--shot</c> mode (see Runtime) to check a backend's picture without anyone at the keyboard.
+    /// </summary>
+    bool TakeScreenshot(string path) => false;
+
+    /// <summary>Whether this backend can run NVIDIA Reflex — only the Vulkan backend, on a driver exposing
+    /// VK_NV_low_latency2. The settings grey the row out otherwise.</summary>
+    bool SupportsReflex => false;
+
+    /// <summary>Applies the Reflex mode (0 off, 1 on, 2 on + boost); a no-op where unsupported.</summary>
+    void SetReflex(int mode) { }
+
     // ---- frame ----------------------------------------------------------------------------
 
     void BeginFrame();

@@ -188,6 +188,23 @@ public static class HelperPure
         #endif
     }
 
+    /// <summary>
+    /// Pizzics' second primitive, and its only rectangle: does a circle (<paramref name="centre"/>,
+    /// <paramref name="radius"/>) touch an axis-aligned box of <paramref name="size"/> centred on
+    /// <paramref name="boxCentre"/>? Clamp the circle's centre into the box to find the nearest point, and it
+    /// is a hit if that point is within the radius. Used for the few objects whose shape a circle cannot
+    /// stand in for — the complaints box on Dmitry's fourth stage-3 card — so a player shot passing a corner
+    /// of it neither hits air nor gets swallowed by a circle bigger than the sprite.
+    /// </summary>
+    public static bool CircleTouchesBox(Vector2 centre, float radius, Vector2 boxCentre, Vector2 size)
+    {
+        Vector2 half = size / 2;
+        Vector2 nearest = new(
+            Math.Clamp(centre.X, boxCentre.X - half.X, boxCentre.X + half.X),
+            Math.Clamp(centre.Y, boxCentre.Y - half.Y, boxCentre.Y + half.Y));
+        return MathUtil.Vector2Distance(centre, nearest) < radius;
+    }
+
     public static readonly Dictionary<string, string> TransliterationDictionary =
         JsonSerializer.Deserialize<Dictionary<string, string>>(Assets.ReadAllText("Assets/Data/cyrilic-transliteration-table.json"))!;
     public static readonly Dictionary<string, string> TranslationDictionary =

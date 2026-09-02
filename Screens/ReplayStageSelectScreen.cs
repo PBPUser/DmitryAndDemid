@@ -31,7 +31,10 @@ public class ReplayStageSelectScreen : MenuScreen
         foreach (ReplayStageInfo info in Header.ReplayStageInfo ?? [])
             contained.Add(info.Stage);
 
-        int stageCount = FileStageInfo.CampaignStagePaths().Length;
+        // ...from the list of the mode it was recorded in: one Extra stage, or the campaign's three.
+        int stageCount = Header.IsExtra
+            ? FileStageInfo.ExtraStagePaths().Length
+            : FileStageInfo.CampaignStagePaths().Length;
         for (int i = 0; i < stageCount; i++)
         {
             int index = i;

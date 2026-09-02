@@ -42,6 +42,20 @@ Assets.Source = new FileSystemAssetSource(AppContext.BaseDirectory);
 if (args.Contains("--selftest"))
     return SelfTest.Run();
 
+#if DEBUG
+// --shot <stage> <seconds> <file.png>: boots the game, starts a campaign run at that stage (1-based) with the
+// first character on Easy, and <seconds> of wall-clock later saves the screen to the file and exits. A way to
+// look at what a backend actually draws (the stage backgrounds, mostly) without anyone at the keyboard; only
+// backends with framebuffer readback save anything (see IRenderer.TakeScreenshot).
+{
+    int shotAt = Array.IndexOf(args, "--shot");
+    if (shotAt >= 0 && shotAt + 3 < args.Length
+        && int.TryParse(args[shotAt + 1], out int shotStage)
+        && double.TryParse(args[shotAt + 2], System.Globalization.CultureInfo.InvariantCulture, out double shotSeconds))
+        Runtime.AutoShot = (shotStage, shotSeconds, args[shotAt + 3]);
+}
+#endif
+
 // --dualsense-test: drives a connected DualSense's motors, lightbar, player LEDs and adaptive triggers in turn
 // and prints what it finds. Headless, like --selftest: these are the parts of the game that can only be verified
 // by holding the pad, so they get a path that does not need the game running.

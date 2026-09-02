@@ -20,7 +20,6 @@ public class HousesBackground : StageBackground
     private const int Width = 384, Height = 448;
     private const int LampCount = 3;
 
-    private readonly RenderedTexture Temp;    // dummy quad source; the cityscape is procedural
     private readonly RenderedTexture Scene;   // the unlit city, before lighting
     private readonly ShaderHandle Shader;
     private readonly int LocationTime;
@@ -30,7 +29,6 @@ public class HousesBackground : StageBackground
 
     public HousesBackground()
     {
-        Temp = LoadRenderTexture(Width, Height);
         Scene = LoadRenderTexture(Width, Height);
         Shader = Runtime.CurrentRuntime.Shaders["houses"];
         LocationTime = GetShaderLocation(Shader, "time");
@@ -76,8 +74,7 @@ public class HousesBackground : StageBackground
         BeginTextureMode(Scene);
         SetShaderValue(Shader, LocationTime, tick / 60f + delta, UniformType.Float);
         BeginShaderMode(Shader);
-        DrawTexturePro(Temp.Texture, Helper.GetFullSourceRenderTexture(Temp),
-            new Rect(0, 0, Width, Height), Vector2.Zero, 0, Rgba.White);
+        DrawProceduralQuad(new Rect(0, 0, Width, Height));
         EndShaderMode();
         EndTextureMode();
 
@@ -106,7 +103,6 @@ public class HousesBackground : StageBackground
 
     protected override void Unload()
     {
-        UnloadRenderTexture(Temp);
         UnloadRenderTexture(Scene);
         Lighting.Unload();
         base.Unload();

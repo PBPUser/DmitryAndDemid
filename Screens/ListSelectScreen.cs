@@ -39,12 +39,14 @@ public class ListSelectScreen : MenuScreen
             MenuItems.Add(new MenuItem(HeaderKey, "", null) { Enabled = false });
         foreach ((string label, System.Action onSelect) in Options)
         {
-            System.Action select = onSelect;
+            System.Action? select = onSelect;
+            // A null action is an entry that is shown but cannot be picked — greyed out, the way the settings
+            // list an upscaler the platform or the installed runtimes cannot provide.
             MenuItems.Add(new MenuItem(label, "", _ =>
             {
-                select();
+                select?.Invoke();
                 Exit();
-            }));
+            }) { Enabled = select != null });
         }
         MenuItems.Add(new MenuItem("ingame.exit", "", _ => Exit()));
         CurrentX = (int)(Runtime.CurrentRuntime.Scale * 40);

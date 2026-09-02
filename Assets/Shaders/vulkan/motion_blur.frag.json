@@ -1,0 +1,27 @@
+{
+ "blockSize": 28,
+ "blockBinding": 1,
+ "uniforms": [
+  {
+   "name": "colDiffuse",
+   "offset": 0,
+   "type": "vec4"
+  },
+  {
+   "name": "direction",
+   "offset": 16,
+   "type": "vec2"
+  },
+  {
+   "name": "strength",
+   "offset": 24,
+   "type": "float"
+  }
+ ],
+ "samplers": [
+  {
+   "name": "texture0",
+   "binding": 0
+  }
+ ]
+}

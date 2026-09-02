@@ -167,9 +167,13 @@ public class RuntimeObject
             var shader = Runtime.CurrentRuntime.Shaders[bulletRenderInfo.Effect == "" ? "basic_bullet_shader" : bulletRenderInfo.Effect];
             entity.Texture = bulletRenderInfo.GetTexture(info.Header[4]);
             var spPos = bulletRenderInfo.GetSpritePosition(info.Header[4]);
+            // A sprite visual with no SourceSize is the whole texture — for art that is loaded at a size that
+            // depends on the resolution / quality settings (object.png), where a fixed rect could not be right.
+            Vector2 spriteSize = bulletRenderInfo.SourceSize == Vector2.Zero
+                ? Helper.GetSize(entity.Texture) : bulletRenderInfo.SourceSize;
             entity.Source = new(
                 spPos - new Vector2(32),
-                bulletRenderInfo.SourceSize + new Vector2(64)
+                spriteSize + new Vector2(64)
             );
             entity.Target.Size = entity.Source.Size;
             entity.Origin = entity.Source.Size / 2;
@@ -195,7 +199,7 @@ public class RuntimeObject
                 entity.Header[0x45] = bulletRenderInfo.LocFXOpacity;
             }
             entity.TexturePosition = spPos;
-            entity.TextureSize = bulletRenderInfo.SourceSize;
+            entity.TextureSize = spriteSize;
             entity.TotalTextureSize = Helper.GetSize(entity.Texture);
         }
         else
@@ -477,6 +481,33 @@ public class RuntimeObject
     {
         get => Header[0x17];
         set => Header[0x17] = value;
+    }
+
+    /// <summary>
+    /// Player shots that have landed on this (non-bullet) object since a script last cleared it. The Pizzics
+    /// sweep in <see cref="GameBox"/> bumps it on every hit, next to the damage; nothing in the engine reads it
+    /// back, so it stays at zero on everything but an object whose script counts shots (the complaints box on
+    /// Dmitry's fourth stage-3 card, which grows a grievance per shot). Header[0x30], see RuntimeObject.sp.
+    /// </summary>
+    public int PlayerShotHits
+    {
+        get => Header[0x30];
+        set => Header[0x30] = value;
+    }
+
+    /// <summary>
+    /// An axis-aligned hit-box for player fire, centred on the object — when both sides are &gt; 0 the sweep
+    /// tests shots against this rectangle instead of the collision circle (floats 0x33/0x34). Zero, the default,
+    /// keeps the circle. Only player shots look at it; the player-vs-object test stays a circle.
+    /// </summary>
+    public Vector2 HitBoxSize
+    {
+        get => new(FloatingPoints[0x33], FloatingPoints[0x34]);
+        set
+        {
+            FloatingPoints[0x33] = value.X;
+            FloatingPoints[0x34] = value.Y;
+        }
     }
 
     public Vector2 Position

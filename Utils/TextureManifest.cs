@@ -29,6 +29,7 @@ public static class TextureManifest
         "Copyright",
         "Version",
         "384x448",
+        "GrievanceBox",
         "ScoreDigitsPrerender",
     };
 

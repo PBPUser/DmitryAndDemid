@@ -99,6 +99,25 @@ Floating Points:
 [0x30] Formation slot A — base angle on the stage-3 pizza circle / u inside the Extra-stage window frame
 [0x31] Formation slot B — radius fraction on that circle / v inside that window frame
 [0x32] Turn rate in radians per tick, for a bullet or beam that curves as it flies (Dmitry's stage-3 cards)
+[0x35] Grievance level of the complaints box (Dmitry's fourth stage-3 card) — +1 per player shot that lands,
+       -0.01 every tick, capped at 20; it vents a bullet every 20/level ticks while above zero
+[0x36] The box's venting accumulator — level/20 is added per tick and every whole 1 is a bullet, which is how
+       "every 20/level ticks" survives a fractional level
+
+# engine-written, script-read — the Pizzics sweep in GameBox fills these in, nothing else in the engine reads them
+[0x33] Hit-box width  } when both are > 0, player shots test against this axis-aligned rectangle centred on the
+[0x34] Hit-box height } object instead of its collision circle (the 160x80 complaints box). Player-vs-object
+                        collision is untouched — it is still the circle in [0x13].
+
+# HEADER script scratch (ints) — same rules as the floats above
+[0x30] Player-shot hits — the sweep adds one every time a player shot lands on this non-bullet object, next to
+       the damage it deals; a script that counts shots reads it and sets it back to zero
+[0x31] Bounces left (the moon of Dmitry's fourth stage-3 card): 3 / 5 / 6 / 7 by difficulty at spawn, one
+       spent per screen edge it rebounds from; at zero it sails off instead
+[0x32] Chapter stamp — the TickStart of the chapter that spawned the object. Plain entities are not cleared
+       between chapters, so one that must not outlive its card compares this against the current chapter and
+       takes itself off when they differ
+[0x33] Moon cooldown, on the complaints box — ticks until it launches the next moon; pinned while one is out
 
 # if the mystical toilet (Visual "toilet", scripts MysticalToilet / MysticalToiletDie)
 [0x55] Wander interval in ticks — it picks a new spot to drift to every this many chapter ticks

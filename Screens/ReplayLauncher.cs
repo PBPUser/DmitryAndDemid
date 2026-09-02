@@ -43,11 +43,15 @@ public static class ReplayLauncher
         if (data == null)
             return null;
 
-        // Filtered to .sid via the shared helper — the demo/replay used to enumerate "*" and take [0], loading a
-        // stray non-stage file and crashing exactly like the main story did (see CampaignStagePaths).
-        string[] spellCards = FileStageInfo.CampaignStagePaths();
+        // The stage list of the mode the replay was recorded in: an Extra replay plays on the Extra stage(s),
+        // everything else on the campaign. Filtered to .sid via the shared helpers — the demo/replay used to
+        // enumerate "*" and take [0], loading a stray non-stage file and crashing exactly like the main story
+        // did (see CampaignStagePaths).
+        bool extra = replay.Information.IsExtra;
+        string[] spellCards = extra ? FileStageInfo.ExtraStagePaths() : FileStageInfo.CampaignStagePaths();
         if (spellCards.Length == 0)
             return null;
+        GameType mode = extra ? GameType.Extra : GameType.Default;
 
         // A new-format replay records which stages it covers, so load the whole campaign and let playback start
         // at the picked stage and advance normally. Old replays have no per-stage index — their buffer is a
@@ -59,7 +63,7 @@ public static class ReplayLauncher
         int start = hasStageInfo ? Math.Clamp(startStage, 0, stages.Length - 1) : 0;
 
         GameplayScreen screen = new(data, replay.Information.Difficulty,
-            stages, 0, false, new ReplayController(replay, start), GameType.Default, start)
+            stages, 0, false, new ReplayController(replay, start), mode, start)
         {
             IsDemo = demo,
         };
