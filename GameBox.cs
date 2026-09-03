@@ -79,12 +79,15 @@ public class GameBox : IDisposable
     float ReplaySpeedMultiplier => IsReplay && IsKeyDown(KeyCode.LeftControl) ? 4f : 1f;
 
     int ComputeCurrentTickFromStartingTime => (int)(GetTime() * TargetTPS * ReplaySpeedMultiplier);
-    static float HeartSize = 24 * Runtime.CurrentRuntime.ScaleF;
+    /// <summary>One heart / star cell on ingame-stuff.png: 96 px, five states per row (full, then quarter
+    /// steps down to empty at x = 384), hearts on the first row, stars on the second. The sheet is not
+    /// resolution-scaled (no .json), so this is a fixed pixel size — it used to be 24 x the UI scale, which
+    /// only equals the cell at 4x and at every other resolution cut a corner out of each icon.</summary>
+    const float HudIconCell = 96f;
 
     static GameBox()
     {
-        
-        HeartBombSource = new Rect(0, 0, new Vector2(HeartSize));
+        HeartBombSource = new Rect(0, 0, new Vector2(HudIconCell));
     }
 
     public GameBox(GameplayScreen screen, ProtogonistData data, FileStageInfo[] stages, int chapter, int difficulty, bool isPractice,
@@ -1714,7 +1717,7 @@ public class GameBox : IDisposable
     }
     #endregion
     #region UI
-    static Rect HeartBombSource = new Rect(0, 0, 24, 24);
+    static Rect HeartBombSource = new Rect(0, 0, HudIconCell, HudIconCell);
     public Rect ScoreSrc, ScoreDest, HiScoreSrc, HiScoreDest;
     public float ChapterTitleAppear = 0;
     public float ChapterTitleDisappear = float.MaxValue;

@@ -125,6 +125,26 @@ public class SettingsScreen : MenuScreen
             Runtime.CurrentRuntime.Textures["settings.png"], options!, windowed: true, headerKey: "settings.upscaler.title"));
     }
 
+    private static string NeuralPresetLabel()
+    {
+        string preset = Upscalers.NeuralRenderingPresets[Upscalers.ClampNeuralPreset(Configuration.Config.DLSSNRPreset)];
+        return preset.StartsWith("settings.") ? Helper.Translate(preset) : preset;
+    }
+
+    private static string PercentLabel(float fraction) => $"{(int)MathF.Round(Math.Clamp(fraction, 0f, 1f) * 100)}%";
+
+    private static string OnOff(bool on) => Helper.Translate(on ? "settings.on" : "settings.off");
+
+    /// <summary>Saves the DLSS NR settings and hands them to the bridge, so its report stays current.</summary>
+    private static void SaveNeural()
+    {
+        Configuration.Config.Save();
+        if (OperatingSystem.IsWindows())
+            NeuralRenderingBridge.Configure(Configuration.Config.DLSSNRPreset, Configuration.Config.DLSSNRDenoise,
+                Configuration.Config.DLSSNRRayReconstruction, Configuration.Config.DLSSNRTextureCompression,
+                Configuration.Config.DLSSNRAutoExposure, Configuration.Config.DLSSNRHdr);
+    }
+
     public SettingsScreen(bool showRestartNotice = false)
     {
         ShowRestartNotice = showRestartNotice;
@@ -239,7 +259,7 @@ public class SettingsScreen : MenuScreen
         MenuItem frameGenItem = new("settings.framegen", FrameGenLabel(), null);
         frameGenItem.Action = a =>
         {
-            Configuration.Config.FrameGeneration = Configuration.Config.FrameGeneration >= 4 ? 1 : Configuration.Config.FrameGeneration + 1;
+            Configuration.Config.FrameGeneration = Configuration.Config.FrameGeneration >= Runtime.MaxFrameGeneration ? 1 : Configuration.Config.FrameGeneration + 1;
             Configuration.Config.Save();
             frameGenItem.Replace = FrameGenLabel();
             SetTargetFPS(Runtime.EffectiveFrameCap);
@@ -256,6 +276,59 @@ public class SettingsScreen : MenuScreen
             reflexItem.Replace = ReflexLabel();
         };
         MenuItems.Add(reflexItem);
+        // ---- DLSS 5 Neural Rendering: its own settings, live only while that upscaler is the chosen one ----
+        bool neural = Upscalers.Parse(Configuration.Config.Upscaler) == UpscalerKind.DlssNeural;
+        MenuItem nrHeader = new("settings.dlssnr", "", null) { Enabled = false };
+        MenuItems.Add(nrHeader);
+        MenuItem nrPreset = new("settings.dlssnr.preset", NeuralPresetLabel(), null) { Enabled = neural };
+        nrPreset.Action = a =>
+        {
+            Configuration.Config.DLSSNRPreset = (Configuration.Config.DLSSNRPreset + 1) % Upscalers.NeuralRenderingPresets.Length;
+            SaveNeural();
+            nrPreset.Replace = NeuralPresetLabel();
+        };
+        MenuItems.Add(nrPreset);
+        MenuItem nrDenoise = new("settings.dlssnr.denoise", PercentLabel(Configuration.Config.DLSSNRDenoise), null) { Enabled = neural };
+        nrDenoise.Action = a =>
+        {
+            float d = Configuration.Config.DLSSNRDenoise + 0.1f;
+            Configuration.Config.DLSSNRDenoise = d > 1.001f ? 0f : MathF.Round(d, 1);
+            SaveNeural();
+            nrDenoise.Replace = PercentLabel(Configuration.Config.DLSSNRDenoise);
+        };
+        MenuItems.Add(nrDenoise);
+        MenuItem nrRr = new("settings.dlssnr.rr", OnOff(Configuration.Config.DLSSNRRayReconstruction), null) { Enabled = neural };
+        nrRr.Action = a =>
+        {
+            Configuration.Config.DLSSNRRayReconstruction = !Configuration.Config.DLSSNRRayReconstruction;
+            SaveNeural();
+            nrRr.Replace = OnOff(Configuration.Config.DLSSNRRayReconstruction);
+        };
+        MenuItems.Add(nrRr);
+        MenuItem nrNtc = new("settings.dlssnr.ntc", OnOff(Configuration.Config.DLSSNRTextureCompression), null) { Enabled = neural };
+        nrNtc.Action = a =>
+        {
+            Configuration.Config.DLSSNRTextureCompression = !Configuration.Config.DLSSNRTextureCompression;
+            SaveNeural();
+            nrNtc.Replace = OnOff(Configuration.Config.DLSSNRTextureCompression);
+        };
+        MenuItems.Add(nrNtc);
+        MenuItem nrExposure = new("settings.dlssnr.autoexposure", OnOff(Configuration.Config.DLSSNRAutoExposure), null) { Enabled = neural };
+        nrExposure.Action = a =>
+        {
+            Configuration.Config.DLSSNRAutoExposure = !Configuration.Config.DLSSNRAutoExposure;
+            SaveNeural();
+            nrExposure.Replace = OnOff(Configuration.Config.DLSSNRAutoExposure);
+        };
+        MenuItems.Add(nrExposure);
+        MenuItem nrHdr = new("settings.dlssnr.hdr", OnOff(Configuration.Config.DLSSNRHdr), null) { Enabled = neural };
+        nrHdr.Action = a =>
+        {
+            Configuration.Config.DLSSNRHdr = !Configuration.Config.DLSSNRHdr;
+            SaveNeural();
+            nrHdr.Replace = OnOff(Configuration.Config.DLSSNRHdr);
+        };
+        MenuItems.Add(nrHdr);
         // Graphics quality: High draws every shader, Low turns off the spell-card + background shaders. Live.
         MenuItem graphicsItem = new("settings.graphics_quality", GraphicsQualityLabel(), null);
         graphicsItem.Action = a =>

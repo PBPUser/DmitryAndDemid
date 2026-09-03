@@ -55,6 +55,9 @@ const vec3 ROOF_RED  = vec3(0.62, 0.20, 0.17);
 const vec3 ROOF_RED2 = vec3(0.70, 0.29, 0.21);
 const vec3 TREE_COL  = vec3(0.18, 0.32, 0.16);
 const vec3 BRONZE    = vec3(0.16, 0.14, 0.12);
+// A low sun through the overcast, from the north-west — ahead and to the right of the camera on the square —
+// so the building, the statue and the cypresses throw their shadows across the paving toward the viewer.
+const vec3 SUN_DIR_C = vec3(-0.55, 0.26, 0.72);   // ~16 degrees up: long shadows over the paving
 
 float hash21(vec2 p) {
     p = fract(p * vec2(123.34, 456.21));
@@ -219,6 +222,28 @@ bool march(vec3 ro, vec3 rd, out vec3 pos, out float mat, out float tOut) {
     return false;
 }
 
+// How much sun reaches `p`: a second, shorter march toward the sun through the same buildings and set pieces.
+// Buildings occlude hard (they are the heightfield); the set pieces give a penumbra from how close the ray
+// passed them relative to how far it had travelled. 1 = fully lit, 0 = in shadow.
+float sunShadow(vec3 p, vec3 l) {
+    float res = 1.0;
+    float t = 0.5;
+    for (int i = 0; i < 40; i++) {
+        vec3 q = p + l * t;
+        if (q.y > HMAX + 1.0) break;               // above everything that casts
+        float h = heightAt(q.xz);
+        if (h > 0.0 && q.y <= h) return 0.0;
+        float pm;
+        float dp = pieces(q, pm);
+        if (dp < 0.02) return 0.0;
+        res = min(res, 6.0 * dp / t);
+        float above = q.y - h;
+        t += clamp(min(dp, above * 0.8), 0.3, 3.0);
+        if (t > 260.0) break;
+    }
+    return clamp(res, 0.0, 1.0);
+}
+
 vec3 skyColor(vec3 rd) {
     float t = clamp(rd.y * 1.6 + 0.15, 0.0, 1.0);
     vec3 col = mix(SKY_HORIZ, SKY_TOP, t);
@@ -332,8 +357,22 @@ void main() {
             else if (mat < 9.5) base = TREE_COL * (0.85 + 0.4 * fbm(pos.xz * 1.5 + pos.y));
             else base = vec3(0.30, 0.22, 0.16);
         }
-        // Overcast light: soft, from above, no hard sun.
-        float lit = 0.62 + 0.38 * clamp(n.y * 0.7 + 0.3, 0.0, 1.0);
+        // Overcast sky light from above, plus a low sun that casts: the sun term is the diffuse against the
+        // sun direction times what the shadow march lets through (offset off the surface so a face never
+        // shadows itself), and a touch of contact darkening where the ground meets a wall or a piece.
+        vec3 sun = normalize(SUN_DIR_C);
+        float skyLight = 0.40 + 0.25 * clamp(n.y * 0.7 + 0.3, 0.0, 1.0);
+        float diff = clamp(dot(n, sun), 0.0, 1.0);
+        float shade = diff > 0.0 ? sunShadow(pos + n * 0.35, sun) : 0.0;
+        float lit = skyLight + 0.70 * diff * shade;
+        if (mat < 0.5) {
+            float pm;
+            float near = min(pieces(pos + vec3(0.0, 0.4, 0.0), pm), 6.0);
+            float wallNear = heightAt(pos.xz + vec2(1.2, 0.0)) + heightAt(pos.xz - vec2(1.2, 0.0))
+                           + heightAt(pos.xz + vec2(0.0, 1.2)) + heightAt(pos.xz - vec2(0.0, 1.2));
+            lit *= 0.82 + 0.18 * smoothstep(0.0, 4.0, near);
+            lit *= wallNear > 0.0 ? 0.78 : 1.0;
+        }
         col = base * lit;
         // Haze by HORIZONTAL distance from the camera, so the top-down view from 300 m stays crisp while
         // the street recedes into it toward the horizon on the square.

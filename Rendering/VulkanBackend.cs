@@ -467,8 +467,8 @@ public sealed unsafe class VulkanBackend : IBackend
         ImageViewCreateInfo info = new()
         {
             SType = StructureType.ImageViewCreateInfo,
-            Image = image,
             ViewType = ImageViewType.Type2D,
+            Image = image,
             Format = format,
             SubresourceRange = new ImageSubresourceRange(ImageAspectFlags.ColorBit, 0, 1, 0, 1),
         };

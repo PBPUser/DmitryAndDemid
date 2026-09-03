@@ -141,17 +141,34 @@ public class PreconfigWindow
         Start();
     }
 
+    /// <summary>Set by Play: the game starts once the GTK loop has been left, not inside its click handler.</summary>
+    private bool StartRequested;
+
+    /// <summary>
+    /// Play. This used to build the Runtime and run the game's main loop right here, inside the button's
+    /// click callback — on GTK's own thread, before GTK had returned to its loop. The window's close was
+    /// queued and never processed, so the configurator sat on screen, frozen, for the whole game. Now the
+    /// click only closes the window and ends the GTK loop; <see cref="Open"/> starts the game after
+    /// <c>Application.Run</c> has returned and the dialog is gone.
+    /// </summary>
     void Start()
     {
+        StartRequested = true;
         Window.Close();
-        Runtime.CurrentRuntime = new Runtime();
-        Runtime.CurrentRuntime.Start();
+        Application.Quit();
     }
 
     public void Open()
     {
         Window.ShowAll();
         Application.Run();
+        // Let GTK paint the window away before the game's own window appears over the same spot.
+        while (Application.EventsPending())
+            Application.RunIteration(false);
+        if (!StartRequested)
+            return;   // closed with the title bar's X: the launcher exits, as it always did
+        Runtime.CurrentRuntime = new Runtime();
+        Runtime.CurrentRuntime.Start();
     }
 }
 

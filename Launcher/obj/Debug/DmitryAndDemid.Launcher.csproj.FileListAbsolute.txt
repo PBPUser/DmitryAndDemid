@@ -37,3 +37,8 @@ D:\TEMP\opencode\buildcheck\custom.deps.json
 D:\TEMP\opencode\buildcheck\custom.runtimeconfig.json
 D:\TEMP\opencode\buildcheck\custom.dll
 D:\TEMP\opencode\buildcheck\custom.pdb
+D:\TEMP\claude\G--Profile-Documents-DmitryAndDemid\91b64721-cdfb-4946-a10a-25a5383cd758\scratchpad\lbin\custom.exe
+D:\TEMP\claude\G--Profile-Documents-DmitryAndDemid\91b64721-cdfb-4946-a10a-25a5383cd758\scratchpad\lbin\custom.deps.json
+D:\TEMP\claude\G--Profile-Documents-DmitryAndDemid\91b64721-cdfb-4946-a10a-25a5383cd758\scratchpad\lbin\custom.runtimeconfig.json
+D:\TEMP\claude\G--Profile-Documents-DmitryAndDemid\91b64721-cdfb-4946-a10a-25a5383cd758\scratchpad\lbin\custom.dll
+D:\TEMP\claude\G--Profile-Documents-DmitryAndDemid\91b64721-cdfb-4946-a10a-25a5383cd758\scratchpad\lbin\custom.pdb

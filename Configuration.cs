@@ -34,9 +34,10 @@ public class Configuration
     /// "off" at launch. Changing it changes the internal resolution, so it applies on restart.
     /// </summary>
     [JsonInclude] public string Upscaler = "off";
-    /// <summary>Quality preset for a mode that upscales: 0 Ultra Quality (0.77x), 1 Quality (0.67x),
-    /// 2 Balanced (0.59x), 3 Performance (0.5x) — the internal render scale per axis.</summary>
-    [JsonInclude] public int UpscalerQuality = 1;
+    /// <summary>Quality preset for a mode that upscales, an index into Upscalers.Qualities: 0 Native (1x, sharpen
+    /// only), 1 Ultra Quality (0.77x), 2 Quality (0.67x), 3 Balanced (0.59x), 4 Performance (0.5x),
+    /// 5 Ultra Performance (0.33x) — the internal render scale per axis.</summary>
+    [JsonInclude] public int UpscalerQuality = 2;
     /// <summary>RCAS sharpening strength 0..1 for every mode that goes through the FSR pass.</summary>
     [JsonInclude] public float Sharpness = 0.5f;
     /// <summary>
@@ -46,8 +47,21 @@ public class Configuration
     /// how many are presented per capped frame (it multiplies <see cref="FrameCap"/>). No effect uncapped.
     /// </summary>
     [JsonInclude] public int FrameGeneration = 1;
-    /// <summary>DLSS 5 Neural Rendering preset, kept for the runtime bridge (see NeuralRenderingBridge).</summary>
+    // ---- DLSS 5 Neural Rendering ---------------------------------------------------------------------
+    // Only read when Upscaler is "dlssnr". Stored here and handed to NeuralRenderingBridge, which reports them
+    // alongside what the runtime probe found; see that class for how far the neural path itself goes.
+    /// <summary>Model preset: 0 latest (the runtime's default), 1..6 presets A..F.</summary>
     [JsonInclude] public int DLSSNRPreset = 0;
+    /// <summary>Neural denoise strength 0..1.</summary>
+    [JsonInclude] public float DLSSNRDenoise = 0.5f;
+    /// <summary>Ray reconstruction (neural denoising of the lighting) on/off.</summary>
+    [JsonInclude] public bool DLSSNRRayReconstruction = false;
+    /// <summary>Neural texture compression on/off.</summary>
+    [JsonInclude] public bool DLSSNRTextureCompression = false;
+    /// <summary>Auto exposure: let the model meter the frame instead of a fixed exposure.</summary>
+    [JsonInclude] public bool DLSSNRAutoExposure = true;
+    /// <summary>HDR output (scRGB) instead of SDR.</summary>
+    [JsonInclude] public bool DLSSNRHdr = false;
     /// <summary>
     /// NVIDIA Reflex on the Vulkan backend (VK_NV_low_latency2): 0 off, 1 on, 2 on + boost. Ignored by the
     /// other backends and by a Vulkan driver without the extension.

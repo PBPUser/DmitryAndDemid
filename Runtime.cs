@@ -92,8 +92,11 @@ public class Runtime
 
     /// <summary>The frame cap actually asked of the backend: the configured cap times the frame-generation
     /// multiplier (every presented frame is an interpolated render, see Configuration.FrameGeneration).</summary>
+    /// <summary>The largest frame-generation multiplier offered (x6).</summary>
+    public const int MaxFrameGeneration = 6;
+
     public static int EffectiveFrameCap =>
-        Config.FrameCap <= 0 ? Config.FrameCap : Config.FrameCap * Math.Clamp(Config.FrameGeneration, 1, 4);
+        Config.FrameCap <= 0 ? Config.FrameCap : Config.FrameCap * Math.Clamp(Config.FrameGeneration, 1, MaxFrameGeneration);
 
     /// <summary>Where the backbuffer lands inside the window: the whole window, or a letterboxed sub-rect.</summary>
     public Rect PresentRect { get; private set; }
@@ -435,12 +438,17 @@ public class Runtime
         {
             Fsr = new Rendering.Upscaling.FsrPass();
             if (ActiveUpscaler == Rendering.Upscaling.UpscalerKind.DlssNeural && OperatingSystem.IsWindows())
+            {
+                Rendering.Upscaling.NeuralRenderingBridge.Configure(Config.DLSSNRPreset, Config.DLSSNRDenoise,
+                    Config.DLSSNRRayReconstruction, Config.DLSSNRTextureCompression, Config.DLSSNRAutoExposure, Config.DLSSNRHdr);
                 Rendering.Upscaling.NeuralRenderingBridge.Start(Rendering.Upscaling.Upscalers.NeuralRenderingDirectory);
+            }
         }
         if (Fsr is { Ready: true } && !grade)
         {
-            Fsr.Present(Backbuffer.Texture, Width, Height, PresentRect, Config.Sharpness,
-                sharpenOnly: ActiveUpscaler == Rendering.Upscaling.UpscalerKind.Dlaa);
+            // At native scale (the DLAA-style mode, or the Native preset) there is nothing to upsample: RCAS only.
+            bool native = Rendering.Upscaling.Upscalers.RenderScale(ActiveUpscaler, Config.UpscalerQuality) >= 0.999f;
+            Fsr.Present(Backbuffer.Texture, Width, Height, PresentRect, Config.Sharpness, sharpenOnly: native);
             return;
         }
         BeginBlendMode(BlendMode.CopyRgb);

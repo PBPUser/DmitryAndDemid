@@ -62,14 +62,27 @@ public static class Upscalers
     public static string KeyOf(UpscalerKind kind) => Array.Find(All, e => e.Kind == kind).Key ?? "off";
     public static string DisplayOf(UpscalerKind kind) => Array.Find(All, e => e.Kind == kind).Display ?? "settings.upscaler.off";
 
-    /// <summary>Quality presets, as every vendor names them: the internal render scale per axis.</summary>
+    /// <summary>Quality presets, as every vendor names them: the internal render scale per axis. Native
+    /// renders at the window's size and only sharpens; Ultra Performance is a third of it per axis.</summary>
     public static readonly (string Display, float Scale)[] Qualities =
     [
+        ("settings.upscaler.quality.native", 1.00f),
         ("settings.upscaler.quality.ultra", 0.77f),
         ("settings.upscaler.quality.quality", 0.67f),
         ("settings.upscaler.quality.balanced", 0.59f),
         ("settings.upscaler.quality.performance", 0.50f),
+        ("settings.upscaler.quality.ultraperf", 0.33f),
     ];
+
+    /// <summary>The preset index of Quality (0.67x), the default for a fresh config.</summary>
+    public const int DefaultQuality = 2;
+
+    /// <summary>DLSS 5 Neural Rendering model presets (Configuration.DLSSNRPreset): the runtime's latest, then
+    /// the lettered ones. The first is a translation key, the letters are shown as they are.</summary>
+    public static readonly string[] NeuralRenderingPresets =
+        ["settings.dlssnr.preset.latest", "A", "B", "C", "D", "E", "F"];
+
+    public static int ClampNeuralPreset(int preset) => Math.Clamp(preset, 0, NeuralRenderingPresets.Length - 1);
 
     public static int ClampQuality(int quality) => Math.Clamp(quality, 0, Qualities.Length - 1);
 

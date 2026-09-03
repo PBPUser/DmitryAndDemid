@@ -22,6 +22,21 @@ public static class NeuralRenderingBridge
 {
     public static bool Active { get; private set; }
     public static string Status { get; private set; } = "";
+
+    /// <summary>The player's DLSS NR settings as last handed over (Configuration.DLSSNR*), for the report and
+    /// for whatever evaluation the runtime can be given one day.</summary>
+    public static string Settings { get; private set; } = "";
+
+    /// <summary>Records the DLSS NR settings the feature would be created with. Safe to call any time; the
+    /// bridge does not need to be active.</summary>
+    public static void Configure(int preset, float denoise, bool rayReconstruction, bool textureCompression,
+        bool autoExposure, bool hdr)
+    {
+        string presetName = preset <= 0 ? "latest" : Upscalers.NeuralRenderingPresets[Upscalers.ClampNeuralPreset(preset)];
+        Settings = $"preset {presetName}, denoise {Math.Clamp(denoise, 0f, 1f):0.00}, ray reconstruction {(rayReconstruction ? "on" : "off")}, "
+                 + $"texture compression {(textureCompression ? "on" : "off")}, auto exposure {(autoExposure ? "on" : "off")}, {(hdr ? "HDR" : "SDR")}";
+        Console.WriteLine($"[dlss-nr] settings: {Settings}");
+    }
     private static IntPtr Device;
     private static IntPtr Interposer;
 

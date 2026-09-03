@@ -45,9 +45,28 @@ public class LoadingScreen : Screen
         RaylibCsTarget = new Rect((res - RaylibCsSource.Size) / 2 * CurrentRuntime.ScaleF, RaylibCsSource.Size * CurrentRuntime.ScaleF);
         HuffSource = Helper.GetFullSource(HuffTexture);
         HuffTarget = new Rect((res - (HuffSource.Size / 4)) / 2 * CurrentRuntime.ScaleF, HuffSource.Size / 4 * CurrentRuntime.ScaleF);
+
+        // The DLSS NR badge sits along the bottom edge, centred, for the whole load — a "running on" mark, not a
+        // slot in the credits sequence, so it shows with fast loading too.
+        if (CurrentRuntime.ActiveUpscaler == Rendering.Upscaling.UpscalerKind.DlssNeural)
+        {
+            NrLogo = LoadTexture(Assets.Resolve("Assets/Textures/dlss_nr_logo.png"));
+            NrSource = Helper.GetFullSource(NrLogo.Value);
+            // Bottom-left, to the right of the loading spinner: the centre belongs to the credit cards and the
+            // bottom-right to the error card when it lands there.
+            Vector2 badge = new(180, 180 * NrSource.Height / MathF.Max(1, NrSource.Width));
+            NrTarget = new Rect(128 * CurrentRuntime.ScaleF, (res.Y - badge.Y - 12) * CurrentRuntime.ScaleF,
+                badge.X * CurrentRuntime.ScaleF, badge.Y * CurrentRuntime.ScaleF);
+        }
     }
 
     private Vector2 FifoOrigin;
+
+    /// <summary>The DLSS 5 Neural Rendering badge, shown through the whole load when that upscaler is the
+    /// active one (Runtime.ActiveUpscaler — i.e. chosen AND available here). Null otherwise; the texture is in
+    /// its own load group so the startup scan never pays for it.</summary>
+    private readonly BasicTexture? NrLogo;
+    private Rect NrSource, NrTarget;
     BasicTexture SugarTexture, ADPTexture, FifoLoading, RaylibTexture, RaylibBasicTexture, RaylibExtraTexture, RaylibCsTexture, HuffTexture;
     Rect
         SugarTarget, SugarSource, ADPTarget, ADPTargetActive, ADPSource, FifoSource, FifoTarget;
@@ -83,6 +102,13 @@ public class LoadingScreen : Screen
         float time = (float)GetTime();
         SugarSource.Y = (int)(MathF.Sin(time * 2) * 10 + 10);
         DrawTexturePro(SugarTexture, SugarSource, SugarTarget, Vector2.Zero, 0f, Rgba.White with { A = Helper.TimeToTransparency(Helper.ComputeObjectTime(GetTime(), 0, 0.25, 1.5, 0.25)) });
+        if (NrLogo is { } nr)
+        {
+            // Fades in behind the sugar logo and stays; a slow pulse so it reads as live rather than printed.
+            float pulse = 0.85f + 0.15f * MathF.Sin(time * 2.2f);
+            DrawTexturePro(nr, NrSource, NrTarget, Vector2.Zero, 0f,
+                Rgba.White with { A = (byte)(Helper.TimeToTransparency(Helper.ComputeObjectTime(GetTime(), 0.5, 0.75, 99999, 0.5)) * pulse) });
+        }
         // Build number under the sugar logo — fades in and stays, so it's always clear WHICH build is running
         // (catches a stale aag2.dll on the SD vs the one just deployed). Auto-incremented every build (see csproj).
         DrawTexturePro(ADPTexture, ADPSource, Helper.Mix(ADPTarget, ADPTargetActive, Helper.EaseInOutElasticF((float)Helper.ComputeObjectTime(GetTime(), ADPActive ? 4 : 999999999, 1, 9999999, .25))), Vector2.Zero, (float)(Helper.ComputeObjectTime(GetTime(), 4, .125, 4.25, .125) * MathF.Sin((float)GetTime())),

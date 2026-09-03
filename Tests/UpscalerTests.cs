@@ -72,10 +72,13 @@ public class UpscalerTests
     {
         Assert.Equal(1f, Upscalers.RenderScale(UpscalerKind.Off, 3));
         Assert.Equal(1f, Upscalers.RenderScale(UpscalerKind.Dlaa, 3));
-        Assert.Equal(0.77f, Upscalers.RenderScale(UpscalerKind.Fsr, 0));
-        Assert.Equal(0.5f, Upscalers.RenderScale(UpscalerKind.Dlss, 3));
-        Assert.Equal(0.5f, Upscalers.RenderScale(UpscalerKind.Fsr, 99));   // clamped to the last preset
-        Assert.Equal(0.77f, Upscalers.RenderScale(UpscalerKind.Fsr, -5));  // and to the first
+        Assert.Equal(1f, Upscalers.RenderScale(UpscalerKind.Fsr, 0));      // Native: sharpen only
+        Assert.Equal(0.77f, Upscalers.RenderScale(UpscalerKind.Fsr, 1));
+        Assert.Equal(0.67f, Upscalers.RenderScale(UpscalerKind.Fsr, Upscalers.DefaultQuality));
+        Assert.Equal(0.5f, Upscalers.RenderScale(UpscalerKind.Dlss, 4));
+        Assert.Equal(0.33f, Upscalers.RenderScale(UpscalerKind.Fsr, 5));   // Ultra Performance
+        Assert.Equal(0.33f, Upscalers.RenderScale(UpscalerKind.Fsr, 99));  // clamped to the last preset
+        Assert.Equal(1f, Upscalers.RenderScale(UpscalerKind.Fsr, -5));     // and to the first
     }
 
     [Fact]
