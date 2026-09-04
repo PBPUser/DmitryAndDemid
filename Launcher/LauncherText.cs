@@ -53,7 +53,6 @@ public static class LauncherText
     {
         if (Rolled.TryGetValue(key, out string? settled))
             return settled;
-
         settled = Roll(key);
         Rolled[key] = settled;
         return settled;
