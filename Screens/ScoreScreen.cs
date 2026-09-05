@@ -80,6 +80,9 @@ public class ScoreScreen : ScreenWithTitle
 
     public override void TopUpdate()
     {
+        // Polled before the cooldown below, so a letter typed within a moment of an arrow press is not dropped.
+        UpdateCheat();
+
         double now = GetTime();
         if (now - LastInput < InputCooldown)
             return;
@@ -92,13 +95,111 @@ public class ScoreScreen : ScreenWithTitle
             StepDifficulty(-1, now);
         else if (IsKeyDown(KeyCode.Down) || Controller.IsButtonDown(PadButton.LeftFaceDown))
             StepDifficulty(1, now);
-        else if (IsKeyDown(KeyCode.Escape) || IsKeyDown(KeyCode.X) || Controller.IsButtonDown(PadButton.RightFaceRight))
+        // X leaves the screen as it always did — except for the one press the code takes for its own 'x', which
+        // would otherwise close the board nine letters in and make the thing impossible to enter.
+        else if (IsKeyDown(KeyCode.Escape) || (IsKeyDown(KeyCode.X) && !CheatConsumedX)
+                                           || Controller.IsButtonDown(PadButton.RightFaceRight))
         {
             Helper.PlaySound(Runtime.CurrentRuntime.Sounds["esc"]);
             Exiting();
             Runtime.CurrentRuntime.RemoveScreen(this);
         }
     }
+
+    #region Unlock cheat
+
+    /// <summary>
+    /// Typed on this screen to unlock everything the save holds — but only while the board on show is sugar's
+    /// Extra one, which is as far into the stats menu as it goes.
+    /// </summary>
+    private const string UnlockCheat = "cjladkuuxjleb";
+
+    /// <summary>How many letters of <see cref="UnlockCheat"/> have been typed in order so far.</summary>
+    private int CheatProgress;
+
+    /// <summary>
+    /// The letter key held on the previous frame, so a press can be told from a hold. The engine's input seam
+    /// (<see cref="Gfx.IsKeyDown"/>) has no is-PRESSED or typed-character call, so the edge is found here — and
+    /// a letter has to be released before it counts again, which is what lets the code's double "u" through.
+    /// </summary>
+    private KeyCode CheatHeldKey = KeyCode.None;
+
+    /// <summary>The X currently held was taken by the code rather than by the screen's exit — see TopUpdate.</summary>
+    private bool CheatConsumedX;
+
+    /// <summary>When the code went through, for the confirmation line; negative before it ever has.</summary>
+    private double CheatAcceptedAt = -1;
+
+    /// <summary>How long the confirmation stays up.</summary>
+    private const double CheatFlashDuration = 3.0;
+
+    /// <summary>The board this listens on: sugar, at the last difficulty (Extra).</summary>
+    private bool CheatArmed =>
+        DifficultyIndex == PlayerData.PersonPlayerData.DifficultyCount - 1 &&
+        CharacterIndex < CharacterIds.Length &&
+        string.Equals(CharacterIds[CharacterIndex], "sugar", StringComparison.OrdinalIgnoreCase);
+
+    private static KeyCode LetterKey(char c) => (KeyCode)char.ToUpperInvariant(c);
+
+    private void UpdateCheat()
+    {
+        if (!CheatArmed)
+        {
+            // Stepping off sugar's Extra board abandons whatever was half-typed.
+            CheatProgress = 0;
+            CheatHeldKey = KeyCode.None;
+            CheatConsumedX = false;
+            return;
+        }
+
+        KeyCode down = KeyCode.None;
+        for (KeyCode k = KeyCode.A; k <= KeyCode.Z; k++)
+            if (IsKeyDown(k))
+            {
+                down = k;
+                break;
+            }
+
+        if (down == CheatHeldKey)
+            return;                      // the same letter is still held, or nothing is: no new press
+        CheatHeldKey = down;
+        CheatConsumedX = false;
+        if (down == KeyCode.None)
+            return;
+
+        if (down == LetterKey(UnlockCheat[CheatProgress]))
+        {
+            CheatConsumedX = down == KeyCode.X;
+            if (++CheatProgress < UnlockCheat.Length)
+                return;
+            CheatProgress = 0;
+            PlayerData.Instance.UnlockEverything();
+            Helper.PlaySound(Runtime.CurrentRuntime.Sounds["trophy"]);
+            CheatAcceptedAt = GetTime();
+            return;
+        }
+
+        // A wrong letter starts over — unless it is the code's own first letter, which starts the next attempt.
+        CheatProgress = down == LetterKey(UnlockCheat[0]) ? 1 : 0;
+    }
+
+    /// <summary>The "everything is open" confirmation, along the bottom of the board while it lasts.</summary>
+    private void DrawCheatConfirmation()
+    {
+        if (CheatAcceptedAt < 0)
+            return;
+        double age = GetTime() - CheatAcceptedAt;
+        if (age > CheatFlashDuration)
+            return;
+        byte alpha = (byte)(255 * Math.Clamp((CheatFlashDuration - age) / 0.8, 0, 1));
+        string text = Helper.Translate("score.unlocked_everything");
+        float size = S(18);
+        float w = MeasureTextEx(NameFont, text, size, 1).X;
+        DrawShaded(NameFont, text, new Vector2((S(640) - w) / 2f, S(438)), size,
+            new Rgba(255, 215, 0, alpha));
+    }
+
+    #endregion
 
     private void StepCharacter(int d, double now)
     {
@@ -173,6 +274,7 @@ public class ScoreScreen : ScreenWithTitle
         DrawStats();
         DrawCharacterSelector();
         DrawDifficultySelector();
+        DrawCheatConfirmation();
     }
 
     private void DrawScoreBoard()

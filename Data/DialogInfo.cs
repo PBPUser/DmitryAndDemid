@@ -15,8 +15,8 @@ public class DialogInfo : StageElement
         [JsonInclude] public string Art = "";
         [JsonInclude] public int ArtIndex = 0;
         [JsonInclude] public string ID = "";
-        [JsonInclude] public bool Skipable = true;
         [JsonInclude] public string Text = "Sample Text";
+        [JsonInclude] public bool Skipable = true;
     }
     
     public class PersonDialog

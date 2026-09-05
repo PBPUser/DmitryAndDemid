@@ -826,10 +826,36 @@ public static class ActionsScope
         obj.RenderRotation = obj.FacingRotation + MathF.Sin(age * 0.2f) * 0.3f;
     };
 
+    /// <summary>Where Dmitry stands for his second card — the anchor his stomp dips out of and springs back to.</summary>
+    private static readonly Vector2 DmitryCard2Post = new(192, 88);
+
+    /// <summary>Ticks between one burst of stomps and the next: 90 at 60 TPS, i.e. every 1.5 s.</summary>
+    private const int DmitryStompPeriod = 90;
+    /// <summary>Ticks between the individual stomps inside a burst.</summary>
+    private const int DmitryStompGap = 10;
+    /// <summary>How many times his heel comes down per burst.</summary>
+    private const int DmitryStompCount = 3;
+
+    /// <summary>
+    /// The colour of the drops a stomp shakes loose: a pale blue, so the ceiling's water reads apart from the
+    /// brown and olive gas the pipes are firing in from the sides on the same card.
+    /// </summary>
+    private const int DmitryStompRainColor = 0x87CEFA;
+
+    /// <summary>Base fall speed of a drop, before difficulty and its own spread.</summary>
+    private const float DmitryStompRainSpeed = 1.5f;
+
+    /// <summary>How far either side of that base speed a single drop may land, so the curtain arrives ragged.</summary>
+    private const float DmitryStompRainSpeedSpread = 0.7f;
+
     /// <summary>
     /// Dmitry's second card, "pressure in the pipes": the castle's plumbing still works even if he does not —
-    /// walls of gas fire in from both side edges at a height that sweeps up and down, and he drops a slow
-    /// curtain of large bullets straight down the middle.
+    /// walls of gas fire in from both side edges at a height that sweeps up and down.
+    ///
+    /// Every 1.5 s he brings his heel down three times, ten ticks apart. Each stomp lands with akob's bomb thud,
+    /// jolts the screen, and shakes a fresh row of pale blue drops loose from the ceiling — every one of them
+    /// falling at its own rate, so what arrives is a ragged curtain rather than the flat row of heavy green
+    /// bullets that used to just drop on the same 90-tick clock.
     /// </summary>
     private static readonly RuntimeObjectReferenceAction DmitryCard2 = c =>
     {
@@ -849,17 +875,36 @@ public static class ActionsScope
                 b.Speed = 2.1f + diff * 0.28f;
             }
         }
-        if (t % 90 == 0)
+
+        int phase = t % DmitryStompPeriod;
+        bool stomping = phase < DmitryStompGap * DmitryStompCount;
+        // The stomp itself: he drops onto his heel and springs back over the few ticks after it lands, so the
+        // three hits read as three separate blows rather than one long lean.
+        c.Y = DmitryCard2Post.Y + (stomping ? MathF.Exp(-(phase % DmitryStompGap) * 0.5f) * 6f : 0f);
+        if (!stomping || phase % DmitryStompGap != 0)
+            return;
+
+        int stomp = phase / DmitryStompGap;
+        float now = c.Box.GetTime();
+        Helper.PlaySound(Runtime.CurrentRuntime.Sounds["akob-bomb"]);
+        // Short and sharp: the jolt has to be over before the next heel comes down ten ticks (0.17 s) later.
+        c.Box.AddScreenEffect(new ShakeScreenEffect(c.Box, 0.06f, 26, 100, now, now + 0.15f));
+        // Thinner rows than the single 90-tick curtain this replaces (it was 5 + diff): three of them now come
+        // down per period, so keeping the old count would have walled the box off rather than rained on it.
+        int count = 3 + diff;
+        float spacing = 320f / MathF.Max(1, count - 1);
+        for (int k = 0; k < count; k++)
         {
-            int count = 5 + diff;
-            for (int k = 0; k < count; k++)
-            {
-                var b = c.Box.SpawnObject(ExtraLargeIndex, 0xADFF2F);
-                b.X = 32f + k * (320f / MathF.Max(1, count - 1));
-                b.Y = -8f;
-                b.FacingRotation = b.RenderRotation = MathF.PI / 2f;
-                b.Speed = 1.5f + diff * 0.2f;
-            }
+            var b = c.Box.SpawnObject(ExtraCircleIndex, DmitryStompRainColor);
+            // Each stomp shakes its row loose a third of a gap over from the one before, so the three interleave
+            // into one uneven curtain instead of three helpings down the same lanes.
+            b.X = 32f + k * spacing + stomp * spacing / DmitryStompCount;
+            b.Y = -8f;
+            b.FacingRotation = b.RenderRotation = MathF.PI / 2f;
+            // ...and every drop falls at its own rate, so the row loses its flat edge on the way down. Seeded
+            // off the tick through TickHash rather than System.Random: the card has to replay identically.
+            b.Speed = DmitryStompRainSpeed + diff * 0.2f
+                      + (TickHash(t * 131 + k * 17 + stomp) % 200 / 100f - 1f) * DmitryStompRainSpeedSpread;
         }
     };
 
@@ -2202,15 +2247,25 @@ public static class ActionsScope
         dictionary["dmitry#extra#card1#create"] = c =>
             SpawnCardBoss(c.GameBox, DmitryBossIndex, DmitryCard1, new Vector2(192, 96));
         dictionary["dmitry#extra#card2#create"] = c =>
-            SpawnCardBoss(c.GameBox, DmitryBossIndex, DmitryCard2, new Vector2(192, 88));
+            SpawnCardBoss(c.GameBox, DmitryBossIndex, DmitryCard2, DmitryCard2Post);
         dictionary["dmitry#extra#card3#create"] = c =>
             SpawnCardBoss(c.GameBox, DmitryBossIndex, DmitryCard3, new Vector2(192, 112));
-        // Demid takes over: retire Dmitry (his act is done) and bring in a brand-new boss, BossId 1.
+        // Demid takes over: Dmitry's act is done, so retire him and bring in a brand-new boss, BossId 1. This is
+        // Demid's speech chapter, not a fight — he is invincible for it, and the BossInvincible chapter flag is
+        // what stops RuntimeObject.LoadFromFile raising a health bar over a conversation. Because that is his
+        // FIRST spawn, and the cards after it REUSE him, the bar has to be asked for explicitly at card1 below.
+        dictionary["demid#extra#arrival#create"] = c =>
+        {
+            RetireOtherBosses(c.GameBox, DemidBossId);
+            var boss = SpawnCardBoss(c.GameBox, DemidBossIndex, DemidIdle, new Vector2(192, 92));
+            boss.Header[0] |= RuntimeObject.FlagInvincible;
+            ShowBossSplash(c.GameBox, "demid.png");
+        };
         dictionary["demid#extra#card1#create"] = c =>
         {
             RetireOtherBosses(c.GameBox, DemidBossId);
-            SpawnCardBoss(c.GameBox, DemidBossIndex, DemidCard1, new Vector2(192, 92));
-            ShowBossSplash(c.GameBox, "demid.png");
+            var boss = SpawnCardBoss(c.GameBox, DemidBossIndex, DemidCard1, new Vector2(192, 92));
+            SetBossHealthBar(c.GameBox, boss, true);   // he was born on the speech chapter, which raises none
         };
         dictionary["demid#extra#card2#create"] = c =>
             SpawnCardBoss(c.GameBox, DemidBossIndex, DemidCard2, new Vector2(192, 92));
@@ -2245,6 +2300,16 @@ public static class ActionsScope
             boss.Header[0] |= RuntimeObject.FlagIsFinalBossChapter;   // the true last card: he dies for real here
             SpawnWindowFrame(c.GameBox);
             ShowBossSplash(c.GameBox, "demid.png");
+        };
+        // Every card is closed and Demid is down: Dmitry walks back on for the last word before the stage ends.
+        // He was taken off the board when Demid took over, so this is a fresh spawn — hence the BossInvincible
+        // chapter flag, which is what stops a health bar appearing over a conversation with nothing to fight.
+        dictionary["dmitry#extra#epilogue#create"] = c =>
+        {
+            RetireOtherBosses(c.GameBox, DmitryBossId);
+            var boss = SpawnCardBoss(c.GameBox, DmitryBossIndex, DmitryIdle, new Vector2(192, 96));
+            boss.Header[0] |= RuntimeObject.FlagInvincible;
+            ShowBossSplash(c.GameBox, "dmitry");
         };
         ChapterActions = dictionary.ToFrozenDictionary();
     }

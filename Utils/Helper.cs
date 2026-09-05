@@ -886,17 +886,46 @@ public static class Helper
         UnloadRenderTexture(temp2);
     }
     
+    /// <summary>
+    /// How far down one baked line of text puts the next, as a multiple of the font size. This is Raylib's own
+    /// newline advance (baseSize + baseSize/2), kept so a block laid out by <see cref="MeasureBlock"/> and
+    /// <see cref="DrawTextOnRenderTexture"/> sits exactly where Raylib's '\n' handling used to put it.
+    /// </summary>
+    public const float LineAdvanceFactor = 1.5f;
+
+    /// <summary>
+    /// Size of a block of already-split lines: the widest of them, and the height the
+    /// <see cref="LineAdvanceFactor"/> advance gives — the first line is <paramref name="fontSize"/> tall and
+    /// every further one adds an advance. A single line measures exactly as <c>MeasureTextEx</c> would, so this
+    /// changes nothing for the (many) callers that bake one line.
+    /// </summary>
+    public static Vector2 MeasureBlock(FontHandle font, string[] lines, int fontSize, int spacing)
+    {
+        float width = 0;
+        foreach (string line in lines)
+            width = MathF.Max(width, MeasureTextEx(font, line, fontSize, spacing).X);
+        return new Vector2(width, fontSize + fontSize * LineAdvanceFactor * (lines.Length - 1));
+    }
+
     public static void DrawTextOnRenderTexture(ref RenderedTexture texture, string s, int fontSize, int hPadding, int vPadding, int spacing, FontHandle font, Rgba color, string shader, float scale = 1f)
     {
         if(IsRenderTextureValid(texture))
             UnloadRenderTexture(texture);
-        var measure = MeasureTextEx(font, s, fontSize, spacing);
+        // Newlines are laid out here rather than handed to the backend: only Raylib's DrawTextEx/MeasureTextEx
+        // know what '\n' means. Every other backend (Vulkan, Silk-GL, ...) has no glyph for it, skips it, and
+        // runs the whole string onto one line — which is why a baked multi-line block came out as one long
+        // line there. Splitting first makes it look the same everywhere, and the 1.5x line advance is the one
+        // Raylib itself uses, so nothing that already read right moves.
+        string[] lines = s.Split('\n');
+        float lineAdvance = fontSize * LineAdvanceFactor;
+        Vector2 measure = MeasureBlock(font, lines, fontSize, spacing);
         int width = (int)(measure.X + hPadding * 2);
         int height = (int)(measure.Y + vPadding * 2);
         RenderedTexture temp = LoadRenderTexture(width, height);
         texture = LoadRenderTexture(width, height);
         BeginTextureMode(temp);
-        DrawTextEx(font, s, new Vector2(hPadding, vPadding), fontSize, spacing, color);
+        for (int i = 0; i < lines.Length; i++)
+            DrawTextEx(font, lines[i], new Vector2(hPadding, vPadding + i * lineAdvance), fontSize, spacing, color);
         EndTextureMode();
         switch (shader)
         {

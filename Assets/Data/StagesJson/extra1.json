@@ -6,7 +6,7 @@
     0,
     0,
     12,
-    14,
+    16,
     0,
     0,
     0,
@@ -344,6 +344,145 @@
     },
     {
       "Header": [
+        2,
+        0,
+        300,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Dialogs": [
+        {
+          "Header": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "CharacterTexture": "demid_dialog_arts.png",
+          "Text": "Дальше не пройдёшь. Здесь я записываю.",
+          "Emotion": "💻",
+          "IsPlayerDialog": false,
+          "SwitchReaction": false,
+          "SwitchMusic": false,
+          "ShowBossName": true,
+          "Unskippable": false
+        },
+        {
+          "Header": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "CharacterTexture": "demid_dialog_arts.png",
+          "Text": "Дмитрий выпускал — я записывал.\nТри года, без единого пропуска.",
+          "Emotion": "🖥",
+          "IsPlayerDialog": false,
+          "SwitchReaction": false,
+          "SwitchMusic": false,
+          "ShowBossName": false,
+          "Unskippable": false
+        },
+        {
+          "Header": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "CharacterTexture": "",
+          "Text": "Ты всё это снимал и не помог ему?",
+          "Emotion": "❓",
+          "IsPlayerDialog": true,
+          "SwitchReaction": false,
+          "SwitchMusic": false,
+          "ShowBossName": false,
+          "Unskippable": false
+        },
+        {
+          "Header": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "CharacterTexture": "demid_dialog_arts.png",
+          "Text": "Я не участник. Я архив.",
+          "Emotion": "🖱",
+          "IsPlayerDialog": false,
+          "SwitchReaction": false,
+          "SwitchMusic": false,
+          "ShowBossName": false,
+          "Unskippable": false
+        },
+        {
+          "Header": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "CharacterTexture": "demid_dialog_arts.png",
+          "Text": "Но ты стёр последний дубль.\nПридётся выйти из режима просмотра.",
+          "Emotion": "⚡",
+          "IsPlayerDialog": false,
+          "SwitchReaction": false,
+          "SwitchMusic": false,
+          "ShowBossName": false,
+          "Unskippable": false
+        },
+        {
+          "Header": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "CharacterTexture": "",
+          "Text": "Выходи.",
+          "Emotion": "✋",
+          "IsPlayerDialog": true,
+          "SwitchReaction": false,
+          "SwitchMusic": false,
+          "ShowBossName": false,
+          "Unskippable": false
+        },
+        {
+          "Header": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "CharacterTexture": "demid_dialog_arts.png",
+          "Text": "Пишу с этого момента.\nПостарайся не умереть в первом же дубле.",
+          "Emotion": "🗘",
+          "IsPlayerDialog": false,
+          "SwitchReaction": false,
+          "SwitchMusic": false,
+          "ShowBossName": false,
+          "Unskippable": false
+        }
+      ],
+      "Id": "demid#extra#arrival",
+      "SpellcardTitle": "",
+      "BossName": "Демид",
+      "CreateScript": "demid#extra#arrival#create",
+      "UpdateScript": "",
+      "SpellcardTexture": "",
+      "SpellcardShader": "",
+      "TimeoutCard": false,
+      "BossInvincible": true,
+      "HasDialogs": true,
+      "UseUpdateScript": false,
+      "UseCreateScript": true,
+      "ApplyShader": false
+    },
+    {
+      "Header": [
         3,
         0,
         1500,
@@ -656,6 +795,145 @@
       "UseUpdateScript": false,
       "UseCreateScript": true,
       "ApplyShader": true
+    },
+    {
+      "Header": [
+        2,
+        0,
+        360,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "Dialogs": [
+        {
+          "Header": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "CharacterTexture": "dima_dialog_arts.png",
+          "Text": "Стой. Не уходи так.\nЯ смотрел до самого конца.",
+          "Emotion": "⌛",
+          "IsPlayerDialog": false,
+          "SwitchReaction": false,
+          "SwitchMusic": false,
+          "ShowBossName": true,
+          "Unskippable": true
+        },
+        {
+          "Header": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "CharacterTexture": "dima_dialog_arts.png",
+          "Text": "Ты закрыл все карты. Одну за другой.\nДаже ту, где я снова был Богом.",
+          "Emotion": "♛",
+          "IsPlayerDialog": false,
+          "SwitchReaction": false,
+          "SwitchMusic": false,
+          "ShowBossName": false,
+          "Unskippable": true
+        },
+        {
+          "Header": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "CharacterTexture": "",
+          "Text": "Я просто досмотрел запись.",
+          "Emotion": "☕",
+          "IsPlayerDialog": true,
+          "SwitchReaction": false,
+          "SwitchMusic": false,
+          "ShowBossName": false,
+          "Unskippable": true
+        },
+        {
+          "Header": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "CharacterTexture": "dima_dialog_arts.png",
+          "Text": "Три года давления — и ни капли.\nА ты выдавил из меня всё за один вечер.",
+          "Emotion": "⚡",
+          "IsPlayerDialog": false,
+          "SwitchReaction": false,
+          "SwitchMusic": false,
+          "ShowBossName": false,
+          "Unskippable": true
+        },
+        {
+          "Header": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "CharacterTexture": "dima_dialog_arts.png",
+          "Text": "И знаешь, что самое смешное?\nОна вернулась. Сейчас. Прямо сейчас.",
+          "Emotion": "🌪",
+          "IsPlayerDialog": false,
+          "SwitchReaction": false,
+          "SwitchMusic": false,
+          "ShowBossName": false,
+          "Unskippable": true
+        },
+        {
+          "Header": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "CharacterTexture": "",
+          "Text": "Дмитрий. Не надо.",
+          "Emotion": "⚠",
+          "IsPlayerDialog": true,
+          "SwitchReaction": false,
+          "SwitchMusic": false,
+          "ShowBossName": false,
+          "Unskippable": true
+        },
+        {
+          "Header": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "CharacterTexture": "dima_dialog_arts.png",
+          "Text": "Не бойся. Я подожду, пока ты выйдешь.\nДрогичину хватит и одного раза.",
+          "Emotion": "✋",
+          "IsPlayerDialog": false,
+          "SwitchReaction": false,
+          "SwitchMusic": false,
+          "ShowBossName": false,
+          "Unskippable": true
+        }
+      ],
+      "Id": "dmitry#extra#epilogue",
+      "SpellcardTitle": "",
+      "BossName": "Дмитрий",
+      "CreateScript": "dmitry#extra#epilogue#create",
+      "UpdateScript": "",
+      "SpellcardTexture": "",
+      "SpellcardShader": "",
+      "TimeoutCard": false,
+      "BossInvincible": true,
+      "HasDialogs": true,
+      "UseUpdateScript": false,
+      "UseCreateScript": true,
+      "ApplyShader": false
     }
   ],
   "Entities": [

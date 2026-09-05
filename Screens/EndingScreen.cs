@@ -61,19 +61,17 @@ public class EndingScreen : Screen
             1)
         );
         DrawRectangle(0,0,Runtime.CurrentRuntime.Width,Runtime.CurrentRuntime.Height, Rgba.Black);
-        DrawTexture(Runtime.CurrentRuntime.Textures["ending_background.png"], 0, 0, Rgba.White);
+        DrawPlate(Runtime.CurrentRuntime.Textures["ending_background.png"], 255);
         // Crossfade between slides: the two Background slots alternate as pictures switch, so the one set more
         // recently is the incoming image. The slides are illustrations with large transparent areas, so the
         // outgoing one has to fade *out* over the same window the incoming one fades in — leaving it at full
         // opacity would let every picture shown so far keep showing through the current one.
-        float bgScale = Runtime.CurrentRuntime.ScaleF / 4f;
         int newer = PreviousSwitchBackground[1] >= PreviousSwitchBackground[0] ? 1 : 0;
         int older = 1 - newer;
         float incomingA = (float)Math.Clamp((time - PreviousSwitchBackground[newer]) / BackgroundFadeDuration, 0, 1);
         if (incomingA < 1f)
-            DrawTextureEx(Backgrounds[older], Vector2.Zero, 0, bgScale,
-                Rgba.White with { A = (byte)(OutgoingAlpha * (1f - incomingA) * 255) });
-        DrawTextureEx(Backgrounds[newer], Vector2.Zero, 0, bgScale, Rgba.White with { A = (byte)(incomingA * 255) });
+            DrawPlate(Backgrounds[older], (byte)(OutgoingAlpha * (1f - incomingA) * 255));
+        DrawPlate(Backgrounds[newer], (byte)(incomingA * 255));
         for (int i = 0; i < 4; i++)
         {
             if (RuntimeTexts[i] == null)
@@ -87,6 +85,30 @@ public class EndingScreen : Screen
         }
         DrawRectangle(0,0,Runtime.CurrentRuntime.Width, Runtime.CurrentRuntime.Height, Rgba.Black with {A = tp});
         base.Render();
+    }
+
+    /// <summary>The space the ending art is authored in, before any resolution scaling.</summary>
+    private const float ReferenceWidth = 640f;
+
+    /// <summary>
+    /// Draws one full-screen ending plate — the background, or one of the illustration slides over it.
+    ///
+    /// These are authored several times oversize (FullResolutionScaling 4 on the slides, 6 on the background)
+    /// and <see cref="Runtime.LoadTextureWithConfig"/> has ALREADY shrunk them toward the window by the time
+    /// they get here — but only when the window is smaller than what they were authored at, and by a different
+    /// factor for each. So the size a plate actually arrived at cannot be assumed; the scale is worked back out
+    /// from it, which is what keeps a slide the same size as the background it sits on at every resolution.
+    ///
+    /// The slides used to be drawn at a flat ScaleF/4 instead, which applied the shrink a second time: at
+    /// 1600x1200 (ScaleF 2.5) the loader had already brought a slide to 1600x1200 and the draw then put it up
+    /// at 62% of that, in the top-left corner of a full-screen background.
+    /// </summary>
+    private static void DrawPlate(BasicTexture plate, byte alpha)
+    {
+        if (plate.Width <= 0)
+            return;   // no slide has been switched to yet — that slot is still empty
+        float scale = Runtime.CurrentRuntime.ScaleF * ReferenceWidth / plate.Width;
+        DrawTextureEx(plate, Vector2.Zero, 0, scale, Rgba.White with { A = alpha });
     }
 
     public void SwitchPicture(BasicTexture image)

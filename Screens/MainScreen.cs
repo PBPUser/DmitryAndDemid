@@ -180,6 +180,9 @@ public class MainScreen : MenuScreen
         TimeDisappearMenu = 99999999999;
         IsOnTop = true;
         LastActivityTime = GetTime() + .5;   // start counting idle time fresh whenever the title regains focus
+        // The gates are otherwise only read when the menu is BUILT, so an unlock earned while a screen above
+        // was open — a stage reached, or the stats screen's cheat — stayed greyed out until the next launch.
+        ApplyUnlockGates();
     }
 
     public override void Deactivated()
@@ -556,12 +559,29 @@ public class MainScreen : MenuScreen
 #if SWITCH
         Runtime.SwTrace("[ms] CreateMenu: accessing PlayerData.Instance");
 #endif
-        MenuItems[j].Enabled = PlayerData.Instance.IsExtraUnlocked;
-        MenuItems[j + 1].Enabled = PlayerData.Instance.IsStageUnlocked(0);
-        MenuItems[j + 2].Enabled = true;   // the score menu is always viewable (it shows a per-character board)
+        ApplyUnlockGates();
 #if SWITCH
         Runtime.SwTrace("[ms] CreateMenu done");
 #endif
+    }
+
+    /// <summary>
+    /// Greys the two entries the save gates — Extra, and Practice (which wants stage 1 reached). Everything
+    /// else, the score board included, is always open. Looked up by translation key rather than by index so the
+    /// DEBUG-only editor entry above them cannot shift it.
+    /// </summary>
+    private void ApplyUnlockGates()
+    {
+        foreach (MenuItem item in MenuItems)
+            switch (item.Text)
+            {
+                case "menu.extra":
+                    item.Enabled = PlayerData.Instance.IsExtraUnlocked;
+                    break;
+                case "menu.practice":
+                    item.Enabled = PlayerData.Instance.IsStageUnlocked(0);
+                    break;
+            }
     }
 
     public override void PreRender(double delta)

@@ -42,3 +42,8 @@ D:\TEMP\claude\G--Profile-Documents-DmitryAndDemid\91b64721-cdfb-4946-a10a-25a53
 D:\TEMP\claude\G--Profile-Documents-DmitryAndDemid\91b64721-cdfb-4946-a10a-25a5383cd758\scratchpad\lbin\custom.runtimeconfig.json
 D:\TEMP\claude\G--Profile-Documents-DmitryAndDemid\91b64721-cdfb-4946-a10a-25a5383cd758\scratchpad\lbin\custom.dll
 D:\TEMP\claude\G--Profile-Documents-DmitryAndDemid\91b64721-cdfb-4946-a10a-25a5383cd758\scratchpad\lbin\custom.pdb
+D:\TEMP\claude\G--profile-documents-DmitryAndDemid\575284db-783e-4654-98bd-813ea07db583\scratchpad\tc\custom.exe
+D:\TEMP\claude\G--profile-documents-DmitryAndDemid\575284db-783e-4654-98bd-813ea07db583\scratchpad\tc\custom.deps.json
+D:\TEMP\claude\G--profile-documents-DmitryAndDemid\575284db-783e-4654-98bd-813ea07db583\scratchpad\tc\custom.runtimeconfig.json
+D:\TEMP\claude\G--profile-documents-DmitryAndDemid\575284db-783e-4654-98bd-813ea07db583\scratchpad\tc\custom.dll
+D:\TEMP\claude\G--profile-documents-DmitryAndDemid\575284db-783e-4654-98bd-813ea07db583\scratchpad\tc\custom.pdb

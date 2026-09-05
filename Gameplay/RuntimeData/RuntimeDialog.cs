@@ -120,6 +120,24 @@ public class RuntimeDialog
         LastUpdate = Gfx.GetTime();
         if (Lines.Length > 0)
             PreviousIsPlayer = !Lines[0].IsPlayer;
+        WindowHeight = MeasureWindowHeight();
+    }
+
+    /// <summary>
+    /// The panel's height, in real (scaled) pixels, worked out once when the conversation opens: enough for its
+    /// TALLEST line at the fixed text size, floored at the height the window always had and capped so it cannot
+    /// take over the playfield. Sized for the whole conversation rather than per line, so the panel does not
+    /// jump about between one line and the next.
+    /// </summary>
+    private readonly float WindowHeight;
+
+    private float MeasureWindowHeight()
+    {
+        float scale = Runtime.CurrentRuntime.ScaleF;
+        float needed = 0;
+        foreach (Line line in Lines)
+            needed = MathF.Max(needed, line.TextTex.Texture.Height / TextHeightFraction);
+        return Math.Clamp(needed, WindowMinHeight1x * scale, WindowMaxHeight1x * scale);
     }
 
     /// <summary>
@@ -205,8 +223,105 @@ public class RuntimeDialog
         return EaseOutBack((float)Math.Clamp(Elapsed / AppearDuration, 0, 1));
     }
 
-    /// <summary>The dialog window's top edge, in the 384x448 gameplay space (scaled to the target below).</summary>
-    private const float WindowTop1x = 350f;
+    /// <summary>The gap between the window's bottom edge and the bottom of the playfield, 384x448 space. The
+    /// window is pinned here and grows UPWARDS as the conversation needs the room.</summary>
+    private const float WindowBottom1x = 10f;
+
+    /// <summary>
+    /// The window never gets shorter than this — the height it always was, when its top edge was nailed to
+    /// y=350 and the text was squeezed into whatever was left.
+    /// </summary>
+    private const float WindowMinHeight1x = 88f;
+
+    /// <summary>
+    /// ...and never taller than this, so no one line can swallow the playfield. A conversation needing more room
+    /// than this is the one case where the text is still scaled down (the clamp in <see cref="Draw"/>); no
+    /// authored conversation comes close.
+    /// </summary>
+    private const float WindowMaxHeight1x = 200f;
+
+    /// <summary>The window's left/right margin, in the 384x448 space.</summary>
+    private const float WindowMargin1x = 8f;
+
+    /// <summary>How much of the window's width the text may use; the rest is the fork dressing on the right.</summary>
+    private const float TextWidthFraction = 0.72f;
+
+    /// <summary>Gap between the window's left edge and the text block, in the 384x448 space.</summary>
+    private const float TextInset1x = 12f;
+
+    /// <summary>How much of the window's height the text may use.</summary>
+    private const float TextHeightFraction = 0.9f;
+
+    /// <summary>
+    /// The size a line is drawn at, in the 384x448 space — the same for every line, whatever it says. The text
+    /// used to be fitted to the window instead, which meant the size was a function of how much the line had to
+    /// say: a two-line beat came out around 22, a short retort at nearly 41, and (on a backend that does not
+    /// know '\n' — see <see cref="Helper.DrawTextOnRenderTexture"/>) a long one collapsed onto one 16-tall row.
+    /// Now the size is pinned here and a line too wide for the window is given the newlines it lacks instead,
+    /// see <see cref="Wrap"/>.
+    /// </summary>
+    private const int TextFontSize1x = 13;
+    private const int TextPadding1x = 6;
+    private const int TextSpacing1x = 2;
+
+    /// <summary>
+    /// The widest a baked line may be, in the 384x448 space: the text's share of the window, less the inset it
+    /// is drawn at and the padding baked into its own texture.
+    /// </summary>
+    private const float TextWrapWidth1x =
+        (384f - WindowMargin1x * 2f) * TextWidthFraction - TextInset1x - TextPadding1x * 2f;
+
+    /// <summary>
+    /// The text is rasterised at the window's scale rather than at 1x and blown up at draw time, so it is as
+    /// crisp as the resolution allows. Everything the bake needs comes from here, in real (scaled) pixels.
+    /// </summary>
+    private readonly record struct TextMetrics(int FontSize, int Padding, int Spacing, float WrapWidth)
+    {
+        public static TextMetrics Current()
+        {
+            float scale = Runtime.CurrentRuntime.ScaleF;
+            return new TextMetrics(Math.Max(1, (int)(TextFontSize1x * scale)),
+                (int)(TextPadding1x * scale), Math.Max(1, (int)(TextSpacing1x * scale)),
+                TextWrapWidth1x * scale);
+        }
+
+        public float Width(string s, FontHandle font) => MeasureTextEx(font, s, FontSize, Spacing).X;
+    }
+
+    /// <summary>
+    /// Breaks a line so nothing in it is wider than the window: the newlines the author wrote are kept, and the
+    /// ones they did not write are added. Words move down whole; a single word too wide to sit on a line of its
+    /// own — which no authored line is, but a translation or a transliteration could produce — is cut at the
+    /// character that overflows rather than left hanging out over the playfield.
+    /// </summary>
+    private static string Wrap(string text, FontHandle font, TextMetrics m)
+    {
+        List<string> output = [];
+        foreach (string paragraph in (text ?? "").Replace("\r", "").Split('\n'))
+        {
+            string line = "";
+            foreach (string word in paragraph.Split(' '))
+            {
+                string candidate = line.Length == 0 ? word : line + " " + word;
+                if (line.Length > 0 && m.Width(candidate, font) > m.WrapWidth)
+                {
+                    output.Add(line);          // the word does not fit beside what is already there: next line
+                    candidate = word;
+                }
+                while (candidate.Length > 1 && m.Width(candidate, font) > m.WrapWidth)
+                {
+                    int fit = candidate.Length - 1;
+                    while (fit > 1 && m.Width(candidate[..fit], font) > m.WrapWidth)
+                        fit--;
+                    output.Add(candidate[..fit]);
+                    candidate = candidate[fit..];
+                }
+                line = candidate;
+            }
+            output.Add(line);
+        }
+        return string.Join("\n", output);
+    }
 
     /// <summary>
     /// Draws the current line: the portraits stand at the bottom (speaker lit, the other dimmed), and the
@@ -244,11 +359,11 @@ public class RuntimeDialog
             return;
         float contentA = Math.Clamp((open - 0.35f) / 0.5f, 0f, 1f);   // forks/text fade in once the panel is open
 
-        float margin = 8 * scale;
+        float margin = WindowMargin1x * scale;
         float fullX = margin;
         float fullW = width - margin * 2;
-        float fullY = WindowTop1x * scale;
-        float fullH = (448f - WindowTop1x - 10f) * scale;             // fill from y=350 to near the bottom edge
+        float fullH = WindowHeight;                                   // as tall as this conversation needs
+        float fullY = (448f - WindowBottom1x) * scale - fullH;        // bottom pinned, grown upwards
 
         float cy = fullY + fullH / 2f;
         float drawH = fullH * open;                                   // vertical squeeze/bounce
@@ -290,9 +405,15 @@ public class RuntimeDialog
         BasicTexture text = Current.TextTex.Texture;
         if (text.Width > 0 && contentA > 0f)
         {
-            float availW = win.Width * 0.66f - 12 * scale;
-            float availH = win.Height * 0.82f;
-            float ts = MathF.Min(availW / text.Width, availH / text.Height);
+            float availW = win.Width * TextWidthFraction - TextInset1x * scale;
+            // Measured against the window at FULL height, not the bounce-squeezed one: the size must not depend
+            // on how far through its opening animation the panel is.
+            float availH = fullH * TextHeightFraction;
+            // Fixed size — the block is drawn 1:1 at the size it was baked at, however much the line says; a
+            // line too wide for the window was wrapped when it was baked. The clamp never scales the text UP,
+            // and only pulls it down for something wrapping could not save: a line broken into more rows than
+            // the window is tall.
+            float ts = MathF.Min(1f, MathF.Min(availW / text.Width, availH / text.Height));
             float tw = text.Width * ts, th = text.Height * ts;
             // The line writes itself out top-down rather than appearing whole: the source is cropped to the top
             // `reveal` of the pre-rendered block and the destination cropped to match, which unrolls the text a
@@ -527,9 +648,13 @@ public class RuntimeDialog
 
             // Route the line through the game's translator (Helper.Translate): a translation.json key resolves to
             // one of its variants, anything else falls through transliterated — either way it comes back ready to
-            // draw. Rendered once into a texture (white with a shadow, to read on the dark window).
-            TextTex = Helper.DrawText(Helper.Translate(info.Text), 16, 6, 6, 2,
-                Runtime.CurrentRuntime.Fonts["newsreader"], Rgba.White, "shadow");
+            // draw. Wrapped to the window's width (the text is drawn at a fixed size, so a long line has to be
+            // broken rather than shrunk), then rendered once into a texture (white with a shadow, to read on the
+            // dark window).
+            FontHandle textFont = Runtime.CurrentRuntime.Fonts["newsreader"];
+            TextMetrics m = TextMetrics.Current();
+            TextTex = Helper.DrawText(Wrap(Helper.Translate(info.Text), textFont, m),
+                m.FontSize, m.Padding, m.Padding, m.Spacing, textFont, Rgba.White, "shadow");
 
             // Roll the right-side fork dressing once, so it stays put instead of flickering every frame. The
             // forks live in the right ~40% of the window, at random heights, spins, sizes and bright colours.

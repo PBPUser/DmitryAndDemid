@@ -91,6 +91,25 @@ public class PlayerData
         }
     }
 
+    /// <summary>
+    /// Switches on every unlock the save can hold: Extra, all the stages, all the music, all the trophies, all
+    /// the nicknames. What the stats screen's cheat code grants (see <see cref="Screens.ScoreScreen"/>).
+    ///
+    /// The masks are set here rather than by looping the individual setters because each of THOSE writes the
+    /// save file; this writes it once. The mask is 40 bits — far wider than the dozen-odd trophies, songs and
+    /// stages that exist (so anything added later comes already unlocked) and comfortably positive, which keeps
+    /// it off <see cref="BitPackage.WriteVarLong"/>'s negative path.
+    /// </summary>
+    public void UnlockEverything()
+    {
+        const long all = (1L << 40) - 1;
+        Flags |= all;
+        Nicknames |= all;
+        Music |= all;
+        Trophies |= all;
+        Save();
+    }
+
     public bool IsStageUnlocked(int i)
     {
         long a = 2 << i;

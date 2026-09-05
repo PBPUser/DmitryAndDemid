@@ -246,14 +246,18 @@ public class StageDataTests
         Assert.True(offenders.Count == 0, "Spell chapters with dialog lines: " + string.Join(", ", offenders));
     }
 
-    /// <summary>The Extra stage is the one the "menu.extra" entry plays: it must hold the eleven cards.</summary>
+    /// <summary>
+    /// The Extra stage is the one the "menu.extra" entry plays: it must hold the eleven cards and the four
+    /// conversations spaced through them — Dmitry's arrival, Demid's when he takes the fight over, Demid's
+    /// Chromines speech between the last two cards, and Dmitry's epilogue once every card is closed.
+    /// </summary>
     [Fact]
-    public void Extra_stage_has_eleven_spell_cards_and_two_conversations()
+    public void Extra_stage_has_eleven_spell_cards_and_four_conversations()
     {
         FileStageInfo extra = Load("extra1.sid");
 
         Assert.Equal(11, extra.Chapters.Count(c => (ChapterType)c.Header[0] == ChapterType.Spell));
-        Assert.Equal(2, extra.Chapters.Count(c => c.HasDialogs && c.Dialogs.Length > 0));
+        Assert.Equal(4, extra.Chapters.Count(c => c.HasDialogs && c.Dialogs.Length > 0));
 
         FileChapterInfo[] spells = extra.Chapters.Where(c => (ChapterType)c.Header[0] == ChapterType.Spell)
             .ToArray();
@@ -262,11 +266,43 @@ public class StageDataTests
         Assert.True(spells[^2].TimeoutCard, "The pre-last Extra card should be a timeout (survival) card.");
         Assert.False(spells[^1].BossInvincible, "The last Extra card has to be killable.");
 
-        // Dmitry's speech comes before his first card, and every line of it must be unskippable.
-        FileChapterInfo arrival = extra.Chapters.First(c => c.HasDialogs && c.Dialogs.Length > 0);
-        Assert.All(arrival.Dialogs, d => Assert.True(d.Unskippable,
-            $"Dmitry's arrival line '{d.Text}' should be unskippable."));
-        Assert.True(Array.IndexOf(extra.Chapters, arrival) < Array.FindIndex(extra.Chapters,
-            c => (ChapterType)c.Header[0] == ChapterType.Spell), "The speech must precede the first card.");
+        int firstCard = Array.FindIndex(extra.Chapters, c => (ChapterType)c.Header[0] == ChapterType.Spell);
+        int lastCard = Array.FindLastIndex(extra.Chapters, c => (ChapterType)c.Header[0] == ChapterType.Spell);
+
+        // Demid speaks when he takes the fight over: after Dmitry's last card, before his own first one.
+        FileChapterInfo demidArrival = Chapter(extra, "demid#extra#arrival");
+        Assert.True(demidArrival.Dialogs.Length > 0, "Demid's arrival has no lines.");
+        int demidSpeaks = Array.IndexOf(extra.Chapters, demidArrival);
+        Assert.True(demidSpeaks > Array.FindLastIndex(extra.Chapters, c => c.Id.StartsWith("dmitry#extra#card")),
+            "Demid's arrival must follow Dmitry's last card.");
+        Assert.True(demidSpeaks < Array.IndexOf(extra.Chapters, Chapter(extra, "demid#extra#card1")),
+            "Demid's arrival must precede his own first card.");
+
+        // Dmitry closes the stage: his epilogue is the last chapter, after every card has been played.
+        FileChapterInfo epilogue = Chapter(extra, "dmitry#extra#epilogue");
+        Assert.True(epilogue.Dialogs.Length > 0, "Dmitry's epilogue has no lines.");
+        Assert.Equal(extra.Chapters.Length - 1, Array.IndexOf(extra.Chapters, epilogue));
+        Assert.True(Array.IndexOf(extra.Chapters, epilogue) > lastCard,
+            "The epilogue must follow the last card.");
+
+        // Neither conversation is a fight, so neither may raise a health bar over itself.
+        Assert.True(demidArrival.BossInvincible && epilogue.BossInvincible,
+            "The framing conversations must be flagged BossInvincible (no health bar over a speech).");
+
+        // Dmitry's beats carry the plot, so both of his are unskippable; Demid's can be pressed through.
+        FileChapterInfo arrival = Chapter(extra, "dmitry#extra#arrival");
+        foreach (FileChapterInfo talk in new[] { arrival, epilogue })
+            Assert.All(talk.Dialogs, d => Assert.True(d.Unskippable,
+                $"Dmitry's line '{d.Text}' ({talk.Id}) should be unskippable."));
+        Assert.True(Array.IndexOf(extra.Chapters, arrival) < firstCard,
+            "The speech must precede the first card.");
+    }
+
+    /// <summary>The one chapter with this id, asserting a readable failure when it has been renamed away.</summary>
+    private static FileChapterInfo Chapter(FileStageInfo stage, string id)
+    {
+        FileChapterInfo? chapter = Array.Find(stage.Chapters, c => c.Id == id);
+        Assert.True(chapter != null, $"No chapter '{id}' in the stage.");
+        return chapter!;
     }
 }

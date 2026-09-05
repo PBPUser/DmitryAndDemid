@@ -462,6 +462,74 @@ public sealed unsafe class VulkanBackend : IBackend
         SwapchainViews = SwapchainImages.Select(i => CreateView(i, SwapchainFormat)).ToArray();
     }
 
+    /// <summary>
+    /// Set when a present (or a failed acquire) reported the swapchain no longer matches its surface — the
+    /// window was resized, or moved to a monitor with different properties. Acted on at the top of the next
+    /// frame, never mid-frame.
+    /// </summary>
+    private bool SwapchainOutOfDate;
+
+    /// <summary>
+    /// True when the window's framebuffer is no longer the size the swapchain was built for. Checked as well as
+    /// the OUT_OF_DATE/SUBOPTIMAL results because not every driver reports those for every resize, and a
+    /// swapchain that merely disagrees with its window draws the frame into the wrong extent instead of hanging.
+    /// </summary>
+    private bool WindowSizeChanged()
+    {
+        if (Window == null)
+            return false;
+        Vector2D<int> size = Window.FramebufferSize;
+        return size.X > 0 && size.Y > 0
+                          && ((uint)size.X != SwapchainExtent.Width || (uint)size.Y != SwapchainExtent.Height);
+    }
+
+    /// <summary>
+    /// Rebuilds the swapchain and everything sized with it, for the surface as it is NOW.
+    ///
+    /// The per-image render-finished semaphores go too: their count is the swapchain's image count, which a
+    /// rebuild is free to change. The render passes are format-only and survive; so do the offscreen targets,
+    /// which are sized to the game's internal resolution rather than to the window.
+    ///
+    /// Nothing here is safe while the GPU still has work referencing the old images, hence the device-wide wait
+    /// — a rebuild happens on a resize, so the stall costs nothing anyone can see.
+    /// </summary>
+    private void RecreateSwapchain()
+    {
+        if (!Ready)
+            return;
+
+        Vector2D<int> size = Window?.FramebufferSize ?? new Vector2D<int>((int)SwapchainExtent.Width,
+            (int)SwapchainExtent.Height);
+        if (size.X <= 0 || size.Y <= 0)
+            return;   // minimised: there is no surface to build for, so leave the old one and try again later
+
+        Vk.DeviceWaitIdle(Device);
+
+        foreach (Framebuffer framebuffer in SwapchainFramebuffers)
+            Vk.DestroyFramebuffer(Device, framebuffer, null);
+        foreach (ImageView view in SwapchainViews)
+            Vk.DestroyImageView(Device, view, null);
+        foreach (Semaphore semaphore in RenderFinished)
+            Vk.DestroySemaphore(Device, semaphore, null);
+        SwapchainFramebuffers = [];
+        SwapchainViews = [];
+        RenderFinished = [];
+        KhrSwapchain.DestroySwapchain(Device, Swapchain, null);
+
+        CreateSwapchain(size.X, size.Y);
+        CreateFramebuffers();
+
+        SemaphoreCreateInfo semaphoreInfo = new() { SType = StructureType.SemaphoreCreateInfo };
+        RenderFinished = new Semaphore[SwapchainImages.Length];
+        for (int i = 0; i < RenderFinished.Length; i++)
+            Vk.CreateSemaphore(Device, in semaphoreInfo, null, out RenderFinished[i]);
+
+        CurrentImage = 0;
+        FrameWidth = (int)SwapchainExtent.Width;
+        FrameHeight = (int)SwapchainExtent.Height;
+        SwapchainOutOfDate = false;
+    }
+
     private ImageView CreateView(Image image, Format format)
     {
         ImageViewCreateInfo info = new()
@@ -739,11 +807,36 @@ public sealed unsafe class VulkanBackend : IBackend
         ReflexMarker(LatencyMarkerNV.SimulationStartNV);
 
         Vk.WaitForFences(Device, 1, in InFlight, true, ulong.MaxValue);
-        Vk.ResetFences(Device, 1, in InFlight);
         CollectGarbage();   // the fence proves last frame's resources are free
 
-        KhrSwapchain.AcquireNextImage(Device, Swapchain, ulong.MaxValue, ImageAvailable, default, ref CurrentImage);
+        // The window may have been resized since the last frame, which leaves the swapchain sized to the old
+        // surface. Rebuild before acquiring — either because the last present said so, or because the window
+        // reports a size the swapchain does not match (some drivers report neither OUT_OF_DATE nor SUBOPTIMAL
+        // for a shrink).
+        if (SwapchainOutOfDate || WindowSizeChanged())
+            RecreateSwapchain();
 
+        Result acquired = KhrSwapchain.AcquireNextImage(Device, Swapchain, ulong.MaxValue, ImageAvailable,
+            default, ref CurrentImage);
+        if (acquired is Result.ErrorOutOfDateKhr)
+        {
+            // A failed acquire signals NOTHING: the frame cannot be submitted, because its submit would wait
+            // forever on an ImageAvailable that is never coming — and the fence that submit signals is what the
+            // NEXT frame's WaitForFences above blocks on. That is the resize freeze. Rebuild and try once more.
+            RecreateSwapchain();
+            acquired = KhrSwapchain.AcquireNextImage(Device, Swapchain, ulong.MaxValue, ImageAvailable,
+                default, ref CurrentImage);
+        }
+        if (acquired is not (Result.Success or Result.SuboptimalKhr))
+        {
+            // Still nothing to draw into (a zero-sized window while the mouse is held mid-drag, most likely).
+            // Skip the frame: InFrame stays false, so EndFrame bails and the fence is left SIGNALLED — it has
+            // deliberately not been reset yet — which is what lets the next frame get this far again at all.
+            SwapchainOutOfDate = true;
+            return;
+        }
+
+        Vk.ResetFences(Device, 1, in InFlight);
         InFrame = true;
         Vk.ResetCommandBuffer(FrameCmd, 0);
         CommandBufferBeginInfo begin = new() { SType = StructureType.CommandBufferBeginInfo };
@@ -763,8 +856,8 @@ public sealed unsafe class VulkanBackend : IBackend
 
     public void EndFrame()
     {
-        if (!Ready)
-            return;
+        if (!Ready || !InFrame)
+            return;   // BeginFrame skipped this frame (no swapchain image); there is nothing to submit
 
         EndPass();
         Barrier(SwapchainImages[CurrentImage], ImageLayout.General, ImageLayout.PresentSrcKhr);
@@ -819,8 +912,12 @@ public sealed unsafe class VulkanBackend : IBackend
             PImageIndices = &imageIndex,
         };
         ReflexMarker(LatencyMarkerNV.PresentStartNV);
-        KhrSwapchain.QueuePresent(GraphicsQueue, in present);
+        Result presented = KhrSwapchain.QueuePresent(GraphicsQueue, in present);
         ReflexMarker(LatencyMarkerNV.PresentEndNV);
+        // The frame itself went through; the swapchain is merely stale from here on, so rebuild at the top of
+        // the next one rather than mid-frame.
+        if (presented is Result.ErrorOutOfDateKhr or Result.SuboptimalKhr)
+            SwapchainOutOfDate = true;
         InFrame = false;
 
         FrameCounter++;

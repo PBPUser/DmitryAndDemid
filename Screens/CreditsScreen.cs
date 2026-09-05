@@ -94,7 +94,8 @@ public class CreditsScreen : Screen
     /// </summary>
     private static readonly (string RoleKey, string[] Names)[] Roll =
     [
-        ("credits.creators", ["AKOB", "QAW"]),
+
+        ("credits.creators", ["AKOB", "QAW", "UngMan"]),
     ];
 
     /// <summary>The roll flattened to drawable lines. Built once: <see cref="Helper.Translate"/> picks at random
