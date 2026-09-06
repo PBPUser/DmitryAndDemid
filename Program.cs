@@ -47,12 +47,19 @@ if (args.Contains("--selftest"))
 // first character on Easy, and <seconds> of wall-clock later saves the screen to the file and exits. A way to
 // look at what a backend actually draws (the stage backgrounds, mostly) without anyone at the keyboard; only
 // backends with framebuffer readback save anything (see IRenderer.TakeScreenshot).
+//
+// <stage> may also be "credits", which boots straight into the staff roll instead — the roll's backdrop is a
+// raymarched scene like a stage's, and it was otherwise only reachable by clearing the game.
 {
     int shotAt = Array.IndexOf(args, "--shot");
     if (shotAt >= 0 && shotAt + 3 < args.Length
-        && int.TryParse(args[shotAt + 1], out int shotStage)
         && double.TryParse(args[shotAt + 2], System.Globalization.CultureInfo.InvariantCulture, out double shotSeconds))
-        Runtime.AutoShot = (shotStage, shotSeconds, args[shotAt + 3]);
+    {
+        if (string.Equals(args[shotAt + 1], "credits", StringComparison.OrdinalIgnoreCase))
+            Runtime.AutoShot = (Runtime.AutoShotCredits, shotSeconds, args[shotAt + 3]);
+        else if (int.TryParse(args[shotAt + 1], out int shotStage))
+            Runtime.AutoShot = (shotStage, shotSeconds, args[shotAt + 3]);
+    }
 }
 #endif
 

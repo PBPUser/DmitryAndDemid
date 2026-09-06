@@ -60,6 +60,9 @@ public class Runtime
     /// <summary>The DEBUG <c>--shot</c> request (Program.cs): campaign stage (1-based), seconds to wait once the
     /// run is up, and the file to save the screen to. Null in every normal launch.</summary>
     public static (int Stage, double Seconds, string Path)? AutoShot;
+
+    /// <summary>The <c>--shot</c> stage that means "the staff roll" rather than a campaign level.</summary>
+    public const int AutoShotCredits = -1;
     private double AutoShotStart = -1;
     bool ADPTriggered = false;
     /// Wall-clock (<see cref="Gfx.GetTime"/>) deadline at which the loading screen hands off to the main menu.
@@ -584,7 +587,13 @@ public class Runtime
 #if DEBUG
         // --shot: straight into a campaign run at the asked stage, first character, Easy; RunFrame saves the
         // screen once the wait is up and ends the loop.
-        if (AutoShot is { } shot)
+        if (AutoShot is { Stage: AutoShotCredits } creditsShot)
+        {
+            LoadTextureGroup("game");
+            AddScreen(new Screens.CreditsScreen());
+            AutoShotStart = GetTime();
+        }
+        else if (AutoShot is { } shot)
         {
             string personFile = Utils.Assets.Files("Assets/Data/PlayablePersons/", "*.json")[0];
             var person = System.Text.Json.JsonSerializer.Deserialize<Data.ProtogonistData>(

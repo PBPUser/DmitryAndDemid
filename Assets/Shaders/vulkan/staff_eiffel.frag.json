@@ -1,0 +1,37 @@
+{
+ "blockSize": 92,
+ "blockBinding": 0,
+ "uniforms": [
+  {
+   "name": "time",
+   "offset": 16,
+   "type": "float"
+  },
+  {
+   "name": "resolution",
+   "offset": 24,
+   "type": "vec2"
+  },
+  {
+   "name": "camPos",
+   "offset": 32,
+   "type": "vec3"
+  },
+  {
+   "name": "camRight",
+   "offset": 48,
+   "type": "vec3"
+  },
+  {
+   "name": "camUp",
+   "offset": 64,
+   "type": "vec3"
+  },
+  {
+   "name": "camFwd",
+   "offset": 80,
+   "type": "vec3"
+  }
+ ],
+ "samplers": []
+}

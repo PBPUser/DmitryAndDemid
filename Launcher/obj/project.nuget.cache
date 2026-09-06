@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "K+Dg66Tl2p0=",
+  "dgSpecHash": "q5heeCj/3GA=",
   "success": true,
-  "projectFilePath": "G:\\profile\\documents\\DmitryAndDemid\\Launcher\\DmitryAndDemid.Launcher.csproj",
+  "projectFilePath": "G:\\Profile\\Documents\\DmitryAndDemid\\Launcher\\DmitryAndDemid.Launcher.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\iwuwka\\.nuget\\packages\\atksharp\\3.24.24.95\\atksharp.3.24.24.95.nupkg.sha512",
     "C:\\Users\\iwuwka\\.nuget\\packages\\cairosharp\\3.24.24.95\\cairosharp.3.24.24.95.nupkg.sha512",

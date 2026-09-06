@@ -2167,7 +2167,7 @@ public class GameBox : IDisposable
 
     /// <summary>
     /// Appends one line to <see cref="DebugStrings"/>, up to <see cref="DebugStringsCap"/>. On reaching the
-    /// cap it writes one marker line and then stops, so a truncated overlay says so rather than quietly
+    /// cap it wrsites one marker line and then stops, so a truncated overlay says so rather than quietly
     /// reading as the whole picture.
     /// </summary>
     public void DebugLog(string line)

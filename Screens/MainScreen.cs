@@ -534,16 +534,15 @@ public class MainScreen : MenuScreen
 #if SWITCH
         Runtime.SwTrace("[ms] CreateMenu enter");
 #endif
-        int j = 1;
 #if DEBUG
+        // Debug builds get their own entry above everything else: the endings and the staff roll, which are
+        // otherwise only reachable by finishing a run. Release never sees it (see DebugMenuScreen).
+        MenuItems.Add(new MenuItem("menu.debug", "", a => Runtime.CurrentRuntime.AddScreen(new DebugMenuScreen())));
         // The editor is an ImGui screen, and ImGui only runs on the Raylib backend (Engine.Backend
         // .SupportsDebugUi). Under Silk/OpenGL or Vulkan the entry would open a screen that draws nothing and
         // cannot be escaped, so it is not offered there at all.
         if (Engine.Backend.SupportsDebugUi)
-        {
-            j++;
             MenuItems.Add(new MenuItem("menu.editor", "", a => Runtime.CurrentRuntime.AddScreen(new GameplayEditorScreen())));
-        }
 #endif
         MenuItems.Add(new MenuItem("menu.start", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Default))));
         MenuItems.Add(new MenuItem("menu.extra", "", a => Runtime.CurrentRuntime.AddScreen(new DifficultyScreen(GameType.Extra))));

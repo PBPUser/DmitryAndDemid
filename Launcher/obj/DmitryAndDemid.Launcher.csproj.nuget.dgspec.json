@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "G:\\profile\\documents\\DmitryAndDemid\\Launcher\\DmitryAndDemid.Launcher.csproj": {}
+    "G:\\Profile\\Documents\\DmitryAndDemid\\Launcher\\DmitryAndDemid.Launcher.csproj": {}
   },
   "projects": {
-    "G:\\profile\\documents\\DmitryAndDemid\\Launcher\\DmitryAndDemid.Launcher.csproj": {
+    "G:\\Profile\\Documents\\DmitryAndDemid\\Launcher\\DmitryAndDemid.Launcher.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "G:\\profile\\documents\\DmitryAndDemid\\Launcher\\DmitryAndDemid.Launcher.csproj",
+        "projectUniqueName": "G:\\Profile\\Documents\\DmitryAndDemid\\Launcher\\DmitryAndDemid.Launcher.csproj",
         "projectName": "custom",
-        "projectPath": "G:\\profile\\documents\\DmitryAndDemid\\Launcher\\DmitryAndDemid.Launcher.csproj",
+        "projectPath": "G:\\Profile\\Documents\\DmitryAndDemid\\Launcher\\DmitryAndDemid.Launcher.csproj",
         "packagesPath": "C:\\Users\\iwuwka\\.nuget\\packages\\",
-        "outputPath": "G:\\profile\\documents\\DmitryAndDemid\\Launcher\\obj\\",
+        "outputPath": "G:\\Profile\\Documents\\DmitryAndDemid\\Launcher\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Users\\iwuwka\\AppData\\Roaming\\Godot\\mono\\GodotNuGetFallbackFolder",
