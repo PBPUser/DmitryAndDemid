@@ -13,9 +13,9 @@ public abstract class ScreenWithTitle : Screen
         MenuTextureTarget = Scale(new(0, 0, 640, 135), Runtime.CurrentRuntime.Scale);
     }
     
-    private BasicTexture MenuTitleTexture;
     protected float TimeDisappearTitle = float.MaxValue;
     protected float TimeAppearTitle = float.MinValue;
+    private BasicTexture MenuTitleText09ure;
     private static Rect MenuTextureTarget;
     private static Rect MenuTextureSource;
     protected float AppearingTime = .5f;
