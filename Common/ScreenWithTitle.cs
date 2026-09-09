@@ -18,8 +18,8 @@ public abstract class ScreenWithTitle : Screen
     private BasicTexture MenuTitleTexture;
     private static Rect MenuTextureTarget;
     private static Rect MenuTextureSource;
-    protected float AppearingTime = .5f;
     protected float DisappearingTime = .5f;
+    protected float AppearingTime = .5f;
     protected void SetTitle(BasicTexture title)
     {
         MenuTitleTexture = title;
