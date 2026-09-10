@@ -35,6 +35,20 @@ Platform.DataDirectory = AppContext.BaseDirectory;
 Assets.Source = new FileSystemAssetSource(AppContext.BaseDirectory);
 #endif
 
+// Platform.FatalError is a hook that lives in the engine (Rendering/Utils/Platform.cs) and defaults to stderr,
+// because the engine must not depend on a widget toolkit. The desktop game does have GTK, so it installs the
+// real dialog here — the same one it has always shown. Android installs a logcat handler in MainActivity, and
+// on Switch GtkSharp cannot load under mono-nx's static-only P/Invoke, so both keep the stderr default.
+#if !ANDROID && !SWITCH
+Platform.FatalErrorHandler = message =>
+{
+    var dialog = new Gtk.MessageDialog(null, Gtk.DialogFlags.Modal, Gtk.MessageType.Info,
+        Gtk.ButtonsType.Ok, message);
+    dialog.Run();
+    dialog.Destroy();
+};
+#endif
+
 // --selftest boots the managed game far enough to prove the port is sound on a given CPU/OS — it loads config,
 // checks the asset source resolves, and reports which backend would be chosen — then exits WITHOUT opening a
 // window or a graphics context. That last part matters: it is the only piece that runs under headless CPU

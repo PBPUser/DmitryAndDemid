@@ -77,6 +77,39 @@ public class StageDataTests
         Assert.True(missing.Count == 0, "Chapter scripts with no ActionsScope entry: " + string.Join(", ", missing));
     }
 
+    /// <summary>
+    /// An entity's RUNTIME index is its <c>Header[3]</c>, not where it sits in the table:
+    /// <see cref="RuntimeStageInfo"/> builds its array with <c>Entities[e.Header[3]] = e</c>. So an entity whose
+    /// id does not match its slot does two things at once, both silent until the card that needs it plays —
+    /// it overwrites whatever entity really owns that id, and it leaves its own slot NULL, so the
+    /// <c>SpawnObject</c> that reaches for it dies on a null template. (Exactly what a template appended to
+    /// stage 3 by copying an earlier row did: it kept the row's id, clobbered it, and crashed the card that
+    /// spawned the new index.) Ids must therefore be unique and cover 0..count-1 — which, since the file order
+    /// is what the table is written in, means id == position.
+    /// </summary>
+    [Fact]
+    public void Every_entity_id_matches_its_slot()
+    {
+        var broken = new List<string>();
+        foreach ((string file, FileStageInfo stage) in Stages())
+        {
+            var owner = new Dictionary<int, int>();
+            for (int i = 0; i < stage.Entities.Length; i++)
+            {
+                int id = stage.Entities[i].Header[3];
+                if (id != i)
+                    broken.Add($"{file}: entity #{i} ('{stage.Entities[i].Visual}') carries id {id}");
+                if (owner.TryGetValue(id, out int first))
+                    broken.Add($"{file}: entities #{first} and #{i} share id {id}");
+                else
+                    owner[id] = i;
+            }
+        }
+
+        Assert.True(broken.Count == 0,
+            "Entity ids that do not address their own runtime slot: " + string.Join(", ", broken));
+    }
+
     [Fact]
     public void Every_entity_script_is_defined_in_ActionsScope()
     {

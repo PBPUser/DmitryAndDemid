@@ -33,7 +33,7 @@ public sealed class ImageBlockAttribute(byte id) : Attribute
 
 /// <summary>
 /// One block of a <c>.negr</c> image file — <c>[Type:1][Length:varint][Payload:Length]</c> — and all the framing
-/// logic <see cref="CpuImage.Load"/> and <see cref="CpuImage.Save"/> need. <c>Data/Archive/CpuImage.sp</c> is the
+/// logic <see cref="CpuImage.Load"/> and <see cref="CpuImage.Save"/> need. <c>Rendering/Data/Archive/CpuImage.sp</c> is the
 /// format's specification; the concrete blocks live in <c>Rendering/ImageBlocks.cs</c>.
 ///
 /// Everything a block has to do is one of four things, and the base class owns the parts that are the same for

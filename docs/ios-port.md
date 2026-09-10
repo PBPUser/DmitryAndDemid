@@ -106,7 +106,7 @@ Mirror `Android/` file-for-file:
   No unpack step (contrast `AndroidAssetSource`, which copies APK assets to storage first).
 - **`IosPlatform`** — set `Platform.DataDirectory` to the app's Documents dir
   (`Environment.GetFolderPath(SpecialFolder.Personal)`), `TraceHandler`/`FatalErrorHandler` → `NSLog` /
-  `Console.Error`. (`Utils/Platform.cs` is already the hook seam.)
+  `Console.Error`. (`Rendering/Utils/Platform.cs` is already the hook seam.)
 - **`IosAudio : IAudio`** — Demidonic's iOS half, and the one genuinely new subsystem. Implement against **AVAudioEngine** (or OpenAL via
   `OpenTK`/`Silk.NET.OpenAL`). Model it on `Android/AndroidAudio.cs`; the game only needs SFX one-shots + a
   volume, so a small player-pool over AVAudioPlayerNode is enough. (Music is currently stubbed —

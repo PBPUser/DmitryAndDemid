@@ -1,9 +1,11 @@
 namespace DmitryAndDemid.Utils;
 
 /// <summary>
-/// The few places the game has to talk to the host OS rather than to the renderer. Desktop answers with GTK;
-/// Android has no GTK at all, so it answers by logging — the message still reaches the loading screen, which
-/// is drawn by the renderer like everything else.
+/// The few places the game has to talk to the host OS rather than to the renderer. Every one of them is a
+/// settable hook with a plain-console default, because this lives in the engine and the engine must not know
+/// what the host's UI toolkit is: the desktop game installs a GTK dialog over
+/// <see cref="FatalErrorHandler"/> (Program.cs), Android installs a logcat write over
+/// <see cref="TraceHandler"/> (MainActivity), and a host that installs neither still gets the message.
 /// </summary>
 public static class Platform
 {
@@ -18,10 +20,12 @@ public static class Platform
         string.IsNullOrEmpty(DataDirectory) ? file : Path.Combine(DataDirectory, file);
 
     /// <summary>
-    /// Reports a failure the game cannot start from. Replaced wholesale on Android (see
-    /// <c>Android/AndroidPlatform.cs</c>), which is why it is a hook and not a direct GTK call.
+    /// Reports a failure the game cannot start from. A hook, not a direct call to any toolkit: the desktop
+    /// game replaces it with a GTK message dialog and Android with a logcat write, and neither dependency
+    /// belongs behind <c>IRenderer</c>. Left alone it writes to stderr, which is the right answer on the
+    /// hosts that have no dialog to show (Switch, linux-arm64 headless, the test suite).
     /// </summary>
-    public static Action<string> FatalErrorHandler { get; set; } = DefaultFatalError;
+    public static Action<string> FatalErrorHandler { get; set; } = Console.Error.WriteLine;
 
     public static void FatalError(string message) => FatalErrorHandler(message);
 
@@ -33,16 +37,4 @@ public static class Platform
     public static Action<string> TraceHandler { get; set; } = Console.WriteLine;
 
     public static void Trace(string message) => TraceHandler(message);
-
-    private static void DefaultFatalError(string message)
-    {
-#if ANDROID
-        Console.Error.WriteLine(message);
-#else
-        var dialog = new Gtk.MessageDialog(null, Gtk.DialogFlags.Modal, Gtk.MessageType.Info,
-            Gtk.ButtonsType.Ok, message);
-        dialog.Run();
-        dialog.Destroy();
-#endif
-    }
 }

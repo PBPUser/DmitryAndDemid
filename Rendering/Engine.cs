@@ -81,6 +81,19 @@ public static class Engine
     /// <summary>The renderers that exist. Lives in RendererRegistry so the configurator can share it.</summary>
     public static (string Key, string Name)[] Available => RendererRegistry.Available;
 
+    /// <summary>
+    /// How the engine resolves a shader by name. Shaders are loaded by the <i>host</i> — the game scans
+    /// <c>Assets/Shaders/</c> at startup and keeps the dictionary — but engine-internal passes need a few of
+    /// them by name anyway (<see cref="Upscaling.FsrPass"/> wants <c>fsr_easu</c> / <c>fsr_rcas</c>). Rather
+    /// than reach back into the game for its dictionary, the host hands the lookup over here once, right
+    /// after loading. Unset, or a name the host does not have, yields <see cref="ShaderHandle.None"/> — and
+    /// every caller must treat that as "this pass is unavailable", not as an error.
+    /// </summary>
+    public static Func<string, ShaderHandle>? ShaderLookup;
+
+    /// <summary>The shader <paramref name="name"/> if the host has it, else <see cref="ShaderHandle.None"/>.</summary>
+    public static ShaderHandle FindShader(string name) => ShaderLookup?.Invoke(name) ?? ShaderHandle.None;
+
     /// <summary>Adding a renderer means implementing IBackend, adding a line here, and one to Available.</summary>
     public static IBackend Create(string name) => name.Trim().ToLowerInvariant() switch
     {

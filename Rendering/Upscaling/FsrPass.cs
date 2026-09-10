@@ -25,9 +25,10 @@ public sealed class FsrPass
 
     public FsrPass()
     {
-        var shaders = Runtime.CurrentRuntime.Shaders;
-        shaders.TryGetValue("fsr_easu", out Easu);
-        shaders.TryGetValue("fsr_rcas", out Rcas);
+        // The host owns the shader dictionary (see Engine.ShaderLookup); a missing shader leaves the handle
+        // at None, which Ready reports as "no FSR" rather than throwing.
+        Easu = Engine.FindShader("fsr_easu");
+        Rcas = Engine.FindShader("fsr_rcas");
         if (Easu.Id != 0)
         {
             EasuInputSize = GetShaderLocation(Easu, "inputSize");

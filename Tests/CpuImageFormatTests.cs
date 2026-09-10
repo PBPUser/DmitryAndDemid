@@ -7,7 +7,7 @@ namespace DmitryAndDemid.Tests;
 
 /// <summary>
 /// The <c>.negr</c> block format — <see cref="CpuImage.Save"/> / <see cref="CpuImage.Load"/>, specified in
-/// <c>Data/Archive/CpuImage.sp</c>. Pure byte work, no GPU and no repo assets: images are built in memory and
+/// <c>Rendering/Data/Archive/CpuImage.sp</c>. Pure byte work, no GPU and no repo assets: images are built in memory and
 /// written to temp files.
 ///
 /// Three things here are worth more than the round-trips. <see cref="Spec_ExampleFile_MatchesByteForByte"/>
@@ -194,7 +194,7 @@ public class CpuImageFormatTests
             Assert.Equal(0xFF, loaded.Pixels[i]);
     }
 
-    /// <summary>The worked example at the bottom of <c>Data/Archive/CpuImage.sp</c>, byte for byte. A 1x1 image
+    /// <summary>The worked example at the bottom of <c>Rendering/Data/Archive/CpuImage.sp</c>, byte for byte. A 1x1 image
     /// still costs a whole tile — the smallest thing the format can say is 16x16.</summary>
     [Fact]
     public void Spec_ExampleFile_MatchesByteForByte()
@@ -300,7 +300,7 @@ public class CpuImageFormatTests
     private static readonly byte EndType = TypeByteOf<EndBlock>();
 
     /// <summary>Pins the id table in the <see cref="ImageBlockAttribute"/>s against the one in
-    /// <c>Data/Archive/CpuImage.sp</c>, including the required bit each type byte carries. Every other test here
+    /// <c>Rendering/Data/Archive/CpuImage.sp</c>, including the required bit each type byte carries. Every other test here
     /// asks the attributes what the type bytes are, so this is the one that says what they must be.</summary>
     [Theory]
     [InlineData(typeof(EndBlock), 0x80, true)]

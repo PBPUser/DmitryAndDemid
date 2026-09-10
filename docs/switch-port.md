@@ -98,7 +98,7 @@ GC-heap max/avg/median. SFX and debug console spam are muted during the run. Two
         The editor screens' own Roslyn / `LoadShaderFromMemory` / direct-`File` calls live behind that same
         DEBUG exclusion, so they are out of the device path too.
 - [x] Route all asset IO through a single seam so `romfs:/` can back it on Switch. **Already in place** —
-      `Utils/Assets.cs` (`IAssetSource` + settable `Assets.Source`); a Switch host sets
+      `Rendering/Utils/Assets.cs` (`IAssetSource` + settable `Assets.Source`); a Switch host sets
       `Assets.Source = new FileSystemAssetSource("romfs:/")` (or a dedicated romfs source). The only two
       direct-`File` bypasses left are in `GameplayEditorScreen` (DEBUG-only, out of the device path).
 - [x] Implement the pure-managed input in `Deko3dBackend` (buttons/sticks) — no device needed to author it;

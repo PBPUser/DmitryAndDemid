@@ -3,7 +3,7 @@ using DmitryAndDemid.Utils;
 
 namespace DmitryAndDemid.Rendering;
 
-// Every block type the .negr format defines, one class each, specified in Data/Archive/CpuImage.sp. The ids in the
+// Every block type the .negr format defines, one class each, specified in Rendering/Data/Archive/CpuImage.sp. The ids in the
 // attributes below and the ids in that file are the same list, and it is the file to change first. Adding a
 // block here is all it takes to make it readable — see ImageBlockAttribute.
 

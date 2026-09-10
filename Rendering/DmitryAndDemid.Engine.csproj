@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The Nikitos Engine (a.k.a. the Lihanov Engine) as its own assembly: Likhanov32D (graphics), Demidonic
+    (audio), the input seam, and the .negr image format. Everything here is game-agnostic — no Runtime, no
+    GameBox, no Screen — which is exactly what the split is for: the game references the engine, never the
+    other way round, and the compiler now enforces that instead of a convention.
+
+    Pizzics has no files: the collision sweep lives inline in the game's GameBox. See CLAUDE.md.
+
+    Note what this project is NOT: it is not the backend. Raylib / Silk-GL / Vulkan / Metal / SDL all live
+    here side by side, and Engine.cs picks one at startup.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <!-- Must track the game's framework exactly, including the Switch homebrew retarget (mono-nx runs the Mono
+         interpreter on .NET 9, and a net10 assembly will not load there). Same SwitchBuild switch as the game. -->
+    <TargetFramework Condition=" '$(SwitchBuild)' == 'true' ">net9.0</TargetFramework>
+    <TargetFramework Condition=" '$(SwitchBuild)' != 'true' ">net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <AssemblyName>DmitryAndDemid.Engine</AssemblyName>
+    <!-- Namespaces are unchanged by the split: engine types are still DmitryAndDemid.Rendering.*, and the
+         handful of support files under Utils/ and Data/Archive/ keep DmitryAndDemid.Utils /
+         DmitryAndDemid.Data.Archive. Moving an assembly boundary must not move a single `using`. -->
+    <RootNamespace>DmitryAndDemid</RootNamespace>
+
+    <!-- Mirrors the game so `dotnet publish -r linux-arm64` (Tools/publish_tegra.sh, the Tegra X1 device
+         build) can restore this project for the same RIDs. -->
+    <RuntimeIdentifiers>linux-x64;linux-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugType>portable</DebugType>
+  </PropertyGroup>
+
+  <!-- Gates Rendering/Switch/** (deko3d + SDL). Opt-in with `-p:SwitchBuild=true`; see docs/switch-port.md. -->
+  <PropertyGroup Condition=" '$(SwitchBuild)' == 'true' ">
+    <DefineConstants>$(DefineConstants);SWITCH</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Only what the backends actually bind to. The game's own packages (Roslyn scripting, LuaCSharp, GtkSharp,
+       LZMA) are deliberately absent: none of them belong behind IRenderer. -->
+  <ItemGroup>
+    <PackageReference Include="Raylib-cs" Version="7.0.2" />
+    <PackageReference Include="rlImgui-cs" Version="3.2.0" />
+    <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Windowing" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Vulkan" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.23.0" />
+    <PackageReference Include="Silk.NET.Vulkan.Extensions.NV" Version="2.23.0" />
+    <PackageReference Include="StbImageSharp" Version="2.30.15" />
+    <PackageReference Include="StbTrueTypeSharp" Version="1.26.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- This project's own build output; the SDK's default glob would otherwise sweep it back in. -->
+    <Compile Remove="bin\**" />
+    <Compile Remove="obj\**" />
+  </ItemGroup>
+
+</Project>

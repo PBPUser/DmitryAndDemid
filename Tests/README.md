@@ -21,7 +21,7 @@ The game owns a window and a GL/Vulkan context. A test run has neither, so **tes
 `LoadTexture`, no `Runtime` construction, no `BeginDrawing`. Anything that must be verified is reached through the
 game's *headless seams*:
 
-- **`Assets.Source`** (`Utils/Assets.cs`) — the `IAssetSource` abstraction the game already uses to read content
+- **`Assets.Source`** (`Rendering/Utils/Assets.cs`) — the `IAssetSource` abstraction the game already uses to read content
   on Android and Switch. `TestEnvironment.UseRepoAssets()` points it at the repository's real `Assets/` folder,
   so tests read exactly what ships. A `ProjectReference` does **not** copy the game's `Assets/**` into the test
   output, which is why the seam (rather than a copied file) is the way in.

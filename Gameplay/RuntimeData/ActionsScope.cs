@@ -1371,12 +1371,14 @@ public static class ActionsScope
     private const int Stage3PentaIndex = 8;        // pentabullet — the aimed spray
     private const int Stage3MicroIndex = 11;       // micro shards
     private const int Stage3BubbleIndex = 17;      // bubble — what rises off the floor under the lasers
-    private const int Stage3CircleIndex = 20;      // plain round bullet (colourable)
+    private const int Stage3CircleIndex = 20;      // emit round bullet (colourable) — the letters too
     private const int DmitryStage3BossIndex = 23;  // Dmitry (Visual "dmitry", BossId 3)
     private const int Stage3LargeIndex = 24;       // large round bullet (colourable) — the gas clouds
     private const int Stage3LightIndex = 25;       // light bullet (colourable) — the curving streams
     private const int Stage3GrievanceBoxIndex = 26; // the complaints box (Visual "grievance_box") — card 4
     private const int Stage3MoonIndex = 27;        // the moon (Visual "moon", colourable) — card 4
+    private const int Stage3GlowIndex = 28;        // large emit bullet with the DANGEROUS bit cleared — pure
+                                                   // glow, no hitbox; the word card's light and its drawn line
     private const int DmitryStage3BossId = 3;
 
     /// <summary>
@@ -1514,6 +1516,403 @@ public static class ActionsScope
         obj.FacingRotation += obj.FloatingPoints[ScriptTurnRateIndex];
         obj.RenderRotation = obj.FacingRotation;
         obj.Position += Helper.GetDirection(obj.FacingRotation) * obj.Speed;
+    };
+
+
+    // ---- The word card: Dmitry signs his name across the field and drops it on the player ----------------
+    // Dmitry IS the pen, and he writes ONE BIG LETTER at a time: a 5x7 bitmap glyph blown up to fill most of the
+    // box, in emit bullets, one bullet at a time. He blinks onto the head of a stroke, then MOVES along it and
+    // puts a bullet down each time he reaches the next cell of it — one stroke on the go and no more — pauses,
+    // blinks to the head of the next, and about a second later the letter is standing there. Then he stops, and
+    // only starts the next letter once this one has fallen half way out of the box, so the field holds one
+    // letter being read and at most one on its way past the player.
+    // The letter is written in LIGHT: under every bullet, and behind him every tick he is moving along a
+    // stroke, goes a big emit blob with no hitbox at all — so the cells burn rather than merely show and the
+    // pen leaves a lit line between them. Glow and cells hang, fall and are cleared as one letter.
+    // A fallen cell does not fly straight: it ACCELERATES toward the player, and the closer it already is the
+    // harder it pulls, so the strokes over the player swoop while the far side of the letter still drifts.
+    // Velocity is integrated (the pull turns it, it is not re-aimed), which is what keeps the pattern dodgeable
+    // — sidestep and the swooping cells overshoot and have to come back around.
+
+    /// <summary>
+    /// The word the card spells, in the game's Latin-lookalike Cyrillic (see CLAUDE.md and
+    /// Assets/Data/cyrilic-transliteration-table.json): "DMUTPUJ" is «ДМИТРИЙ». Change the string and the
+    /// letters he writes follow it, one after another — every character needs a glyph in
+    /// <see cref="LetterGlyphs"/>, and one with none is written as the hollow "tofu" box, so a typo shows on
+    /// screen instead of going missing.
+    /// </summary>
+    private const string DmitryStage3LetterText = "DMUTPUJ";
+
+    /// <summary>Every glyph is this many cells wide and tall, with one blank column between neighbours.</summary>
+    private const int LetterGlyphWidth = 5, LetterGlyphHeight = 7;
+
+    /// <summary>
+    /// The 5x7 font the word is rasterised from: seven rows of five cells, '/' between rows, '#' for a bullet
+    /// and '.' for a gap. Lookup folds to upper case first, so the string may be typed either way.
+    /// </summary>
+    private static readonly FrozenDictionary<char, string> LetterGlyphs = new Dictionary<char, string>
+    {
+        [' '] = "...../...../...../...../...../...../.....",
+        ['A'] = ".###./#...#/#...#/#####/#...#/#...#/#...#",
+        ['B'] = "####./#...#/#...#/####./#...#/#...#/####.",
+        ['C'] = ".###./#...#/#..../#..../#..../#...#/.###.",
+        ['D'] = "####./#...#/#...#/#...#/#...#/#...#/####.",
+        ['E'] = "#####/#..../#..../####./#..../#..../#####",
+        ['F'] = "#####/#..../#..../####./#..../#..../#....",
+        ['G'] = ".###./#...#/#..../#.###/#...#/#...#/.###.",
+        ['H'] = "#...#/#...#/#...#/#####/#...#/#...#/#...#",
+        ['I'] = "#####/..#../..#../..#../..#../..#../#####",
+        ['J'] = "..###/...#./...#./...#./...#./#..#./.##..",
+        ['K'] = "#...#/#..#./#.#../##.../#.#../#..#./#...#",
+        ['L'] = "#..../#..../#..../#..../#..../#..../#####",
+        ['M'] = "#...#/##.##/#.#.#/#...#/#...#/#...#/#...#",
+        ['N'] = "#...#/##..#/#.#.#/#..##/#...#/#...#/#...#",
+        ['O'] = ".###./#...#/#...#/#...#/#...#/#...#/.###.",
+        ['P'] = "####./#...#/#...#/####./#..../#..../#....",
+        ['Q'] = ".###./#...#/#...#/#...#/#.#.#/#..#./.##.#",
+        ['R'] = "####./#...#/#...#/####./#.#../#..#./#...#",
+        ['S'] = ".####/#..../#..../.###./....#/....#/####.",
+        ['T'] = "#####/..#../..#../..#../..#../..#../..#..",
+        ['U'] = "#...#/#...#/#...#/#...#/#...#/#...#/.###.",
+        ['V'] = "#...#/#...#/#...#/#...#/#...#/.#.#./..#..",
+        ['W'] = "#...#/#...#/#...#/#...#/#.#.#/##.##/#...#",
+        ['X'] = "#...#/#...#/.#.#./..#../.#.#./#...#/#...#",
+        ['Y'] = "#...#/#...#/.#.#./..#../..#../..#../..#..",
+        ['Z'] = "#####/....#/...#./..#../.#.../#..../#####",
+        ['0'] = ".###./#...#/#..##/#.#.#/##..#/#...#/.###.",
+        ['1'] = "..#../.##../..#../..#../..#../..#../.###.",
+        ['2'] = ".###./#...#/....#/...#./..#../.#.../#####",
+        ['3'] = "#####/...#./..#../...#./....#/#...#/.###.",
+        ['4'] = "...#./..##./.#.#./#..#./#####/...#./...#.",
+        ['5'] = "#####/#..../####./....#/....#/#...#/.###.",
+        ['6'] = ".###./#..../#..../####./#...#/#...#/.###.",
+        ['7'] = "#####/....#/...#./..#../.#.../.#.../.#...",
+        ['8'] = ".###./#...#/#...#/.###./#...#/#...#/.###.",
+        ['9'] = ".###./#...#/#...#/.####/....#/....#/.###.",
+        ['-'] = "...../...../...../#####/...../...../.....",
+        [','] = "...../...../...../...../...../..##./..#..",
+        ['.'] = "...../...../...../...../...../.##../.##..",
+        ['('] = "...#./..#../.#.../.#.../.#.../..#../...#.",
+        [')'] = ".#.../..#../...#./...#./...#./..#../.#...",
+        ['|'] = "..#../..#../..#../..#../..#../..#../..#..",
+    }.ToFrozenDictionary();
+
+    /// <summary>What a character with no glyph is drawn as — the hollow box a font shows for a missing one.</summary>
+    private const string LetterTofu = "#####/#...#/#...#/#...#/#...#/#...#/#####";
+
+    /// <summary>
+    /// A glyph broken into the PARTS he draws it in: one entry per horizontal run of lit cells on the 5x7 grid,
+    /// top row first. A run is a stroke — "####." is one part, "#...#" is two — and he stamps a whole one at
+    /// once, so the letter appears a few strokes at a time rather than dot by dot. Built from
+    /// <see cref="LetterGlyphs"/>, so a glyph edited up there is broken up correctly down here.
+    /// </summary>
+    private static readonly FrozenDictionary<char, (int Row, int From, int To)[]> LetterPartPaths =
+        LetterGlyphs.ToDictionary(kv => kv.Key, kv => BuildLetterParts(kv.Value)).ToFrozenDictionary();
+
+    /// <summary>The parts of <see cref="LetterTofu"/>, for a character no glyph covers.</summary>
+    private static readonly (int Row, int From, int To)[] LetterTofuParts = BuildLetterParts(LetterTofu);
+
+    private static (int Row, int From, int To)[] BuildLetterParts(string glyph)
+    {
+        var parts = new List<(int, int, int)>();
+        for (int row = 0; row < LetterGlyphHeight; row++)
+        {
+            int from = -1;
+            for (int column = 0; column <= LetterGlyphWidth; column++)
+            {
+                // A row is five cells plus a '/', so a cell sits at row * 6 + column whichever row it is on.
+                bool lit = column < LetterGlyphWidth && glyph[row * (LetterGlyphWidth + 1) + column] == '#';
+                if (lit && from < 0)
+                    from = column;
+                else if (!lit && from >= 0)
+                {
+                    parts.Add((row, from, column - 1));
+                    from = -1;
+                }
+            }
+        }
+        return parts.ToArray();
+    }
+
+    /// <summary>
+    /// The letter is drawn ONE AT A TIME and big: a 5x7 glyph at this cell size, centred here, one emit bullet
+    /// per lit cell. The box is kept clear of where the player stands at the start of a card (192, 400) — the
+    /// bottom row lands around y=283.
+    /// </summary>
+    private static readonly Vector2 LetterBoxCenter = new(192, 150);
+    private const float LetterCellSize = 38f;
+
+    /// <summary>How fast he moves along a stroke while he is drawing it (px/tick). Slow enough to watch: a cell
+    /// is <see cref="LetterCellSize"/> apart, so this is a few ticks per bullet.</summary>
+    private static float LetterPenSpeed(int diff) => 11f + diff * 2f;
+
+    /// <summary>Ticks he pauses after finishing a stroke, before appearing on the head of the next one.</summary>
+    private const int LetterPartTicks = 3;
+
+    /// <summary>How long the finished letter hangs whole. Everything he draws is stamped PINNED (see
+    /// <see cref="LetterPinned"/>) and stays where it was put; when this beat is up the whole letter is let go
+    /// at once, so it stands complete and then comes away in one piece rather than the first cells sliding off
+    /// while he is still drawing.</summary>
+    private const int LetterHoldTicks = 45;
+
+    /// <summary>
+    /// He starts the next letter once the one he just drew is half way to being off the screen — the mean height
+    /// of what is left of it has passed the midpoint between where it was written and the bottom edge. Measured,
+    /// not timed, so it keeps step with however fast the cells are actually falling at this difficulty.
+    /// </summary>
+    private const float LetterPlayfieldBottom = 448f;
+    private static readonly float LetterHalfwayY = (LetterBoxCenter.Y + LetterPlayfieldBottom) / 2f;
+
+    /// <summary>How long a fallen cell keeps pulling toward the player. After that it holds the velocity it
+    /// ended up with and sails off to be culled at the box edge, instead of orbiting the player forever.</summary>
+    private const int LetterChaseTicks = 260;
+
+    /// <summary>The downward drift a cell is released with, before any pull toward the player.</summary>
+    private const float LetterDropSpeed = 1f;
+
+    /// <summary>
+    /// The pull toward the player, in px/tick², at zero distance and at <see cref="LetterAccelRange"/> or
+    /// further; in between it interpolates on the SQUARE of the closeness, so the near-field bite is sharp and
+    /// the far side of the letter really does just drift. Both ends grow with difficulty.
+    /// </summary>
+    private const float LetterAccelRange = 200f;
+    private static float LetterAccelNear(int diff) => 0.020f + diff * 0.004f;
+    private static float LetterAccelFar(int diff) => 0.004f + diff * 0.001f;
+
+    /// <summary>The speed a falling cell converges on — the pull cannot push it past this.</summary>
+    private static float LetterMaxSpeed(int diff) => 2.0f + diff * 0.3f;
+
+    /// <summary>Green-yellow, the same colour his gas cards already use, on the emit bullet.</summary>
+    private const int LetterColor = 0xADFF2F;
+
+    /// <summary>
+    /// The glow is a SECOND object under every bullet he lays: the big 48px emit circle with its dangerous bit
+    /// cleared (<see cref="Stage3GlowIndex"/>), so it lights the letter up without adding a single pixel of
+    /// hitbox. One goes under each cell, which is what makes the cells burn rather than merely show — and one
+    /// goes down every tick he is moving along a stroke, which is what draws the glowing line: at pen speed the
+    /// blobs land a dozen px apart and their 48px halos run together into one lit bar between the cells.
+    /// They are part of the letter and fall with it, on the same mover and the same release.
+    /// </summary>
+    private const int LetterGlowColor = 0xADFF2F;
+
+    /// <summary>A cell that has been drawn but not let go of yet. It is a release tick so far in the future that
+    /// the mover's "since release" is hugely negative, which is exactly its "still hanging there" case — so
+    /// pinning needs no extra state and no extra branch.</summary>
+    private const int LetterPinned = int.MaxValue;
+
+    /// <summary>Header scratch on a CELL: the box tick it starts falling on (<see cref="LetterPinned"/> until
+    /// the letter is finished). Float scratch: the velocity it integrates, and the row it hangs on while it
+    /// waits.</summary>
+    private const int LetterReleaseIndex = 0x34;
+    private const int LetterVelXIndex = 0x37, LetterVelYIndex = 0x38;
+    private const int LetterHomeYIndex = 0x30;
+
+    /// <summary>Header scratch on DMITRY: which letter of the word he is on, which stroke of it, how far along
+    /// that stroke, the ticks left before the next move (or, once the letter is done, the beat he holds it for),
+    /// and the tick he let the finished letter go on — which is how he tells his own letter from the one before
+    /// it, still on its way past the player. Reset by the card's create script: the boss object is carried over
+    /// from the card before this one.</summary>
+    private const int LetterPenLetterIndex = 0x35, LetterPenPartIndex = 0x36, LetterPenWaitIndex = 0x37;
+    private const int LetterPenStepIndex = 0x38, LetterPenReleaseIndex = 0x39;
+
+    /// <summary>
+    /// Dmitry's word card. He fires nothing at the player — he WRITES, one big letter at a time: he appears on
+    /// the head of a stroke, walks along it laying ONE emit bullet at a time, pauses, appears on the next
+    /// stroke, and about a second later the letter is standing there whole. Then he stops. He only starts the
+    /// next letter once this one has fallen half way to off the screen, so the field holds one letter being read
+    /// and at most one on its way out.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DmitryStage3Letters = c =>
+    {
+        int t = BossCardTick(c);
+        if (t < 0)
+            return;
+        var parts = LetterPartsFor(c.Header[LetterPenLetterIndex]);
+        if (c.Header[LetterPenPartIndex] >= parts.Length)
+        {
+            // Signed. He holds still over his work while the letter hangs there whole, lets the whole thing go
+            // at once when that beat is up, and then simply watches it out of the box.
+            if (c.Header[LetterPenWaitIndex] > 0)
+            {
+                c.Header[LetterPenWaitIndex]--;
+                return;
+            }
+            if (c.Header[LetterPenReleaseIndex] == 0)
+            {
+                // Everything he drew is in the box by now (nothing was stamped this tick), so one sweep gets
+                // the lot — which is why the release waits for the end of the hold rather than the last stroke.
+                c.Header[LetterPenReleaseIndex] = c.Box.CurrentTick;
+                ReleaseLetter(c.Box, c.Box.CurrentTick);
+                return;
+            }
+            if (LetterIsHalfwayOut(c.Box, c.Header[LetterPenReleaseIndex]))
+            {
+                c.Header[LetterPenLetterIndex] =
+                    (c.Header[LetterPenLetterIndex] + 1) % DmitryStage3LetterText.Length;
+                c.Header[LetterPenPartIndex] = 0;
+                c.Header[LetterPenStepIndex] = 0;
+                c.Header[LetterPenReleaseIndex] = 0;
+            }
+            return;
+        }
+        if (c.Header[LetterPenWaitIndex] > 0)
+        {
+            c.Header[LetterPenWaitIndex]--;
+            return;
+        }
+        var (row, from, to) = parts[c.Header[LetterPenPartIndex]];
+        int step = c.Header[LetterPenStepIndex];
+        Vector2 target = LetterCellPosition(from + step, row);
+        if (step == 0)
+        {
+            c.Position = target;   // the head of a stroke he does not fly to, he appears on
+        }
+        else
+        {
+            // Along the stroke he moves, and only puts a bullet down when he reaches the next cell of it.
+            Vector2 toTarget = target - c.Position;
+            float distance = toTarget.Length();
+            float speed = LetterPenSpeed(CardDiff(c.Box));
+            if (distance > speed)
+            {
+                c.Position += toTarget / distance * speed;
+                StampLetterGlow(c.Box, c.Position);   // the line he draws between one cell and the next
+                return;
+            }
+            c.Position = target;
+        }
+        StampLetterCell(c.Box, target);
+        if (step < to - from)
+        {
+            c.Header[LetterPenStepIndex] = step + 1;
+            return;
+        }
+        // Stroke finished. On to the next one — or, if that was the last, let the whole letter go at once.
+        c.Header[LetterPenStepIndex] = 0;
+        c.Header[LetterPenPartIndex]++;
+        if (c.Header[LetterPenPartIndex] < parts.Length)
+        {
+            c.Header[LetterPenWaitIndex] = LetterPartTicks;
+            return;
+        }
+        c.Header[LetterPenWaitIndex] = LetterHoldTicks;
+    };
+
+    /// <summary>The strokes of the letter at <paramref name="index"/> of the word (a space has none, which the
+    /// caller reads as "already finished" and moves straight past).</summary>
+    private static (int Row, int From, int To)[] LetterPartsFor(int index)
+    {
+        char glyph = DmitryStage3LetterText[index % DmitryStage3LetterText.Length];
+        return LetterPartPaths.TryGetValue(char.ToUpperInvariant(glyph), out var parts) ? parts : LetterTofuParts;
+    }
+
+    /// <summary>Hands everything he drew for this letter — cells and glow alike — the same release tick, so the
+    /// whole thing comes away together. Only PINNED objects are his; anything already released belongs to the
+    /// letter before it, still on its way past the player.</summary>
+    private static void ReleaseLetter(GameBox box, int releaseTick)
+    {
+        foreach (var obj in box.BoxObjects)
+            if (obj.UpdateAction == DmitryStage3LetterMove && obj.Header[LetterReleaseIndex] == LetterPinned)
+                obj.Header[LetterReleaseIndex] = releaseTick;
+    }
+
+    /// <summary>Is what is left of the letter released at <paramref name="releaseTick"/> half way out of the
+    /// box? True as well when nothing of it is left at all — culled at the bottom edge counts as out. The
+    /// release tick is what keeps the letter before it, still falling, out of the average.</summary>
+    private static bool LetterIsHalfwayOut(GameBox box, int releaseTick)
+    {
+        float total = 0f;
+        int count = 0;
+        foreach (var obj in box.BoxObjects)
+        {
+            if (obj.UpdateAction != DmitryStage3LetterMove || obj.Header[LetterReleaseIndex] != releaseTick)
+                continue;
+            total += obj.Y;
+            count++;
+        }
+        return count == 0 || total / count >= LetterHalfwayY;
+    }
+
+    /// <summary>Where one cell of the big glyph sits on the playfield.</summary>
+    private static Vector2 LetterCellPosition(int column, int row)
+    {
+        float left = LetterBoxCenter.X - LetterGlyphWidth * LetterCellSize / 2f;
+        float top = LetterBoxCenter.Y - LetterGlyphHeight * LetterCellSize / 2f;
+        return new Vector2(left + (column + 0.5f) * LetterCellSize, top + (row + 0.5f) * LetterCellSize);
+    }
+
+    /// <summary>Puts one glowing blob down — no hitbox, pinned and falling with the letter like everything
+    /// else he draws. This is both the light under a cell and, tick by tick as he moves, the line between
+    /// them.</summary>
+    private static RuntimeObject StampLetterGlow(GameBox box, Vector2 position)
+    {
+        var g = box.SpawnObject(Stage3GlowIndex, LetterGlowColor);
+        g.Position = position;
+        g.CreatedAt = box.CurrentTick;
+        g.Header[LetterReleaseIndex] = LetterPinned;
+        g.FloatingPoints[LetterHomeYIndex] = position.Y;
+        g.FloatingPoints[LetterVelXIndex] = 0f;
+        g.FloatingPoints[LetterVelYIndex] = LetterDropSpeed;
+        g.UpdateAction = DmitryStage3LetterMove;
+        return g;
+    }
+
+    /// <summary>Puts one emit bullet down, pinned where it is until the letter is finished, on a glow of its
+    /// own so the cell burns instead of merely showing.</summary>
+    private static RuntimeObject StampLetterCell(GameBox box, Vector2 position)
+    {
+        StampLetterGlow(box, position);
+        var b = box.SpawnObject(Stage3CircleIndex, LetterColor);
+        b.Position = position;
+        b.CreatedAt = box.CurrentTick;
+        b.Header[LetterReleaseIndex] = LetterPinned;
+        b.FloatingPoints[LetterHomeYIndex] = position.Y;
+        b.FloatingPoints[LetterVelXIndex] = 0f;
+        b.FloatingPoints[LetterVelYIndex] = LetterDropSpeed;
+        b.UpdateAction = DmitryStage3LetterMove;
+        return b;
+    }
+
+    /// <summary>
+    /// One cell of the word. While it waits its turn it hangs on its row with a small ripple (the phase comes
+    /// off its own X, so the word breathes along its length instead of pulsing as one block). Once released it
+    /// integrates a velocity the player pulls on: the acceleration is <see cref="LetterAccelNear"/> right on
+    /// top of the player, <see cref="LetterAccelFar"/> at <see cref="LetterAccelRange"/> and beyond, and the
+    /// speed is capped — so a cell that crumbled overhead is on you in a second while the far end still drifts.
+    /// </summary>
+    private static readonly RuntimeObjectReferenceAction DmitryStage3LetterMove = obj =>
+    {
+        int since = obj.Box.CurrentTick - obj.Header[LetterReleaseIndex];
+        if (since < 0)
+        {
+            obj.Y = obj.FloatingPoints[LetterHomeYIndex]
+                    + MathF.Sin(obj.Box.CurrentTick * 0.06f + obj.X * 0.08f) * 1.5f;
+            return;
+        }
+        float vx = obj.FloatingPoints[LetterVelXIndex], vy = obj.FloatingPoints[LetterVelYIndex];
+        if (since < LetterChaseTicks)
+        {
+            int diff = CardDiff(obj.Box);
+            float distance = Vector2.Distance(obj.Position, obj.Box.Player.Position);
+            float closeness = 1f - Math.Clamp(distance / LetterAccelRange, 0f, 1f);
+            float acceleration = LetterAccelFar(diff)
+                                 + (LetterAccelNear(diff) - LetterAccelFar(diff)) * closeness * closeness;
+            Vector2 pull = Helper.GetDirection(obj.Position, obj.Box.Player.Position) * acceleration;
+            vx += pull.X;
+            vy += pull.Y;
+            float speed = MathF.Sqrt(vx * vx + vy * vy);
+            float maximum = LetterMaxSpeed(diff);
+            if (speed > maximum)
+            {
+                vx *= maximum / speed;
+                vy *= maximum / speed;
+            }
+            obj.FloatingPoints[LetterVelXIndex] = vx;
+            obj.FloatingPoints[LetterVelYIndex] = vy;
+        }
+        obj.X += vx;
+        obj.Y += vy;
+        obj.FacingRotation = obj.RenderRotation = MathF.Atan2(vy, vx);
     };
 
     // ---- Card 4: the complaints box and the moon ---------------------------------------------------------
@@ -2089,6 +2488,19 @@ public static class ActionsScope
             SpawnCardBoss(c.GameBox, DmitryStage3BossIndex, DmitryStage3Card2, DmitryStage3Post);
         dictionary["dmitry#stage3#card3#create"] = c =>
             SpawnCardBoss(c.GameBox, DmitryStage3BossIndex, DmitryStage3Card3, DmitryStage3Post);
+        // The word card, between the pressure card and the complaints box: he writes his name across the
+        // field in bullets and drops it. Nothing but the boss is put down here — every letter is drawn
+        // by Dmitry himself, cell by cell, from his own attack. The pen cursor is zeroed because this is
+        // the SAME boss object the previous card used, scratch slots and all.
+        dictionary["dmitry#stage3#letters#create"] = c =>
+        {
+            var boss = SpawnCardBoss(c.GameBox, DmitryStage3BossIndex, DmitryStage3Letters, DmitryStage3Post);
+            boss.Header[LetterPenLetterIndex] = 0;
+            boss.Header[LetterPenPartIndex] = 0;
+            boss.Header[LetterPenStepIndex] = 0;
+            boss.Header[LetterPenWaitIndex] = 0;
+            boss.Header[LetterPenReleaseIndex] = 0;
+        };
         // The complaints box is put down once here and runs the card from its own update (grievances, venting,
         // the moon); it is stamped with the chapter so it can take itself off when the card is over.
         dictionary["dmitry#stage3#card4#create"] = c =>
@@ -2675,6 +3087,7 @@ public static class ActionsScope
         dictionary["dmitry#puff#move"] = DmitryPuffMove;
         dictionary["dmitry#exhaust#move"] = DmitryExhaustMove;
         dictionary["demid#leak#move"] = DemidLeakMove;
+        dictionary["dmitry#stage3#letter"] = DmitryStage3LetterMove;
         dictionary["demid#obs#pixel"] = ObsPixelMove;
         dictionary["demid#window#pixel"] = WindowPixelMove;
         ObjectActions = dictionary.ToFrozenDictionary();

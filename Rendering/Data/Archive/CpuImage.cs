@@ -19,7 +19,7 @@ namespace DmitryAndDemid.Data.Archive;
 /// <see cref="Load"/> and <see cref="Save"/> are the project's own <c>.negr</c> block format, which exists because
 /// StbImageSharp only decodes: it is the write side, and it is built on the same <see cref="BitPackage"/> varints
 /// as the game's other binary files rather than on a new encoder dependency. Its specification is
-/// <c>Data/Archive/CpuImage.sp</c>, and the container itself is <see cref="ImageBlock"/>.
+/// <c>Rendering/Data/Archive/CpuImage.sp</c>, and the container itself is <see cref="ImageBlock"/>.
 /// </summary>
 public class CpuImage
 {
@@ -76,7 +76,7 @@ public class CpuImage
     public const string Extension = ".negr";
 
     /// <summary>Reads the project's own <c>.negr</c> block format, the counterpart to <see cref="Save"/> and the
-    /// one image format here that does not go through StbImageSharp. <c>Data/Archive/CpuImage.sp</c> is the
+    /// one image format here that does not go through StbImageSharp. <c>Rendering/Data/Archive/CpuImage.sp</c> is the
     /// specification.
     /// 
     /// The loop is the whole decoder: past the signature a file is nothing but blocks, so this reads one, hands

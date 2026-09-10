@@ -3,7 +3,7 @@
   <!--
     Headless unit tests for the game. The philosophy: the game owns a window and a GL/Vulkan context, none of
     which exist in a test run, so tests NEVER touch the GPU. They drive the game's pure, headless seams instead
-    — chiefly Assets.Source (Utils/Assets.cs), the same abstraction that lets the game read content on Android
+    — chiefly Assets.Source (Rendering/Utils/Assets.cs), the same abstraction that lets the game read content on Android
     and Switch. See Tests/README.md.
 
     Run with:  dotnet test Tests/DmitryAndDemid.Tests.csproj

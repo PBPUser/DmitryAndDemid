@@ -70,6 +70,15 @@
     <!-- The unit-test project (Tests/) is also its own project; it references this one, so this one must not
          also compile the test sources (which pull in xUnit that the game doesn't reference). -->
     <Compile Remove="Tests\**" />
+    <!-- The Nikitos Engine is its own assembly now (Rendering/DmitryAndDemid.Engine.csproj), referenced
+         below. Its sources must not also be compiled here, or every engine type would exist twice. -->
+    <Compile Remove="Rendering\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The engine. One-directional by construction: the game knows about Gfx/IRenderer/Engine, the engine
+         knows nothing about GameBox, Runtime or Screen. -->
+    <ProjectReference Include="Rendering\DmitryAndDemid.Engine.csproj" />
   </ItemGroup>
 
   <ItemGroup>

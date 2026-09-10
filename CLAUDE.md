@@ -4,7 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A Touhou-style danmaku (bullet-hell) game written in C# on .NET 10, rendering through Raylib-cs. Single project, no solution file, no test suite.
+A Touhou-style danmaku (bullet-hell) game written in C# on .NET 10, rendering through Raylib-cs.
+
+Four projects, in `DmitryAndDemid.sln`:
+
+| Project | Output | What it is |
+|---|---|---|
+| `DmitryAndDemid.csproj` (root) | `aag2` (Exe) | The game: `Runtime`, `GameBox`, `Screens/`, `Gameplay/`, the content under `Assets/`. |
+| `Rendering/DmitryAndDemid.Engine.csproj` | `DmitryAndDemid.Engine` (Library) | **The engine.** See below. |
+| `Launcher/DmitryAndDemid.Launcher.csproj` | `custom` (Exe) | The GTK pre-launch configurator, built into the game's output folder. |
+| `Tests/DmitryAndDemid.Tests.csproj` | Library | Headless xUnit tests. `dotnet test Tests/DmitryAndDemid.Tests.csproj`. |
+
+`Android/DmitryAndDemid.Android.csproj` is deliberately **not** in the solution: it compiles the game's and the
+engine's sources directly (`..\**\*.cs` with excludes) rather than referencing either project, because the
+desktop projects pull in GTK/Raylib/Vulkan that do not exist on Android.
+
+The game references the engine; nothing references the game. That direction is the whole point of the split —
+see the engine section below.
 
 The engine it runs on is part of this repo and has a name — in fact two, used interchangeably and with no difference in meaning:
 
@@ -34,7 +50,8 @@ dotnet run                    # build + launch the game
 dotnet build -c Release       # Release: strips all the DEBUG tooling below
 ```
 
-There are no tests, no linter, and no CI. Verification is running the game.
+There is no linter and no CI. `Tests/` is a headless xUnit suite (no GPU, no window — it drives the pure seams
+only); anything visual is still verified by running the game.
 
 `Debug` and `Release` are meaningfully different builds, not just optimization levels. `#if DEBUG` gates:
 - ImGui overlays (`Screen.DrawImgui`, called only on the topmost screen)
@@ -77,7 +94,35 @@ A fragment shader is paired with a same-named `.vs` if one exists, otherwise wit
 
 ## The Nikitos Engine (rendering, platform, input, audio)
 
-Everything under `Rendering/` is the engine — the Nikitos Engine, or the Lihanov Engine, whichever you feel like calling it that day. Three pieces:
+Everything under `Rendering/` is the engine — the Nikitos Engine, or the Lihanov Engine, whichever you feel
+like calling it that day — and since the split it is also literally its own assembly,
+`Rendering/DmitryAndDemid.Engine.csproj`. The game holds a `ProjectReference` to it and the engine holds none
+back, so "the engine does not know about the game" is now a compiler error rather than a rule of thumb: there
+is no `Runtime`, no `GameBox` and no `Screen` in scope inside `Rendering/`.
+
+Namespaces did **not** move with the assembly boundary. Engine types are still `DmitryAndDemid.Rendering.*`,
+and the low-level support files that came with it keep theirs — so no `using` anywhere in the game changed.
+Those files are:
+
+- `Rendering/Utils/{Assets,Platform,FlacAudio,BitPackage}.cs` — namespace `DmitryAndDemid.Utils`
+- `Rendering/Data/Archive/CpuImage.cs` (+ `.sp`) — namespace `DmitryAndDemid.Data.Archive`
+
+They live under `Rendering/` because the engine needs them and they need nothing from the game. `Utils/` and
+`Data/` at the repo root are still the game's, and still hold everything else (`Helper`, `Keyboard`,
+`Controller`, `SystemInfo`, `DualSense/`, the `File*Info` archive types).
+
+Where the engine genuinely needs something only the host can answer, it takes a **settable hook with a working
+default**, never a call back into the game:
+
+- `Platform.FatalErrorHandler` / `Platform.TraceHandler` — default to stderr/stdout. The desktop game installs
+  the GTK message dialog over the first in `Program.cs`; Android installs a logcat write in `MainActivity`.
+- `Assets.Source` (`IAssetSource`) — defaults to the plain filesystem; Android and Switch hosts replace it.
+- `Engine.ShaderLookup` — the host owns the shader dictionary (`Runtime.Shaders`, scanned out of
+  `Assets/Shaders/`), so it hands the engine a lookup in `Runtime.LoadShaders`. `Engine.FindShader(name)`
+  returns `ShaderHandle.None` when unset or unknown, and callers must read that as "this pass is unavailable"
+  rather than as an error. `FsrPass` is the one user so far.
+
+Three pieces:
 
 - `Rendering/Engine.cs` — the front door and the only place a backend is chosen. Holds every name constant (`Name`, `AlternateName`, `GraphicsName`, `AudioName`, `PhysicsName`) plus `BackendName` (what it is running on this launch).
 - `Rendering/Gfx.cs` — Likhanov32D's drawing API, what everything else calls via `using static DmitryAndDemid.Rendering.Gfx;`. Method names mirror Raylib's because they used to *be* Raylib's; every one is a thin forward to the active backend.
@@ -132,11 +177,11 @@ Full write-up in `docs/dualsense.md`.
 
 ## Persistence
 
-`Utils/BitPackage` is a hand-rolled varint binary reader/writer (7-bit continuation byte, sign bit `0x40`). It backs everything binary:
+`Rendering/Utils/BitPackage` is a hand-rolled varint binary reader/writer (7-bit continuation byte, sign bit `0x40`). It backs everything binary:
 - `scoreaag2.gsy` — `PlayerData.Instance`, a lazily-loaded static singleton that **saves on every mutation** (each unlock setter calls `Save()`). Holds high scores, unlocked stages/music/nicknames, per-character spell-card try counts.
 - `Replays/*.rpy` — a JSON header plus one packed input byte per tick. `PlayerController.Update` writes the bitfield (left/right/up/down/focus/shoot/bomb) into `Movements[tick]`; `ReplayController` replays it. Both derive from `PlayerControllerBase`, so gameplay code is agnostic to which is driving.
 - `Assets/Data/SpellCards/*.sid` — spell cards authored by `StageEditorScreen`.
-- `*.negr` — the in-project image format (`Data/Archive/CpuImage.cs`). Unlike the above, it is a **block** stream rather than a fixed field order: `[type:1][length:varint][payload]` repeated to an END block, where bit `0x80` of the type byte says whether a reader that does not know the type must fail or skip it by its length. The abstract `ImageBlock` (`Rendering/ImageBlock.cs`) owns all the framing; each concrete block is a subclass in `Rendering/ImageBlocks.cs` declaring its id with `[ImageBlock(id)]`, found by reflection — **adding a block type means adding a class with that attribute, and nothing else**. Spec in `Data/Archive/CpuImage.sp`; both the id table and the spec's worked example are pinned by `Tests/CpuImageFormatTests.cs`.
+- `*.negr` — the in-project image format (`Rendering/Data/Archive/CpuImage.cs`). Unlike the above, it is a **block** stream rather than a fixed field order: `[type:1][length:varint][payload]` repeated to an END block, where bit `0x80` of the type byte says whether a reader that does not know the type must fail or skip it by its length. The abstract `ImageBlock` (`Rendering/ImageBlock.cs`) owns all the framing; each concrete block is a subclass in `Rendering/ImageBlocks.cs` declaring its id with `[ImageBlock(id)]`, found by reflection — **adding a block type means adding a class with that attribute, and nothing else**. Spec in `Rendering/Data/Archive/CpuImage.sp`; both the id table and the spec's worked example are pinned by `Tests/CpuImageFormatTests.cs`.
 
   The picture itself is a grid of **16×16 tiles**, row-major, one block each and no coordinates on them — the Nth tile block is the Nth cell, so the file must hold exactly `ceil(W/16) * ceil(H/16)` of them. Edge tiles are still whole 16×16 blocks that overhang the image; their outside pixels are written as zero and discarded on read. Ids `0x00–0x0F` are the file's structure (END, RESOLUTION, MANIFEST, METADATA); **ids `0x10` and up are tile encodings**, interchangeable ways of spelling one patch that all decode to the same 1024 bytes of RGBA8888, so a writer may pick a different one per tile. Only `TILE_RAW8` (`0x10`) exists so far: the colours uncompressed, 3 bytes per pixel or 4 depending on `ALPHA_ENABLED` in the MANIFEST block — which is why the manifest must precede any tile, as it is what gives a tile payload its length.
 

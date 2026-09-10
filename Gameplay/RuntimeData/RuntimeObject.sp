@@ -97,12 +97,16 @@ Floating Points:
 # script scratch — nothing in the engine touches these, they belong to whatever ActionsScope script spawned
 # the object, and they are handed out at spawn time so the movers stay state-free (and so replay-safe)
 [0x30] Formation slot A — base angle on the stage-3 pizza circle / u inside the Extra-stage window frame
+       / the row a letter cell hangs on in Dmitry's stage-3 word card, which it ripples around
 [0x31] Formation slot B — radius fraction on that circle / v inside that window frame
 [0x32] Turn rate in radians per tick, for a bullet or beam that curves as it flies (Dmitry's stage-3 cards)
 [0x35] Grievance level of the complaints box (Dmitry's fourth stage-3 card) — +1 per player shot that lands,
        -0.01 every tick, capped at 20; it vents a bullet every 20/level ticks while above zero
 [0x36] The box's venting accumulator — level/20 is added per tick and every whole 1 is a bullet, which is how
        "every 20/level ticks" survives a fractional level
+[0x37] Velocity X } of a falling letter cell (Dmitry's stage-3 word card). Integrated, not re-aimed: the pull
+[0x38] Velocity Y } toward the player is ADDED each tick, harder the closer the cell already is, and the
+                   resulting speed is capped
 
 # engine-written, script-read — the Pizzics sweep in GameBox fills these in, nothing else in the engine reads them
 [0x33] Hit-box width  } when both are > 0, player shots test against this axis-aligned rectangle centred on the
@@ -118,6 +122,14 @@ Floating Points:
        between chapters, so one that must not outlive its card compares this against the current chapter and
        takes itself off when they differ
 [0x33] Moon cooldown, on the complaints box — ticks until it launches the next moon; pinned while one is out
+[0x34] Release tick of a letter cell (Dmitry's stage-3 word card) — the BOX tick it stops hanging where it
+       was written and starts falling. int.MaxValue means PINNED: a cell is drawn pinned and every cell of
+       the letter is given the same real tick once the last stroke is down, so it comes away in one piece
+[0x35] Letter he is on     } Dmitry writing that card: which letter of the word, which stroke of it, how far
+[0x36] Stroke of it        } along that stroke he has got, the ticks before his next move (or, once the
+[0x37] Ticks to next move  } letter is done, the beat he holds it for), and the tick he released the
+[0x38] Cell along a stroke } finished letter on — which is how he tells his letter from the one before it,
+[0x39] Release tick he set } still falling. Zeroed by the create script — the boss outlives the card.
 
 # if the mystical toilet (Visual "toilet", scripts MysticalToilet / MysticalToiletDie)
 [0x55] Wander interval in ticks — it picks a new spot to drift to every this many chapter ticks

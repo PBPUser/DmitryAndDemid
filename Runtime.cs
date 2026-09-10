@@ -858,6 +858,11 @@ public class Runtime
 
     void LoadShaders()
     {
+        // Hand the engine its way back to this dictionary. Shaders are the host's to load — they are content,
+        // scanned out of Assets/Shaders — but a couple of engine-internal passes (FsrPass) need theirs by
+        // name, and the engine assembly cannot see Runtime. Set before the scan so it is live either way.
+        Engine.ShaderLookup = name => Shaders.GetValueOrDefault(name);
+
         string[] fragmentShaders = Assets.Files("Assets/Shaders", "*.fs").OrderBy(x => x).ToArray();
         foreach (var x in fragmentShaders)
         {
