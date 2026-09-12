@@ -84,13 +84,22 @@ reached through `IRenderer.SupportsReflex/SetReflex`.
 
 | Dictionary | Source | Key |
 |---|---|---|
-| `Textures` | `Assets/Textures/*.png` | filename **with** extension (`"241fps.png"`) |
+| `Textures` | `Assets/Textures/*.png`, `*.asi`, `*.akob` | filename **with** extension (`"241fps.png"`); an illustration also answers to its `.png` name |
 | `Shaders` | `Assets/Shaders/*.fs` | filename **without** extension |
 | `Sounds` | `Assets/Sounds/*` | filename without extension |
 | `Fonts` | `Assets/Fonts/*` | filename without extension |
 | `BulletVisualPresets` | `Assets/Data/BulletVisuals/*.json` | filename without extension |
 
 A fragment shader is paired with a same-named `.vs` if one exists, otherwise with `Assets/Shaders/base.vs`.
+
+Texture art is PNG **or** an AKOB static illustration (`.asi`, formerly `.akob`) — the NEngine format,
+vendored under `Rendering/NEngineFormat/` and reached through `Rendering/Data/Archive/StaticIllustrationImage.cs`.
+An illustration registers under its own filename AND under the `.png` name it corresponds to, so art moves to the
+new format one file at a time without a single call site changing; a PNG that really exists always keeps its own
+key, and the illustration is then reachable only by its own name. The rule lives in one place,
+`TextureManifest.ScannedTextures` — `Runtime.LoadTextures` walks it to build the dictionary and the tests walk it
+to count it. PNG loading is unchanged: it still goes to the backend's own file loader (native SDL2_image on
+Switch), and only an illustration takes the managed decode-then-upload path.
 
 ## The Nikitos Engine (rendering, platform, input, audio)
 
@@ -121,6 +130,11 @@ default**, never a call back into the game:
   `Assets/Shaders/`), so it hands the engine a lookup in `Runtime.LoadShaders`. `Engine.FindShader(name)`
   returns `ShaderHandle.None` when unset or unknown, and callers must read that as "this pass is unavailable"
   rather than as an error. `FsrPass` is the one user so far.
+
+One folder under `Rendering/` is not ours: `Rendering/NEngineFormat/` is the NEngine format library, copied in from
+the NEngineFormats repo rather than referenced, so this repo builds alone and Android's source-glob build picks it
+up. Its namespaces stay `NEngineFormat.*`, its sources are byte-identical to upstream, and exactly one file in the
+game touches it. See `Rendering/NEngineFormat/README.md`.
 
 Three pieces:
 

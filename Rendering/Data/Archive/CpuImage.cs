@@ -13,13 +13,16 @@ namespace DmitryAndDemid.Data.Archive;
 /// through <see cref="Gfx.UnloadTexture"/>, while a <see cref="CpuImage"/> is plain managed memory (a
 /// <c>byte[]</c>) the GC already handles — there is no Unload here and none is needed.
 ///
-/// There are two ways in. <see cref="LoadFromGenericFormat"/> reads the usual formats (PNG, …) through
+/// There are three ways in. <see cref="LoadFromGenericFormat"/> reads the usual formats (PNG, …) through
 /// StbImageSharp, the same decoder the Silk/Vulkan/Metal backends already use for their file-to-GPU upload path
 /// (see e.g. <c>SilkGLBackend.LoadTexture</c>) — it just stops one step earlier, before the pixels leave the CPU.
 /// <see cref="Load"/> and <see cref="Save"/> are the project's own <c>.negr</c> block format, which exists because
 /// StbImageSharp only decodes: it is the write side, and it is built on the same <see cref="BitPackage"/> varints
 /// as the game's other binary files rather than on a new encoder dependency. Its specification is
 /// <c>Rendering/Data/Archive/CpuImage.sp</c>, and the container itself is <see cref="ImageBlock"/>.
+/// <see cref="StaticIllustrationImage.Load"/> is the third: the AKOB static illustration (<c>.asi</c>), read by
+/// the format library vendored under <c>Rendering/NEngineFormat/</c>. <see cref="LoadAnyFormat"/> picks between
+/// the three by extension, which is what lets an illustration stand in for a PNG anywhere art is scanned.
 /// </summary>
 public class CpuImage
 {
@@ -104,6 +107,24 @@ public class CpuImage
             block?.Apply(image);
         }
         return image.Build();
+    }
+
+    /// <summary>
+    /// Reads whichever image format <paramref name="path"/> is, by extension: an AKOB static illustration
+    /// (<c>.asi</c> / <c>.akob</c>), the project's own <c>.negr</c>, or anything StbImageSharp decodes (PNG and
+    /// the rest). Adding a format means adding a case here and nowhere else.
+    ///
+    /// Note this is the CPU-side path. The backends load a PNG straight to the GPU through their own decoders
+    /// (native SDL2_image on Switch, deliberately not StbImageSharp), and that path is untouched — a caller
+    /// only comes here when it wants the pixels, or when the file is one of the formats a backend cannot read.
+    /// </summary>
+    public static CpuImage LoadAnyFormat(string path)
+    {
+        if (StaticIllustrationImage.IsIllustrationPath(path))
+            return StaticIllustrationImage.Load(path);
+        if (Path.GetExtension(path).Equals(Extension, StringComparison.OrdinalIgnoreCase))
+            return Load(path);
+        return LoadFromGenericFormat(path);
     }
 
     public Rgba GetPixel(int x, int y)

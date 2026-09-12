@@ -8,6 +8,7 @@ using static DmitryAndDemid.Configuration;
 using DmitryAndDemid.Backgrounds;
 using DmitryAndDemid.Common;
 using DmitryAndDemid.Data;
+using DmitryAndDemid.Data.Archive;
 using DmitryAndDemid.Gameplay;
 using DmitryAndDemid.Rendering;
 using DmitryAndDemid.Screens;
@@ -653,8 +654,12 @@ public class Runtime
         foreach (var x in RenderedTextureLoadedIntoMainList)
             Gfx.UnloadRenderTexture(x);
         RenderedTextureLoadedIntoMainList.Clear();
+        // By ID, not by key: a static illustration is registered under its own name AND the .png name it
+        // stands in for, so one handle can sit under two keys and freeing per entry would free it twice.
+        var freed = new HashSet<int>();
         foreach (var x in Textures)
-            Gfx.UnloadTexture(x.Value);
+            if (freed.Add(x.Value.Id))
+                Gfx.UnloadTexture(x.Value);
         Textures.Clear();
     }
 
@@ -708,13 +713,40 @@ public class Runtime
         }
     }
 
+    /// <summary>
+    /// Loads one art file to the GPU, whichever format it is: a static illustration goes through the managed
+    /// decoder (<see cref="CpuImage.LoadAnyFormat"/>) and is uploaded from pixels, everything else stays on the
+    /// backend's own file loader, which is the PNG path exactly as it always was — native SDL2_image on Switch
+    /// included.
+    /// </summary>
+    static BasicTexture LoadArtFile(string path) =>
+        StaticIllustrationImage.IsIllustrationPath(path)
+            ? CpuImage.LoadAnyFormat(path).ToTexture()
+            : LoadTexture(path);
+
+    /// <summary>Registers one loaded texture under every key its file claims (an illustration also answers to
+    /// the <c>.png</c> name it stands in for — see <see cref="TextureManifest.ScannedTextures"/>).</summary>
+    void RegisterTexture(TextureManifest.ScannedTexture art, TextureLoadingProperties? conf, BasicTexture texture)
+    {
+        // The config path can REPLACE the texture with a quality-scaled render target, so the first key is the
+        // one that goes through it; the rest alias whatever ended up in the dictionary under that key.
+        if (conf != null)
+            LoadTextureWithConfig(art.Keys[0], conf, texture);
+        else
+            Textures[art.Keys[0]] = texture;
+        for (int i = 1; i < art.Keys.Count; i++)
+            Textures[art.Keys[i]] = Textures[art.Keys[0]];
+    }
+
     public void LoadTextures(string[] tags)
     {
         TextureLoadingProperties? props;
-        string textureConfName = "", key = "";
-        foreach (var x in Assets.Files("Assets/Textures", "*.png"))
+        string textureConfName = "";
+        foreach (var art in TextureManifest.ScannedTextures())
         {
-            key = Path.GetFileName(x);
+            if (art.Keys.Count == 0)
+                continue;
+            string x = art.Path;
             textureConfName = Path.ChangeExtension(x, ".json");
             if (File.Exists(textureConfName))
             {
@@ -722,14 +754,14 @@ public class Runtime
                 if (props != null)
                 {
                     if (props.TextureLoadGroup == "" || tags.Contains(props.TextureLoadGroup))
-                        LoadTextureWithConfig(key, props, LoadTexture(x));
+                        RegisterTexture(art, props, LoadArtFile(x));
                 }
                 else
-                    Textures[key] = LoadTexture(x);
+                    RegisterTexture(art, null, LoadArtFile(x));
             }
             else
             {
-                Textures[key] = LoadTexture(x);
+                RegisterTexture(art, null, LoadArtFile(x));
             }
         }
         Textures["MenuItemSelectionGradient1"] = Helper.RenderSelectionBackground(200, 200, 0);
@@ -750,17 +782,18 @@ public class Runtime
     {
         if(CurrentlyLoadedTags.Contains(tag)) return;
         TextureLoadingProperties? props;
-        string textureConfName = "", key = "";
-        foreach (var x in Assets.Files("Assets/Textures", "*.png"))
+        string textureConfName = "";
+        foreach (var art in TextureManifest.ScannedTextures())
         {
-            key = Path.GetFileName(x);
-            textureConfName = Path.ChangeExtension(x, ".json");
+            if (art.Keys.Count == 0)
+                continue;
+            textureConfName = Path.ChangeExtension(art.Path, ".json");
             if (File.Exists(textureConfName))
             {
                 props = JsonSerializer.Deserialize<TextureLoadingProperties>(File.ReadAllText(textureConfName));
                 if (props != null)
                     if (tag.Equals(props.TextureLoadGroup))
-                        LoadTextureWithConfig(key, props, LoadTexture(x));
+                        RegisterTexture(art, props, LoadArtFile(art.Path));
             }
         }
         CurrentlyLoadedTags = CurrentlyLoadedTags.Union([tag]).ToArray();
@@ -778,20 +811,31 @@ public class Runtime
     {
         var keepSet = new HashSet<string>(keep);
         var groupOf = new Dictionary<string, string>();
-        foreach (string file in Assets.Files("Assets/Textures", "*.png"))
+        // Every key a file claims carries that file's group, so an illustration is freed by BOTH the name it
+        // owns and the .png name it answers to — one of them going stale would strand the other's handle.
+        foreach (var art in TextureManifest.ScannedTextures())
         {
-            string conf = Path.ChangeExtension(file, ".json");
+            string conf = Path.ChangeExtension(art.Path, ".json");
             if (!File.Exists(conf))
                 continue;
             TextureLoadingProperties? props =
                 JsonSerializer.Deserialize<TextureLoadingProperties>(File.ReadAllText(conf));
-            if (!string.IsNullOrEmpty(props?.TextureLoadGroup))
-                groupOf[Path.GetFileName(file)] = props!.TextureLoadGroup;
+            if (string.IsNullOrEmpty(props?.TextureLoadGroup))
+                continue;
+            foreach (string key in art.Keys)
+                groupOf[key] = props!.TextureLoadGroup;
         }
+        // Aliased keys share one handle; free it on the first key that reaches it and just drop the rest.
+        var released = new HashSet<int>();
         foreach (string key in Textures.Keys.ToList())
         {
             if (!groupOf.TryGetValue(key, out string? group) || keepSet.Contains(group))
                 continue;
+            if (!released.Add(Textures[key].Id))
+            {
+                Textures.Remove(key);
+                continue;
+            }
             // A quality-scaled texture is the colour half of a render texture (see LoadTextureWithConfig);
             // free the whole target, not just the attachment.
             RenderedTexture scaled =

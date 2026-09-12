@@ -56,6 +56,10 @@
     <PackageReference Include="Silk.NET.Vulkan.Extensions.NV" Version="2.23.0" />
     <PackageReference Include="StbImageSharp" Version="2.30.15" />
     <PackageReference Include="StbTrueTypeSharp" Version="1.26.12" />
+    <!-- liblzma, for the LZMA2 block region of an AKOB static illustration (Rendering/NEngineFormat).
+         Native: the managed side always compiles, and a host without the native library still reads an
+         UNCOMPRESSED .asi — see CpuImage.LoadStaticIllustration. -->
+    <PackageReference Include="Joveler.Compression.XZ" Version="5.0.2" />
   </ItemGroup>
 
   <ItemGroup>

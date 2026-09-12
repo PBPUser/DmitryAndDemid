@@ -1,3 +1,5 @@
+using DmitryAndDemid.Data.Archive;
+
 namespace DmitryAndDemid.Utils;
 
 /// <summary>
@@ -33,13 +35,63 @@ public static class TextureManifest
         "ScoreDigitsPrerender",
     };
 
+    /// <summary>One art file the scan found, and the dictionary keys it claims.</summary>
+    /// <param name="Path">Asset path, as <see cref="Assets"/> would resolve it.</param>
+    /// <param name="Keys">Every key this file registers under, its own name first.</param>
+    public readonly record struct ScannedTexture(string Path, IReadOnlyList<string> Keys);
+
     /// <summary>
-    /// The filenames scanned from <c>Assets/Textures</c>. The dictionary keys the game uses are the filename
-    /// <b>with</b> extension (e.g. <c>"241fps.png"</c>), so that is what this returns, in the same
-    /// ordinal-sorted order the asset source enumerates them.
+    /// The art files in <c>Assets/Textures</c> and the keys each claims — the ONE definition of the scan rule,
+    /// which <see cref="Runtime.LoadTextures"/> walks to build the live dictionary and the tests walk to count
+    /// it. Both halves reading the same function is what stops them drifting.
+    ///
+    /// <para>PNGs come first, in the asset source's ordinal order, each under its filename with extension
+    /// (<c>"241fps.png"</c>). Then the AKOB static illustrations (<c>.asi</c>, and the older <c>.akob</c>),
+    /// each under its OWN filename and, additionally, under the <c>.png</c> name it corresponds to — so
+    /// <c>dmitry_top.asi</c> answers to <c>Textures["dmitry_top.png"]</c> and art can move to the illustration
+    /// format one file at a time without touching a single call site.</para>
+    ///
+    /// <para>The alias is only claimed when it is free. A real <c>dmitry_top.png</c> on disk keeps its own key
+    /// and the illustration is then reachable only as <c>"dmitry_top.asi"</c> — two files that both exist are
+    /// two textures, and neither is silently dropped. (Replacing art means deleting the PNG, which is the
+    /// point: the key then falls to the illustration.) Keys are unique by construction either way, which is
+    /// what <c>TextureRegistryTests</c> insists on.</para>
+    /// </summary>
+    public static IReadOnlyList<ScannedTexture> ScannedTextures()
+    {
+        var scanned = new List<ScannedTexture>();
+        var claimed = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (string path in Assets.Files("Assets/Textures", "*.png"))
+        {
+            string key = Path.GetFileName(path)!;
+            claimed.Add(key);
+            scanned.Add(new ScannedTexture(path, [key]));
+        }
+
+        foreach (string extension in StaticIllustrationImage.Extensions)
+            foreach (string path in Assets.Files("Assets/Textures", "*" + extension))
+            {
+                string own = Path.GetFileName(path)!;
+                var keys = new List<string>();
+                if (claimed.Add(own))
+                    keys.Add(own);
+                string alias = Path.ChangeExtension(own, ".png");
+                if (claimed.Add(alias))
+                    keys.Add(alias);
+                scanned.Add(new ScannedTexture(path, keys));
+            }
+
+        return scanned;
+    }
+
+    /// <summary>
+    /// Every key the scan claims, flattened, in registration order. The dictionary keys the game uses are the
+    /// filename <b>with</b> extension (e.g. <c>"241fps.png"</c>), plus the <c>.png</c> aliases an illustration
+    /// stands in under — see <see cref="ScannedTextures"/> for the rule.
     /// </summary>
     public static IReadOnlyList<string> ScannedKeys() =>
-        Assets.Files("Assets/Textures", "*.png").Select(p => Path.GetFileName(p)!).ToArray();
+        ScannedTextures().SelectMany(t => t.Keys).ToArray();
 
     /// <summary>
     /// Every key the texture dictionary will hold after startup, in registration order (scanned files first,

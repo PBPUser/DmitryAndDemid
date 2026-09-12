@@ -19,8 +19,8 @@ public class ForkTilesOverlay(GameBox box, float length) : GameplayOverlay(box, 
 
     protected override void Draw()
     {
-        float sf = Runtime.CurrentRuntime.ScaleF;
         float t = (float)Box.GetTime();
+        float sf = Runtime.CurrentRuntime.ScaleF;
         byte a = (byte)(60 * State);
         var src = new Rect(0, 0, Fork.Width, Fork.Height);
         float aspect = Fork.Width > 0 ? Fork.Height / (float)Fork.Width : 1f;

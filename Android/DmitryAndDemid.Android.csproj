@@ -74,6 +74,11 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="5.3.0" />
     <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
     <PackageReference Include="StbImageSharp" Version="2.30.15" />
+    <!-- liblzma, for the LZMA2 block region of an AKOB static illustration (Rendering/NEngineFormat, compiled
+         in with the rest of the engine). The managed side is what the sources need to compile; whether the
+         NATIVE library is in the APK for this ABI is a separate question, and an .asi written uncompressed
+         loads either way. See Rendering/Data/Archive/StaticIllustrationImage.cs. -->
+    <PackageReference Include="Joveler.Compression.XZ" Version="5.0.2" />
     <PackageReference Include="StbTrueTypeSharp" Version="1.26.12" />
     <PackageReference Include="System.CodeDom" Version="10.0.7" />
   </ItemGroup>
