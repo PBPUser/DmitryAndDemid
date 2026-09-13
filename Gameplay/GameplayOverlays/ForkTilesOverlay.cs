@@ -22,8 +22,8 @@ public class ForkTilesOverlay(GameBox box, float length) : GameplayOverlay(box, 
         float t = (float)Box.GetTime();
         float sf = Runtime.CurrentRuntime.ScaleF;
         byte a = (byte)(60 * State);
-        var src = new Rect(0, 0, Fork.Width, Fork.Height);
         float aspect = Fork.Width > 0 ? Fork.Height / (float)Fork.Width : 1f;
+        var src = new Rect(0, 0, Fork.Width, Fork.Height);
 
         float cell = 46f;                         // tile pitch (design px)
         float tileW = cell * 0.86f, tileH = tileW * aspect;
@@ -35,8 +35,8 @@ public class ForkTilesOverlay(GameBox box, float length) : GameplayOverlay(box, 
         for (int col = 0; col < Cols; col++)
         {
             int i = r * Cols + col;
-            float breathe = 1f + 0.06f * MathF.Sin(t * 1.2f + i);
             float rot = MathF.Sin(t * 0.5f + i * 0.7f) * 8f;
+            float breathe = 1f + 0.06f * MathF.Sin(t * 1.2f + i);
             float w = tileW * breathe, h = tileH * breathe;
             float cx = (x0 + col * cell + tileW / 2f) * sf;
             float cy = (y0 + r * cell + tileH / 2f) * sf;
