@@ -59,9 +59,9 @@ public class GameplayScreen : Screen
         LocationDiePosition = GetShaderLocation(DieShader, "pos");
         LocationDieTime = GetShaderLocation(DieShader, "time");
         DifficultySource = new Rect(0, 
-            Runtime.CurrentRuntime.Textures["difficulties_ingame.png"].Height / 5 * difficulty,
+            Runtime.CurrentRuntime.Textures["difficulties_ingame.png"].Height / 6 * difficulty,
             Runtime.CurrentRuntime.Textures["difficulties_ingame.png"].Width,
-            Runtime.CurrentRuntime.Textures["difficulties_ingame.png"].Height / 5);
+            Runtime.CurrentRuntime.Textures["difficulties_ingame.png"].Height / 6);
         DifficultyTargetStart = Helper.Scale(new Rect(152, 20, 144, 12), Runtime.CurrentRuntime.ScaleF);
         DifficultyTarget = Helper.Scale(new Rect(456, 24, 144, 12), Runtime.CurrentRuntime.ScaleF);
         LetterWidth = (int)(MeasureTextEx(Runtime.CurrentRuntime.Fonts["kodemono"],
@@ -135,6 +135,34 @@ public class GameplayScreen : Screen
     private FileStageInfo[] Stages;
     private int Chapter;
     private bool Practice;
+
+    private float ShiftStartedValue = 0;
+    private float ShiftStartedTime = 0;
+    const float ShiftSwitchTime = 0.125f;
+    bool isExtraPakhomEnabled = false;
+    public bool IsExtraPakhomEnabled
+    {
+        get => isExtraPakhomEnabled;
+        set
+        {
+            if (value == isExtraPakhomEnabled)
+                return;
+            if (GetTime() - ShiftStartedTime < ShiftSwitchTime)
+                ShiftStartedTime = (float)(GetTime() - (ShiftSwitchTime - (GetTime() - ShiftStartedTime)));
+            else
+                ShiftStartedTime = (float)GetTime();
+            ShiftStartedValue = DifficultyShift;
+            isExtraPakhomEnabled = value;
+        }
+    }
+
+    /// <summary>
+    /// Used only in Extra, after the player has cleared default more than 6.7 spell cards
+    /// </summary>
+    private float DifficultyShift => (float)Math.Clamp(
+        IsExtraPakhomEnabled ?
+        (GetTime() - ShiftStartedTime) / ShiftSwitchTime :
+        1 - ((GetTime() - ShiftStartedTime) / ShiftSwitchTime), 0, 1);
 
     /// <summary>Which mode spawned this run — Default (main game), Extra, Practice or SpellPractice. Continues
     /// are offered only in Default; Practice / SpellPractice seed the life counters differently.</summary>
@@ -297,6 +325,10 @@ public class GameplayScreen : Screen
         GpTrace("TopUpdate after input/pause");
         base.TopUpdate();
         GpTrace("TopUpdate done");
+#if DEBUG
+        if(IsKeyDown(KeyCode.P))
+            IsExtraPakhomEnabled = !IsExtraPakhomEnabled;
+#endif
     }
 
     /// <summary>
@@ -471,7 +503,7 @@ public class GameplayScreen : Screen
         DrawTexturePro(GameEffectsTextures[GameEffectTextureIndex].Texture,
             Source, Dest, Vector2.Zero, 0, tint);
         DrawTexturePro(Runtime.CurrentRuntime.Textures["difficulties_ingame.png"],
-            DifficultySource, DifficultyTarget with{ Height = (float)(Helper.ComputeObjectTimeStart(time,2f, .25f) * DifficultyTarget.Height) },
+            DifficultySource with { Y = DifficultySource.Y + DifficultySource.Height * DifficultyShift}, DifficultyTarget with{ Height = (float)(Helper.ComputeObjectTimeStart(time,2f, .25f) * DifficultyTarget.Height) },
             Vector2.Zero, 0, tint);
         DrawTexturePro(GameBox.UIAboveGameplay.Texture,
             UIAboveSource,
