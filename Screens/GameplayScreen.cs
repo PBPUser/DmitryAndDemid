@@ -181,8 +181,11 @@ public class GameplayScreen : Screen
     private bool DemoClosing;
 
     public GameplayScreen CreateCopy() => new(Data, Difficulty, Stages, Chapter, Practice, mode: Mode);
-    public int LetterWidth = 0;
     public PauseMenu PauseMenu;
+    /// <summary>
+    /// Defines which width be applied to letter
+    /// </summary>
+    public int LetterWidth = 0;
     
     Rect Source;
     Rect Dest;
