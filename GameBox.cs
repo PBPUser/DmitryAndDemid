@@ -36,8 +36,8 @@ public class GameBox : IDisposable
     /// play, where the fixed 60 TPS pacing is essential. See Runtime.RunBench and docs/switch-port.md.
     /// </summary>
     public bool BenchMode;
-    public bool IsFailed = false;
     bool SpellTimedOut = false;
+    public bool IsFailed = false;
 
     /// <summary>Selects the chapter-end reward drops for the CURRENT chapter (set by its create script, consumed
     /// and reset in NextChapter). 0 = the standard heart-piece/star-piece rule; 1 = the stage-3 pizza finale
