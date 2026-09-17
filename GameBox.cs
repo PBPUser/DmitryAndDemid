@@ -24,8 +24,8 @@ public class GameBox : IDisposable
     public RuntimeChapter? ChapterInfo;
     public RuntimeStageInfo? StageInfo;
     public Player Player;
-    public string ProtogonistId;
     public int Difficulty;
+    public string ProtogonistId;
     public int TickOffset = 0;
     public int CurrentTick = 0;
 
