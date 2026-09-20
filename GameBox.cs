@@ -243,8 +243,8 @@ public class GameBox : IDisposable
         {
             // Last stage — begin the slow fade to black. The banner stays up via ShowStageBanner through it.
             StageComplete = false;
-            StageAdvancing = false;
             Cleared = true;
+            StageAdvancing = false;
             ClearedAt = GetTime();
             return;
         }
