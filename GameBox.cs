@@ -199,8 +199,8 @@ public class GameBox : IDisposable
 
     /// <summary>Seconds to fade the old stage out to black, and to fade the new stage back in, when rolling from
     /// one stage into the next. The stage is swapped at the fully-black midpoint so the cut is unseen.</summary>
-    public const float StageFadeInDuration = 0.7f;
     public const float StageFadeOutDuration = 0.7f;
+    public const float StageFadeInDuration = 0.7f;
 
     /// <summary>True once the between-levels transition has swapped in the next stage (we are now fading it IN).</summary>
     private bool StageSwapped;
