@@ -25,9 +25,9 @@ public class GameBox : IDisposable
     public RuntimeStageInfo? StageInfo;
     public Player Player;
     public string ProtogonistId;
-    public int Difficulty;
     public int CurrentTick = 0;
     public int TickOffset = 0;
+    public int Difficulty;
 
     /// <summary>
     /// Benchmark mode: when set, <see cref="BoxUpdate"/> skips the wall-clock tick gate so the sim can be driven
