@@ -167,13 +167,13 @@ public class GameplayScreen : Screen
     /// <summary>Which mode spawned this run — Default (main game), Extra, Practice or SpellPractice. Continues
     /// are offered only in Default; Practice / SpellPractice seed the life counters differently.</summary>
     public readonly GameType Mode;
+    /// <summary>Title-screen attract mode: plays a replay, and bails back to the title on any input.</summary>
+    public bool IsDemo;
 
     /// <summary>Non-null when this screen is playing back a replay (a ReplayController) instead of live input.</summary>
     private PlayerControllerBase? PlaybackController;
 
-    /// <summary>Title-screen attract mode: plays a replay, and bails back to the title on any input.</summary>
-    public bool IsDemo;
-
+    
     /// <summary>Set by the demo-close branch in TopUpdate. That branch reloads the texture set to ["main"]
     /// synchronously, but the screen's removal is queued and only applies next frame — so this screen still
     /// receives one Render() with the "game"-tagged textures (gameplay_background.png et al.) already gone
