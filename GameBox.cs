@@ -61,8 +61,8 @@ public class GameBox : IDisposable
     List<GameplayScreenEffect> ScreenEffectsToRemove = new();
     List<GameplayOverlay> GameplayOverlaysToAdd = new();
     List<GameplayOverlay> GameplayOverlaysToRemove = new();
-    SignalGameplayOverlay SignalGameplayOverlay;
     GameplayScreen GameplayScreen;
+    SignalGameplayOverlay SignalGameplayOverlay;
     float TickLength = 1f / TargetTPS;
     int StageIndex = 0;
     bool RequiresRefresh;
