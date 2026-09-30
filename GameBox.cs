@@ -63,8 +63,8 @@ public class GameBox : IDisposable
     List<GameplayOverlay> GameplayOverlaysToRemove = new();
     GameplayScreen GameplayScreen;
     SignalGameplayOverlay SignalGameplayOverlay;
-    float TickLength = 1f / TargetTPS;
     bool RequiresRefresh;
+    float TickLength = 1f / TargetTPS;
     int StageIndex = 0;
     public bool IsSpellPractice;
     public bool IsPractice;
