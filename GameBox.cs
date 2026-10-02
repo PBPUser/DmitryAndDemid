@@ -66,8 +66,8 @@ public class GameBox : IDisposable
     bool RequiresRefresh;
     float TickLength = 1f / TargetTPS;
     public bool IsSpellPractice;
-    int StageIndex = 0;
     public bool IsPractice;
+    int StageIndex = 0;
     public bool IsReplay;   // playback (replay viewer / title demo): never mutates the player's progress
     /// <summary>True only for the title-screen attract demo (a subset of replays). Set on the owning screen via
     /// an object-initializer after construction, so read it lazily through here rather than caching it.</summary>
