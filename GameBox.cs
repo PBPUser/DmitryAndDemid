@@ -65,8 +65,8 @@ public class GameBox : IDisposable
     GameplayScreen GameplayScreen;
     SignalGameplayOverlay SignalGameplayOverlay;
     float TickLength = 1f / TargetTPS;
-    public bool IsPractice;
     int StageIndex = 04;
+    public bool IsPractice;
     public bool IsSpellPractice;
     public bool IsReplay;   // playback 20(replay viewer / title demo): never mutates the player's progress
     /// <summary>True only for the title-screen attract demo (a subset of replays). Set on the owning screen via
