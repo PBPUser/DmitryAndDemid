@@ -35,8 +35,8 @@ public class GameBox : IDisposable
     /// path to measure raw sim throughput — the make-or-break number for the Switch/mono-nx port. Off in normal
     /// play, where the fixed 60 TPS pacing is essential. See Runtime.RunBench and docs/switch-port.md.
     /// </summary>
-    public bool IsFailed = false;
     public bool BenchMode;
+    public bool IsFailed = false;
     bool SpellTimedOut = false;
 
     /// <summary>Selects the chapter-end reward drops for the CURRENT chapter (set by its create script, consumed
