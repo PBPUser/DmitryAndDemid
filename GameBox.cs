@@ -29,6 +29,7 @@ public class GameBox : IDisposable
     public int TickOffset = 0;
     public int CurrentTick = 0;
 
+    public bool IsFailed = false;
     /// <summary>
     /// Benchmark mode: when set, <see cref="BoxUpdate"/> skips the wall-clock tick gate so the sim can be driven
     /// as fast as the CPU allows (each call = one full tick). Used by the headless <c>--bench</c> / config Bench
@@ -36,7 +37,6 @@ public class GameBox : IDisposable
     /// play, where the fixed 60 TPS pacing is essential. See Runtime.RunBench and docs/switch-port.md.
     /// </summary>
     public bool BenchMode;
-    public bool IsFailed = false;
     bool SpellTimedOut = false;
 
     /// <summary>Selects the chapter-end reward drops for the CURRENT chapter (set by its create script, consumed
