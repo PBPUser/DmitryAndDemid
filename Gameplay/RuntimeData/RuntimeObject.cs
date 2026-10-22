@@ -762,6 +762,7 @@ public class RuntimeObject
                     Box.Player.BombsSpices++;
                     break;
             }
+            PlaySound(Runtime.CurrentRuntime.Sounds["item"]);
             Box.RemoveObject(this);
         }
     }
