@@ -519,10 +519,10 @@ public class GameBox : IDisposable
             }
             if (IsKeyDown(KeyCode.D))
                 Player.HeartPoints++;
-            if (IsKeyDown(KeyCode.F))
-                Player.HeartPoints--;
             if (IsKeyDown(KeyCode.G))
                 Player.HeartSpices++;
+            if (IsKeyDown(KeyCode.F))
+                Player.HeartPoints--;
             if (IsKeyDown(KeyCode.H))
                 Player.HeartSpices--;
             if (IsKeyDown(KeyCode.R))
