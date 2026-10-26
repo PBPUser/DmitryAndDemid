@@ -517,10 +517,10 @@ public class GameBox : IDisposable
                 obj.Y = 64;
                 AddObject(obj);
             }
-            if (IsKeyDown(KeyCode.G))
-                Player.HeartSpices++;
             if (IsKeyDown(KeyCode.F))
                 Player.HeartPoints--;
+            if (IsKeyDown(KeyCode.G))
+                Player.HeartSpices++;
             if (IsKeyDown(KeyCode.D))
                 Player.HeartPoints++;
             if (IsKeyDown(KeyCode.H))
