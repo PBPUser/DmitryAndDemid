@@ -59,8 +59,8 @@ public class GameBox : IDisposable
     List<RuntimeObject> ObjectsRemoveQueue = new();
     List<GameplayScreenEffect> ScreenEffectsToAdd = new();
     List<GameplayScreenEffect> ScreenEffectsToRemove = new();
-    List<GameplayOverlay> GameplayOverlaysToAdd = new();
     List<GameplayOverlay> GameplayOverlaysToRemove = new();
+    List<GameplayOverlay> GameplayOverlaysToAdd = new();
     bool RequiresRefresh;
     GameplayScreen GameplayScreen;
     SignalGameplayOverlay SignalGameplayOverlay;
@@ -164,7 +164,7 @@ public class GameBox : IDisposable
         Player.Revive();
         IsGameOver = false;   // the setter unpauses and bumps the continue count
     }
-    
+
     #region Update
 
     public const int DelayBetweenChapters = 120;
@@ -382,7 +382,7 @@ public class GameBox : IDisposable
 
     public void ProcessInput()
     {
-        
+
     }
     #endregion
     #region Managment
@@ -396,7 +396,7 @@ public class GameBox : IDisposable
     private int ScoreChapterMax;
     private int ChapterScoreCurrent;
     private const int ChapterMaxScoreDelay = 240;
-    
+
     void BoxUpdate()
     {
         if (IsPaused)
@@ -549,7 +549,7 @@ public class GameBox : IDisposable
         }
         #endif
         float x, y, z, r;
-        
+
         foreach(var  obj in BoxObjects)
         {
             var bitMask = obj.Header[0];
@@ -608,7 +608,7 @@ public class GameBox : IDisposable
             if (InChapterDelay || IsDialogActive)
                 continue;
             if (obj.Health <= 0)
-            { 
+            {
                 if ((obj.Header[0] & RuntimeObject.FlagIsBoss) == RuntimeObject.FlagIsBoss)
                 {
                         // Jump the chapter clock to this chapter's end so it wraps up (score, then NextChapter).
@@ -619,9 +619,9 @@ public class GameBox : IDisposable
                         TickOffset = ChapterInfo.TickStart + ChapterInfo.Length - CurrentTick;
                         int ticks = CurrentTickWithOffset - ChapterInfo.TickStart;
                         SpellcardStopwatch ??= new Stopwatch();
-                 
+
                         if (ChapterInfo.Type == ChapterType.Spell)
-                        { 
+                        {
                             if (!IsFailed )
                         {
                             AddOverlay(new ScoreGameplayOverlay(this, ChapterScoreCurrent * 10, ticks,
@@ -632,7 +632,7 @@ public class GameBox : IDisposable
                             AddOverlay(new TimerGameplayOverlay(this, "bonus-failed.png", ticks,
                                 SpellcardStopwatch!.Elapsed.TotalSeconds, 0.5f, 3f));
                         }
-                    
+
                         SpellcardStopwatch = null;
                         obj.UpdateAction = null;
                 }
@@ -802,7 +802,7 @@ public class GameBox : IDisposable
         obj.CollectableVelocity = new Vector2((rnd.NextSingle() - 0.5f) * 3f, -(rnd.NextSingle() * 1.2f + 0.8f));
         return obj;
     }
-    
+
     public void AddObject(RuntimeObject obj)
     {
         ObjectsAddQueue.Add(obj);
@@ -1067,7 +1067,7 @@ public class GameBox : IDisposable
         GameplayOverlaysToRemove.Add(overlay);
         RequiresRefresh = true;
     }
-    
+
     /// <summary>
     /// Spawns bullet entity <paramref name="i"/> tinted to <paramref name="color"/> (an 0xRRGGBB int). The
     /// colour is baked into the bullet at load time from its template's Header[4], so it is set just for this
@@ -1166,7 +1166,7 @@ public class GameBox : IDisposable
         foreach (var obj in BoxObjects)
         {
             var bm = obj.Header[0];
-            
+
             if((bm & RuntimeObject.FlagIsBullet) ==  RuntimeObject.FlagIsBullet)
             {
                 if (drop)
@@ -1174,7 +1174,7 @@ public class GameBox : IDisposable
                     if ((bm & RuntimeObject.FlagIsBullet) != RuntimeObject.FlagIsBullet)
                     {
                         // TODO: Play removal sound
-                        // TODO: Add objects removal shader 
+                        // TODO: Add objects removal shader
                         obj.Header[0] |= RuntimeObject.FlagIsCollectableBullet;
                         obj.Header[2] = 128;
                         obj.CollectableVelocity = -1 * Helper.GetDirection(obj.Position, new Vector2(Player.X, Player.Y));
@@ -1193,7 +1193,7 @@ public class GameBox : IDisposable
                     var time = GetTime();
                     Helper.PlaySound(Runtime.CurrentRuntime.Sounds["finalDefeat"]);
                     obj.Header[0] |= RuntimeObject.FlagIsDied;
-                    Player.GameBox.AddScreenEffect(new ShakeScreenEffect(Player.GameBox, 0.1f,  20, 100, 
+                    Player.GameBox.AddScreenEffect(new ShakeScreenEffect(Player.GameBox, 0.1f,  20, 100,
                         time, time+.5f));
                     AddScreenEffect(new BossDeathScreenEffect(this, obj.Position, 45, time, time+2f));
                     // Hand the boss's last drawn state to the finale BEFORE it leaves the simulation: the
@@ -1222,7 +1222,7 @@ public class GameBox : IDisposable
 
         }
     }
-    
+
     public void LoadStage(FileStageInfo stage, int chapter, int difficulty)
     {
         if (!IsReplay)
@@ -1439,7 +1439,7 @@ public class GameBox : IDisposable
         StartDialog();
         ChapterInfo.CreateScript?.Invoke(ChapterInfo);
     }
-    
+
     public void Dispose()
     {
         UnloadRenderTexture(Background);
@@ -1453,7 +1453,7 @@ public class GameBox : IDisposable
         StageBackgroundObject?.Dispose();
         ChapterInfo?.Unload();
     }
-    
+
     public void ClearBullets()
     {
         foreach (var obj in BoxObjects)
@@ -1566,7 +1566,7 @@ public class GameBox : IDisposable
                 SetShaderValue(obj.Shader, obj.Header[0x42], obj.TexturePosition, UniformType.Vec2); //3
                 SetShaderValue(obj.Shader, obj.Header[0x43], obj.TextureSize, UniformType.Vec2); //6,32
                 SetShaderValue(obj.Shader, obj.Header[0x44], obj.TotalTextureSize, UniformType.Vec2); //128
-                SetShaderValue(obj.Shader, obj.Header[0x45], obj.Header[2], UniformType.Int); 
+                SetShaderValue(obj.Shader, obj.Header[0x45], obj.Header[2], UniformType.Int);
                 BeginShaderMode(obj.Shader);
             }
 
@@ -1758,7 +1758,7 @@ public class GameBox : IDisposable
     byte Continue = 0;
     bool RenderChapterTitle = false;
     bool RenderBossTitle = false;
-    
+
     public int ChapterTick => CurrentTick + TickOffset - ChapterInfo.TickStart;
     public int CurrentTickWithOffset => CurrentTick + TickOffset;
 
@@ -1766,7 +1766,7 @@ public class GameBox : IDisposable
     public int FinalScore => score;
     /// <summary>How many continues the player has used this run; 0 means a no-continue clear.</summary>
     public int ContinuesUsed => Continue;
-    
+
     int Score
     {
         get => score;
@@ -1778,7 +1778,7 @@ public class GameBox : IDisposable
             UpdateUI();
         }
     }
-    
+
     public int ScoreTarget
     {
         get => scoreTarget;
@@ -1787,7 +1787,7 @@ public class GameBox : IDisposable
             scoreTarget = value;
         }
     }
-    
+
     #region Dialogs
 
     /// <summary>The conversation currently on screen, if any.</summary>
@@ -1906,7 +1906,7 @@ public class GameBox : IDisposable
     {
         IsUIUpdateRequired = true;
     }
-    
+
     /// <summary>
     /// The bottom line of the stats strip: what the mystical toilet is currently holding — its own sprite, then
     /// the number of collectables it has swallowed, right-aligned like every other figure above it. Only drawn
@@ -2064,7 +2064,7 @@ public class GameBox : IDisposable
         Helper.DrawScoreText($"{Player.Power%100:00}", fontSizeSmall, posPower1 + new Vector2(sizeH.X, (sizeH.Y-sizeL.Y) * 0.8f), Rgba.Orange);
         Helper.DrawScoreText($"/4.", fontSizeBig, posPower1+new Vector2(sizeH.X+sizeL.X, 0), Rgba.Orange);
         Helper.DrawScoreText($"00", fontSizeSmall, posPower1 + new Vector2(sizeH.X+sizeH2.X+sizeL.X, (sizeH.Y-sizeL.Y) * 0.8f), Rgba.Orange);
-        Helper.DrawScoreText($"10000", fontSizeBig, new Vector2(206, 218) * Runtime.CurrentRuntime.ScaleF - 
+        Helper.DrawScoreText($"10000", fontSizeBig, new Vector2(206, 218) * Runtime.CurrentRuntime.ScaleF -
                                                     Helper.GetScoreTextureSize("10000", fontSizeBig), Rgba.SkyBlue);
         Helper.DrawScoreText(Player.Graze.ToString(), fontSizeBig, new Vector2(206, 236) * Runtime.CurrentRuntime.ScaleF -
                                                                    Helper.GetScoreTextureSize(Player.Graze.ToString(), fontSizeBig), Rgba.White);
@@ -2088,7 +2088,7 @@ public class GameBox : IDisposable
         // A dialog no longer freezes the clock — the simulation keeps ticking beneath it.
         return (float)(Gfx.GetTime() - CountTimeFrom);
     }
-    
+
     public bool IsPaused
     {
         get => isPaused;
