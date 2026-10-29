@@ -59,8 +59,8 @@ public class GameBox : IDisposable
     List<RuntimeObject> ObjectsRemoveQueue = new();
     List<GameplayScreenEffect> ScreenEffectsToAdd = new();
     List<GameplayScreenEffect> ScreenEffectsToRemove = new();
-    List<GameplayOverlay> GameplayOverlaysToAdd = new();
     List<GameplayOverlay> GameplayOverlaysToRemove = new();
+    List<GameplayOverlay> GameplayOverlaysToAdd = new();
     bool RequiresRefresh;
     GameplayScreen GameplayScreen;
     SignalGameplayOverlay SignalGameplayOverlay;
