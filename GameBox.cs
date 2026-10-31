@@ -57,8 +57,7 @@ public class GameBox : IDisposable
     FileStageInfo[] Stages;
     List<RuntimeObject> ObjectsAddQueue = new();
     List<RuntimeObject> ObjectsRemoveQueue = new();
-    List<GameplayScreenEffect> ScreenEffectsToAdd = new();
-    List<GameplayScreenEffect> ScreenEffectsToRemove = new();
+    List<GameplayScreenEffect> ScreenEffectsToAdd = new(), ScreenEffectsToRemove = new();
     List<GameplayOverlay> GameplayOverlaysToAdd = new(), GameplayOverlaysToRemove = new();
     bool RequiresRefresh;
     GameplayScreen GameplayScreen;
