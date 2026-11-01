@@ -55,8 +55,7 @@ public class GameBox : IDisposable
     string SpellFailedText = "";
     public bool InChapterDelay = false;
     FileStageInfo[] Stages;
-    List<RuntimeObject> ObjectsAddQueue = new();
-    List<RuntimeObject> ObjectsRemoveQueue = new();
+    List<RuntimeObject> ObjectsAddQueue = new(), ObjectsRemoveQueue = new();
     List<GameplayScreenEffect> ScreenEffectsToAdd = new(), ScreenEffectsToRemove = new();
     List<GameplayOverlay> GameplayOverlaysToAdd = new(), GameplayOverlaysToRemove = new();
     bool RequiresRefresh;
