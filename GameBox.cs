@@ -387,8 +387,8 @@ public class GameBox : IDisposable
     private Vector2 DarkStrengthPos;
     #endif
     private int ChapterIndex = -1;
-    private bool ChapterScoreShown = false;
     private Stopwatch? SpellcardStopwatch = null;
+    private bool ChapterScoreShown = false;
     public const int Deathlength = 15;
     private int ScoreChapterMax;
     private int ChapterScoreCurrent;
