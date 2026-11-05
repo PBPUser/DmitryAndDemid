@@ -514,14 +514,14 @@ public class GameBox : IDisposable
                 obj.Y = 64;
                 AddObject(obj);
             }
+            if (IsKeyDown(KeyCode.H))
+                Player.HeartSpices--;
             if (IsKeyDown(KeyCode.D))
                 Player.HeartPoints++;
             if (IsKeyDown(KeyCode.F))
                 Player.HeartPoints--;
             if (IsKeyDown(KeyCode.G))
                 Player.HeartSpices++;
-            if (IsKeyDown(KeyCode.H))
-                Player.HeartSpices--;
             if (IsKeyDown(KeyCode.R))
                 // test laser: fires straight down the player's column from the top edge (telegraph .75s, fire 2s)
                 SpawnLaser(new Vector2(Player.X, 0), MathF.PI / 2f, 480, 24, 45, 120, 30);
