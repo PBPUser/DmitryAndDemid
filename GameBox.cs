@@ -18,8 +18,8 @@ namespace DmitryAndDemid;
 
 public class GameBox : IDisposable
 {
-    public const float TargetTPS = 60;
     public List<RuntimeObject>  BoxObjects = new();
+    public const float TargetTPS = 60;
     public List<GameplayOverlay> GameplayOverlays = new();
     public RuntimeChapter? ChapterInfo;
     public RuntimeStageInfo? StageInfo;
