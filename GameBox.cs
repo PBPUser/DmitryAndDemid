@@ -23,8 +23,8 @@ public class GameBox : IDisposable
     public List<GameplayOverlay> GameplayOverlays = new();
     public RuntimeStageInfo? StageInfo;
     public RuntimeChapter? ChapterInfo;
-    public Player Player;
     public string ProtogonistId;
+    public Player Player;
     public int Difficulty;
     public int TickOffset = 0;
     public bool IsFailed = false;
