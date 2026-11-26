@@ -1,5 +1,5 @@
-using DmitryAndDemid.Rendering;
 using System.Diagnostics;
+using DmitryAndDemid.Rendering;
 using System.Numerics;
 using DmitryAndDemid.Backgrounds;
 using DmitryAndDemid.Common;
